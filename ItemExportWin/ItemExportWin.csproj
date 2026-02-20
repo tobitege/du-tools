@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>annotations</Nullable>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DUExternalLibDir Condition="'$(DUExternalLibDir)' == ''">D:\MyDUserver\wincs\all</DUExternalLibDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="NQutils">
+      <HintPath>$(DUExternalLibDir)\NQutils.dll</HintPath>
+    </Reference>
+    <Reference Include="Backend">
+      <HintPath>$(DUExternalLibDir)\Backend.dll</HintPath>
+    </Reference>
+    <Reference Include="Interfaces">
+      <HintPath>$(DUExternalLibDir)\Interfaces.dll</HintPath>
+    </Reference>
+    <Reference Include="Backend.Telemetry">
+      <HintPath>$(DUExternalLibDir)\Backend.Telemetry.dll</HintPath>
+    </Reference>
+    <Reference Include="BotLib">
+      <HintPath>$(DUExternalLibDir)\BotLib.dll</HintPath>
+    </Reference>
+    <Reference Include="Router.Orleans">
+      <HintPath>$(DUExternalLibDir)\Router.Orleans.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Orleans.Core" Version="3.7.2" />
+    <PackageReference Include="Microsoft.Orleans.Core.Abstractions" Version="3.7.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="YamlDotNet" Version="12.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="nq\**\*.cs" />
+    <EmbeddedResource Remove="nq\**\*" />
+    <None Include="nq\**\*" Exclude="**\bin\**;**\obj\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="dual.yaml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>

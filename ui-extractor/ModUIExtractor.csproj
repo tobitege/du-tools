@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Nullable>annotations</Nullable>
+    <DUExternalLibDir Condition="'$(DUExternalLibDir)' == ''">D:\MyDUserver\wincs\all</DUExternalLibDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="NQutils">
+      <HintPath>$(DUExternalLibDir)\NQutils.dll</HintPath>
+    </Reference>
+    <Reference Include="Backend">
+      <HintPath>$(DUExternalLibDir)\Backend.dll</HintPath>
+    </Reference>
+    <Reference Include="Backend.PubSub">
+      <HintPath>$(DUExternalLibDir)\Backend.PubSub.dll</HintPath>
+    </Reference>
+    <Reference Include="Interfaces">
+      <HintPath>$(DUExternalLibDir)\Interfaces.dll</HintPath>
+    </Reference>
+    <Reference Include="Router.Orleans">
+      <HintPath>$(DUExternalLibDir)\Router.Orleans.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Orleans.Core" Version="3.6.5" />
+    <PackageReference Include="Microsoft.Orleans.Core.Abstractions" Version="3.6.5" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="payload\ui-extractor-payload.js" LogicalName="ui-extractor-payload.js" />
+  </ItemGroup>
+</Project>

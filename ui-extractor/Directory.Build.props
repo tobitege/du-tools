@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <RUNTIME_ID Condition="'$(RUNTIME_ID)' == ''">win-x64</RUNTIME_ID>
+  </PropertyGroup>
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <RuntimeIdentifier>$(RUNTIME_ID)</RuntimeIdentifier>
+    <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+    <GenerateFullPaths>true</GenerateFullPaths>
+    <LangVersion>latest</LangVersion>
+    <ProduceReferenceAssemblyInOutDir>true</ProduceReferenceAssemblyInOutDir>
+  </PropertyGroup>
+  <PropertyGroup>
+    <NoWarn>IDE1006,IDE0037</NoWarn>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>
