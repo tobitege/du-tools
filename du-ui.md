@@ -67,14 +67,14 @@ It injects a `<style>` element at runtime, which means you can fully override co
 
 ## 2) Server install (`d:\MyDUserver`)
 
-### What I looked at
+### 2 What I looked at
 
 - `d:\MyDUserver\nginx-1.27.1\conf\conf.d\http.conf`
 - `d:\MyDUserver\config\dual.yaml`
 - `d:\MyDUserver\www\index.html`
 - running ports/processes and live endpoints (`10000`, `12000`, `9630`, `10111`)
 
-### What was found
+### 2 What was found
 
 - Nginx proxies:
   - `/qs/public/ -> 127.0.0.1:9630/public/`
@@ -93,20 +93,20 @@ It injects a `<style>` element at runtime, which means you can fully override co
 - `http://127.0.0.1:10000/` returns Backoffice signin page with `/dist/theme/dark.css` and `/dist/base.css` (Backoffice web app styling), not in-game HUD styling.
 - `d:\MyDUserver\www\index.html` is stack manager page UI, also not the in-game HUD UI used by mod-injected client windows.
 
-### Hint extracted
+### 2 Hint extracted
 
 Server web assets seen on localhost are mostly Backoffice/stack manager assets. They do not control the in-game HUD panel classes (`mining_unit_panel`, `generic_button`) used by injected mod JS.
 
 ## 3) Game client install (`d:\MyDualUniverse`)
 
-### What I looked at
+### 3 What I looked at
 
 - `d:\MyDualUniverse\Html\...`
 - `d:\MyDualUniverse\Game\data\...`
 - `d:\MyDualUniverse\Game\Bin\Dual.exe`
 - string searches for: `modinjectjs`, `CPPMod`, `sendModAction`, `MousePage`, `mining_unit_panel`, `generic_button`, `CustomWindow`, `HudPanel`
 
-### What was found
+### 3 What was found
 
 - `Html` folder is launcher UI (not in-game HUD).
 - `Game\data\gui\hud` contains media files (`.webm`) but not plain JS/CSS sources for the mod HUD system.
@@ -119,7 +119,7 @@ Server web assets seen on localhost are mostly Backoffice/stack manager assets. 
   - `...Source\ui\views\hud\customWindows\CustomWindow.cpp`
   - `...Source\ui\views\hud\panels\HudPanel.cpp`
 
-### Hint extracted
+### 3 Hint extracted
 
 The mod UI bridge and base HUD behavior are implemented in client binaries/runtime, not as simple editable server files.
 

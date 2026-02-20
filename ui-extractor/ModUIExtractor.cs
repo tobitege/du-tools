@@ -32,9 +32,14 @@ public sealed class MyDuMod : IMod
     private const ulong ActionRunDeep = 2;
     private const ulong ActionExtractAllCss = 3;
     private const ulong ActionExtractFromTargetFile = 4;
+    private const ulong ActionInjectLuaProbe = 5;
     private const ulong ActionIngestPacket = 900001;
     private const ulong PrivateChatChannelId = 2;
     private const string EmbeddedPayloadResourceName = "ui-extractor-payload.js";
+    private const string EmbeddedLuaProbeResourceName = "lua-editor-probe.js";
+    private const string PayloadOverridesDirectoryName = "payload-overrides";
+    private const string RuntimeExtractorPayloadFileName = "ui-extractor-payload.override.js";
+    private const string RuntimeLuaProbePayloadFileName = "lua-editor-probe.override.js";
     private const string DefaultTargetStylesheetHref = "coui://data/gui/hud/dpu_editor/css/dpu_editor.css";
     private const string TargetStylesheetFileName = "target-stylesheet-url.txt";
 
@@ -42,8 +47,12 @@ public sealed class MyDuMod : IMod
     private IPub pub = null!;
     private ILogger logger = null!;
     private string outputDirectory = "";
+    private string payloadOverridesDirectory = "";
     private string targetStylesheetFilePath = "";
+    private string runtimeExtractorPayloadPath = "";
+    private string runtimeLuaProbePayloadPath = "";
     private string payloadJs = "";
+    private string luaProbeJs = "";
     private readonly ConcurrentDictionary<string, object> dumpFileLocks = new();
 
     public string GetName()
@@ -68,19 +77,42 @@ public sealed class MyDuMod : IMod
 
         outputDirectory = Path.Combine(serverRoot, "tmp", "ui-dumps");
         Directory.CreateDirectory(outputDirectory);
+        payloadOverridesDirectory = Path.Combine(outputDirectory, PayloadOverridesDirectoryName);
+        Directory.CreateDirectory(payloadOverridesDirectory);
+
         targetStylesheetFilePath = Path.Combine(outputDirectory, TargetStylesheetFileName);
+        runtimeExtractorPayloadPath = Path.Combine(payloadOverridesDirectory, RuntimeExtractorPayloadFileName);
+        runtimeLuaProbePayloadPath = Path.Combine(payloadOverridesDirectory, RuntimeLuaProbePayloadFileName);
         EnsureTargetStylesheetFile();
 
-        payloadJs = LoadEmbeddedPayloadSafe();
+        payloadJs = LoadEmbeddedScriptSafe(EmbeddedPayloadResourceName, "extractor payload");
         if (string.IsNullOrWhiteSpace(payloadJs))
         {
             logger.LogError("UIExtractor payload JS is empty; injection action will fail");
         }
+        else
+        {
+            EnsureRuntimeOverrideFile(runtimeExtractorPayloadPath, payloadJs, "extractor payload");
+        }
+
+        luaProbeJs = LoadEmbeddedScriptSafe(EmbeddedLuaProbeResourceName, "lua probe");
+        if (string.IsNullOrWhiteSpace(luaProbeJs))
+        {
+            logger.LogError("UIExtractor Lua probe JS is empty; probe action will fail");
+        }
+        else
+        {
+            EnsureRuntimeOverrideFile(runtimeLuaProbePayloadPath, luaProbeJs, "lua probe");
+        }
 
         logger.LogInformation(
-            "UIExtractor initialized. Payload bytes={PayloadSize}, output={OutputDirectory}, targetStylesheetFile={TargetStylesheetFile}",
+            "UIExtractor initialized. Payload bytes={PayloadSize}, LuaProbe bytes={LuaProbeSize}, output={OutputDirectory}, overrides={OverridesDir}, extractorOverride={ExtractorOverridePath}, luaProbeOverride={LuaProbeOverridePath}, targetStylesheetFile={TargetStylesheetFile}",
             payloadJs.Length,
+            luaProbeJs.Length,
             outputDirectory,
+            payloadOverridesDirectory,
+            runtimeExtractorPayloadPath,
+            runtimeLuaProbePayloadPath,
             targetStylesheetFilePath);
 
         return Task.CompletedTask;
@@ -116,6 +148,12 @@ public sealed class MyDuMod : IMod
                     id = ActionExtractFromTargetFile,
                     label = "UI Extractor\\Extract Stylesheet\\From target-stylesheet-url.txt",
                     context = ModActionContext.Global
+                },
+                new ModActionDefinition
+                {
+                    id = ActionInjectLuaProbe,
+                    label = "UI Extractor\\Inject LUA editor probe",
+                    context = ModActionContext.Element
                 }
             }
         };
@@ -138,6 +176,9 @@ public sealed class MyDuMod : IMod
                 return;
             case ActionExtractFromTargetFile:
                 await InjectStylesheetFromTargetFile(playerId);
+                return;
+            case ActionInjectLuaProbe:
+                await InjectLuaProbePayload(playerId, action);
                 return;
             case ActionIngestPacket:
                 await IngestPacket(playerId, action.payload);
@@ -225,9 +266,40 @@ public sealed class MyDuMod : IMod
         await InjectSingleStylesheetPayload(playerId, href, "target-file");
     }
 
+    private async Task InjectLuaProbePayload(ulong playerId, ModAction action)
+    {
+        var luaProbeScript = ResolveRuntimeScript(runtimeLuaProbePayloadPath, luaProbeJs, "lua probe", out var usingRuntimeOverride);
+        if (string.IsNullOrWhiteSpace(luaProbeScript))
+        {
+            await Notify(playerId, "Lua probe payload is unavailable on server.");
+            return;
+        }
+
+        var config = new JObject
+        {
+            ["modName"] = GetName(),
+            ["actionId"] = (long)ActionIngestPacket,
+            ["injectActionId"] = (long)ActionInjectLuaProbe,
+            ["constructId"] = (long)action.constructId,
+            ["installedAt"] = DateTime.UtcNow.ToString("O")
+        };
+
+        var injectCode = $"window.__UI_EXTRACTOR_LUA_PROBE_CONFIG={config.ToString(Newtonsoft.Json.Formatting.None)};\n{luaProbeScript}";
+        var notifyMessage = action.constructId == 0
+            ? "Lua probe injected. Open a control unit context menu and click Edit Lua."
+            : $"Lua probe injected for construct {action.constructId}. Open Edit Lua now.";
+        if (usingRuntimeOverride)
+        {
+            notifyMessage += " (runtime override script active)";
+        }
+
+        await InjectJavaScript(playerId, injectCode, "lua-probe", notifyMessage);
+    }
+
     private async Task InjectPayload(ulong playerId, JObject config, string notifyMessage, string modeTag)
     {
-        if (string.IsNullOrWhiteSpace(payloadJs))
+        var extractorScript = ResolveRuntimeScript(runtimeExtractorPayloadPath, payloadJs, "extractor payload", out var usingRuntimeOverride);
+        if (string.IsNullOrWhiteSpace(extractorScript))
         {
             await Notify(playerId, "UI extractor payload is unavailable on server.");
             return;
@@ -236,8 +308,16 @@ public sealed class MyDuMod : IMod
         config["modName"] = GetName();
         config["actionId"] = (long)ActionIngestPacket;
 
-        var injectCode = $"window.__UI_EXTRACTOR_CONFIG={config.ToString(Newtonsoft.Json.Formatting.None)};\n{payloadJs}";
+        var effectiveNotifyMessage = usingRuntimeOverride
+            ? $"{notifyMessage} (runtime override script active)"
+            : notifyMessage;
 
+        var injectCode = $"window.__UI_EXTRACTOR_CONFIG={config.ToString(Newtonsoft.Json.Formatting.None)};\n{extractorScript}";
+        await InjectJavaScript(playerId, injectCode, modeTag, effectiveNotifyMessage);
+    }
+
+    private async Task InjectJavaScript(ulong playerId, string injectCode, string modeTag, string notifyMessage)
+    {
         try
         {
             await pub.NotifyTopic(
@@ -260,7 +340,7 @@ public sealed class MyDuMod : IMod
         catch (Exception ex)
         {
             logger.LogWarning(ex, "UIExtractor injection failed for player {PlayerId}", playerId);
-            await Notify(playerId, "UI dump injection failed. Check Orleans logs.");
+            await Notify(playerId, "UI injection failed. Check Orleans logs.");
         }
     }
 
@@ -400,24 +480,24 @@ public sealed class MyDuMod : IMod
         }
     }
 
-    private string LoadEmbeddedPayloadSafe()
+    private string LoadEmbeddedScriptSafe(string resourceHint, string scriptLabel)
     {
         try
         {
             var asm = Assembly.GetExecutingAssembly();
             var resourceName = asm.GetManifestResourceNames()
-                .FirstOrDefault(n => n.EndsWith(EmbeddedPayloadResourceName, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(n => n.EndsWith(resourceHint, StringComparison.OrdinalIgnoreCase));
 
             if (string.IsNullOrWhiteSpace(resourceName))
             {
-                logger.LogError("UIExtractor payload resource not found: {ResourceHint}", EmbeddedPayloadResourceName);
+                logger.LogError("UIExtractor {ScriptLabel} resource not found: {ResourceHint}", scriptLabel, resourceHint);
                 return "";
             }
 
             using var stream = asm.GetManifestResourceStream(resourceName);
             if (stream is null)
             {
-                logger.LogError("UIExtractor resource stream is null: {ResourceName}", resourceName);
+                logger.LogError("UIExtractor {ScriptLabel} resource stream is null: {ResourceName}", scriptLabel, resourceName);
                 return "";
             }
 
@@ -426,9 +506,63 @@ public sealed class MyDuMod : IMod
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "UIExtractor failed to load embedded payload");
+            logger.LogError(ex, "UIExtractor failed to load embedded script {ScriptLabel}", scriptLabel);
             return "";
         }
+    }
+
+    private void EnsureRuntimeOverrideFile(string path, string seedScript, string scriptLabel)
+    {
+        try
+        {
+            if (File.Exists(path) || string.IsNullOrWhiteSpace(seedScript))
+            {
+                return;
+            }
+
+            File.WriteAllText(path, seedScript, Encoding.UTF8);
+            logger.LogInformation(
+                "UIExtractor created runtime override for {ScriptLabel} at {Path}. Edit this file while the server is running; next injection uses the updated script.",
+                scriptLabel,
+                path);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "UIExtractor failed to create runtime override file for {ScriptLabel}: {Path}", scriptLabel, path);
+        }
+    }
+
+    private string ResolveRuntimeScript(string runtimePath, string embeddedFallbackScript, string scriptLabel, out bool usingRuntimeOverride)
+    {
+        usingRuntimeOverride = false;
+
+        try
+        {
+            if (File.Exists(runtimePath))
+            {
+                var runtimeScript = File.ReadAllText(runtimePath, Encoding.UTF8);
+                if (!string.IsNullOrWhiteSpace(runtimeScript))
+                {
+                    usingRuntimeOverride = true;
+                    return runtimeScript;
+                }
+
+                logger.LogWarning(
+                    "UIExtractor runtime override for {ScriptLabel} is empty at {Path}; using embedded fallback",
+                    scriptLabel,
+                    runtimePath);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "UIExtractor failed to read runtime override for {ScriptLabel} from {Path}; using embedded fallback",
+                scriptLabel,
+                runtimePath);
+        }
+
+        return embeddedFallbackScript;
     }
 
     private static bool TryResolveServerRoot(string baseDirectory, out string serverRoot)
