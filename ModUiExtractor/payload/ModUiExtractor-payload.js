@@ -4,7 +4,7 @@
   if (window.__UI_EXTRACTOR_RUNNING__) {
     try {
       if (window.console && typeof window.console.warn === "function") {
-        window.console.warn("[ui-extractor] extraction already running");
+        window.console.warn("[ModUiExtractor] extraction already running");
       }
     } catch (_ignore) {}
     return;
@@ -380,7 +380,7 @@
     }
     try {
       if (window.console && typeof window.console.warn === "function") {
-        window.console.warn("[ui-extractor] CPPMod unavailable. Packet preview:", packet.type, packet.section || "");
+        window.console.warn("[ModUiExtractor] CPPMod unavailable. Packet preview:", packet.type, packet.section || "");
       }
     } catch (_ignore) {}
     return false;
@@ -402,7 +402,7 @@
     for (var i = 0; i < chunks.length; i += 1) {
       sendRawPacket({
         type: "ui_dump",
-        extractor: "ui-extractor",
+        extractor: "ModUiExtractor",
         version: VERSION,
         dumpId: dumpId,
         section: section,
@@ -446,7 +446,7 @@
 
       sendRawPacket({
         type: "ui_dump",
-        extractor: "ui-extractor",
+        extractor: "ModUiExtractor",
         version: VERSION,
         dumpId: dumpId,
         section: section,
@@ -1499,7 +1499,7 @@
 
     sendRawPacket({
       type: "ui_dump_complete",
-      extractor: "ui-extractor",
+      extractor: "ModUiExtractor",
       version: VERSION,
       dumpId: dumpId,
       timestamp: nowIso(),
@@ -1516,7 +1516,7 @@
     pushError(section, err);
     sendRawPacket({
       type: "ui_dump_fatal",
-      extractor: "ui-extractor",
+      extractor: "ModUiExtractor",
       version: VERSION,
       dumpId: dumpId,
       timestamp: nowIso(),
@@ -1642,7 +1642,7 @@
   try {
     sendRawPacket({
       type: "ui_dump_start",
-      extractor: "ui-extractor",
+      extractor: "ModUiExtractor",
       version: VERSION,
       dumpId: dumpId,
       timestamp: nowIso(),

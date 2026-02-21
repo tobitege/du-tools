@@ -59,7 +59,7 @@ This repo now includes:
   - replaced timer-only restore loop with CodeMirror settle gating (`changes`/`scroll`/`viewportChange`/`refresh`/`update` + quiet window),
   - added target-snippet gate (restore is allowed only after CodeMirror contains the expected `targetSnippetKey`),
   - bounded all waits (`5s` max wait, `250ms` quiet window) to avoid hangs and infinite retries.
-- Added persistence for `LINE HL` toggle using `localStorage` key `ui-extractor.lua.caret-highlight-enabled.v1` so preference survives reinject/reopen.
+- Added persistence for `LINE HL` toggle using `localStorage` key `ModUiExtractor.lua.caret-highlight-enabled.v1` so preference survives reinject/reopen.
 
 ## In-Game Actions
 
@@ -112,7 +112,7 @@ This writes `all_scripts_manifest.json` plus `all_script_js_*.js` sections after
 
 - `ModUIExtractor.csproj`: C# mod project
 - `ModUIExtractor.cs`: mod implementation (`GetName() == NQ.UIExtractor`)
-- `payload/ui-extractor-payload.js`: embedded payload
+- `payload/ModUiExtractor-payload.js`: embedded payload
 - `tools/reassemble-ui-dump.ps1`: reassemble NDJSON to files
 - `tools/split-html-dump.py`: split `html.html` by direct `<body>` root elements
 
@@ -122,12 +122,12 @@ This writes `all_scripts_manifest.json` plus `all_script_js_*.js` sections after
 - SDK selection is pinned via `global.json` to a stable SDK (`8.0.418`, `allowPrerelease=false`) so local/TUI builds do not drift to preview SDKs (`NETSDK1057`).
 - External DU runtime assemblies are resolved from `DUExternalLibDir` (default: `D:\MyDUserver\wincs\all`).
 - Keep Orleans + Microsoft.Extensions dependencies aligned to the DU runtime DLL graph. Mixing additional NuGet Orleans/Extensions package trees on top can reintroduce `MSB3277` assembly conflict warnings.
-- Build from the `ui-extractor` folder so `global.json` is respected.
+- Build from the `ModUiExtractor` folder so `global.json` is respected.
 
 ## Build
 
 ```powershell
-cd D:\github\du-tobi\ui-extractor
+cd D:\github\du-tobi\ModUiExtractor
 dotnet build -c Release -nologo -v:minimal
 ```
 
@@ -147,7 +147,7 @@ If the server is stopped, copy normally:
 
 ```powershell
 Copy-Item `
-  'D:\github\du-tobi\ui-extractor\bin\Release\net6.0\win-x64\ModUIExtractor.dll' `
+  'D:\github\du-tobi\ModUiExtractor\bin\Release\net6.0\win-x64\ModUIExtractor.dll' `
   'D:\MyDUserver\wincs\all\Mods\ModUIExtractor.dll' -Force
 ```
 
@@ -159,7 +159,7 @@ If the server is running, the DLL is usually locked:
 
 ```powershell
 Copy-Item `
-  'D:\github\du-tobi\ui-extractor\bin\Release\net6.0\win-x64\ModUIExtractor.dll' `
+  'D:\github\du-tobi\ModUiExtractor\bin\Release\net6.0\win-x64\ModUIExtractor.dll' `
   'D:\MyDUserver\wincs\all\Mods\ModUIExtractor.dll.new' -Force
 
 Move-Item 'D:\MyDUserver\wincs\all\Mods\ModUIExtractor.dll' 'D:\MyDUserver\wincs\all\Mods\ModUIExtractor.dll.bak' -Force
@@ -175,7 +175,7 @@ Default dump directory:
 Runtime payload override directory (read fresh on every injection):
 
 - `D:\MyDUserver\tmp\ui-dumps\payload-overrides`
-- `ui-extractor-payload.override.js`
+- `ModUiExtractor-payload.override.js`
 - `lua-editor-probe.override.js`
 
 Each run writes:
@@ -214,23 +214,23 @@ Useful sync commands:
 ```powershell
 # Source extractor payload -> live override
 Copy-Item `
-  'D:\github\du-tobi\ui-extractor\payload\ui-extractor-payload.js' `
-  'D:\MyDUserver\tmp\ui-dumps\payload-overrides\ui-extractor-payload.override.js' -Force
+  'D:\github\du-tobi\ModUiExtractor\payload\ModUiExtractor-payload.js' `
+  'D:\MyDUserver\tmp\ui-dumps\payload-overrides\ModUiExtractor-payload.override.js' -Force
 
 # Source payload -> live override
 Copy-Item `
-  'D:\github\du-tobi\ui-extractor\payload\lua-editor-probe.js' `
+  'D:\github\du-tobi\ModUiExtractor\payload\lua-editor-probe.js' `
   'D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.override.js' -Force
 
 # Live extractor override -> source payload (persist your live tweaks in repo)
 Copy-Item `
-  'D:\MyDUserver\tmp\ui-dumps\payload-overrides\ui-extractor-payload.override.js' `
-  'D:\github\du-tobi\ui-extractor\payload\ui-extractor-payload.js' -Force
+  'D:\MyDUserver\tmp\ui-dumps\payload-overrides\ModUiExtractor-payload.override.js' `
+  'D:\github\du-tobi\ModUiExtractor\payload\ModUiExtractor-payload.js' -Force
 
 # Live override -> source payload (persist your live tweaks in repo)
 Copy-Item `
   'D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.override.js' `
-  'D:\github\du-tobi\ui-extractor\payload\lua-editor-probe.js' -Force
+  'D:\github\du-tobi\ModUiExtractor\payload\lua-editor-probe.js' -Force
 ```
 
 ## Lua Editor Stabilization Runbook (Reproducible)
@@ -243,7 +243,7 @@ Always copy source payload to runtime override before testing:
 
 ```powershell
 Copy-Item `
-  'D:\github\du-tobi\ui-extractor\payload\lua-editor-probe.js' `
+  'D:\github\du-tobi\ModUiExtractor\payload\lua-editor-probe.js' `
   'D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.override.js' -Force
 ```
 
@@ -338,14 +338,14 @@ Use this when iterating on Lua probe + IDE sync without launching the game.
 1. Terminal A: Start the local rig server:
 
    ```powershell
-   cd ui-extractor
+   cd ModUiExtractor
    .\tools\lua-editor-rig.ps1 -DumpDir "D:\MyDUserver\tmp\ui-dumps" -Port 8765 -PlayerId 10000
    ```
 
 2. Terminal B: In another PowerShell window, start IDE sync:
 
    ```powershell
-   cd ui-extractor
+   cd ModUiExtractor
    .\tools\sync-ide.ps1 -DumpDir "D:\MyDUserver\tmp\ui-dumps" -IdePath "cursor"
    ```
 

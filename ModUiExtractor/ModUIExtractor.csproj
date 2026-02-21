@@ -40,7 +40,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="payload\ui-extractor-payload.js" LogicalName="ui-extractor-payload.js" />
+    <EmbeddedResource Include="payload\ModUiExtractor-payload.js" LogicalName="ModUiExtractor-payload.js" />
     <EmbeddedResource Include="payload\lua-editor-probe.js" LogicalName="lua-editor-probe.js" />
   </ItemGroup>
 </Project>

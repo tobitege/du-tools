@@ -36,10 +36,10 @@ public sealed class MyDuMod : IMod
     private const ulong ActionExtractAllScripts = 6;
     private const ulong ActionIngestPacket = 900001;
     private const ulong PrivateChatChannelId = 2;
-    private const string EmbeddedPayloadResourceName = "ui-extractor-payload.js";
+    private const string EmbeddedPayloadResourceName = "ModUiExtractor-payload.js";
     private const string EmbeddedLuaProbeResourceName = "lua-editor-probe.js";
     private const string PayloadOverridesDirectoryName = "payload-overrides";
-    private const string RuntimeExtractorPayloadFileName = "ui-extractor-payload.override.js";
+    private const string RuntimeExtractorPayloadFileName = "ModUiExtractor-payload.override.js";
     private const string RuntimeLuaProbePayloadFileName = "lua-editor-probe.override.js";
     private const string DefaultTargetStylesheetHref = "coui://data/gui/hud/dpu_editor/css/dpu_editor.css";
     private const string TargetStylesheetFileName = "target-stylesheet-url.txt";

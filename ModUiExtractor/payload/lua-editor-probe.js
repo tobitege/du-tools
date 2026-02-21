@@ -17,7 +17,7 @@
   var modName = cfg.modName || "NQ.UIExtractor";
   var actionId = cfg.actionId || 900001;
   var dumpId = "lua-probe-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
-  var caretHighlightPrefStorageKey = "ui-extractor.lua.caret-highlight-enabled.v1";
+  var caretHighlightPrefStorageKey = "ModUiExtractor.lua.caret-highlight-enabled.v1";
 
   function loadCaretHighlightPreference() {
     try {
@@ -84,7 +84,7 @@
       var currentContextKey = getEditorContextKey(codeMirror);
       if (state.lastIdeSyncContextKey && currentContextKey !== state.lastIdeSyncContextKey) {
         safeLog("IDE sync blocked: Context changed. Expected: " + state.lastIdeSyncContextKey + ", Got: " + currentContextKey);
-        var btnWarn = document.getElementById("ui-extractor-lua-ide-sync");
+        var btnWarn = document.getElementById("ModUiExtractor-lua-ide-sync");
         if (btnWarn) {
           var oldBgWarn = btnWarn.style.background;
           var oldColorWarn = btnWarn.style.color;
@@ -103,7 +103,7 @@
 
       codeMirror.setValue(newCode);
 
-      var btnOk = document.getElementById("ui-extractor-lua-ide-sync");
+      var btnOk = document.getElementById("ModUiExtractor-lua-ide-sync");
       if (btnOk) {
         var oldBgOk = btnOk.style.background;
         var oldColorOk = btnOk.style.color;
@@ -142,8 +142,8 @@
       caretBg: "rgba(236,107,107,0.20)"
     }
   ];
-  var quickEditLuaMenuItemId = "ui-extractor-quick-edit-lua";
-  var quickInjectProbeMenuItemId = "ui-extractor-quick-inject-lua";
+  var quickEditLuaMenuItemId = "ModUiExtractor-quick-edit-lua";
+  var quickInjectProbeMenuItemId = "ModUiExtractor-quick-inject-lua";
 
   function nowIso() {
     return new Date().toISOString();
@@ -456,12 +456,12 @@
   }
 
   function addProbeStyle() {
-    if (document.getElementById("ui-extractor-lua-probe-style")) {
+    if (document.getElementById("ModUiExtractor-lua-probe-style")) {
       return;
     }
 
     var style = document.createElement("style");
-    style.id = "ui-extractor-lua-probe-style";
+    style.id = "ModUiExtractor-lua-probe-style";
     style.type = "text/css";
     style.textContent = ""
       + "#dpu_editor[data-lua-probe-active=\"1\"]{"
@@ -475,28 +475,28 @@
       + "position:relative;"
       + "background:var(--lua-probe-header-bg) !important;"
       + "border-bottom:1px solid var(--lua-probe-accent) !important;}"
-      + "#dpu_editor #ui-extractor-lua-theme-dots{"
+      + "#dpu_editor #ModUiExtractor-lua-theme-dots{"
       + "position:absolute;left:12px;top:50%;transform:translateY(-50%);"
       + "display:flex;gap:8px;align-items:center;z-index:11;}"
-      + "#dpu_editor #ui-extractor-lua-theme-dots .lua-theme-dot{"
+      + "#dpu_editor #ModUiExtractor-lua-theme-dots .lua-theme-dot{"
       + "width:12px;height:12px;border-radius:999px;border:1px solid rgba(255,255,255,0.6);"
       + "padding:0;cursor:pointer;opacity:0.88;}"
-      + "#dpu_editor #ui-extractor-lua-theme-dots .lua-theme-dot[data-active=\"1\"]{"
+      + "#dpu_editor #ModUiExtractor-lua-theme-dots .lua-theme-dot[data-active=\"1\"]{"
       + "transform:scale(1.1);opacity:1;box-shadow:0 0 0 1px rgba(0,0,0,0.55),0 0 8px rgba(255,255,255,0.35);}"
-      + "#dpu_editor #ui-extractor-lua-caret-toggle{"
+      + "#dpu_editor #ModUiExtractor-lua-caret-toggle{"
       + "font-family:Play,sans-serif;font-size:1.11111111vh;font-weight:900;text-transform:uppercase;"
       + "color:rgb(182,223,237);border:1px solid rgb(182,223,237);display:flex;justify-content:center;align-items:center;text-align:center;"
       + "background-color:rgb(25,40,49);text-shadow:rgba(0,255,255,0.6) 0px -2px 26px;box-shadow:rgb(0,0,0) 1px 1px 0px inset,rgb(0,0,0) -1px -1px 0px inset;"
       + "overflow:hidden;min-width:9.25925926vh;height:2.31481481vh;min-height:2.31481481vh;max-height:2.31481481vh;padding:0 1.11111111vh;"
       + "margin-left:0.37037037vh;cursor:pointer;line-height:2.12962963vh;}"
-      + "#dpu_editor #ui-extractor-lua-caret-toggle[data-on=\"1\"]{"
+      + "#dpu_editor #ModUiExtractor-lua-caret-toggle[data-on=\"1\"]{"
       + "border-color:var(--lua-probe-accent);color:#ffffff;"
       + "box-shadow:0 0 0 1px rgba(0,0,0,0.35) inset;}"
-      + "#dpu_editor #ui-extractor-lua-caret-toggle:hover,#dpu_editor #ui-extractor-lua-ide-sync:hover{"
+      + "#dpu_editor #ModUiExtractor-lua-caret-toggle:hover,#dpu_editor #ModUiExtractor-lua-ide-sync:hover{"
       + "background-color:rgb(34,57,72);border-color:rgb(255,255,255);color:rgb(255,255,255);transition-duration:0.2s;}"
-      + "#dpu_editor #ui-extractor-lua-caret-toggle:active,#dpu_editor #ui-extractor-lua-ide-sync:active{"
+      + "#dpu_editor #ModUiExtractor-lua-caret-toggle:active,#dpu_editor #ModUiExtractor-lua-ide-sync:active{"
       + "background-color:rgb(182,223,237);color:rgb(28,52,60);transition-duration:0s;}"
-      + "#dpu_editor #ui-extractor-lua-ide-sync{"
+      + "#dpu_editor #ModUiExtractor-lua-ide-sync{"
       + "font-family:Play,sans-serif;font-size:1.11111111vh;font-weight:900;text-transform:uppercase;"
       + "color:rgb(250,212,122);border:1px solid rgba(250,212,122,0.5);display:flex;justify-content:center;align-items:center;text-align:center;"
       + "background-color:rgba(9,19,24,0.8);text-shadow:rgba(0,255,255,0.45) 0px -2px 20px;box-shadow:rgb(0,0,0) 1px 1px 0px inset,rgb(0,0,0) -1px -1px 0px inset;"
@@ -519,13 +519,13 @@
   }
 
   function addProbeBadge() {
-    var existing = document.getElementById("ui-extractor-lua-probe-badge");
+    var existing = document.getElementById("ModUiExtractor-lua-probe-badge");
     if (existing) {
       return;
     }
 
     var badge = document.createElement("div");
-    badge.id = "ui-extractor-lua-probe-badge";
+    badge.id = "ModUiExtractor-lua-probe-badge";
     badge.textContent = "LUA PROBE ACTIVE";
     badge.style.position = "fixed";
     badge.style.top = "14px";
@@ -1792,7 +1792,7 @@
   }
 
   function updateThemeDotSelection(activeThemeName) {
-    var dotsRoot = document.getElementById("ui-extractor-lua-theme-dots");
+    var dotsRoot = document.getElementById("ModUiExtractor-lua-theme-dots");
     if (!dotsRoot || !dotsRoot.querySelectorAll) {
       return;
     }
@@ -1805,7 +1805,7 @@
   }
 
   function updateCaretToggleVisual() {
-    var toggle = document.getElementById("ui-extractor-lua-caret-toggle");
+    var toggle = document.getElementById("ModUiExtractor-lua-caret-toggle");
     if (!toggle) {
       return;
     }
@@ -1996,11 +1996,11 @@
       return;
     }
 
-    var toggle = document.getElementById("ui-extractor-lua-caret-toggle");
+    var toggle = document.getElementById("ModUiExtractor-lua-caret-toggle");
     if (!toggle) {
       toggle = document.createElement("button");
       toggle.type = "button";
-      toggle.id = "ui-extractor-lua-caret-toggle";
+      toggle.id = "ModUiExtractor-lua-caret-toggle";
       toggle.addEventListener("click", function () {
         setCaretHighlightEnabled(!state.caretHighlightEnabled, true);
       }, true);
@@ -2048,11 +2048,11 @@
       return;
     }
 
-    var syncBtn = document.getElementById("ui-extractor-lua-ide-sync");
+    var syncBtn = document.getElementById("ModUiExtractor-lua-ide-sync");
     if (!syncBtn) {
       syncBtn = document.createElement("button");
       syncBtn.type = "button";
-      syncBtn.id = "ui-extractor-lua-ide-sync";
+      syncBtn.id = "ModUiExtractor-lua-ide-sync";
       syncBtn.textContent = "IDE Sync";
 
       syncBtn.addEventListener("click", function () {
@@ -2104,10 +2104,10 @@
       return;
     }
 
-    var switcher = document.getElementById("ui-extractor-lua-theme-dots");
+    var switcher = document.getElementById("ModUiExtractor-lua-theme-dots");
     if (!switcher) {
       switcher = document.createElement("div");
-      switcher.id = "ui-extractor-lua-theme-dots";
+      switcher.id = "ModUiExtractor-lua-theme-dots";
 
       for (var i = 0; i < colorThemes.length; i += 1) {
         (function (theme) {
@@ -2204,7 +2204,7 @@
       return true;
     }
     try {
-      return entry.getAttribute && entry.getAttribute("data-ui-extractor-quick") === "1";
+      return entry.getAttribute && entry.getAttribute("data-ModUiExtractor-quick") === "1";
     } catch (_ignoreQuickAttr) {}
     return false;
   }
@@ -2824,25 +2824,6 @@
     return out;
   }
 
-  function mergeUniqueNames(into, names) {
-    if (!into || !names || !names.length) {
-      return into || [];
-    }
-    var seen = {};
-    for (var i = 0; i < into.length; i += 1) {
-      seen[into[i]] = true;
-    }
-    for (var j = 0; j < names.length; j += 1) {
-      var n = names[j];
-      if (!n || seen[n]) {
-        continue;
-      }
-      into.push(n);
-      seen[n] = true;
-    }
-    return into;
-  }
-
   function inspectContextMenuBridges() {
     var out = {};
     var bridges = [
@@ -3238,7 +3219,7 @@
     var className = templateEntry ? String(templateEntry.className || "") : "menu";
     className = className.replace(/\bright_dropdown\b/g, "").replace(/\s+/g, " ").trim();
     li.className = className || "menu";
-    li.setAttribute("data-ui-extractor-quick", "1");
+    li.setAttribute("data-ModUiExtractor-quick", "1");
     li.style.textAlign = "left";
 
     var a = null;
@@ -4119,11 +4100,11 @@
     } catch (_ignoreMenuRoot) {}
 
     var removableIds = [
-      "ui-extractor-lua-probe-style",
-      "ui-extractor-lua-probe-badge",
-      "ui-extractor-lua-theme-dots",
-      "ui-extractor-lua-caret-toggle",
-      "ui-extractor-lua-ide-sync",
+      "ModUiExtractor-lua-probe-style",
+      "ModUiExtractor-lua-probe-badge",
+      "ModUiExtractor-lua-theme-dots",
+      "ModUiExtractor-lua-caret-toggle",
+      "ModUiExtractor-lua-ide-sync",
       quickEditLuaMenuItemId,
       quickInjectProbeMenuItemId
     ];
