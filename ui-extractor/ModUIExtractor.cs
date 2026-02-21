@@ -33,6 +33,7 @@ public sealed class MyDuMod : IMod
     private const ulong ActionExtractAllCss = 3;
     private const ulong ActionExtractFromTargetFile = 4;
     private const ulong ActionInjectLuaProbe = 5;
+    private const ulong ActionExtractAllScripts = 6;
     private const ulong ActionIngestPacket = 900001;
     private const ulong PrivateChatChannelId = 2;
     private const string EmbeddedPayloadResourceName = "ui-extractor-payload.js";
@@ -59,6 +60,8 @@ public sealed class MyDuMod : IMod
     {
         return ModName;
     }
+
+    private Task? ideImportTask;
 
     public Task Initialize(IServiceProvider isp)
     {
@@ -115,7 +118,53 @@ public sealed class MyDuMod : IMod
             runtimeLuaProbePayloadPath,
             targetStylesheetFilePath);
 
+        ideImportTask = Task.Run(WatchIdeImportFile);
+
         return Task.CompletedTask;
+    }
+
+    private async Task WatchIdeImportFile()
+    {
+        var importPath = Path.Combine(payloadOverridesDirectory, "ide_import.json");
+        var lastProcessedWrite = DateTime.MinValue;
+        var lastProcessedContent = "";
+
+        while (true)
+        {
+            try
+            {
+                await Task.Delay(500);
+                if (File.Exists(importPath))
+                {
+                    var writeTime = File.GetLastWriteTimeUtc(importPath);
+                    var content = await File.ReadAllTextAsync(importPath);
+                    var hasPotentialChange = writeTime != lastProcessedWrite || !string.Equals(content, lastProcessedContent, StringComparison.Ordinal);
+
+                    if (hasPotentialChange)
+                    {
+                        var obj = JObject.Parse(content);
+                        if (obj.TryGetValue("playerId", out var pidToken) && obj.TryGetValue("code", out var codeToken))
+                        {
+                            var playerId = pidToken.Value<ulong>();
+                            var code = codeToken.Type == JTokenType.Null ? string.Empty : (codeToken.Value<string>() ?? string.Empty);
+
+                            var escapedCode = Newtonsoft.Json.JsonConvert.SerializeObject(code);
+                            var js = $"if (window.__UI_EXTRACTOR_LUA_PROBE_STATE__ && window.__UI_EXTRACTOR_LUA_PROBE_STATE__.applyIdeCode) window.__UI_EXTRACTOR_LUA_PROBE_STATE__.applyIdeCode({escapedCode});";
+
+                            await InjectJavaScript(playerId, js, "ide-sync", "Code imported from IDE");
+
+                            // Advance checkpoints only after successful parse + inject.
+                            lastProcessedWrite = writeTime;
+                            lastProcessedContent = content;
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Ignore transient read errors
+            }
+        }
     }
 
     public Task<ModInfo> GetModInfoFor(ulong playerId, bool admin)
@@ -151,6 +200,12 @@ public sealed class MyDuMod : IMod
                 },
                 new ModActionDefinition
                 {
+                    id = ActionExtractAllScripts,
+                    label = "UI Extractor\\Extract Scripts\\ALL .js files (full)",
+                    context = ModActionContext.Global
+                },
+                new ModActionDefinition
+                {
                     id = ActionInjectLuaProbe,
                     label = "UI Extractor\\Inject LUA editor probe",
                     context = ModActionContext.Element
@@ -179,6 +234,9 @@ public sealed class MyDuMod : IMod
                 return;
             case ActionInjectLuaProbe:
                 await InjectLuaProbePayload(playerId, action);
+                return;
+            case ActionExtractAllScripts:
+                await InjectAllScriptsPayload(playerId);
                 return;
             case ActionIngestPacket:
                 await IngestPacket(playerId, action.payload);
@@ -254,6 +312,27 @@ public sealed class MyDuMod : IMod
             "all-stylesheets");
     }
 
+    private async Task InjectAllScriptsPayload(ulong playerId)
+    {
+        var config = new JObject
+        {
+            ["mode"] = "all_scripts",
+            ["phaseDelayMs"] = 20,
+            ["chunkSize"] = 9_000,
+            ["maxPayloadChars"] = 8_000_000,
+            ["allScriptsOnlyJsSrc"] = true,
+            ["allScriptsMaxScripts"] = 1024,
+            ["allScriptsMaxScriptChars"] = 16_000_000,
+            ["allScriptsPacketDelayMs"] = 25
+        };
+
+        await InjectPayload(
+            playerId,
+            config,
+            "All script extraction requested. This can produce a very large dump.",
+            "all-scripts");
+    }
+
     private async Task InjectStylesheetFromTargetFile(ulong playerId)
     {
         if (!TryReadTargetStylesheetHref(out var href, out var error))
@@ -305,6 +384,21 @@ public sealed class MyDuMod : IMod
             return;
         }
 
+        var requestedMode = "";
+        if (config.TryGetValue("mode", out var modeToken))
+        {
+            requestedMode = modeToken.Type == JTokenType.Null ? "" : (modeToken.Value<string>() ?? "");
+        }
+
+        if (usingRuntimeOverride && !RuntimeScriptLikelySupportsMode(extractorScript, requestedMode))
+        {
+            logger.LogWarning(
+                "UIExtractor runtime override does not appear to support mode {Mode}; falling back to embedded payload for this injection",
+                requestedMode);
+            extractorScript = payloadJs;
+            usingRuntimeOverride = false;
+        }
+
         config["modName"] = GetName();
         config["actionId"] = (long)ActionIngestPacket;
 
@@ -314,6 +408,22 @@ public sealed class MyDuMod : IMod
 
         var injectCode = $"window.__UI_EXTRACTOR_CONFIG={config.ToString(Newtonsoft.Json.Formatting.None)};\n{extractorScript}";
         await InjectJavaScript(playerId, injectCode, modeTag, effectiveNotifyMessage);
+    }
+
+    private static bool RuntimeScriptLikelySupportsMode(string script, string mode)
+    {
+        if (string.IsNullOrWhiteSpace(mode) || string.Equals(mode, "full_dump", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(script))
+        {
+            return false;
+        }
+
+        var quotedMode = "\"" + mode + "\"";
+        return script.Contains(quotedMode, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task InjectJavaScript(ulong playerId, string injectCode, string modeTag, string notifyMessage)

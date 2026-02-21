@@ -186,6 +186,7 @@ foreach ($dumpId in $dumps.Keys) {
     $entry = $dumps[$dumpId]
     $dumpDir = Join-Path $OutDir $dumpId
     New-Item -ItemType Directory -Path $dumpDir -Force | Out-Null
+    $scriptsDir = Join-Path $dumpDir "scripts"
     $htmlSectionPath = $null
 
     $manifest = [ordered]@{
@@ -233,6 +234,11 @@ foreach ($dumpId in $dumps.Keys) {
             $sectionExt = ".css"
             $sectionPath = Join-Path $dumpDir ($sectionName + $sectionExt)
             Set-Content -LiteralPath $sectionPath -Value $joined -Encoding UTF8
+        } elseif ($sectionName -like "all_script_js_*") {
+            $sectionExt = ".js"
+            New-Item -ItemType Directory -Path $scriptsDir -Force | Out-Null
+            $sectionPath = Join-Path $scriptsDir ($sectionName + $sectionExt)
+            Set-Content -LiteralPath $sectionPath -Value $joined -Encoding UTF8
         } else {
             $parsed = $null
             $isJson = $false
@@ -254,9 +260,14 @@ foreach ($dumpId in $dumps.Keys) {
             }
         }
 
+        $manifestFile = [System.IO.Path]::GetFileName($sectionPath)
+        if ($sectionName -like "all_script_js_*") {
+            $manifestFile = "scripts/" + [System.IO.Path]::GetFileName($sectionPath)
+        }
+
         $manifest.sections += [ordered]@{
             name = $sectionName
-            file = [System.IO.Path]::GetFileName($sectionPath)
+            file = $manifestFile
             packets = $packets.Count
             expected = $totalExpected
             missingParts = $missing

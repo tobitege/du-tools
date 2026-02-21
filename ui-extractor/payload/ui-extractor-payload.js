@@ -22,6 +22,10 @@
     allStylesheetMaxSheets: 512,
     allStylesheetMaxSheetChars: 12000000,
     allStylesheetPacketDelayMs: 2,
+    allScriptsOnlyJsSrc: true,
+    allScriptsMaxScripts: 512,
+    allScriptsMaxScriptChars: 12000000,
+    allScriptsPacketDelayMs: 2,
     chunkSize: 12000,
     phaseDelayMs: 10,
     maxPayloadChars: 3000000,
@@ -224,6 +228,26 @@
     return /\.css$/.test(normalized);
   }
 
+  function isLikelyJavaScriptHref(href, scriptType) {
+    var normalized = normalizeHref(href);
+    var type = String(scriptType || "").toLowerCase();
+
+    if (normalized) {
+      if (/\.(mjs|cjs|js)$/.test(normalized)) {
+        return true;
+      }
+      if (normalized.indexOf("blob:") === 0 || normalized.indexOf("data:text/javascript") === 0) {
+        return true;
+      }
+    }
+
+    if (type.indexOf("javascript") >= 0 || type.indexOf("ecmascript") >= 0 || type === "module") {
+      return true;
+    }
+
+    return false;
+  }
+
   function extractHrefFileStem(href) {
     var normalized = normalizeHref(href);
     if (!normalized) {
@@ -238,6 +262,29 @@
     if (!filename) {
       filename = "stylesheet";
     }
+    return filename;
+  }
+
+  function extractUrlFileStem(url, fallback) {
+    var normalized = normalizeHref(url);
+    var stem = String(fallback || "file");
+    if (!normalized) {
+      return stem;
+    }
+
+    var slash = normalized.lastIndexOf("/");
+    var filename = slash >= 0 ? normalized.slice(slash + 1) : normalized;
+    if (!filename) {
+      return stem;
+    }
+
+    filename = filename.replace(/\.(mjs|cjs|js|css)$/i, "");
+    filename = filename.replace(/[^a-z0-9._-]+/gi, "_");
+    filename = filename.replace(/^_+|_+$/g, "");
+    if (!filename) {
+      return stem;
+    }
+
     return filename;
   }
 
@@ -271,6 +318,10 @@
   config.allStylesheetMaxSheets = numberOrDefault(config.allStylesheetMaxSheets, DEFAULT_CONFIG.allStylesheetMaxSheets);
   config.allStylesheetMaxSheetChars = numberOrDefault(config.allStylesheetMaxSheetChars, DEFAULT_CONFIG.allStylesheetMaxSheetChars);
   config.allStylesheetPacketDelayMs = numberOrDefault(config.allStylesheetPacketDelayMs, DEFAULT_CONFIG.allStylesheetPacketDelayMs);
+  config.allScriptsOnlyJsSrc = !!config.allScriptsOnlyJsSrc;
+  config.allScriptsMaxScripts = numberOrDefault(config.allScriptsMaxScripts, DEFAULT_CONFIG.allScriptsMaxScripts);
+  config.allScriptsMaxScriptChars = numberOrDefault(config.allScriptsMaxScriptChars, DEFAULT_CONFIG.allScriptsMaxScriptChars);
+  config.allScriptsPacketDelayMs = numberOrDefault(config.allScriptsPacketDelayMs, DEFAULT_CONFIG.allScriptsPacketDelayMs);
   config.chunkSize = numberOrDefault(config.chunkSize, DEFAULT_CONFIG.chunkSize);
   config.phaseDelayMs = numberOrDefault(config.phaseDelayMs, DEFAULT_CONFIG.phaseDelayMs);
   config.maxPayloadChars = numberOrDefault(config.maxPayloadChars, DEFAULT_CONFIG.maxPayloadChars);
@@ -824,6 +875,218 @@
     return "all_stylesheet_css_" + leftPadNumber(sheetIndex, 3) + "_" + stem;
   }
 
+  function makeAllScriptSectionName(scriptIndex, srcHref) {
+    var stem = sanitizeSectionToken(extractUrlFileStem(srcHref, "inline_script"), 40);
+    return "all_script_js_" + leftPadNumber(scriptIndex, 3) + "_" + stem;
+  }
+
+  function buildScriptSourceCandidates(srcHref) {
+    var out = [];
+    var seen = {};
+
+    function pushCandidate(value) {
+      var candidate = String(value || "").trim();
+      if (!candidate) {
+        return;
+      }
+      var key = candidate.toLowerCase();
+      if (seen[key]) {
+        return;
+      }
+      seen[key] = true;
+      out.push(candidate);
+    }
+
+    var raw = String(srcHref || "").trim();
+    if (!raw) {
+      return out;
+    }
+
+    pushCandidate(raw);
+
+    var normalized = normalizeHref(raw);
+    if (normalized.indexOf("coui://data/") === 0) {
+      var noScheme = raw.replace(/^coui:\/\/data/i, "");
+      pushCandidate(noScheme);
+      pushCandidate(noScheme.replace(/^\//, ""));
+      pushCandidate(raw.replace(/^coui:\/\/data/i, "data"));
+      pushCandidate(raw.replace(/^coui:\/\/data/i, "/data"));
+    } else if (normalized.indexOf("coui://") === 0) {
+      var genericNoScheme = raw.replace(/^coui:\/\//i, "");
+      pushCandidate(genericNoScheme);
+      pushCandidate(genericNoScheme.replace(/^\//, ""));
+    }
+
+    return out;
+  }
+
+  function collectScriptBodyAsync(scriptNode, srcHref, maxChars, done) {
+    var inlineText = "";
+    var candidates = buildScriptSourceCandidates(srcHref);
+    var attemptErrors = [];
+    var finished = false;
+
+    function finish(text, method, readError) {
+      if (finished) {
+        return;
+      }
+      finished = true;
+
+      var finalText = String(text || "");
+      var sourceLength = finalText.length;
+      var truncated = false;
+      if (finalText.length > maxChars) {
+        finalText = finalText.slice(0, maxChars);
+        truncated = true;
+      }
+
+      done({
+        text: finalText,
+        sourceLength: sourceLength,
+        truncated: truncated,
+        readError: readError || "",
+        method: method || (srcHref ? "none" : "inline_empty")
+      });
+    }
+
+    function recordError(message) {
+      var text = String(message || "");
+      if (!text) {
+        return;
+      }
+      attemptErrors.push(text);
+    }
+
+    function finishWithAttempts() {
+      var joined = attemptErrors.join(" || ");
+      if (joined && /invalidaccesserror/i.test(joined)) {
+        finish("", "", "permission_blocked");
+        return;
+      }
+      if (joined.length > 500) {
+        joined = joined.slice(0, 500) + " ...<truncated>";
+      }
+      finish("", "", joined || "script_read_unavailable");
+    }
+
+    function tryXhrCandidate(index) {
+      if (index >= candidates.length) {
+        finishWithAttempts();
+        return;
+      }
+
+      if (typeof XMLHttpRequest === "undefined") {
+        recordError("xmlhttprequest_unavailable");
+        finishWithAttempts();
+        return;
+      }
+
+      var candidate = candidates[index];
+      var xhr = null;
+      var settled = false;
+
+      function failAttempt(reason) {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        recordError(candidate + ": " + reason);
+        tryXhrCandidate(index + 1);
+      }
+
+      function succeedAttempt(responseText) {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        finish(responseText, "xhr", "");
+      }
+
+      try {
+        xhr = new XMLHttpRequest();
+      } catch (errCtor) {
+        failAttempt("ctor_" + toErrorString(errCtor));
+        return;
+      }
+
+      xhr.onreadystatechange = function () {
+        if (!xhr || xhr.readyState !== 4) {
+          return;
+        }
+
+        var status = 0;
+        try {
+          status = xhr.status || 0;
+        } catch (_ignoreStatusRead) {
+          status = 0;
+        }
+
+        var okStatus = (status >= 200 && status < 300) || status === 0;
+        if (!okStatus) {
+          failAttempt("http_status_" + String(status));
+          return;
+        }
+
+        var responseText = "";
+        try {
+          responseText = String(xhr.responseText || "");
+        } catch (errRead) {
+          failAttempt("read_" + toErrorString(errRead));
+          return;
+        }
+
+        if (!responseText || responseText.replace(/\s+/g, "").length === 0) {
+          failAttempt("empty_response");
+          return;
+        }
+
+        succeedAttempt(responseText);
+      };
+
+      xhr.onerror = function () {
+        failAttempt("network_error");
+      };
+      xhr.ontimeout = function () {
+        failAttempt("timeout");
+      };
+
+      try {
+        xhr.open("GET", candidate, true);
+        try {
+          xhr.timeout = 2000;
+        } catch (_ignoreTimeoutSet) {}
+        xhr.send(null);
+      } catch (errOpenSend) {
+        failAttempt(toErrorString(errOpenSend));
+      }
+    }
+
+    try {
+      inlineText = String(scriptNode && (scriptNode.text || scriptNode.textContent) || "");
+    } catch (_ignoreInlineRead) {
+      inlineText = "";
+    }
+
+    // External script tags in DU often contain only formatting whitespace.
+    // Treat whitespace-only inline payloads as empty so we attempt src fetch.
+    if (inlineText && inlineText.replace(/\s+/g, "").length > 0) {
+      finish(inlineText, "inline", "");
+      return;
+    }
+
+    if (!srcHref) {
+      finish("", "inline_empty", "");
+      return;
+    }
+
+    if (!candidates.length) {
+      finish("", "", "missing_script_src");
+      return;
+    }
+
+    tryXhrCandidate(0);
+  }
+
   function runAllStylesheetsExtraction() {
     var sheets = document.styleSheets || [];
     var maxSheets = Math.min(sheets.length, config.allStylesheetMaxSheets);
@@ -928,6 +1191,113 @@
     }
 
     processSheet(0);
+  }
+
+  function runAllScriptsExtraction() {
+    var scripts = document.scripts || [];
+    var maxScripts = Math.min(scripts.length, config.allScriptsMaxScripts);
+    var manifest = [];
+    var skippedNonJs = 0;
+    var exported = 0;
+
+    function sendManifestAndFinish() {
+      sendSection("all_scripts_manifest", {
+        mode: "all_scripts",
+        scannedScripts: scripts.length,
+        processedScripts: maxScripts,
+        scriptLimitHit: scripts.length > maxScripts,
+        exportedScripts: exported,
+        skippedNonJavascript: skippedNonJs,
+        items: manifest
+      });
+      finalize();
+    }
+
+    function processScript(index) {
+      if (index >= maxScripts) {
+        sendManifestAndFinish();
+        return;
+      }
+
+      var scriptNode = scripts[index];
+      var srcHref = "";
+      var scriptType = "";
+      var scriptAsync = false;
+      var scriptDefer = false;
+      var ownerNode = null;
+
+      try {
+        srcHref = scriptNode && scriptNode.src ? String(scriptNode.src) : "";
+      } catch (_ignoreSrc) {
+        srcHref = "";
+      }
+      try {
+        scriptType = scriptNode && scriptNode.type ? String(scriptNode.type) : "";
+      } catch (_ignoreType) {
+        scriptType = "";
+      }
+      try {
+        scriptAsync = !!(scriptNode && scriptNode.async);
+        scriptDefer = !!(scriptNode && scriptNode.defer);
+        ownerNode = simpleNodeInfo(scriptNode || null);
+      } catch (_ignoreMeta) {}
+
+      if (config.allScriptsOnlyJsSrc && srcHref && !isLikelyJavaScriptHref(srcHref, scriptType)) {
+        skippedNonJs += 1;
+        setTimeout(function () { processScript(index + 1); }, config.phaseDelayMs);
+        return;
+      }
+
+      collectScriptBodyAsync(scriptNode, srcHref, config.allScriptsMaxScriptChars, function (body) {
+        var sectionName = makeAllScriptSectionName(index, srcHref || ("inline_script_" + index));
+
+        var item = {
+          section: sectionName,
+          scriptIndex: index,
+          src: srcHref,
+          type: scriptType,
+          async: scriptAsync,
+          defer: scriptDefer,
+          ownerNode: ownerNode,
+          extractionMethod: body.method,
+          sourceLength: body.sourceLength,
+          exportedLength: (body.text || "").length,
+          truncated: !!body.truncated,
+          readError: body.readError || ""
+        };
+        manifest.push(item);
+
+        if (!body.text && body.readError) {
+          pushWarning("all_scripts", "failed to read script body for " + (srcHref || ("script#" + index)) + ": " + body.readError);
+        }
+
+        sendSectionPaced(
+          sectionName,
+          body.text || "",
+          {
+            src: srcHref,
+            scriptIndex: index,
+            type: scriptType,
+            async: scriptAsync,
+            defer: scriptDefer,
+            extractionMethod: body.method,
+            sourceLength: body.sourceLength,
+            exportedLength: (body.text || "").length,
+            truncated: !!body.truncated,
+            readError: body.readError || ""
+          },
+          {
+            noPayloadClip: true,
+            packetDelayMs: config.allScriptsPacketDelayMs
+          },
+          function () {
+            exported += 1;
+            setTimeout(function () { processScript(index + 1); }, config.phaseDelayMs);
+          });
+      });
+    }
+
+    processScript(0);
   }
 
   function collectComputedStyles() {
@@ -1286,6 +1656,10 @@
         allStylesheetMaxSheets: config.allStylesheetMaxSheets,
         allStylesheetMaxSheetChars: config.allStylesheetMaxSheetChars,
         allStylesheetPacketDelayMs: config.allStylesheetPacketDelayMs,
+        allScriptsOnlyJsSrc: config.allScriptsOnlyJsSrc,
+        allScriptsMaxScripts: config.allScriptsMaxScripts,
+        allScriptsMaxScriptChars: config.allScriptsMaxScriptChars,
+        allScriptsPacketDelayMs: config.allScriptsPacketDelayMs,
         chunkSize: config.chunkSize,
         phaseDelayMs: config.phaseDelayMs,
         maxPayloadChars: config.maxPayloadChars,
@@ -1302,6 +1676,8 @@
       runSingleStylesheetExtraction();
     } else if (config.mode === "all_stylesheets") {
       runAllStylesheetsExtraction();
+    } else if (config.mode === "all_scripts") {
+      runAllScriptsExtraction();
     } else {
       runPhases();
     }

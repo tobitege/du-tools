@@ -8,9 +8,6 @@
     <Reference Include="NQutils">
       <HintPath>$(DUExternalLibDir)\NQutils.dll</HintPath>
     </Reference>
-    <Reference Include="Backend">
-      <HintPath>$(DUExternalLibDir)\Backend.dll</HintPath>
-    </Reference>
     <Reference Include="Backend.PubSub">
       <HintPath>$(DUExternalLibDir)\Backend.PubSub.dll</HintPath>
     </Reference>
@@ -23,8 +20,22 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Orleans.Core" Version="3.6.5" />
-    <PackageReference Include="Microsoft.Orleans.Core.Abstractions" Version="3.6.5" />
+    <Reference Include="Microsoft.Extensions.DependencyInjection.Abstractions">
+      <HintPath>$(DUExternalLibDir)\Microsoft.Extensions.DependencyInjection.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.DependencyInjection">
+      <HintPath>$(DUExternalLibDir)\Microsoft.Extensions.DependencyInjection.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Logging.Abstractions">
+      <HintPath>$(DUExternalLibDir)\Microsoft.Extensions.Logging.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Orleans.Core">
+      <HintPath>$(DUExternalLibDir)\Orleans.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Orleans.Core.Abstractions">
+      <HintPath>$(DUExternalLibDir)\Orleans.Core.Abstractions.dll</HintPath>
+    </Reference>
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="8.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 

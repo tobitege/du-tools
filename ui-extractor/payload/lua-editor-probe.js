@@ -17,6 +17,35 @@
   var modName = cfg.modName || "NQ.UIExtractor";
   var actionId = cfg.actionId || 900001;
   var dumpId = "lua-probe-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
+  var caretHighlightPrefStorageKey = "ui-extractor.lua.caret-highlight-enabled.v1";
+
+  function loadCaretHighlightPreference() {
+    try {
+      if (!window.localStorage || typeof window.localStorage.getItem !== "function") {
+        return false;
+      }
+      var raw = window.localStorage.getItem(caretHighlightPrefStorageKey);
+      if (raw === "1" || raw === "true") {
+        return true;
+      }
+      if (raw === "0" || raw === "false") {
+        return false;
+      }
+    } catch (_ignorePrefRead) {}
+    return false;
+  }
+
+  function saveCaretHighlightPreference(enabled) {
+    try {
+      if (!window.localStorage || typeof window.localStorage.setItem !== "function") {
+        return false;
+      }
+      window.localStorage.setItem(caretHighlightPrefStorageKey, enabled ? "1" : "0");
+      return true;
+    } catch (_ignorePrefWrite) {}
+    return false;
+  }
+
   var state = {
     menuObserved: false,
     menuHits: 0,
@@ -29,13 +58,66 @@
     activeFilterFingerprint: "",
     activeFilterIndex: -1,
     currentSnippetKey: "",
-    caretHighlightEnabled: false,
+    caretHighlightEnabled: loadCaretHighlightPreference(),
     caretBindingsCodeMirror: null,
     setCodeSwitchSeq: 0,
     switchInProgress: false,
     activeSwitchSeq: 0,
     intervalId: 0,
-    menuObserver: null
+    menuObserver: null,
+    filtersObserver: null,
+    filtersObserverRoot: null,
+    pendingSlotAutoOpen: null,
+    pendingSlotAutoOpenSeq: 0,
+    pendingSlotAutoOpenTimeoutId: 0,
+    pendingSlotAutoOpenRetryTimeoutId: 0,
+    forceEditorFocusOnNextSwitch: false,
+    skipNextSetCodeRestore: false,
+    suppressRestoreUntilInteraction: true,
+    cursorGuardCodeMirror: null,
+    lastIdeSyncContextKey: ""
+  };
+
+  state.applyIdeCode = function(newCode) {
+    var codeMirror = getLuaCodeMirror();
+    if (codeMirror && typeof codeMirror.setValue === "function") {
+      var currentContextKey = getEditorContextKey(codeMirror);
+      if (state.lastIdeSyncContextKey && currentContextKey !== state.lastIdeSyncContextKey) {
+        safeLog("IDE sync blocked: Context changed. Expected: " + state.lastIdeSyncContextKey + ", Got: " + currentContextKey);
+        var btnWarn = document.getElementById("ui-extractor-lua-ide-sync");
+        if (btnWarn) {
+          var oldBgWarn = btnWarn.style.background;
+          var oldColorWarn = btnWarn.style.color;
+          var oldTextWarn = btnWarn.textContent;
+          btnWarn.style.background = "#8a2424";
+          btnWarn.style.color = "#ffffff";
+          btnWarn.textContent = "Sync Blocked: Wrong Filter";
+          window.setTimeout(function() {
+            btnWarn.style.background = oldBgWarn;
+            btnWarn.style.color = oldColorWarn;
+            btnWarn.textContent = oldTextWarn;
+          }, 3000);
+        }
+        return;
+      }
+
+      codeMirror.setValue(newCode);
+
+      var btnOk = document.getElementById("ui-extractor-lua-ide-sync");
+      if (btnOk) {
+        var oldBgOk = btnOk.style.background;
+        var oldColorOk = btnOk.style.color;
+        var oldTextOk = btnOk.textContent;
+        btnOk.style.background = "#2a6b36";
+        btnOk.style.color = "#ffffff";
+        btnOk.textContent = "Synced from IDE!";
+        window.setTimeout(function() {
+          btnOk.style.background = oldBgOk;
+          btnOk.style.color = oldColorOk;
+          btnOk.textContent = oldTextOk;
+        }, 1500);
+      }
+    }
   };
   var colorThemes = [
     {
@@ -297,6 +379,82 @@
     return snapshot;
   }
 
+  function getEditorViewportSnapshot() {
+    var codeMirror = getLuaCodeMirror();
+    if (!codeMirror) {
+      return null;
+    }
+
+    var out = {};
+    try {
+      if (typeof codeMirror.getScrollInfo === "function") {
+        var s = codeMirror.getScrollInfo();
+        if (s) {
+          if (typeof s.top === "number") { out.scrollTopPx = s.top; }
+          if (typeof s.left === "number") { out.scrollLeftPx = s.left; }
+          if (typeof s.height === "number") { out.scrollHeightPx = s.height; }
+          if (typeof s.clientHeight === "number") { out.clientHeightPx = s.clientHeight; }
+          if (typeof s.width === "number") { out.scrollWidthPx = s.width; }
+          if (typeof s.clientWidth === "number") { out.clientWidthPx = s.clientWidth; }
+        }
+      }
+    } catch (_ignoreScrollInfo) {}
+
+    try {
+      if (typeof codeMirror.lineCount === "function") {
+        out.lineCount = codeMirror.lineCount();
+      }
+    } catch (_ignoreLineCount) {}
+
+    try {
+      if (typeof out.scrollTopPx === "number" && typeof codeMirror.lineAtHeight === "function") {
+        out.topLine = codeMirror.lineAtHeight(out.scrollTopPx, "local");
+      }
+    } catch (_ignoreTopLine) {}
+
+    try {
+      if (typeof codeMirror.getScrollerElement === "function") {
+        var cmScroller = codeMirror.getScrollerElement();
+        if (cmScroller) {
+          out.cmScrollerTopPx = cmScroller.scrollTop;
+          out.cmScrollerLeftPx = cmScroller.scrollLeft;
+          out.cmScrollerHeightPx = cmScroller.scrollHeight;
+          out.cmScrollerClientHeightPx = cmScroller.clientHeight;
+        }
+      }
+    } catch (_ignoreCmScroller) {}
+
+    try {
+      var wrapper = typeof codeMirror.getWrapperElement === "function" ? codeMirror.getWrapperElement() : null;
+      var root = wrapper && wrapper.parentNode ? wrapper.parentNode : wrapper;
+      if (root && root.querySelector) {
+        var vScrollbar = root.querySelector(".CodeMirror-vscrollbar");
+        if (vScrollbar) {
+          out.cmVScrollbarTopPx = vScrollbar.scrollTop;
+          out.cmVScrollbarHeightPx = vScrollbar.scrollHeight;
+          out.cmVScrollbarClientHeightPx = vScrollbar.clientHeight;
+        }
+      }
+    } catch (_ignoreVScrollbar) {}
+
+    try {
+      var textArea = document.getElementById("editor_window");
+      if (textArea) {
+        out.textAreaTopPx = textArea.scrollTop;
+      }
+    } catch (_ignoreTextAreaTop) {}
+
+    try {
+      if (typeof codeMirror.getCursor === "function") {
+        var c = codeMirror.getCursor();
+        if (c && typeof c.line === "number") { out.cursorLine = c.line; }
+        if (c && typeof c.ch === "number") { out.cursorCh = c.ch; }
+      }
+    } catch (_ignoreCursor) {}
+
+    return out;
+  }
+
   function addProbeStyle() {
     if (document.getElementById("ui-extractor-lua-probe-style")) {
       return;
@@ -326,12 +484,24 @@
       + "#dpu_editor #ui-extractor-lua-theme-dots .lua-theme-dot[data-active=\"1\"]{"
       + "transform:scale(1.1);opacity:1;box-shadow:0 0 0 1px rgba(0,0,0,0.55),0 0 8px rgba(255,255,255,0.35);}"
       + "#dpu_editor #ui-extractor-lua-caret-toggle{"
-      + "margin-left:8px;min-width:128px;height:34px;padding:0 12px;cursor:pointer;"
-      + "border:1px solid rgba(190,225,235,0.35);background:rgba(9,19,24,0.8);color:#b7d8e0;"
-      + "font-size:17px;line-height:32px;font-family:monospace;letter-spacing:0.3px;}"
+      + "font-family:Play,sans-serif;font-size:1.11111111vh;font-weight:900;text-transform:uppercase;"
+      + "color:rgb(182,223,237);border:1px solid rgb(182,223,237);display:flex;justify-content:center;align-items:center;text-align:center;"
+      + "background-color:rgb(25,40,49);text-shadow:rgba(0,255,255,0.6) 0px -2px 26px;box-shadow:rgb(0,0,0) 1px 1px 0px inset,rgb(0,0,0) -1px -1px 0px inset;"
+      + "overflow:hidden;min-width:9.25925926vh;height:2.31481481vh;min-height:2.31481481vh;max-height:2.31481481vh;padding:0 1.11111111vh;"
+      + "margin-left:0.37037037vh;cursor:pointer;line-height:2.12962963vh;}"
       + "#dpu_editor #ui-extractor-lua-caret-toggle[data-on=\"1\"]{"
       + "border-color:var(--lua-probe-accent);color:#ffffff;"
       + "box-shadow:0 0 0 1px rgba(0,0,0,0.35) inset;}"
+      + "#dpu_editor #ui-extractor-lua-caret-toggle:hover,#dpu_editor #ui-extractor-lua-ide-sync:hover{"
+      + "background-color:rgb(34,57,72);border-color:rgb(255,255,255);color:rgb(255,255,255);transition-duration:0.2s;}"
+      + "#dpu_editor #ui-extractor-lua-caret-toggle:active,#dpu_editor #ui-extractor-lua-ide-sync:active{"
+      + "background-color:rgb(182,223,237);color:rgb(28,52,60);transition-duration:0s;}"
+      + "#dpu_editor #ui-extractor-lua-ide-sync{"
+      + "font-family:Play,sans-serif;font-size:1.11111111vh;font-weight:900;text-transform:uppercase;"
+      + "color:rgb(250,212,122);border:1px solid rgba(250,212,122,0.5);display:flex;justify-content:center;align-items:center;text-align:center;"
+      + "background-color:rgba(9,19,24,0.8);text-shadow:rgba(0,255,255,0.45) 0px -2px 20px;box-shadow:rgb(0,0,0) 1px 1px 0px inset,rgb(0,0,0) -1px -1px 0px inset;"
+      + "overflow:hidden;min-width:8.7962963vh;height:2.31481481vh;min-height:2.31481481vh;max-height:2.31481481vh;padding:0 1.11111111vh;"
+      + "margin-left:0.37037037vh;cursor:pointer;line-height:2.12962963vh;}"
       + "#dpu_editor .CodeMirror .lua-probe-caret-line{"
       + "background:var(--lua-probe-caret-line-bg) !important;}"
       + "#dpu_editor #filters_container .filter[data-lua-probe-active-filter=\"1\"]{"
@@ -476,29 +646,136 @@
     return "";
   }
 
+  function findFirstNode(selectors) {
+    for (var i = 0; i < selectors.length; i += 1) {
+      try {
+        var node = document.querySelector(selectors[i]);
+        if (node) {
+          return node;
+        }
+      } catch (_ignore) {}
+    }
+    return null;
+  }
+
+  function getNodeIdentity(node, prefix) {
+    if (!node) {
+      return "";
+    }
+    var parts = [];
+    try {
+      var text = limitText(textOf(node), 64);
+      if (text) {
+        parts.push("text=" + text);
+      }
+    } catch (_ignoreText) {}
+    try {
+      var id = node.getAttribute ? String(node.getAttribute("id") || "") : "";
+      if (id) {
+        parts.push("id=" + limitText(id, 48));
+      }
+    } catch (_ignoreId) {}
+    try {
+      var ds = node.getAttribute ? String(node.getAttribute("data-slot") || node.getAttribute("data-name") || node.getAttribute("data-index") || "") : "";
+      if (ds) {
+        parts.push("data=" + limitText(ds, 48));
+      }
+    } catch (_ignoreData) {}
+    try {
+      var className = node.className ? String(node.className) : "";
+      if (className) {
+        parts.push("class=" + limitText(className, 64));
+      }
+    } catch (_ignoreClass) {}
+    try {
+      if (node.parentNode && node.parentNode.children) {
+        var idx = Array.prototype.indexOf.call(node.parentNode.children, node);
+        if (idx >= 0) {
+          parts.push("idx=" + idx);
+        }
+      }
+    } catch (_ignoreIdx) {}
+    if (parts.length <= 0) {
+      return "";
+    }
+    return prefix + "{" + parts.join("|") + "}";
+  }
+
   function getDomContextKey() {
-    var slotText = findFirstText([
+    var slotSelectors = [
       "#slots_container .slot.selected",
       "#slots_container .slot.active",
       "#slots_container .slot.current",
       "#slots_container .slot.focus",
       "#slots_container .slot[data-selected=\"true\"]",
       "#slots_container .slot[aria-selected=\"true\"]"
-    ]);
-    var filterText = findFirstText([
+    ];
+    var filterSelectors = [
       "#filters_container .filter.selected",
       "#filters_container .filter.active",
       "#filters_container .filter.current",
       "#filters_container .filter.focus",
       "#filters_container .filter[data-selected=\"true\"]",
       "#filters_container .filter[aria-selected=\"true\"]"
-    ]);
+    ];
 
-    if (!slotText && !filterText) {
+    var slotNode = findFirstNode(slotSelectors);
+    var filterNode = findFirstNode(filterSelectors);
+    var slotText = findFirstText(slotSelectors);
+    var filterText = findFirstText(filterSelectors);
+    var slotIdentity = getNodeIdentity(slotNode, "slot");
+    var filterIdentity = getNodeIdentity(filterNode, "filter");
+
+    if (!slotText && !filterText && !slotIdentity && !filterIdentity) {
       return "";
     }
 
-    return "dom:" + slotText + "::" + filterText;
+    return "dom:" + (slotText || slotIdentity) + "::" + (filterText || filterIdentity);
+  }
+
+  function getDomSelectedSlotNode() {
+    var slotSelectors = [
+      "#slots_container .slot.selected",
+      "#slots_container .slot.active",
+      "#slots_container .slot.current",
+      "#slots_container .slot.focus",
+      "#slots_container .slot[data-selected=\"true\"]",
+      "#slots_container .slot[aria-selected=\"true\"]"
+    ];
+    return findFirstNode(slotSelectors);
+  }
+
+  function getSlotStableKey(slotNode) {
+    if (!slotNode) {
+      return "";
+    }
+    var parts = [];
+    try {
+      var id = slotNode.getAttribute ? String(slotNode.getAttribute("id") || "") : "";
+      if (id) {
+        parts.push("id=" + limitText(id, 48));
+      }
+    } catch (_ignoreSlotId) {}
+    try {
+      var dataValue = slotNode.getAttribute ? String(
+        slotNode.getAttribute("data-slot") ||
+        slotNode.getAttribute("data-name") ||
+        slotNode.getAttribute("data-index") ||
+        ""
+      ) : "";
+      if (dataValue) {
+        parts.push("data=" + limitText(dataValue, 48));
+      }
+    } catch (_ignoreSlotData) {}
+    try {
+      if (slotNode.parentNode && slotNode.parentNode.children) {
+        var idx = Array.prototype.indexOf.call(slotNode.parentNode.children, slotNode);
+        if (idx >= 0) {
+          parts.push("idx=" + idx);
+        }
+      }
+    } catch (_ignoreSlotIdx) {}
+    return parts.join("|");
   }
 
   function normalizeProbeText(value) {
@@ -650,6 +927,26 @@
   }
 
   function findDomSelectedFilterNode() {
+    var visibleNodes = getVisibleFilterNodes();
+    for (var i = 0; i < visibleNodes.length; i += 1) {
+      var visibleNode = visibleNodes[i];
+      if (!visibleNode || !visibleNode.classList) {
+        continue;
+      }
+      if (visibleNode.classList.contains("selected") ||
+          visibleNode.classList.contains("active") ||
+          visibleNode.classList.contains("current") ||
+          visibleNode.classList.contains("focus")) {
+        return visibleNode;
+      }
+      try {
+        if (visibleNode.getAttribute("data-selected") === "true" ||
+            visibleNode.getAttribute("aria-selected") === "true") {
+          return visibleNode;
+        }
+      } catch (_ignoreVisibleAttr) {}
+    }
+
     var selectors = [
       "#filters_container .filter.selected",
       "#filters_container .filter.active",
@@ -662,6 +959,12 @@
       try {
         var node = document.querySelector(selectors[i]);
         if (node && node.classList && !node.classList.contains("filterTemplate")) {
+          try {
+            var computed = window.getComputedStyle ? window.getComputedStyle(node, null) : null;
+            if (computed && (computed.display === "none" || computed.visibility === "hidden")) {
+              continue;
+            }
+          } catch (_ignoreNodeComputed) {}
           return node;
         }
       } catch (_ignoreSelector) {}
@@ -834,6 +1137,17 @@
     } catch (_ignore) {}
   }
 
+  function hasRememberedTopLineForKey(key) {
+    if (!key) {
+      return false;
+    }
+    var remembered = state.scrollTopByContext[key];
+    if (typeof remembered === "number") {
+      return remembered >= 0;
+    }
+    return !!(remembered && typeof remembered === "object" && typeof remembered.topLine === "number" && remembered.topLine >= 0);
+  }
+
   function restoreTopLineForCurrentKey(keyHint) {
     var codeMirror = getLuaCodeMirror();
     if (!codeMirror) {
@@ -890,22 +1204,29 @@
         rememberedCursorCh = 0;
       }
 
-      if (typeof codeMirror.heightAtLine === "function" && typeof codeMirror.scrollTo === "function") {
-        var topPx = codeMirror.heightAtLine(rememberedTopLine, "local");
-        codeMirror.scrollTo(null, topPx);
-      }
+      var performScroll = function() {
+        if (typeof codeMirror.heightAtLine === "function" && typeof codeMirror.scrollTo === "function") {
+          var topPx = codeMirror.heightAtLine(rememberedTopLine, "local");
+          // Add small vertical offset buffer so top line isn't exactly at 0px
+          codeMirror.scrollTo(null, topPx > 0 ? topPx - 5 : 0);
+        }
 
-      var allowCursorRestore = shouldFocus;
-      if (!allowCursorRestore && typeof codeMirror.hasFocus === "function") {
-        allowCursorRestore = codeMirror.hasFocus();
-      }
+        var allowCursorRestore = shouldFocus;
+        if (!allowCursorRestore && typeof codeMirror.hasFocus === "function") {
+          allowCursorRestore = codeMirror.hasFocus();
+        }
 
-      if (allowCursorRestore && typeof codeMirror.setCursor === "function") {
-        codeMirror.setCursor({ line: rememberedCursorLine, ch: rememberedCursorCh });
-      }
-      if (shouldFocus && typeof codeMirror.focus === "function") {
-        codeMirror.focus();
-      }
+        if (allowCursorRestore && typeof codeMirror.setCursor === "function") {
+          codeMirror.setCursor({ line: rememberedCursorLine, ch: rememberedCursorCh });
+        }
+        if (shouldFocus && typeof codeMirror.focus === "function") {
+          codeMirror.focus();
+        }
+      };
+
+      // Single apply here; switch lifecycle settles before restore runs.
+      performScroll();
+
     } catch (_ignore) {}
 
     if (state.caretHighlightEnabled) {
@@ -914,6 +1235,152 @@
       }, 0);
     }
     return true;
+  }
+
+  function resetEditorViewportToTop() {
+    var codeMirror = getLuaCodeMirror();
+    if (!codeMirror) {
+      return;
+    }
+
+    try {
+      if (typeof codeMirror.setCursor === "function") {
+        codeMirror.setCursor({ line: 0, ch: 0 });
+      }
+    } catch (_ignoreCursorTop) {}
+
+    try {
+      if (typeof codeMirror.scrollTo === "function") {
+        codeMirror.scrollTo(0, 0);
+        codeMirror.scrollTo(null, 0);
+      }
+    } catch (_ignoreScrollTop) {}
+
+    try {
+      if (typeof codeMirror.getScrollerElement === "function") {
+        var scroller = codeMirror.getScrollerElement();
+        if (scroller) {
+          scroller.scrollTop = 0;
+          scroller.scrollLeft = 0;
+        }
+      }
+    } catch (_ignoreScroller) {}
+
+    try {
+      var wrapper = typeof codeMirror.getWrapperElement === "function" ? codeMirror.getWrapperElement() : null;
+      var root = wrapper && wrapper.parentNode ? wrapper.parentNode : wrapper;
+      if (root && root.querySelector) {
+        var vScrollbar = root.querySelector(".CodeMirror-vscrollbar");
+        if (vScrollbar) {
+          vScrollbar.scrollTop = 0;
+        }
+      }
+    } catch (_ignoreVScrollbarReset) {}
+
+    try {
+      var textArea = document.getElementById("editor_window");
+      if (textArea) {
+        textArea.scrollTop = 0;
+        textArea.selectionStart = 0;
+        textArea.selectionEnd = 0;
+      }
+    } catch (_ignoreTextArea) {}
+  }
+
+  function installFreshOpenViewportGuard() {
+    var codeMirror = getLuaCodeMirror();
+    if (!codeMirror) {
+      return;
+    }
+
+    if (state.cursorGuardCodeMirror && state.cursorGuardCodeMirror !== codeMirror) {
+      removeFreshOpenViewportGuard();
+    }
+
+    if (state.cursorGuardCodeMirror === codeMirror) {
+      return;
+    }
+
+    try {
+      if (typeof codeMirror.setCursor === "function" &&
+          typeof codeMirror.__luaProbeOriginalSetCursor !== "function") {
+        codeMirror.__luaProbeOriginalSetCursor = codeMirror.setCursor;
+        codeMirror.setCursor = function (cursor) {
+          if (state.suppressRestoreUntilInteraction) {
+            return codeMirror.__luaProbeOriginalSetCursor.call(this, { line: 0, ch: 0 });
+          }
+          return codeMirror.__luaProbeOriginalSetCursor.apply(this, arguments);
+        };
+      }
+    } catch (_ignoreWrapSetCursor) {}
+
+    try {
+      if (typeof codeMirror.scrollTo === "function" &&
+          typeof codeMirror.__luaProbeOriginalScrollTo !== "function") {
+        codeMirror.__luaProbeOriginalScrollTo = codeMirror.scrollTo;
+        codeMirror.scrollTo = function (_x, _y) {
+          if (state.suppressRestoreUntilInteraction) {
+            return codeMirror.__luaProbeOriginalScrollTo.call(this, 0, 0);
+          }
+          return codeMirror.__luaProbeOriginalScrollTo.apply(this, arguments);
+        };
+      }
+    } catch (_ignoreWrapScrollTo) {}
+
+    state.cursorGuardCodeMirror = codeMirror;
+  }
+
+  function removeFreshOpenViewportGuard() {
+    var codeMirror = state.cursorGuardCodeMirror || getLuaCodeMirror();
+    if (!codeMirror) {
+      state.cursorGuardCodeMirror = null;
+      return;
+    }
+
+    try {
+      if (typeof codeMirror.__luaProbeOriginalSetCursor === "function") {
+        codeMirror.setCursor = codeMirror.__luaProbeOriginalSetCursor;
+      }
+      codeMirror.__luaProbeOriginalSetCursor = null;
+    } catch (_ignoreUnwrapSetCursor) {}
+
+    try {
+      if (typeof codeMirror.__luaProbeOriginalScrollTo === "function") {
+        codeMirror.scrollTo = codeMirror.__luaProbeOriginalScrollTo;
+      }
+      codeMirror.__luaProbeOriginalScrollTo = null;
+    } catch (_ignoreUnwrapScrollTo) {}
+
+    state.cursorGuardCodeMirror = null;
+  }
+
+  function enforceEditorFocusAndCaret() {
+    var codeMirror = getLuaCodeMirror();
+    if (!codeMirror) {
+      return;
+    }
+
+    var apply = function () {
+      try {
+        if (typeof codeMirror.focus === "function") {
+          codeMirror.focus();
+        }
+      } catch (_ignoreFocus) {}
+
+      try {
+        if (typeof codeMirror.getCursor === "function" && typeof codeMirror.setCursor === "function") {
+          var cursor = codeMirror.getCursor();
+          var line = cursor && typeof cursor.line === "number" ? cursor.line : 0;
+          var ch = cursor && typeof cursor.ch === "number" ? cursor.ch : 0;
+          codeMirror.setCursor({ line: line, ch: ch });
+        }
+      } catch (_ignoreCursorRestore) {}
+
+      updateCaretLineHighlight();
+    };
+
+    apply();
+    window.setTimeout(apply, 50);
   }
 
   function captureTopLineFromUiInteraction(ev) {
@@ -927,26 +1394,73 @@
         return;
       }
 
-      var slotNode = target.closest("#slots_container .slot");
-      var filterNode = target.closest("#filters_container .filter");
-      if (slotNode || filterNode) {
+      var editorNode = target.closest("#editor_window_code") || target.closest(".CodeMirror") || target.closest("#editor_window");
+      if (editorNode) {
+        if (state.suppressRestoreUntilInteraction) {
+          state.suppressRestoreUntilInteraction = false;
+          removeFreshOpenViewportGuard();
+        }
+        syncCurrentContextKey();
         syncCurrentSnippetKeyFromEditor();
         if (state.currentSnippetKey) {
           rememberTopLineForKey(state.currentSnippetKey);
         }
+        rememberTopLineForKey(state.lastContextKey);
+        return;
+      }
 
-        var codeMirror = getLuaCodeMirror();
-        var currentContextKey = getEditorContextKey(codeMirror) || state.lastContextKey;
-        if (currentContextKey) {
-          rememberTopLineForKey(currentContextKey);
+      var slotNode = target.closest("#slots_container .slot");
+      var filterNode = target.closest("#filters_container .filter");
+      if (slotNode || filterNode) {
+        var selectedSlotNode = slotNode ? getDomSelectedSlotNode() : null;
+        var selectedSlotKey = slotNode ? getSlotStableKey(selectedSlotNode) : "";
+        var clickedSlotKey = slotNode ? getSlotStableKey(slotNode) : "";
+        var isSlotTransition = !!slotNode && (
+          (selectedSlotKey && clickedSlotKey && selectedSlotKey !== clickedSlotKey) ||
+          (!selectedSlotKey || !clickedSlotKey) ||
+          (selectedSlotNode && slotNode && selectedSlotNode !== slotNode)
+        );
+        var wasSuppressed = !!state.suppressRestoreUntilInteraction;
+        if (wasSuppressed && (filterNode || isSlotTransition)) {
+          // First interaction after open/reinject must never inherit stale viewport state.
+          state.skipNextSetCodeRestore = true;
+          resetEditorViewportToTop();
         }
 
         if (filterNode) {
+          state.suppressRestoreUntilInteraction = false;
+          removeFreshOpenViewportGuard();
+        } else if (isSlotTransition) {
+          // Keep suppression active through slot click until a concrete filter is selected.
+          state.suppressRestoreUntilInteraction = true;
+          installFreshOpenViewportGuard();
+        }
+
+        if (!wasSuppressed) {
+          syncCurrentSnippetKeyFromEditor();
+          if (state.currentSnippetKey) {
+            rememberTopLineForKey(state.currentSnippetKey);
+          }
+
+          var codeMirror = getLuaCodeMirror();
+          var currentContextKey = getEditorContextKey(codeMirror) || state.lastContextKey;
+          if (currentContextKey) {
+            rememberTopLineForKey(currentContextKey);
+          }
+        }
+
+        if (filterNode) {
+          clearPendingSlotAutoOpen();
           setActiveFilterMarker(filterNode);
         } else if (slotNode) {
-          clearActiveFilterMarker();
-          state.activeFilterIndex = -1;
-          state.activeFilterFingerprint = "";
+          if (isSlotTransition) {
+            clearActiveFilterMarker();
+            state.activeFilterIndex = -1;
+            state.activeFilterFingerprint = "";
+            armPendingSlotAutoOpen(slotNode, selectedSlotNode);
+          } else {
+            clearPendingSlotAutoOpen();
+          }
         }
         sendPacket("lua_ui_snippet_nav_click", {
           kind: slotNode ? "slot" : "filter",
@@ -965,6 +1479,307 @@
 
     root.__luaProbeSwitchHooksBound = true;
     root.addEventListener("mousedown", captureTopLineFromUiInteraction, true);
+  }
+
+  function clearPendingSlotAutoOpen() {
+    if (state.pendingSlotAutoOpenTimeoutId) {
+      try {
+        window.clearTimeout(state.pendingSlotAutoOpenTimeoutId);
+      } catch (_ignorePendingTimeout) {}
+      state.pendingSlotAutoOpenTimeoutId = 0;
+    }
+    if (state.pendingSlotAutoOpenRetryTimeoutId) {
+      try {
+        window.clearTimeout(state.pendingSlotAutoOpenRetryTimeoutId);
+      } catch (_ignorePendingRetryTimeout) {}
+      state.pendingSlotAutoOpenRetryTimeoutId = 0;
+    }
+    state.pendingSlotAutoOpen = null;
+  }
+
+  function isNodeInsideFiltersContainer(node) {
+    if (!node) {
+      return false;
+    }
+    var container = document.getElementById("filters_container");
+    if (!container) {
+      return false;
+    }
+    var current = node;
+    while (current) {
+      if (current === container) {
+        return true;
+      }
+      current = current.parentNode;
+    }
+    return false;
+  }
+
+  function resolveAutoOpenFilterCandidate(pending) {
+    var selected = findDomSelectedFilterNode();
+    var hasStaleSelected = !!(pending && pending.oldSelected && selected === pending.oldSelected);
+    if (selected && isNodeInsideFiltersContainer(selected) && !hasStaleSelected) {
+      return selected;
+    }
+
+    var hinted = findFilterNodeByHints(getManagerFilterHints());
+    if (hinted && isNodeInsideFiltersContainer(hinted)) {
+      if (pending && pending.oldSelected && hinted === pending.oldSelected) {
+        // Hint still points to previous slot node; keep searching for a fresh candidate.
+      } else {
+        return hinted;
+      }
+    }
+
+    var nodes = getVisibleFilterNodes();
+    if (nodes.length <= 0) {
+      return null;
+    }
+
+    if (hasStaleSelected && nodes.length > 1) {
+      return nodes[1];
+    }
+
+    if (!hasStaleSelected) {
+      return nodes[0];
+    }
+
+    var elapsedMs = Date.now() - pending.startedAt;
+    if (elapsedMs < 180 && pending.mutationCount <= 0) {
+      return null;
+    }
+    return nodes[0];
+  }
+
+  function tryAutoOpenSelectedFilter() {
+    var pending = state.pendingSlotAutoOpen;
+    if (!pending || state.switchInProgress) {
+      return false;
+    }
+
+    pending.attempts = (pending.attempts || 0) + 1;
+
+    if (Date.now() > pending.expiresAt) {
+      sendPacket("lua_slot_auto_open", {
+        seq: pending.seq,
+        attempts: pending.attempts || 0,
+        status: "expired",
+        mutationCount: pending.mutationCount || 0
+      });
+      clearPendingSlotAutoOpen();
+      return false;
+    }
+
+    var elapsedMs = Date.now() - pending.startedAt;
+    var currentSelectedSlotNode = getDomSelectedSlotNode();
+    var currentSelectedSlotIdentity = getNodeIdentity(currentSelectedSlotNode, "slot");
+    var currentSelectedSlotKey = getSlotStableKey(currentSelectedSlotNode);
+    if (pending.targetSlotKey && currentSelectedSlotKey && currentSelectedSlotKey !== pending.targetSlotKey) {
+      if (pending.attempts <= 3 || pending.attempts % 10 === 0) {
+        sendPacket("lua_slot_auto_open", {
+          seq: pending.seq,
+          attempts: pending.attempts,
+          status: "waiting-target-slot",
+          mutationCount: pending.mutationCount || 0,
+          elapsedMs: elapsedMs
+        });
+      }
+      return false;
+    }
+    if (!pending.targetSlotKey && pending.targetSlotIdentity && currentSelectedSlotIdentity && currentSelectedSlotIdentity !== pending.targetSlotIdentity) {
+      if (pending.attempts <= 3 || pending.attempts % 10 === 0) {
+        sendPacket("lua_slot_auto_open", {
+          seq: pending.seq,
+          attempts: pending.attempts,
+          status: "waiting-target-slot-identity",
+          mutationCount: pending.mutationCount || 0,
+          elapsedMs: elapsedMs
+        });
+      }
+      return false;
+    }
+
+    if (pending.previousSlotKey && currentSelectedSlotKey && currentSelectedSlotKey === pending.previousSlotKey && elapsedMs < 600) {
+      if (pending.attempts <= 3 || pending.attempts % 10 === 0) {
+        sendPacket("lua_slot_auto_open", {
+          seq: pending.seq,
+          attempts: pending.attempts,
+          status: "waiting-slot-switch",
+          mutationCount: pending.mutationCount || 0,
+          elapsedMs: elapsedMs
+        });
+      }
+      return false;
+    }
+    if (!pending.previousSlotKey && pending.previousSlotIdentity && currentSelectedSlotIdentity && currentSelectedSlotIdentity === pending.previousSlotIdentity && elapsedMs < 600) {
+      if (pending.attempts <= 3 || pending.attempts % 10 === 0) {
+        sendPacket("lua_slot_auto_open", {
+          seq: pending.seq,
+          attempts: pending.attempts,
+          status: "waiting-slot-switch-identity",
+          mutationCount: pending.mutationCount || 0,
+          elapsedMs: elapsedMs
+        });
+      }
+      return false;
+    }
+
+    var candidate = resolveAutoOpenFilterCandidate(pending);
+    if (!candidate) {
+      if (pending.attempts <= 3 || pending.attempts % 10 === 0) {
+        sendPacket("lua_slot_auto_open", {
+          seq: pending.seq,
+          attempts: pending.attempts,
+          status: "no-candidate",
+          mutationCount: pending.mutationCount || 0
+        });
+      }
+      return false;
+    }
+
+    var sameAsOld = !!pending.oldSelected && candidate === pending.oldSelected;
+    // Guard against stale pre-switch selected node during asynchronous list rebuild.
+    if (sameAsOld && elapsedMs < 220 && pending.mutationCount < 2) {
+      if (pending.attempts <= 3 || pending.attempts % 10 === 0) {
+        sendPacket("lua_slot_auto_open", {
+          seq: pending.seq,
+          attempts: pending.attempts,
+          status: "stale-selected",
+          mutationCount: pending.mutationCount || 0,
+          elapsedMs: elapsedMs
+        });
+      }
+      return false;
+    }
+
+    if (triggerElementClick(candidate)) {
+      // Slot-driven auto-open should start at top for the new filter.
+      state.skipNextSetCodeRestore = true;
+      state.forceEditorFocusOnNextSwitch = true;
+      sendPacket("lua_slot_auto_open", {
+        seq: pending.seq,
+        attempts: pending.attempts,
+        status: "clicked",
+        mutationCount: pending.mutationCount || 0,
+        text: limitText(textOf(candidate), 96)
+      });
+      setActiveFilterMarker(candidate);
+      clearPendingSlotAutoOpen();
+      return true;
+    }
+
+    return false;
+  }
+
+  function armPendingSlotAutoOpen(slotNode, previousSelectedSlotNode) {
+    clearPendingSlotAutoOpen();
+    ensureAutoClickObserver();
+
+    state.pendingSlotAutoOpenSeq += 1;
+    var seq = state.pendingSlotAutoOpenSeq;
+    var targetSlotIdentity = getNodeIdentity(slotNode, "slot");
+    var previousSlotIdentity = getNodeIdentity(previousSelectedSlotNode, "slot");
+    var targetSlotKey = getSlotStableKey(slotNode);
+    var previousSlotKey = getSlotStableKey(previousSelectedSlotNode);
+    state.pendingSlotAutoOpen = {
+      seq: seq,
+      startedAt: Date.now(),
+      expiresAt: Date.now() + 5000,
+      mutationCount: 0,
+      attempts: 0,
+      oldSelected: findDomSelectedFilterNode(),
+      targetSlotKey: targetSlotKey || "",
+      previousSlotKey: previousSlotKey || "",
+      targetSlotIdentity: targetSlotIdentity || "",
+      previousSlotIdentity: previousSlotIdentity || ""
+    };
+
+    sendPacket("lua_slot_auto_open", {
+      seq: seq,
+      status: "armed",
+      targetSlotKey: targetSlotKey || "",
+      previousSlotKey: previousSlotKey || "",
+      targetSlotIdentity: targetSlotIdentity || "",
+      previousSlotIdentity: previousSlotIdentity || ""
+    });
+
+    var scheduleRetry = function (delayMs) {
+      state.pendingSlotAutoOpenRetryTimeoutId = window.setTimeout(function () {
+        if (!state.pendingSlotAutoOpen || state.pendingSlotAutoOpen.seq !== seq) {
+          return;
+        }
+        if (tryAutoOpenSelectedFilter()) {
+          return;
+        }
+        if (Date.now() > state.pendingSlotAutoOpen.expiresAt) {
+          clearPendingSlotAutoOpen();
+          return;
+        }
+        scheduleRetry(120);
+      }, delayMs);
+    };
+
+    // Initial delayed kick + persistent retry loop for sluggish Coherent GT refreshes.
+    state.pendingSlotAutoOpenTimeoutId = window.setTimeout(function () {
+      if (!state.pendingSlotAutoOpen || state.pendingSlotAutoOpen.seq !== seq) {
+        return;
+      }
+      if (tryAutoOpenSelectedFilter()) {
+        return;
+      }
+      scheduleRetry(120);
+    }, 70);
+  }
+
+  function ensureAutoClickObserver() {
+    var root = document.getElementById("dpu_editor");
+    if (!root) {
+      return;
+    }
+
+    if (!window.MutationObserver) {
+      return;
+    }
+
+    if (state.filtersObserver && state.filtersObserverRoot === root) {
+      return;
+    }
+
+    try {
+      if (state.filtersObserver && typeof state.filtersObserver.disconnect === "function") {
+        state.filtersObserver.disconnect();
+      }
+    } catch (_ignoreReconnectObserver) {}
+
+    var observer = new MutationObserver(function (mutations) {
+      var pending = state.pendingSlotAutoOpen;
+      if (!pending) {
+        return;
+      }
+
+      if (Date.now() > pending.expiresAt) {
+        clearPendingSlotAutoOpen();
+        return;
+      }
+
+      if (mutations && typeof mutations.length === "number") {
+        pending.mutationCount += mutations.length;
+      }
+
+      if (!tryAutoOpenSelectedFilter()) {
+        return;
+      }
+    });
+
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class", "data-selected", "aria-selected"]
+    });
+
+    state.filtersObserver = observer;
+    state.filtersObserverRoot = root;
   }
 
   function getThemeByName(themeName) {
@@ -1057,12 +1872,14 @@
 
   function setCaretHighlightEnabled(enabled, emitPacket) {
     state.caretHighlightEnabled = !!enabled;
+    var persisted = saveCaretHighlightPreference(state.caretHighlightEnabled);
     updateCaretToggleVisual();
     updateCaretLineHighlight();
 
     if (emitPacket) {
       sendPacket("lua_caret_highlight_toggle", {
-        enabled: state.caretHighlightEnabled
+        enabled: state.caretHighlightEnabled,
+        persisted: persisted
       });
     }
   }
@@ -1198,6 +2015,56 @@
     updateCaretLineHighlight();
   }
 
+  function sendIdeSyncPacket() {
+    var codeMirror = getLuaCodeMirror();
+    if (!codeMirror) {
+      return;
+    }
+    state.lastIdeSyncContextKey = getEditorContextKey(codeMirror);
+    var code = typeof codeMirror.getValue === "function" ? codeMirror.getValue() : "";
+    var chunkSize = 8000;
+    var total = Math.ceil(code.length / chunkSize) || 1;
+    var syncId = "sync-" + Date.now();
+    for (var i = 0; i < total; i += 1) {
+      var chunk = code.substring(i * chunkSize, (i + 1) * chunkSize);
+      sendPacket("lua_ide_sync", {
+        syncId: syncId,
+        part: i + 1,
+        total: total,
+        codeChunk: chunk
+      });
+    }
+  }
+
+  function ensureIdeSyncButton() {
+    var root = document.getElementById("dpu_editor");
+    if (!root || !root.querySelector) {
+      return;
+    }
+
+    // Use the native font_size_wrapper container where the other buttons (like LINE HL OFF) live!
+    var wrapper = root.querySelector(".header_editor .font_size_wrapper");
+    if (!wrapper) {
+      return;
+    }
+
+    var syncBtn = document.getElementById("ui-extractor-lua-ide-sync");
+    if (!syncBtn) {
+      syncBtn = document.createElement("button");
+      syncBtn.type = "button";
+      syncBtn.id = "ui-extractor-lua-ide-sync";
+      syncBtn.textContent = "IDE Sync";
+
+      syncBtn.addEventListener("click", function () {
+        sendIdeSyncPacket();
+      }, true);
+    }
+
+    if (syncBtn.parentNode !== wrapper) {
+      wrapper.appendChild(syncBtn);
+    }
+  }
+
   function applyTheme(themeName, emitPacket) {
     var root = document.getElementById("dpu_editor");
     if (!root) {
@@ -1315,7 +2182,7 @@
 
     for (var i = 0; i < entries.length; i += 1) {
       var entry = entries[i];
-      var txt = normalizeProbeText(textOf(entry));
+      var txt = normalizeProbeText(getMenuEntryLabel(entry) || textOf(entry));
       if (!txt || txt.indexOf(needle) < 0) {
         continue;
       }
@@ -1326,6 +2193,231 @@
       }
     }
 
+    return best;
+  }
+
+  function isQuickInjectedMenuEntry(entry) {
+    if (!entry) {
+      return false;
+    }
+    if (entry.id === quickEditLuaMenuItemId || entry.id === quickInjectProbeMenuItemId) {
+      return true;
+    }
+    try {
+      return entry.getAttribute && entry.getAttribute("data-ui-extractor-quick") === "1";
+    } catch (_ignoreQuickAttr) {}
+    return false;
+  }
+
+  function findNativeMenuEntryByText(menuRoot, textNeedle) {
+    if (!menuRoot || !menuRoot.querySelectorAll || !textNeedle) {
+      return null;
+    }
+
+    var needle = normalizeProbeText(textNeedle);
+    var entries = menuRoot.querySelectorAll("li.menu");
+    var best = null;
+    var bestLength = Number.MAX_SAFE_INTEGER;
+
+    for (var i = 0; i < entries.length; i += 1) {
+      var entry = entries[i];
+      if (isQuickInjectedMenuEntry(entry)) {
+        continue;
+      }
+      var txt = normalizeProbeText(getMenuEntryLabel(entry) || textOf(entry));
+      if (!txt || txt.indexOf(needle) < 0) {
+        continue;
+      }
+
+      if (txt.length < bestLength) {
+        best = entry;
+        bestLength = txt.length;
+      }
+    }
+
+    return best;
+  }
+
+  function findNativeEditLuaEntry(menuRoot) {
+    if (!menuRoot || !menuRoot.querySelectorAll) {
+      return null;
+    }
+
+    var entries = menuRoot.querySelectorAll("li.menu");
+    var best = null;
+    var bestScore = -1;
+
+    for (var i = 0; i < entries.length; i += 1) {
+      var entry = entries[i];
+      if (isQuickInjectedMenuEntry(entry)) {
+        continue;
+      }
+
+      var label = normalizeProbeText(getMenuEntryLabel(entry));
+      if (!label || label.indexOf("edit lua script") !== 0) {
+        continue;
+      }
+
+      var score = 0;
+      if (label === "edit lua script") {
+        score += 3;
+      }
+      if (label.indexOf("ctrl") >= 0) {
+        score += 2;
+      }
+      if (entry.classList && !entry.classList.contains("right_dropdown")) {
+        score += 2;
+      }
+      if (isNodeVisible(entry)) {
+        score += 1;
+      }
+
+      if (score > bestScore) {
+        best = entry;
+        bestScore = score;
+      }
+    }
+
+    return best || findNativeMenuEntryByText(menuRoot, "edit lua script");
+  }
+
+  function isNodeVisible(node) {
+    if (!node) {
+      return false;
+    }
+    try {
+      var computed = window.getComputedStyle ? window.getComputedStyle(node, null) : null;
+      if (!computed) {
+        return true;
+      }
+      return computed.display !== "none" && computed.visibility !== "hidden" && computed.opacity !== "0";
+    } catch (_ignoreVisibleCheck) {}
+    return true;
+  }
+
+  function findAdvancedMenuEntry(menuRoot) {
+    if (!menuRoot) {
+      return null;
+    }
+
+    // Important: only target top-level "Advanced", never nested submenus like Construct -> Advanced.
+    var topContainer = findTopLevelMenuContainer(menuRoot);
+    var entries = getDirectMenuEntries(topContainer);
+    var best = null;
+    var bestScore = -1;
+    for (var i = 0; i < entries.length; i += 1) {
+      var entry = entries[i];
+      if (isQuickInjectedMenuEntry(entry)) {
+        continue;
+      }
+      var label = normalizeProbeText(getMenuEntryLabel(entry));
+      if (!label || label.indexOf("advanced") < 0) {
+        continue;
+      }
+
+      var score = 0;
+      if (label === "advanced") {
+        score += 4;
+      } else if (label.indexOf("advanced") === 0) {
+        score += 2;
+      }
+      if (entry.classList && entry.classList.contains("right_dropdown")) {
+        score += 1;
+      }
+      if (isNodeVisible(entry)) {
+        score += 1;
+      }
+
+      if (score > bestScore) {
+        best = entry;
+        bestScore = score;
+      }
+    }
+
+    return best;
+  }
+
+  function getDirectSubmenuContainer(entry) {
+    if (!entry || !entry.children) {
+      return null;
+    }
+    for (var i = 0; i < entry.children.length; i += 1) {
+      var child = entry.children[i];
+      if (!child || !child.tagName) {
+        continue;
+      }
+      var tag = String(child.tagName).toUpperCase();
+      if (tag === "UL" || tag === "OL") {
+        return child;
+      }
+    }
+    return null;
+  }
+
+  function findDirectMenuEntryByText(container, textNeedle) {
+    if (!container || !container.children || !textNeedle) {
+      return null;
+    }
+    var needle = normalizeProbeText(textNeedle);
+    var best = null;
+    var bestLength = Number.MAX_SAFE_INTEGER;
+    for (var i = 0; i < container.children.length; i += 1) {
+      var child = container.children[i];
+      if (!isMenuEntryNode(child) || isQuickInjectedMenuEntry(child)) {
+        continue;
+      }
+      var label = normalizeProbeText(getMenuEntryLabel(child) || textOf(child));
+      if (!label || label.indexOf(needle) < 0) {
+        continue;
+      }
+      if (label.length < bestLength) {
+        best = child;
+        bestLength = label.length;
+      }
+    }
+    return best;
+  }
+
+  function findEditLuaEntryUnderAdvanced(advancedEntry) {
+    if (!advancedEntry) {
+      return null;
+    }
+    var sub = getDirectSubmenuContainer(advancedEntry);
+    if (!sub) {
+      return null;
+    }
+    return findDirectMenuEntryByText(sub, "edit lua script");
+  }
+
+  function findEditLuaEntryInside(rootNode) {
+    if (!rootNode || !rootNode.querySelectorAll) {
+      return null;
+    }
+
+    var entries = rootNode.querySelectorAll("li.menu");
+    var best = null;
+    var bestScore = -1;
+    for (var i = 0; i < entries.length; i += 1) {
+      var entry = entries[i];
+      if (isQuickInjectedMenuEntry(entry)) {
+        continue;
+      }
+      var txt = normalizeProbeText(textOf(entry));
+      if (!txt || txt.indexOf("edit lua script") < 0) {
+        continue;
+      }
+      var score = 0;
+      if (txt.indexOf("ctrl") >= 0) {
+        score += 2;
+      }
+      if (txt.indexOf("advanced") < 0) {
+        score += 1;
+      }
+      if (score > bestScore) {
+        best = entry;
+        bestScore = score;
+      }
+    }
     return best;
   }
 
@@ -1368,36 +2460,563 @@
     }
   }
 
-  function triggerMenuEntry(menuEntry) {
-    if (!menuEntry) {
+  function triggerElementClick(el) {
+    if (!el) {
       return false;
     }
 
     var clickable = null;
     try {
-      clickable = menuEntry.querySelector("a");
-    } catch (_ignoreClickable) {
-      clickable = null;
-    }
+      clickable = el.querySelector("a");
+    } catch (_ignoreClickable) {}
     if (!clickable) {
-      clickable = menuEntry;
+      clickable = el;
     }
+
+    var dispatched = false;
+    var clientX = 0;
+    var clientY = 0;
+    var screenX = 0;
+    var screenY = 0;
+    try {
+      if (clickable && typeof clickable.getBoundingClientRect === "function") {
+        var rect = clickable.getBoundingClientRect();
+        clientX = Math.floor(rect.left + (rect.width / 2));
+        clientY = Math.floor(rect.top + (rect.height / 2));
+        screenX = clientX;
+        screenY = clientY;
+      }
+    } catch (_ignoreCoords) {}
+
+    // Older in-game UI handlers may rely on full mouse sequence.
+    try {
+      var evDown = document.createEvent("MouseEvents");
+      evDown.initMouseEvent("mousedown", true, true, window, 1, screenX, screenY, clientX, clientY, false, false, false, false, 0, null);
+      clickable.dispatchEvent(evDown);
+      dispatched = true;
+    } catch (_ignoreDown) {}
+
+    try {
+      var evUp = document.createEvent("MouseEvents");
+      evUp.initMouseEvent("mouseup", true, true, window, 1, screenX, screenY, clientX, clientY, false, false, false, false, 0, null);
+      clickable.dispatchEvent(evUp);
+      dispatched = true;
+    } catch (_ignoreUp) {}
+
+    try {
+      var evClick = document.createEvent("MouseEvents");
+      evClick.initMouseEvent("click", true, true, window, 1, screenX, screenY, clientX, clientY, false, false, false, false, 0, null);
+      clickable.dispatchEvent(evClick);
+      dispatched = true;
+    } catch (_ignoreDispatch) {}
 
     try {
       if (typeof clickable.click === "function") {
         clickable.click();
-        return true;
+        dispatched = true;
       }
     } catch (_ignoreClick) {}
+    return dispatched;
+  }
+
+  function activateAdvancedEntry(advancedEntry) {
+    if (!advancedEntry) {
+      return;
+    }
+    try {
+      if (advancedEntry.classList) {
+        advancedEntry.classList.add("hover");
+      }
+    } catch (_ignoreHoverClass) {}
+
+    var target = advancedEntry;
+    try {
+      var anchor = advancedEntry.querySelector("a");
+      if (anchor) {
+        target = anchor;
+      }
+    } catch (_ignoreAnchorLookup) {}
 
     try {
-      var ev = document.createEvent("MouseEvents");
-      ev.initMouseEvent("click", true, true, window, 1, 0, 0, 0, 0, false, false, false, false, 0, null);
-      clickable.dispatchEvent(ev);
-      return true;
-    } catch (_ignoreDispatch) {}
+      var rect = target && typeof target.getBoundingClientRect === "function"
+        ? target.getBoundingClientRect()
+        : null;
+      var clientX = rect ? Math.floor(rect.left + (rect.width / 2)) : 0;
+      var clientY = rect ? Math.floor(rect.top + (rect.height / 2)) : 0;
+      var screenX = clientX;
+      var screenY = clientY;
 
-    return false;
+      var evEnter = document.createEvent("MouseEvents");
+      evEnter.initMouseEvent("mouseenter", true, true, window, 1, screenX, screenY, clientX, clientY, false, false, false, false, 0, null);
+      target.dispatchEvent(evEnter);
+    } catch (_ignoreEnter) {}
+
+    try {
+      var evMove = document.createEvent("MouseEvents");
+      var rectMove = target && typeof target.getBoundingClientRect === "function"
+        ? target.getBoundingClientRect()
+        : null;
+      var clientXMove = rectMove ? Math.floor(rectMove.left + (rectMove.width / 2)) : 0;
+      var clientYMove = rectMove ? Math.floor(rectMove.top + (rectMove.height / 2)) : 0;
+      evMove.initMouseEvent("mousemove", true, true, window, 1, clientXMove, clientYMove, clientXMove, clientYMove, false, false, false, false, 0, null);
+      target.dispatchEvent(evMove);
+    } catch (_ignoreMove) {}
+  }
+
+  function collectMenuActionDebug(entry) {
+    var data = {
+      hasEntry: !!entry
+    };
+    if (!entry) {
+      return data;
+    }
+
+    var clickable = null;
+    try {
+      clickable = entry.querySelector("a");
+    } catch (_ignoreClickable) {}
+    if (!clickable) {
+      clickable = entry;
+    }
+
+    data.entry = {
+      id: String(entry.id || ""),
+      className: String(entry.className || ""),
+      label: limitText(getMenuEntryLabel(entry), 96),
+      text: limitText(textOf(entry), 160),
+      hasOnClick: typeof entry.onclick === "function"
+    };
+    data.clickable = {
+      tag: clickable && clickable.tagName ? String(clickable.tagName) : "",
+      className: clickable ? String(clickable.className || "") : "",
+      hasOnClick: !!(clickable && typeof clickable.onclick === "function")
+    };
+
+    var attrs = {};
+    try {
+      if (entry.attributes) {
+        for (var i = 0; i < entry.attributes.length; i += 1) {
+          var a = entry.attributes[i];
+          if (!a || !a.name) {
+            continue;
+          }
+          if (a.name === "style" || a.name.indexOf("on") === 0) {
+            continue;
+          }
+          attrs[a.name] = limitText(String(a.value || ""), 96);
+        }
+      }
+    } catch (_ignoreAttrs) {}
+    data.entryAttrs = attrs;
+
+    try {
+      if (window.jQuery && typeof window.jQuery._data === "function") {
+        var jq = window.jQuery;
+        var entryEvents = jq._data(entry, "events");
+        var clickableEvents = jq._data(clickable, "events");
+        data.jq = {
+          entryClickHandlers: entryEvents && entryEvents.click ? entryEvents.click.length : 0,
+          clickableClickHandlers: clickableEvents && clickableEvents.click ? clickableEvents.click.length : 0
+        };
+      }
+    } catch (_ignoreJqData) {}
+
+    function collectOwnProps(node) {
+      var out = [];
+      if (!node || !Object.getOwnPropertyNames) {
+        return out;
+      }
+      try {
+        var names = Object.getOwnPropertyNames(node);
+        for (var i = 0; i < names.length; i += 1) {
+          var name = names[i];
+          if (!name) {
+            continue;
+          }
+          if (name === "style" || name === "className" || name === "id") {
+            continue;
+          }
+          if (name.indexOf("__luaProbe") === 0) {
+            continue;
+          }
+          if (!(/menu|action|callback|coherent|handler|helper|item|trigger|select|activate|click/i).test(name)) {
+            continue;
+          }
+          var descriptor = "";
+          try {
+            var value = node[name];
+            if (typeof value === "function") {
+              descriptor = "fn:" + (value.name || "anonymous");
+            } else if (value && typeof value === "object") {
+              descriptor = "obj";
+            } else {
+              descriptor = typeof value + ":" + limitText(String(value), 80);
+            }
+          } catch (_ignoreNodeValue) {
+            descriptor = "unreadable";
+          }
+          out.push(name + "=" + descriptor);
+          if (out.length >= 24) {
+            break;
+          }
+        }
+      } catch (_ignoreOwnProps) {}
+      return out;
+    }
+
+    data.entryOwnProps = collectOwnProps(entry);
+    data.clickableOwnProps = collectOwnProps(clickable);
+
+    return data;
+  }
+
+  function invokeLikelyEntryFunctions(entry, clickable) {
+    var invoked = false;
+
+    function invokeFromNode(node) {
+      if (!node || !Object.getOwnPropertyNames) {
+        return false;
+      }
+
+      var localInvoked = false;
+      try {
+        var names = Object.getOwnPropertyNames(node);
+        for (var i = 0; i < names.length; i += 1) {
+          var name = names[i];
+          if (!name || name.indexOf("__luaProbe") === 0) {
+            continue;
+          }
+          if (!(/action|callback|trigger|select|activate|click|execute|invoke/i).test(name)) {
+            continue;
+          }
+          var fn = null;
+          try {
+            fn = node[name];
+          } catch (_ignoreReadFn) {
+            fn = null;
+          }
+          if (typeof fn !== "function") {
+            continue;
+          }
+          try {
+            fn.call(node);
+            localInvoked = true;
+          } catch (_ignoreInvokeNoArgs) {
+            try {
+              fn.call(node, node);
+              localInvoked = true;
+            } catch (_ignoreInvokeNodeArg) {}
+          }
+        }
+      } catch (_ignoreInvokeNode) {}
+
+      return localInvoked;
+    }
+
+    invoked = invokeFromNode(entry) || invoked;
+    invoked = invokeFromNode(clickable) || invoked;
+    return invoked;
+  }
+
+  function triggerNativeMenuHandlers(entry) {
+    if (!entry) {
+      return false;
+    }
+
+    var triggered = false;
+    var clickable = null;
+    try {
+      clickable = entry.querySelector("a");
+    } catch (_ignoreClickable) {}
+    if (!clickable) {
+      clickable = entry;
+    }
+
+    try {
+      if (typeof entry.onclick === "function") {
+        entry.onclick.call(entry);
+        triggered = true;
+      }
+    } catch (_ignoreEntryOnClick) {}
+
+    try {
+      if (clickable && typeof clickable.onclick === "function") {
+        clickable.onclick.call(clickable);
+        triggered = true;
+      }
+    } catch (_ignoreClickableOnClick) {}
+
+    try {
+      if (window.jQuery) {
+        var jq = window.jQuery;
+        if (jq(entry) && typeof jq(entry).triggerHandler === "function") {
+          jq(entry).triggerHandler("click");
+          triggered = true;
+        }
+        if (jq(clickable) && typeof jq(clickable).triggerHandler === "function") {
+          jq(clickable).triggerHandler("click");
+          triggered = true;
+        }
+      }
+    } catch (_ignoreJqTrigger) {}
+
+    triggered = invokeLikelyEntryFunctions(entry, clickable) || triggered;
+
+    return triggered;
+  }
+
+  function listFunctionNames(obj, maxCount) {
+    var out = [];
+    if (!obj) {
+      return out;
+    }
+    try {
+      var own = Object.getOwnPropertyNames(obj);
+      for (var i = 0; i < own.length; i += 1) {
+        var name = own[i];
+        if (!name || typeof obj[name] !== "function") {
+          continue;
+        }
+        out.push(name);
+        if (out.length >= maxCount) {
+          return out;
+        }
+      }
+    } catch (_ignoreOwn) {}
+    return out;
+  }
+
+  function listPrototypeFunctionNames(obj, maxCount) {
+    var out = [];
+    if (!obj) {
+      return out;
+    }
+    var seen = {};
+    try {
+      var proto = Object.getPrototypeOf(obj);
+      var depth = 0;
+      while (proto && depth < 4) {
+        var names = Object.getOwnPropertyNames(proto);
+        for (var i = 0; i < names.length; i += 1) {
+          var name = names[i];
+          if (!name || name === "constructor" || seen[name]) {
+            continue;
+          }
+          var fn = null;
+          try {
+            fn = obj[name];
+          } catch (_ignoreReadFn) {
+            fn = null;
+          }
+          if (typeof fn !== "function") {
+            continue;
+          }
+          seen[name] = true;
+          out.push(name);
+          if (out.length >= maxCount) {
+            return out;
+          }
+        }
+        proto = Object.getPrototypeOf(proto);
+        depth += 1;
+      }
+    } catch (_ignoreProto) {}
+    return out;
+  }
+
+  function mergeUniqueNames(into, names) {
+    if (!into || !names || !names.length) {
+      return into || [];
+    }
+    var seen = {};
+    for (var i = 0; i < into.length; i += 1) {
+      seen[into[i]] = true;
+    }
+    for (var j = 0; j < names.length; j += 1) {
+      var n = names[j];
+      if (!n || seen[n]) {
+        continue;
+      }
+      into.push(n);
+      seen[n] = true;
+    }
+    return into;
+  }
+
+  function inspectContextMenuBridges() {
+    var out = {};
+    var bridges = [
+      { name: "CPPMainContextMenu", obj: window.CPPMainContextMenu },
+      { name: "CPPContextMenu", obj: window.CPPContextMenu },
+      { name: "ContextMenu", obj: window.ContextMenu }
+    ];
+    for (var i = 0; i < bridges.length; i += 1) {
+      var b = bridges[i];
+      if (!b.obj) {
+        continue;
+      }
+      out[b.name] = {
+        type: typeof b.obj,
+        fn: listFunctionNames(b.obj, 32),
+        protoFn: listPrototypeFunctionNames(b.obj, 48)
+      };
+    }
+    return out;
+  }
+
+  function tryInvokeContextMenuBridge(actionKey, helperId) {
+    var bridges = [
+      { name: "CPPMainContextMenu", obj: window.CPPMainContextMenu },
+      { name: "CPPContextMenu", obj: window.CPPContextMenu },
+      { name: "ContextMenu", obj: window.ContextMenu }
+    ];
+
+    var attempts = [];
+    var invoked = false;
+    var helperIndex = NaN;
+    try {
+      var parsed = String(helperId || "").match(/(\d+)/);
+      if (parsed && parsed[1]) {
+        helperIndex = parseInt(parsed[1], 10);
+      }
+    } catch (_ignoreHelperIndex) {
+      helperIndex = NaN;
+    }
+
+    function tryCall(bridgeName, fnName, fn, args, signatureName, callThis) {
+      try {
+        fn.apply(callThis || null, args);
+        attempts.push({
+          bridge: bridgeName,
+          method: fnName,
+          signature: signatureName,
+          ok: true
+        });
+        return true;
+      } catch (err) {
+        attempts.push({
+          bridge: bridgeName,
+          method: fnName,
+          signature: signatureName,
+          ok: false,
+          err: limitText(String(err && err.message ? err.message : err), 260)
+        });
+        return false;
+      }
+    }
+
+    for (var i = 0; i < bridges.length; i += 1) {
+      var bridge = bridges[i];
+      var obj = bridge.obj;
+      if (!obj || isNaN(helperIndex)) {
+        continue;
+      }
+
+      var executeAction = null;
+      try {
+        executeAction = obj.executeAction;
+      } catch (_ignoreExecuteActionRead) {
+        executeAction = null;
+      }
+      if (typeof executeAction !== "function") {
+        continue;
+      }
+
+      // Breakthrough: executeAction expects numeric action id.
+      invoked = tryCall(bridge.name, "executeAction", executeAction, [helperIndex], "helperIndex", obj) || invoked;
+      if (!invoked) {
+        invoked = tryCall(bridge.name, "executeAction", executeAction, [helperIndex, true], "helperIndex,true", obj) || invoked;
+        invoked = tryCall(bridge.name, "executeAction", executeAction, [helperIndex, false], "helperIndex,false", obj) || invoked;
+      }
+    }
+
+    return {
+      invoked: invoked,
+      attempts: attempts
+    };
+  }
+
+  function triggerCtrlLShortcut() {
+    var triggered = false;
+
+    function dispatchKeyEvent(target, type, key, keyCode, ctrlKey) {
+      if (!target || typeof target.dispatchEvent !== "function") {
+        return false;
+      }
+
+      var sent = false;
+      try {
+        var keyboardCtor = window.KeyboardEvent;
+        if (typeof keyboardCtor === "function") {
+          var ke = new keyboardCtor(type, {
+            key: key,
+            code: key === "Control" ? "ControlLeft" : "KeyL",
+            keyCode: keyCode,
+            which: keyCode,
+            ctrlKey: !!ctrlKey,
+            bubbles: true,
+            cancelable: true
+          });
+          target.dispatchEvent(ke);
+          sent = true;
+        }
+      } catch (_ignoreCtor) {}
+
+      if (sent) {
+        return true;
+      }
+
+      try {
+        var ev = document.createEvent("Event");
+        ev.initEvent(type, true, true);
+        ev.key = key;
+        ev.keyCode = keyCode;
+        ev.which = keyCode;
+        ev.ctrlKey = !!ctrlKey;
+        ev.shiftKey = false;
+        ev.altKey = false;
+        ev.metaKey = false;
+        target.dispatchEvent(ev);
+        return true;
+      } catch (_ignoreLegacy) {}
+
+      return false;
+    }
+
+    try {
+      var targets = [];
+      var active = null;
+      try {
+        active = document && document.activeElement ? document.activeElement : null;
+      } catch (_ignoreActive) {
+        active = null;
+      }
+      if (active) {
+        targets.push(active);
+      }
+      if (document && document.body) {
+        targets.push(document.body);
+      }
+      if (document) {
+        targets.push(document);
+      }
+      if (window) {
+        targets.push(window);
+      }
+
+      for (var i = 0; i < targets.length; i += 1) {
+        var t = targets[i];
+        var sentAny = false;
+        sentAny = dispatchKeyEvent(t, "keydown", "Control", 17, false) || sentAny;
+        sentAny = dispatchKeyEvent(t, "keydown", "l", 76, true) || sentAny;
+        sentAny = dispatchKeyEvent(t, "keypress", "l", 76, true) || sentAny;
+        sentAny = dispatchKeyEvent(t, "keyup", "l", 76, true) || sentAny;
+        sentAny = dispatchKeyEvent(t, "keyup", "Control", 17, false) || sentAny;
+        triggered = triggered || sentAny;
+      }
+    } catch (_ignoreShortcut) {}
+
+    return triggered;
   }
 
   function triggerInjectProbeFromQuickMenu() {
@@ -1418,6 +3037,200 @@
     }
   }
 
+  function triggerEditLuaFromQuickMenu(menuRoot) {
+    sendPacket("lua_quick_menu_edit_lua", {
+      source: "quick-menu"
+    });
+
+    var clicked = false;
+    var nativeAttempt = 0;
+    var maxNativeAttempts = 1;
+
+    function getMenuRootForAttempt() {
+      var liveMenuRoot = null;
+      try {
+        liveMenuRoot = document.getElementById("main_context_menu");
+      } catch (_ignoreMenuLookup) {
+        liveMenuRoot = null;
+      }
+      return liveMenuRoot || menuRoot || null;
+    }
+
+    function runFallbackPath() {
+      if (isEditorVisible()) {
+        sendPacket("lua_quick_menu_edit_lua_result", {
+          step: "fallback-skip-visible",
+          clicked: !!clicked
+        });
+        return;
+      }
+
+      var shortcutTriggered = triggerCtrlLShortcut();
+      sendPacket("lua_quick_menu_edit_lua_result", {
+        step: "fallback-ctrl-l",
+        clicked: !!clicked,
+        shortcutTriggered: !!shortcutTriggered
+      });
+    }
+
+    function runNativeAttempt() {
+      if (isEditorVisible()) {
+        sendPacket("lua_quick_menu_edit_lua_result", {
+          step: "native-already-open",
+          attempt: nativeAttempt,
+          clicked: !!clicked
+        });
+        return;
+      }
+
+      nativeAttempt += 1;
+      var bridgeInvokedThisAttempt = false;
+      var advancedEntryUsed = null;
+      var targetPathUsed = "fallback-any";
+      var targetForAttempt = null;
+
+      try {
+        var menuRootNow = getMenuRootForAttempt();
+        if (!menuRootNow) {
+          sendPacket("lua_quick_menu_edit_lua_result", {
+            step: "native-click",
+            attempt: nativeAttempt,
+            clicked: false,
+            reason: "no-menu-root"
+          });
+        } else {
+          var advancedEntry = findAdvancedMenuEntry(menuRootNow);
+          advancedEntryUsed = advancedEntry;
+          var target = null;
+          var targetPath = "fallback-any";
+          if (advancedEntry) {
+            target = findEditLuaEntryUnderAdvanced(advancedEntry);
+            targetPath = "advanced-direct";
+            if (!target) {
+              activateAdvancedEntry(advancedEntry);
+              target = findEditLuaEntryUnderAdvanced(advancedEntry);
+              targetPath = "advanced-after-activate";
+            }
+          }
+
+          target = target || findEditLuaEntryInside(advancedEntry || menuRootNow) ||
+            findNativeEditLuaEntry(menuRootNow);
+          targetForAttempt = target;
+          targetPathUsed = targetPath;
+          if (target) {
+            var helperId = "";
+            try {
+              helperId = String(target.getAttribute("helperid") || "");
+            } catch (_ignoreHelperId) {
+              helperId = "";
+            }
+
+            sendPacket("lua_quick_menu_edit_lua_result", {
+              step: "native-target-inspect",
+              attempt: nativeAttempt,
+              usedAdvanced: !!advancedEntry,
+              targetPath: targetPath,
+              target: collectMenuActionDebug(target),
+              bridges: inspectContextMenuBridges()
+            });
+
+            var bridgeResult = tryInvokeContextMenuBridge("action_control_unit_edit_lua_script", helperId);
+            bridgeInvokedThisAttempt = !!(bridgeResult && bridgeResult.invoked);
+            var clickDispatched = false;
+            var handlerTriggered = false;
+            if (!bridgeInvokedThisAttempt) {
+              clickDispatched = triggerElementClick(target);
+              handlerTriggered = triggerNativeMenuHandlers(target);
+            }
+            clicked = bridgeInvokedThisAttempt || clickDispatched || handlerTriggered || clicked;
+            sendPacket("lua_quick_menu_edit_lua_result", {
+              step: "native-click",
+              attempt: nativeAttempt,
+              clicked: !!clicked,
+              clickDispatched: !!clickDispatched,
+              handlerTriggered: !!handlerTriggered,
+              bridgeInvoked: !!(bridgeResult && bridgeResult.invoked),
+              bridgeAttempts: bridgeResult ? bridgeResult.attempts : [],
+              targetText: limitText(textOf(target), 96)
+            });
+          } else {
+            sendPacket("lua_quick_menu_edit_lua_result", {
+              step: "native-click",
+              attempt: nativeAttempt,
+              clicked: false,
+              reason: "no-native-target"
+            });
+          }
+        }
+      } catch (_ignoreNativeEdit) {}
+
+      if (!bridgeInvokedThisAttempt && !isEditorVisible() && advancedEntryUsed && targetForAttempt && targetPathUsed.indexOf("advanced") === 0) {
+        window.setTimeout(function () {
+          if (isEditorVisible()) {
+            return;
+          }
+          try {
+            var delayedTarget = findEditLuaEntryUnderAdvanced(advancedEntryUsed) || targetForAttempt;
+            var delayedClickDispatched = triggerElementClick(delayedTarget);
+            var delayedHandlerTriggered = triggerNativeMenuHandlers(delayedTarget);
+            clicked = delayedClickDispatched || delayedHandlerTriggered || clicked;
+            sendPacket("lua_quick_menu_edit_lua_result", {
+              step: "native-delayed-click",
+              attempt: nativeAttempt,
+              clicked: !!clicked,
+              clickDispatched: !!delayedClickDispatched,
+              handlerTriggered: !!delayedHandlerTriggered
+            });
+          } catch (_ignoreDelayedNative) {}
+        }, 220);
+      }
+
+      var settleDelayMs = bridgeInvokedThisAttempt ? 750 : 140;
+      window.setTimeout(function () {
+        if (isEditorVisible()) {
+          state.suppressRestoreUntilInteraction = true;
+          state.skipNextSetCodeRestore = true;
+          installFreshOpenViewportGuard();
+          resetEditorViewportToTop();
+          sendPacket("lua_quick_menu_edit_lua_result", {
+            step: "native-opened",
+            attempt: nativeAttempt,
+            clicked: !!clicked,
+            bridgeInvoked: !!bridgeInvokedThisAttempt
+          });
+          return;
+        }
+
+        if (nativeAttempt < maxNativeAttempts) {
+          runNativeAttempt();
+          return;
+        }
+
+        runFallbackPath();
+      }, settleDelayMs);
+    }
+
+    // Defer to next tick so we don't compete with the current menu click stack.
+    window.setTimeout(function () {
+      var shortcutTriggered = triggerCtrlLShortcut();
+      sendPacket("lua_quick_menu_edit_lua_result", {
+        step: "shortcut-first",
+        shortcutTriggered: !!shortcutTriggered
+      });
+
+      window.setTimeout(function () {
+        if (isEditorVisible()) {
+          sendPacket("lua_quick_menu_edit_lua_result", {
+            step: "shortcut-first-opened",
+            clicked: !!clicked
+          });
+          return;
+        }
+        runNativeAttempt();
+      }, 120);
+    }, 0);
+  }
+
   function createQuickMenuEntry(id, label, onClick, templateEntry) {
     var li = document.createElement("li");
     li.id = id;
@@ -1426,16 +3239,48 @@
     className = className.replace(/\bright_dropdown\b/g, "").replace(/\s+/g, " ").trim();
     li.className = className || "menu";
     li.setAttribute("data-ui-extractor-quick", "1");
+    li.style.textAlign = "left";
 
-    var a = document.createElement("a");
+    var a = null;
+    try {
+      var templateAnchor = templateEntry && templateEntry.querySelector
+        ? templateEntry.querySelector(":scope > a")
+        : null;
+      if (templateAnchor && templateAnchor.cloneNode) {
+        a = templateAnchor.cloneNode(false);
+      }
+    } catch (_ignoreTemplateAnchor) {
+      a = null;
+    }
+    if (!a) {
+      a = document.createElement("a");
+    }
     a.textContent = label;
+    a.style.textAlign = "left";
+    a.style.display = "block";
+    a.style.width = "100%";
     li.appendChild(a);
 
-    li.addEventListener("click", function () {
+    var handleActivation = function (ev) {
+      if (ev && typeof ev.preventDefault === "function") {
+        ev.preventDefault();
+      }
+      if (ev && typeof ev.stopPropagation === "function") {
+        ev.stopPropagation();
+      }
+      if (li.__luaProbeActivating) {
+        return;
+      }
+      li.__luaProbeActivating = true;
       try {
         onClick();
       } catch (_ignoreQuickClick) {}
-    }, true);
+      window.setTimeout(function () {
+        li.__luaProbeActivating = false;
+      }, 180);
+    };
+
+    li.addEventListener("click", handleActivation, true);
 
     return li;
   }
@@ -1505,7 +3350,7 @@
     }
 
     var topContainer = findTopLevelMenuContainer(menuRoot);
-    var editLuaEntry = findMenuEntryByText(menuRoot, "edit lua script");
+    var editLuaEntry = findNativeMenuEntryByText(menuRoot, "edit lua script");
     if (!topContainer || !editLuaEntry) {
       removeQuickLuaMenuEntries(menuRoot);
       return;
@@ -1533,10 +3378,7 @@
         quickEditLuaMenuItemId,
         "Edit Lua script",
         function () {
-          sendPacket("lua_quick_menu_edit_lua", {
-            source: "quick-menu"
-          });
-          triggerMenuEntry(editLuaEntry);
+          triggerEditLuaFromQuickMenu(menuRoot);
         },
         templateEntry);
     }
@@ -1561,21 +3403,24 @@
 
     if (quickEdit) {
       if (quickEdit.parentNode !== topContainer) {
-        topContainer.insertBefore(quickEdit, insertionPoint);
-      } else if (insertionPoint && quickEdit !== insertionPoint.previousElementSibling) {
-        topContainer.insertBefore(quickEdit, insertionPoint);
+        if (insertionPoint) {
+          topContainer.insertBefore(quickEdit, insertionPoint);
+        } else {
+          topContainer.appendChild(quickEdit);
+        }
       }
     }
 
-    var injectAnchor = quickEdit && quickEdit.parentNode === topContainer
-      ? quickEdit.nextSibling
-      : insertionPoint;
-    if (quickInject.parentNode !== topContainer) {
-      topContainer.insertBefore(quickInject, injectAnchor);
-    } else {
-      var desiredPrevious = quickEdit && quickEdit.parentNode === topContainer ? quickEdit : null;
-      if (desiredPrevious && quickInject.previousElementSibling !== desiredPrevious) {
-        topContainer.insertBefore(quickInject, desiredPrevious.nextSibling);
+    if (quickInject) {
+      if (quickInject.parentNode !== topContainer) {
+        var injectAnchor = quickEdit && quickEdit.parentNode === topContainer
+          ? quickEdit.nextSibling
+          : insertionPoint;
+        if (injectAnchor) {
+          topContainer.insertBefore(quickInject, injectAnchor);
+        } else {
+          topContainer.appendChild(quickInject);
+        }
       }
     }
   }
@@ -1669,6 +3514,8 @@
 
   function getWrappedMethodNames() {
     return [
+      "showDEM",
+      "initDEM",
       "apply",
       "cancel",
       "addNewFilter",
@@ -1727,7 +3574,22 @@
         args: summarizeArgs(args),
         context: getContextSnapshot()
       });
-      var result = fn.apply(this, arguments);
+      var result = null;
+      try {
+        result = fn.apply(this, arguments);
+      } catch (err) {
+        sendPacket("lua_manager_call_error", {
+          method: methodName,
+          error: String(err && err.message ? err.message : err),
+          context: getContextSnapshot()
+        });
+        throw err;
+      }
+      sendPacket("lua_manager_call_result", {
+        method: methodName,
+        result: summarizeArg(result),
+        context: getContextSnapshot()
+      });
       if (hooks && typeof hooks.after === "function") {
         try {
           hooks.after(args, result, hookContext);
@@ -1763,6 +3625,167 @@
     updateCaretLineHighlight();
   }
 
+  function waitForCodeMirrorSettle(info, onReady) {
+    var seq = info && info.seq ? info.seq : 0;
+    var targetSnippetKey = info && typeof info.targetSnippetKey === "string" ? info.targetSnippetKey : "";
+    var startedAt = Date.now();
+    var maxWaitMs = 5000;
+    var quietWindowMs = 250;
+    var pollIntervalMs = 40;
+    var signalCount = 0;
+    var lastSignalAt = startedAt;
+    var lastViewportSignature = "";
+    var currentCodeMirror = null;
+    var currentHandlers = null;
+    var targetSnippetSeen = !targetSnippetKey;
+    var active = true;
+    var timerId = 0;
+
+    var isStaleSeq = function () {
+      return !!(seq && state.activeSwitchSeq && seq !== state.activeSwitchSeq);
+    };
+
+    var markSignal = function (kind) {
+      signalCount += 1;
+      lastSignalAt = Date.now();
+      if (signalCount <= 6 || signalCount % 20 === 0) {
+        sendPacket("lua_cm_settle_signal", {
+          seq: seq,
+          kind: kind,
+          signalCount: signalCount,
+          elapsedMs: lastSignalAt - startedAt
+        });
+      }
+    };
+
+    var detachFromCodeMirror = function (codeMirror) {
+      if (!codeMirror || !currentHandlers || typeof codeMirror.off !== "function") {
+        return;
+      }
+      try { codeMirror.off("changes", currentHandlers.changes); } catch (_ignoreOffChanges) {}
+      try { codeMirror.off("scroll", currentHandlers.scroll); } catch (_ignoreOffScroll) {}
+      try { codeMirror.off("viewportChange", currentHandlers.viewportChange); } catch (_ignoreOffViewport) {}
+      try { codeMirror.off("refresh", currentHandlers.refresh); } catch (_ignoreOffRefresh) {}
+      try { codeMirror.off("update", currentHandlers.update); } catch (_ignoreOffUpdate) {}
+      currentHandlers = null;
+    };
+
+    var attachToCodeMirror = function (codeMirror) {
+      if (!codeMirror || codeMirror === currentCodeMirror) {
+        return;
+      }
+
+      if (currentCodeMirror) {
+        detachFromCodeMirror(currentCodeMirror);
+      }
+      currentCodeMirror = codeMirror;
+
+      if (typeof codeMirror.on !== "function") {
+        markSignal("cm-no-on");
+        return;
+      }
+
+      currentHandlers = {
+        changes: function () { markSignal("changes"); },
+        scroll: function () { markSignal("scroll"); },
+        viewportChange: function () { markSignal("viewportChange"); },
+        refresh: function () { markSignal("refresh"); },
+        update: function () { markSignal("update"); }
+      };
+
+      try { codeMirror.on("changes", currentHandlers.changes); } catch (_ignoreOnChanges) {}
+      try { codeMirror.on("scroll", currentHandlers.scroll); } catch (_ignoreOnScroll) {}
+      try { codeMirror.on("viewportChange", currentHandlers.viewportChange); } catch (_ignoreOnViewport) {}
+      try { codeMirror.on("refresh", currentHandlers.refresh); } catch (_ignoreOnRefresh) {}
+      try { codeMirror.on("update", currentHandlers.update); } catch (_ignoreOnUpdate) {}
+      markSignal("cm-attached");
+    };
+
+    var getViewportSignature = function () {
+      var viewport = getEditorViewportSnapshot();
+      if (!viewport) {
+        return "";
+      }
+      return [
+        typeof viewport.lineCount === "number" ? viewport.lineCount : "na",
+        typeof viewport.scrollTopPx === "number" ? viewport.scrollTopPx : "na",
+        typeof viewport.cmScrollerTopPx === "number" ? viewport.cmScrollerTopPx : "na",
+        typeof viewport.cmVScrollbarTopPx === "number" ? viewport.cmVScrollbarTopPx : "na",
+        typeof viewport.scrollHeightPx === "number" ? viewport.scrollHeightPx : "na",
+        typeof viewport.clientHeightPx === "number" ? viewport.clientHeightPx : "na",
+        typeof viewport.cursorLine === "number" ? viewport.cursorLine : "na"
+      ].join("|");
+    };
+
+    var finish = function (reason) {
+      if (!active) {
+        return;
+      }
+      active = false;
+      if (timerId) {
+        try {
+          window.clearTimeout(timerId);
+        } catch (_ignoreClearSettleTimer) {}
+        timerId = 0;
+      }
+      if (currentCodeMirror) {
+        detachFromCodeMirror(currentCodeMirror);
+      }
+      onReady({
+        reason: reason,
+        elapsedMs: Date.now() - startedAt,
+        signalCount: signalCount,
+        quietForMs: Date.now() - lastSignalAt
+      });
+    };
+
+    var tick = function () {
+      if (!active) {
+        return;
+      }
+      if (isStaleSeq()) {
+        finish("stale-seq");
+        return;
+      }
+
+      var codeMirror = getLuaCodeMirror();
+      if (codeMirror !== currentCodeMirror) {
+        attachToCodeMirror(codeMirror);
+        markSignal("cm-instance");
+      }
+
+      var signature = getViewportSignature();
+      if (signature && signature !== lastViewportSignature) {
+        lastViewportSignature = signature;
+        markSignal("viewport");
+      }
+
+      if (!targetSnippetSeen && currentCodeMirror) {
+        var currentSnippetKey = getSnippetMemoryKeyFromEditor(currentCodeMirror);
+        if (currentSnippetKey && currentSnippetKey === targetSnippetKey) {
+          targetSnippetSeen = true;
+          markSignal("target-snippet");
+        }
+      }
+
+      var now = Date.now();
+      if (targetSnippetSeen && lastViewportSignature && (now - lastSignalAt) >= quietWindowMs) {
+        finish("quiet-window");
+        return;
+      }
+      if ((now - startedAt) >= maxWaitMs) {
+        finish(targetSnippetSeen ? "timeout" : "timeout-no-target");
+        return;
+      }
+
+      timerId = window.setTimeout(tick, pollIntervalMs);
+    };
+
+    attachToCodeMirror(getLuaCodeMirror());
+    markSignal("start");
+    tick();
+  }
+
   function wrapLuaEditorManager() {
     var manager = window.LUAEditorManager;
     if (!manager || manager.__luaProbeWrapped) {
@@ -1787,21 +3810,39 @@
 
     wrapManagerMethodWithHooks(manager, "setCodeLuaEditor", {
       before: function (args) {
+        var targetSnippetKey = getSnippetMemoryKeyFromCode(args && args.length > 0 ? args[0] : null);
+        var hasRememberedTarget = hasRememberedTopLineForKey(targetSnippetKey);
+        var suppressRestore = (!!state.skipNextSetCodeRestore || !!state.suppressRestoreUntilInteraction) && !hasRememberedTarget;
+        state.skipNextSetCodeRestore = false;
+        if (hasRememberedTarget && state.suppressRestoreUntilInteraction) {
+          state.suppressRestoreUntilInteraction = false;
+          removeFreshOpenViewportGuard();
+        }
+        var forceEditorFocus = !!state.forceEditorFocusOnNextSwitch;
+        if (forceEditorFocus) {
+          state.forceEditorFocusOnNextSwitch = false;
+        }
+
         syncCurrentSnippetKeyFromEditor();
-        if (state.currentSnippetKey) {
+        if (!suppressRestore && state.currentSnippetKey) {
           rememberTopLineForKey(state.currentSnippetKey);
         }
-        rememberTopLineForKey(state.lastContextKey);
+        if (!suppressRestore) {
+          rememberTopLineForKey(state.lastContextKey);
+        }
         var seq = state.setCodeSwitchSeq + 1;
         state.setCodeSwitchSeq = seq;
         state.switchInProgress = true;
         state.activeSwitchSeq = seq;
-        var targetSnippetKey = getSnippetMemoryKeyFromCode(args && args.length > 0 ? args[0] : null);
         var switchInfo = {
           seq: seq,
           before: getContextSnapshot(),
+          beforeViewport: getEditorViewportSnapshot(),
           code: summarizeCodeForSwitch(args && args.length > 0 ? args[0] : null),
-          targetSnippetKey: targetSnippetKey
+          targetSnippetKey: targetSnippetKey,
+          targetHasRememberedTopLine: hasRememberedTarget,
+          suppressRestore: suppressRestore,
+          forceEditorFocus: forceEditorFocus
         };
         sendPacket("lua_snippet_switch_begin", switchInfo);
         return switchInfo;
@@ -1813,35 +3854,70 @@
           code: summarizeCodeForSwitch(args && args.length > 0 ? args[0] : null)
         };
 
-        var runRestoreAttempt = function (delayMs, emitSwitchEnd, finalize) {
-          window.setTimeout(function () {
-            if (info.seq && state.activeSwitchSeq && info.seq !== state.activeSwitchSeq) {
-              return;
+        waitForCodeMirrorSettle(info, function (settle) {
+          if (info.seq && state.activeSwitchSeq && info.seq !== state.activeSwitchSeq) {
+            return;
+          }
+
+          var settleInfo = settle || {
+            reason: "unknown",
+            elapsedMs: 0,
+            signalCount: 0,
+            quietForMs: 0
+          };
+
+          try {
+            ensureCaretHighlightBindings();
+
+            // Refresh once at settle point so we work on the final CodeMirror instance.
+            var currentCm = getLuaCodeMirror();
+            if (currentCm && typeof currentCm.refresh === "function") {
+              try {
+                currentCm.refresh();
+              } catch (_ignoreRefreshAtSettle) {}
             }
-            try {
-              ensureCaretHighlightBindings();
+
+            if (info && info.suppressRestore) {
+              syncCurrentSnippetKeyFromEditor();
+              syncCurrentContextKey(true);
+              refreshActiveFilterMarker();
+              resetEditorViewportToTop();
+              updateCaretLineHighlight();
+            } else {
               restoreSnippetAfterSwitch(info);
-
-              if (emitSwitchEnd) {
-                sendPacket("lua_snippet_switch_end", {
-                  seq: info.seq,
-                  before: info.before,
-                  after: getContextSnapshot(),
-                  code: info.code
-                });
-              }
-            } catch (_ignoreRestoreAttempt) {
-            } finally {
-              if (finalize && (!info.seq || state.activeSwitchSeq === info.seq)) {
-                state.switchInProgress = false;
-              }
             }
-          }, delayMs);
-        };
 
-        runRestoreAttempt(0, true, false);
-        runRestoreAttempt(60, false, false);
-        runRestoreAttempt(180, false, true);
+            if (info && info.forceEditorFocus) {
+              enforceEditorFocusAndCaret();
+            }
+
+            sendPacket("lua_snippet_switch_end", {
+              seq: info.seq,
+              before: info.before,
+              beforeViewport: info.beforeViewport || null,
+              after: getContextSnapshot(),
+              afterViewport: getEditorViewportSnapshot(),
+              restoreDelayMs: settleInfo.elapsedMs,
+              settleReason: settleInfo.reason,
+              settleSignalCount: settleInfo.signalCount,
+              settleQuietForMs: settleInfo.quietForMs,
+              code: info.code
+            });
+
+            sendPacket("lua_snippet_switch_settled", {
+              seq: info.seq,
+              after: getContextSnapshot(),
+              afterViewport: getEditorViewportSnapshot(),
+              settleReason: settleInfo.reason,
+              settleSignalCount: settleInfo.signalCount
+            });
+          } catch (_ignoreRestoreAfterSettle) {
+          } finally {
+            if (!info.seq || state.activeSwitchSeq === info.seq) {
+              state.switchInProgress = false;
+            }
+          }
+        });
       }
     });
 
@@ -1874,9 +3950,20 @@
     if (root) {
       root.setAttribute("data-lua-probe-active", "1");
     }
+    state.scrollTopByContext = Object.create(null);
+    state.lastContextKey = "";
+    state.currentSnippetKey = "";
+    state.forceEditorFocusOnNextSwitch = false;
+    state.skipNextSetCodeRestore = true;
+    state.suppressRestoreUntilInteraction = true;
+    installFreshOpenViewportGuard();
+    resetEditorViewportToTop();
+
     addProbeBadge();
     ensureThemeSwitcher();
+    ensureIdeSyncButton();
     ensureEditorSwitchHooks();
+    ensureAutoClickObserver();
     ensureCaretHighlightToggle();
     ensureCaretHighlightBindings();
     syncCurrentContextKey();
@@ -1888,11 +3975,20 @@
   }
 
   function onEditorClosed() {
+    clearPendingSlotAutoOpen();
     clearActiveFilterMarker();
     state.activeFilterIndex = -1;
     state.activeFilterFingerprint = "";
     state.currentSnippetKey = "";
-    clearCaretLineHighlight(getLuaCodeMirror());
+    state.lastContextKey = "";
+    state.scrollTopByContext = Object.create(null);
+    state.forceEditorFocusOnNextSwitch = false;
+    state.skipNextSetCodeRestore = false;
+    state.suppressRestoreUntilInteraction = true;
+    removeFreshOpenViewportGuard();
+    try {
+      clearCaretLineHighlight(getLuaCodeMirror());
+    } catch (_ignore) {}
     sendPacket("lua_editor_closed", {});
   }
 
@@ -1903,9 +3999,16 @@
       onEditorOpened();
     } else if (visible && state.editorVisible) {
       ensureThemeSwitcher();
+      ensureIdeSyncButton();
       ensureEditorSwitchHooks();
+      ensureAutoClickObserver();
       ensureCaretHighlightToggle();
       ensureCaretHighlightBindings();
+      if (state.suppressRestoreUntilInteraction) {
+        installFreshOpenViewportGuard();
+      } else {
+        removeFreshOpenViewportGuard();
+      }
       syncCurrentContextKey();
       refreshActiveFilterMarker();
     } else if (!visible && state.editorVisible) {
@@ -1949,6 +4052,17 @@
       }
       state.menuObserver = null;
     } catch (_ignoreObserver) {}
+
+    try {
+      if (state.filtersObserver && typeof state.filtersObserver.disconnect === "function") {
+        state.filtersObserver.disconnect();
+      }
+      state.filtersObserver = null;
+      state.filtersObserverRoot = null;
+    } catch (_ignoreFiltersObserver) {}
+
+    clearPendingSlotAutoOpen();
+    removeFreshOpenViewportGuard();
 
     try {
       clearActiveFilterMarker();
@@ -2009,6 +4123,7 @@
       "ui-extractor-lua-probe-badge",
       "ui-extractor-lua-theme-dots",
       "ui-extractor-lua-caret-toggle",
+      "ui-extractor-lua-ide-sync",
       quickEditLuaMenuItemId,
       quickInjectProbeMenuItemId
     ];
