@@ -78,47 +78,7 @@
     lastIdeSyncContextKey: ""
   };
 
-  state.applyIdeCode = function(newCode) {
-    var codeMirror = getLuaCodeMirror();
-    if (codeMirror && typeof codeMirror.setValue === "function") {
-      var currentContextKey = getEditorContextKey(codeMirror);
-      if (state.lastIdeSyncContextKey && currentContextKey !== state.lastIdeSyncContextKey) {
-        safeLog("IDE sync blocked: Context changed. Expected: " + state.lastIdeSyncContextKey + ", Got: " + currentContextKey);
-        var btnWarn = document.getElementById("ModUiExtractor-lua-ide-sync");
-        if (btnWarn) {
-          var oldBgWarn = btnWarn.style.background;
-          var oldColorWarn = btnWarn.style.color;
-          var oldTextWarn = btnWarn.textContent;
-          btnWarn.style.background = "#8a2424";
-          btnWarn.style.color = "#ffffff";
-          btnWarn.textContent = "Sync Blocked: Wrong Filter";
-          window.setTimeout(function() {
-            btnWarn.style.background = oldBgWarn;
-            btnWarn.style.color = oldColorWarn;
-            btnWarn.textContent = oldTextWarn;
-          }, 3000);
-        }
-        return;
-      }
-
-      codeMirror.setValue(newCode);
-
-      var btnOk = document.getElementById("ModUiExtractor-lua-ide-sync");
-      if (btnOk) {
-        var oldBgOk = btnOk.style.background;
-        var oldColorOk = btnOk.style.color;
-        var oldTextOk = btnOk.textContent;
-        btnOk.style.background = "#2a6b36";
-        btnOk.style.color = "#ffffff";
-        btnOk.textContent = "Synced from IDE!";
-        window.setTimeout(function() {
-          btnOk.style.background = oldBgOk;
-          btnOk.style.color = oldColorOk;
-          btnOk.textContent = oldTextOk;
-        }, 1500);
-      }
-    }
-  };
+  state.applyIdeCode = applyIdeCode;
   var colorThemes = [
     {
       name: "green",
@@ -144,6 +104,22 @@
   ];
   var quickEditLuaMenuItemId = "ModUiExtractor-quick-edit-lua";
   var quickInjectProbeMenuItemId = "ModUiExtractor-quick-inject-lua";
+  var SLOT_SELECTORS = [
+    "#slots_container .slot.selected",
+    "#slots_container .slot.active",
+    "#slots_container .slot.current",
+    "#slots_container .slot.focus",
+    "#slots_container .slot[data-selected=\"true\"]",
+    "#slots_container .slot[aria-selected=\"true\"]"
+  ];
+  var FILTER_SELECTORS = [
+    "#filters_container .filter.selected",
+    "#filters_container .filter.active",
+    "#filters_container .filter.current",
+    "#filters_container .filter.focus",
+    "#filters_container .filter[data-selected=\"true\"]",
+    "#filters_container .filter[aria-selected=\"true\"]"
+  ];
 
   function nowIso() {
     return new Date().toISOString();
@@ -177,6 +153,41 @@
     } catch (err) {
       safeLog("sendPacket failed", String(err && err.message ? err.message : err));
     }
+  }
+
+  function flashIdeSyncButton(message, background, color, durationMs) {
+    var button = document.getElementById("ModUiExtractor-lua-ide-sync");
+    if (!button) {
+      return;
+    }
+    var oldBackground = button.style.background;
+    var oldColor = button.style.color;
+    var oldText = button.textContent;
+    button.style.background = background;
+    button.style.color = color;
+    button.textContent = message;
+    window.setTimeout(function () {
+      button.style.background = oldBackground;
+      button.style.color = oldColor;
+      button.textContent = oldText;
+    }, durationMs);
+  }
+
+  function applyIdeCode(newCode) {
+    var codeMirror = getLuaCodeMirror();
+    if (!codeMirror || typeof codeMirror.setValue !== "function") {
+      return;
+    }
+
+    var currentContextKey = getEditorContextKey(codeMirror);
+    if (state.lastIdeSyncContextKey && currentContextKey !== state.lastIdeSyncContextKey) {
+      safeLog("IDE sync blocked: Context changed. Expected: " + state.lastIdeSyncContextKey + ", Got: " + currentContextKey);
+      flashIdeSyncButton("Sync Blocked: Wrong Filter", "#8a2424", "#ffffff", 3000);
+      return;
+    }
+
+    codeMirror.setValue(newCode);
+    flashIdeSyncButton("Synced from IDE!", "#2a6b36", "#ffffff", 1500);
   }
 
   function summarizeArg(arg) {
@@ -702,27 +713,10 @@
   }
 
   function getDomContextKey() {
-    var slotSelectors = [
-      "#slots_container .slot.selected",
-      "#slots_container .slot.active",
-      "#slots_container .slot.current",
-      "#slots_container .slot.focus",
-      "#slots_container .slot[data-selected=\"true\"]",
-      "#slots_container .slot[aria-selected=\"true\"]"
-    ];
-    var filterSelectors = [
-      "#filters_container .filter.selected",
-      "#filters_container .filter.active",
-      "#filters_container .filter.current",
-      "#filters_container .filter.focus",
-      "#filters_container .filter[data-selected=\"true\"]",
-      "#filters_container .filter[aria-selected=\"true\"]"
-    ];
-
-    var slotNode = findFirstNode(slotSelectors);
-    var filterNode = findFirstNode(filterSelectors);
-    var slotText = findFirstText(slotSelectors);
-    var filterText = findFirstText(filterSelectors);
+    var slotNode = findFirstNode(SLOT_SELECTORS);
+    var filterNode = findFirstNode(FILTER_SELECTORS);
+    var slotText = findFirstText(SLOT_SELECTORS);
+    var filterText = findFirstText(FILTER_SELECTORS);
     var slotIdentity = getNodeIdentity(slotNode, "slot");
     var filterIdentity = getNodeIdentity(filterNode, "filter");
 
@@ -734,15 +728,7 @@
   }
 
   function getDomSelectedSlotNode() {
-    var slotSelectors = [
-      "#slots_container .slot.selected",
-      "#slots_container .slot.active",
-      "#slots_container .slot.current",
-      "#slots_container .slot.focus",
-      "#slots_container .slot[data-selected=\"true\"]",
-      "#slots_container .slot[aria-selected=\"true\"]"
-    ];
-    return findFirstNode(slotSelectors);
+    return findFirstNode(SLOT_SELECTORS);
   }
 
   function getSlotStableKey(slotNode) {
@@ -2563,161 +2549,6 @@
     } catch (_ignoreMove) {}
   }
 
-  function collectMenuActionDebug(entry) {
-    var data = {
-      hasEntry: !!entry
-    };
-    if (!entry) {
-      return data;
-    }
-
-    var clickable = null;
-    try {
-      clickable = entry.querySelector("a");
-    } catch (_ignoreClickable) {}
-    if (!clickable) {
-      clickable = entry;
-    }
-
-    data.entry = {
-      id: String(entry.id || ""),
-      className: String(entry.className || ""),
-      label: limitText(getMenuEntryLabel(entry), 96),
-      text: limitText(textOf(entry), 160),
-      hasOnClick: typeof entry.onclick === "function"
-    };
-    data.clickable = {
-      tag: clickable && clickable.tagName ? String(clickable.tagName) : "",
-      className: clickable ? String(clickable.className || "") : "",
-      hasOnClick: !!(clickable && typeof clickable.onclick === "function")
-    };
-
-    var attrs = {};
-    try {
-      if (entry.attributes) {
-        for (var i = 0; i < entry.attributes.length; i += 1) {
-          var a = entry.attributes[i];
-          if (!a || !a.name) {
-            continue;
-          }
-          if (a.name === "style" || a.name.indexOf("on") === 0) {
-            continue;
-          }
-          attrs[a.name] = limitText(String(a.value || ""), 96);
-        }
-      }
-    } catch (_ignoreAttrs) {}
-    data.entryAttrs = attrs;
-
-    try {
-      if (window.jQuery && typeof window.jQuery._data === "function") {
-        var jq = window.jQuery;
-        var entryEvents = jq._data(entry, "events");
-        var clickableEvents = jq._data(clickable, "events");
-        data.jq = {
-          entryClickHandlers: entryEvents && entryEvents.click ? entryEvents.click.length : 0,
-          clickableClickHandlers: clickableEvents && clickableEvents.click ? clickableEvents.click.length : 0
-        };
-      }
-    } catch (_ignoreJqData) {}
-
-    function collectOwnProps(node) {
-      var out = [];
-      if (!node || !Object.getOwnPropertyNames) {
-        return out;
-      }
-      try {
-        var names = Object.getOwnPropertyNames(node);
-        for (var i = 0; i < names.length; i += 1) {
-          var name = names[i];
-          if (!name) {
-            continue;
-          }
-          if (name === "style" || name === "className" || name === "id") {
-            continue;
-          }
-          if (name.indexOf("__luaProbe") === 0) {
-            continue;
-          }
-          if (!(/menu|action|callback|coherent|handler|helper|item|trigger|select|activate|click/i).test(name)) {
-            continue;
-          }
-          var descriptor = "";
-          try {
-            var value = node[name];
-            if (typeof value === "function") {
-              descriptor = "fn:" + (value.name || "anonymous");
-            } else if (value && typeof value === "object") {
-              descriptor = "obj";
-            } else {
-              descriptor = typeof value + ":" + limitText(String(value), 80);
-            }
-          } catch (_ignoreNodeValue) {
-            descriptor = "unreadable";
-          }
-          out.push(name + "=" + descriptor);
-          if (out.length >= 24) {
-            break;
-          }
-        }
-      } catch (_ignoreOwnProps) {}
-      return out;
-    }
-
-    data.entryOwnProps = collectOwnProps(entry);
-    data.clickableOwnProps = collectOwnProps(clickable);
-
-    return data;
-  }
-
-  function invokeLikelyEntryFunctions(entry, clickable) {
-    var invoked = false;
-
-    function invokeFromNode(node) {
-      if (!node || !Object.getOwnPropertyNames) {
-        return false;
-      }
-
-      var localInvoked = false;
-      try {
-        var names = Object.getOwnPropertyNames(node);
-        for (var i = 0; i < names.length; i += 1) {
-          var name = names[i];
-          if (!name || name.indexOf("__luaProbe") === 0) {
-            continue;
-          }
-          if (!(/action|callback|trigger|select|activate|click|execute|invoke/i).test(name)) {
-            continue;
-          }
-          var fn = null;
-          try {
-            fn = node[name];
-          } catch (_ignoreReadFn) {
-            fn = null;
-          }
-          if (typeof fn !== "function") {
-            continue;
-          }
-          try {
-            fn.call(node);
-            localInvoked = true;
-          } catch (_ignoreInvokeNoArgs) {
-            try {
-              fn.call(node, node);
-              localInvoked = true;
-            } catch (_ignoreInvokeNodeArg) {}
-          }
-        }
-      } catch (_ignoreInvokeNode) {}
-
-      return localInvoked;
-    }
-
-    invoked = invokeFromNode(entry) || invoked;
-    invoked = invokeFromNode(clickable) || invoked;
-    return invoked;
-  }
-
   function triggerNativeMenuHandlers(entry) {
     if (!entry) {
       return false;
@@ -2746,106 +2577,10 @@
       }
     } catch (_ignoreClickableOnClick) {}
 
-    try {
-      if (window.jQuery) {
-        var jq = window.jQuery;
-        if (jq(entry) && typeof jq(entry).triggerHandler === "function") {
-          jq(entry).triggerHandler("click");
-          triggered = true;
-        }
-        if (jq(clickable) && typeof jq(clickable).triggerHandler === "function") {
-          jq(clickable).triggerHandler("click");
-          triggered = true;
-        }
-      }
-    } catch (_ignoreJqTrigger) {}
-
-    triggered = invokeLikelyEntryFunctions(entry, clickable) || triggered;
-
     return triggered;
   }
 
-  function listFunctionNames(obj, maxCount) {
-    var out = [];
-    if (!obj) {
-      return out;
-    }
-    try {
-      var own = Object.getOwnPropertyNames(obj);
-      for (var i = 0; i < own.length; i += 1) {
-        var name = own[i];
-        if (!name || typeof obj[name] !== "function") {
-          continue;
-        }
-        out.push(name);
-        if (out.length >= maxCount) {
-          return out;
-        }
-      }
-    } catch (_ignoreOwn) {}
-    return out;
-  }
-
-  function listPrototypeFunctionNames(obj, maxCount) {
-    var out = [];
-    if (!obj) {
-      return out;
-    }
-    var seen = {};
-    try {
-      var proto = Object.getPrototypeOf(obj);
-      var depth = 0;
-      while (proto && depth < 4) {
-        var names = Object.getOwnPropertyNames(proto);
-        for (var i = 0; i < names.length; i += 1) {
-          var name = names[i];
-          if (!name || name === "constructor" || seen[name]) {
-            continue;
-          }
-          var fn = null;
-          try {
-            fn = obj[name];
-          } catch (_ignoreReadFn) {
-            fn = null;
-          }
-          if (typeof fn !== "function") {
-            continue;
-          }
-          seen[name] = true;
-          out.push(name);
-          if (out.length >= maxCount) {
-            return out;
-          }
-        }
-        proto = Object.getPrototypeOf(proto);
-        depth += 1;
-      }
-    } catch (_ignoreProto) {}
-    return out;
-  }
-
-  function inspectContextMenuBridges() {
-    var out = {};
-    var bridges = [
-      { name: "CPPMainContextMenu", obj: window.CPPMainContextMenu },
-      { name: "CPPContextMenu", obj: window.CPPContextMenu },
-      { name: "ContextMenu", obj: window.ContextMenu }
-    ];
-    for (var i = 0; i < bridges.length; i += 1) {
-      var b = bridges[i];
-      if (!b.obj) {
-        continue;
-      }
-      out[b.name] = {
-        type: typeof b.obj,
-        fn: listFunctionNames(b.obj, 32),
-        protoFn: listPrototypeFunctionNames(b.obj, 48)
-      };
-    }
-    return out;
-  }
-
-  function tryInvokeContextMenuBridge(actionKey, helperId) {
+  function tryInvokeContextMenuBridge(helperId) {
     var bridges = [
       { name: "CPPMainContextMenu", obj: window.CPPMainContextMenu },
       { name: "CPPContextMenu", obj: window.CPPContextMenu },
@@ -3106,16 +2841,7 @@
               helperId = "";
             }
 
-            sendPacket("lua_quick_menu_edit_lua_result", {
-              step: "native-target-inspect",
-              attempt: nativeAttempt,
-              usedAdvanced: !!advancedEntry,
-              targetPath: targetPath,
-              target: collectMenuActionDebug(target),
-              bridges: inspectContextMenuBridges()
-            });
-
-            var bridgeResult = tryInvokeContextMenuBridge("action_control_unit_edit_lua_script", helperId);
+            var bridgeResult = tryInvokeContextMenuBridge(helperId);
             bridgeInvokedThisAttempt = !!(bridgeResult && bridgeResult.invoked);
             var clickDispatched = false;
             var handlerTriggered = false;

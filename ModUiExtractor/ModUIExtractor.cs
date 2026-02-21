@@ -41,6 +41,8 @@ public sealed class MyDuMod : IMod
     private const string PayloadOverridesDirectoryName = "payload-overrides";
     private const string RuntimeExtractorPayloadFileName = "ModUiExtractor-payload.override.js";
     private const string RuntimeLuaProbePayloadFileName = "lua-editor-probe.override.js";
+    private const string RuntimeLuaProbeModulesDirectoryName = "lua-editor-probe.modules";
+    private const string RuntimeLuaProbeModulesManifestFileName = "manifest.txt";
     private const string DefaultTargetStylesheetHref = "coui://data/gui/hud/dpu_editor/css/dpu_editor.css";
     private const string TargetStylesheetFileName = "target-stylesheet-url.txt";
 
@@ -52,6 +54,8 @@ public sealed class MyDuMod : IMod
     private string targetStylesheetFilePath = "";
     private string runtimeExtractorPayloadPath = "";
     private string runtimeLuaProbePayloadPath = "";
+    private string runtimeLuaProbeModulesDirectoryPath = "";
+    private string runtimeLuaProbeModulesManifestPath = "";
     private string payloadJs = "";
     private string luaProbeJs = "";
     private readonly ConcurrentDictionary<string, object> dumpFileLocks = new();
@@ -86,6 +90,9 @@ public sealed class MyDuMod : IMod
         targetStylesheetFilePath = Path.Combine(outputDirectory, TargetStylesheetFileName);
         runtimeExtractorPayloadPath = Path.Combine(payloadOverridesDirectory, RuntimeExtractorPayloadFileName);
         runtimeLuaProbePayloadPath = Path.Combine(payloadOverridesDirectory, RuntimeLuaProbePayloadFileName);
+        runtimeLuaProbeModulesDirectoryPath = Path.Combine(payloadOverridesDirectory, RuntimeLuaProbeModulesDirectoryName);
+        runtimeLuaProbeModulesManifestPath = Path.Combine(runtimeLuaProbeModulesDirectoryPath, RuntimeLuaProbeModulesManifestFileName);
+        Directory.CreateDirectory(runtimeLuaProbeModulesDirectoryPath);
         EnsureTargetStylesheetFile();
 
         payloadJs = LoadEmbeddedScriptSafe(EmbeddedPayloadResourceName, "extractor payload");
@@ -109,13 +116,15 @@ public sealed class MyDuMod : IMod
         }
 
         logger.LogInformation(
-            "UIExtractor initialized. Payload bytes={PayloadSize}, LuaProbe bytes={LuaProbeSize}, output={OutputDirectory}, overrides={OverridesDir}, extractorOverride={ExtractorOverridePath}, luaProbeOverride={LuaProbeOverridePath}, targetStylesheetFile={TargetStylesheetFile}",
+            "UIExtractor initialized. Payload bytes={PayloadSize}, LuaProbe bytes={LuaProbeSize}, output={OutputDirectory}, overrides={OverridesDir}, extractorOverride={ExtractorOverridePath}, luaProbeOverride={LuaProbeOverridePath}, luaProbeModulesDir={LuaProbeModulesDir}, luaProbeModulesManifest={LuaProbeModulesManifest}, targetStylesheetFile={TargetStylesheetFile}",
             payloadJs.Length,
             luaProbeJs.Length,
             outputDirectory,
             payloadOverridesDirectory,
             runtimeExtractorPayloadPath,
             runtimeLuaProbePayloadPath,
+            runtimeLuaProbeModulesDirectoryPath,
+            runtimeLuaProbeModulesManifestPath,
             targetStylesheetFilePath);
 
         ideImportTask = Task.Run(WatchIdeImportFile);
@@ -347,7 +356,7 @@ public sealed class MyDuMod : IMod
 
     private async Task InjectLuaProbePayload(ulong playerId, ModAction action)
     {
-        var luaProbeScript = ResolveRuntimeScript(runtimeLuaProbePayloadPath, luaProbeJs, "lua probe", out var usingRuntimeOverride);
+        var luaProbeScript = ResolveLuaProbeScript(out var usingRuntimeOverride, out var usingRuntimeModules);
         if (string.IsNullOrWhiteSpace(luaProbeScript))
         {
             await Notify(playerId, "Lua probe payload is unavailable on server.");
@@ -367,7 +376,11 @@ public sealed class MyDuMod : IMod
         var notifyMessage = action.constructId == 0
             ? "Lua probe injected. Open a control unit context menu and click Edit Lua."
             : $"Lua probe injected for construct {action.constructId}. Open Edit Lua now.";
-        if (usingRuntimeOverride)
+        if (usingRuntimeModules)
+        {
+            notifyMessage += " (runtime override modules active)";
+        }
+        else if (usingRuntimeOverride)
         {
             notifyMessage += " (runtime override script active)";
         }
@@ -639,6 +652,120 @@ public sealed class MyDuMod : IMod
         catch (Exception ex)
         {
             logger.LogWarning(ex, "UIExtractor failed to create runtime override file for {ScriptLabel}: {Path}", scriptLabel, path);
+        }
+    }
+
+    private string ResolveLuaProbeScript(out bool usingRuntimeOverride, out bool usingRuntimeModules)
+    {
+        usingRuntimeOverride = false;
+        usingRuntimeModules = false;
+
+        var moduleScript = ResolveRuntimeModuleScript(
+            runtimeLuaProbeModulesDirectoryPath,
+            runtimeLuaProbeModulesManifestPath,
+            "lua probe",
+            out var moduleCount);
+
+        if (!string.IsNullOrWhiteSpace(moduleScript))
+        {
+            usingRuntimeOverride = true;
+            usingRuntimeModules = true;
+            logger.LogInformation(
+                "UIExtractor using runtime lua probe modules from {ModulesDir} ({ModuleCount} files)",
+                runtimeLuaProbeModulesDirectoryPath,
+                moduleCount);
+            return moduleScript;
+        }
+
+        return ResolveRuntimeScript(runtimeLuaProbePayloadPath, luaProbeJs, "lua probe", out usingRuntimeOverride);
+    }
+
+    private string ResolveRuntimeModuleScript(string moduleDirectoryPath, string manifestPath, string scriptLabel, out int moduleCount)
+    {
+        moduleCount = 0;
+
+        try
+        {
+            if (!File.Exists(manifestPath))
+            {
+                return "";
+            }
+
+            var moduleEntries = new List<string>();
+            foreach (var rawLine in File.ReadAllLines(manifestPath, Encoding.UTF8))
+            {
+                var line = rawLine?.Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                moduleEntries.Add(line);
+            }
+
+            if (moduleEntries.Count == 0)
+            {
+                logger.LogWarning(
+                    "UIExtractor runtime module manifest for {ScriptLabel} has no module entries: {ManifestPath}",
+                    scriptLabel,
+                    manifestPath);
+                return "";
+            }
+
+            var moduleDirFull = Path.GetFullPath(moduleDirectoryPath);
+            var moduleDirPrefix = moduleDirFull.EndsWith(Path.DirectorySeparatorChar)
+                ? moduleDirFull
+                : moduleDirFull + Path.DirectorySeparatorChar;
+
+            var scriptBuilder = new StringBuilder();
+            foreach (var entry in moduleEntries)
+            {
+                var modulePath = Path.GetFullPath(Path.Combine(moduleDirectoryPath, entry));
+                if (!modulePath.StartsWith(moduleDirPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogWarning(
+                        "UIExtractor runtime module entry escapes module directory for {ScriptLabel}: {Entry}",
+                        scriptLabel,
+                        entry);
+                    return "";
+                }
+
+                if (!File.Exists(modulePath))
+                {
+                    logger.LogWarning(
+                        "UIExtractor runtime module file missing for {ScriptLabel}: {ModulePath}",
+                        scriptLabel,
+                        modulePath);
+                    return "";
+                }
+
+                var moduleText = File.ReadAllText(modulePath, Encoding.UTF8);
+                if (string.IsNullOrWhiteSpace(moduleText))
+                {
+                    logger.LogWarning(
+                        "UIExtractor runtime module file is empty for {ScriptLabel}: {ModulePath}",
+                        scriptLabel,
+                        modulePath);
+                    return "";
+                }
+
+                scriptBuilder.Append(moduleText);
+                if (!moduleText.EndsWith('\n'))
+                {
+                    scriptBuilder.AppendLine();
+                }
+                moduleCount += 1;
+            }
+
+            return scriptBuilder.ToString();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "UIExtractor failed to read runtime module manifest for {ScriptLabel} from {ManifestPath}; using single-file fallback",
+                scriptLabel,
+                manifestPath);
+            return "";
         }
     }
 

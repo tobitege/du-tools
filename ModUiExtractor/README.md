@@ -113,6 +113,10 @@ This writes `all_scripts_manifest.json` plus `all_script_js_*.js` sections after
 - `ModUIExtractor.csproj`: C# mod project
 - `ModUIExtractor.cs`: mod implementation (`GetName() == NQ.UIExtractor`)
 - `payload/ModUiExtractor-payload.js`: embedded payload
+- `payload/lua-editor-probe.modules/`: source modules for Lua probe (manifest-driven)
+- `payload/lua-editor-probe.js`: composed Lua probe payload (generated from modules)
+- `tools/build-lua-probe.ps1`: compose `lua-editor-probe.modules` into `payload/lua-editor-probe.js`
+- `tools/publish-lua-probe.ps1`: compose + publish probe to runtime override paths
 - `tools/reassemble-ui-dump.ps1`: reassemble NDJSON to files
 - `tools/split-html-dump.py`: split `html.html` by direct `<body>` root elements
 
@@ -177,6 +181,7 @@ Runtime payload override directory (read fresh on every injection):
 - `D:\MyDUserver\tmp\ui-dumps\payload-overrides`
 - `ModUiExtractor-payload.override.js`
 - `lua-editor-probe.override.js`
+- `lua-editor-probe.modules\manifest.txt` (optional module override mode)
 
 Each run writes:
 
@@ -186,13 +191,20 @@ Each run writes:
 
 Use this when you want to tweak Lua editor UI behavior live without rebuilding the DLL.
 
-Edit this file for live changes:
+Edit one of these for live changes:
 
 - `D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.override.js`
+- `D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.modules\*.js` (with `manifest.txt`)
+
+Probe override resolution order on each inject:
+
+1. `payload-overrides\lua-editor-probe.modules\manifest.txt` + listed module files
+2. `payload-overrides\lua-editor-probe.override.js`
+3. embedded `payload/lua-editor-probe.js` in DLL
 
 After each edit:
 
-1. Save `lua-editor-probe.override.js`.
+1. Save changed module or `lua-editor-probe.override.js`.
 2. In-game, open element context menu.
 3. Click `UI Extractor\Inject LUA editor probe`.
 4. Re-open or refocus Lua editor (`Edit Lua script (Ctrl + L)`).
@@ -201,6 +213,7 @@ After each edit:
 No DLL rebuild needed for:
 
 - JS/CSS behavior changes inside `lua-editor-probe.override.js`
+- JS changes in module mode (`lua-editor-probe.modules`)
 - probe button sizes, colors, toggles, line-highlight styling
 
 DLL rebuild required for:
@@ -212,6 +225,12 @@ DLL rebuild required for:
 Useful sync commands:
 
 ```powershell
+# Compose modules -> payload/lua-editor-probe.js
+.\tools\build-lua-probe.ps1
+
+# Compose + publish single-file + modules to runtime override directory
+.\tools\publish-lua-probe.ps1
+
 # Source extractor payload -> live override
 Copy-Item `
   'D:\github\du-tobi\ModUiExtractor\payload\ModUiExtractor-payload.js' `
@@ -221,6 +240,11 @@ Copy-Item `
 Copy-Item `
   'D:\github\du-tobi\ModUiExtractor\payload\lua-editor-probe.js' `
   'D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.override.js' -Force
+
+# Source module payloads -> live module override dir
+Copy-Item `
+  'D:\github\du-tobi\ModUiExtractor\payload\lua-editor-probe.modules\*' `
+  'D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.modules' -Force
 
 # Live extractor override -> source payload (persist your live tweaks in repo)
 Copy-Item `
@@ -239,12 +263,10 @@ This is the exact sequence that reproduces the currently working behavior.
 
 ### 1) Prepare the active probe override
 
-Always copy source payload to runtime override before testing:
+Recommended (module-first) prep before testing:
 
 ```powershell
-Copy-Item `
-  'D:\github\du-tobi\ModUiExtractor\payload\lua-editor-probe.js' `
-  'D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.override.js' -Force
+.\tools\publish-lua-probe.ps1
 ```
 
 ### 2) Inject and open editor

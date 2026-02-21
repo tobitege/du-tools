@@ -1,0 +1,9 @@
+# Lua probe modules (load order)
+000-core.js
+010-context-and-viewport.js
+020-slot-filter-restore.js
+030-caret-theme-ide-sync.js
+040-menu-helpers.js
+050-quick-menu-actions.js
+060-observers-and-manager-hooks.js
+090-lifecycle-and-bootstrap.js
