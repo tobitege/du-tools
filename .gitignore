@@ -226,4 +226,5 @@ __pycache__
 test-ui-dumps*
 tmp-reassemble*
 .mypy_cache
-lua_editor/scripts/scripts
+target/
+lua_editor/scripts/scripts/

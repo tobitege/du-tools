@@ -1,3 +1,27 @@
+"""
+Dual Universe blueprint voxel parser.
+
+What this script does:
+- Loads a blueprint JSON export and reads the `VoxelData` chunks.
+- Decodes Mongo-style `$binary` base64 payloads for each chunk.
+- Decompresses NQ-prefixed payloads (LZ4, zlib, or uncompressed).
+- Parses `VoxelCellData` binary structures and material run-length data.
+- Aggregates voxel block counts by material and prints a summary.
+
+How the parsing pipeline is organized:
+1. `process_blueprint()` drives chunk iteration and global aggregation.
+2. `decode_base64_field()` + `decompress_nq()` normalize raw chunk bytes.
+3. `parse_voxel_cell_data()` validates magic/version fields and extracts
+   material runs plus local-id-to-material mapping metadata.
+4. `aggregate_material_runs()` converts RLE runs into per-material counts.
+5. Results are printed as total blocks and liter volume per material.
+
+Error handling notes:
+- Binary format issues raise `DeserializeError` and are reported per chunk.
+- Missing optional decompression dependency (`lz4`) raises `RuntimeError`
+  and aborts immediately so the user can install the dependency.
+"""
+
 from __future__ import annotations
 
 import argparse

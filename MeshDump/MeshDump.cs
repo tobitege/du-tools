@@ -1,3 +1,41 @@
+// ============================================================================
+// MeshDump – Dual Universe Mesh Bounding-Box Extractor
+// ============================================================================
+//
+// Purpose:
+//   Scans the Dual Universe game client's generated element assets and extracts
+//   the axis-aligned bounding box (AABB) from every Unigine .mesh file it finds.
+//   The results are written to a single JSON file that maps each element name to
+//   its { min, max } bounding box coordinates.
+//
+// How it works:
+//   1. Recursively walks the `resources_generated/elements` directory for all
+//      .mesh files produced by the game client.
+//   2. Reads each file's raw bytes and checks for the Unigine mesh magic header
+//      ("ms__", e.g. "ms11").
+//   3. Extracts six IEEE-754 floats immediately after the 4-byte magic that
+//      represent the mesh's AABB: minX, minY, minZ, maxX, maxY, maxZ.
+//   4. Rounds coordinates to 5 decimal places and stores them keyed by the
+//      mesh filename (without extension).
+//   5. Serialises the dictionary to pretty-printed JSON via Newtonsoft.Json.
+//
+// Output format (all-mesh-boxes.json):
+//   {
+//     "element_name": {
+//       "box": {
+//         "min": [ x, y, z ],
+//         "max": [ x, y, z ]
+//       }
+//     },
+//     ...
+//   }
+//
+// Usage:
+//   Adjust `searchDir` and `outPath` below, then run with `dotnet run`.
+//   The output JSON is consumed by mydu-server-mods for physics / placement
+//   calculations that need accurate element dimensions.
+// ============================================================================
+
 using System;
 using System.IO;
 using System.Collections.Generic;

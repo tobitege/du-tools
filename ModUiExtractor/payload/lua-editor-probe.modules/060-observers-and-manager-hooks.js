@@ -460,10 +460,6 @@
               restoreSnippetAfterSwitch(info);
             }
 
-            if (info && info.forceEditorFocus) {
-              enforceEditorFocusAndCaret();
-            }
-
             sendPacket("lua_snippet_switch_end", {
               seq: info.seq,
               before: info.before,
@@ -486,8 +482,14 @@
             });
           } catch (_ignoreRestoreAfterSettle) {
           } finally {
-            if (!info.seq || state.activeSwitchSeq === info.seq) {
+            var isActiveSeq = !info.seq || state.activeSwitchSeq === info.seq;
+            if (isActiveSeq) {
               state.switchInProgress = false;
+              if (info && info.forceEditorFocus) {
+                enforceEditorFocusAndCaret();
+              } else {
+                updateCaretLineHighlight();
+              }
             }
           }
         });

@@ -683,6 +683,8 @@
         if (filterNode) {
           state.suppressRestoreUntilInteraction = false;
           removeFreshOpenViewportGuard();
+          // Manual filter navigation should return focus to editor once code loads.
+          state.forceEditorFocusOnNextSwitch = true;
         } else if (isSlotTransition) {
           // Keep suppression active through slot click until a concrete filter is selected.
           state.suppressRestoreUntilInteraction = true;
