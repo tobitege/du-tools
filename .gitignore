@@ -228,3 +228,12 @@ tmp-reassemble*
 .mypy_cache
 target/
 lua_editor/scripts/scripts/
+
+#################
+## UI Extractions
+#################
+# Keep documentation and optional tooling, ignore generated dump output.
+ui-extractions/*
+!ui-extractions/README.md
+!ui-extractions/tools/
+!ui-extractions/tools/**
