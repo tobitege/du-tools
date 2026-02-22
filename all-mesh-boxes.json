@@ -1,88 +1,4 @@
 {
-  "ARKbridge_col": {
-    "box": {
-      "min": [
-        -54.99988,
-        -21.81824,
-        -56.04663
-      ],
-      "max": [
-        54.99988,
-        21.81824,
-        15.10901
-      ]
-    }
-  },
-  "ARKcentralring_col": {
-    "box": {
-      "min": [
-        -95.82294,
-        -100.67816,
-        -56.04651
-      ],
-      "max": [
-        94.54321,
-        100.67822,
-        15.10913
-      ]
-    }
-  },
-  "arkship_col": {
-    "box": {
-      "min": [
-        -128.2303,
-        -229.3136,
-        -725.85645
-      ],
-      "max": [
-        128.2303,
-        222.67548,
-        818.7677
-      ]
-    }
-  },
-  "balloon_col": {
-    "box": {
-      "min": [
-        -10.53691,
-        -13.17862,
-        30.11674
-      ],
-      "max": [
-        10.50551,
-        7.86707,
-        58.40303
-      ]
-    }
-  },
-  "crater_col": {
-    "box": {
-      "min": [
-        -697.05695,
-        -698.98492,
-        -10.48554
-      ],
-      "max": [
-        724.19958,
-        732.44281,
-        61.02938
-      ]
-    }
-  },
-  "start_room_col": {
-    "box": {
-      "min": [
-        -11.80454,
-        72.62203,
-        -251.41277
-      ],
-      "max": [
-        11.76637,
-        113.55228,
-        -236.58659
-      ]
-    }
-  },
   "territoryscanner_col": {
     "box": {
       "min": [
@@ -95,119 +11,9 @@
         2.38866,
         5.88595
       ]
-    }
-  },
-  "env_actuator-alarm-light_001_col": {
-    "box": {
-      "min": [
-        -0.125,
-        -0.125,
-        -0.03294
-      ],
-      "max": [
-        0.125,
-        0.125,
-        0.08141
-      ]
-    }
-  },
-  "env_actuator-alarm-sound_001_col": {
-    "box": {
-      "min": [
-        -0.125,
-        -0.125,
-        -0.07986
-      ],
-      "max": [
-        0.125,
-        0.125,
-        0.07897
-      ]
-    }
-  },
-  "env_actuator-conveyorbelt_001_col": {
-    "box": {
-      "min": [
-        -0.5,
-        -2.5,
-        -0.125
-      ],
-      "max": [
-        0.5,
-        2.5,
-        0.125
-      ]
-    }
-  },
-  "env_actuator-gravitychanger_001_col": {
-    "box": {
-      "min": [
-        -0.125,
-        -0.125,
-        -0.125
-      ],
-      "max": [
-        0.125,
-        0.125,
-        0.125
-      ]
-    }
-  },
-  "env_actuator-light_001_col": {
-    "box": {
-      "min": [
-        -0.125,
-        -0.125,
-        -0.125
-      ],
-      "max": [
-        0.125,
-        0.125,
-        0.125
-      ]
-    }
-  },
-  "env_actuator-panel_001_col": {
-    "box": {
-      "min": [
-        -0.125,
-        -0.125,
-        -0.125
-      ],
-      "max": [
-        0.125,
-        0.125,
-        0.125
-      ]
-    }
-  },
-  "env_actuator-speaker_001_col": {
-    "box": {
-      "min": [
-        -0.13092,
-        -0.13092,
-        -0.125
-      ],
-      "max": [
-        0.13092,
-        0.13092,
-        0.125
-      ]
-    }
-  },
-  "env_actuator-trap_001_col": {
-    "box": {
-      "min": [
-        -1.0,
-        -1.0,
-        -0.125
-      ],
-      "max": [
-        1.0,
-        1.0,
-        0.125
-      ]
-    }
+    },
+    "elementName": "TerritoryScanner",
+    "elementId": 3858829819
   },
   "env_adjunct-top_001_s_col": {
     "box": {
@@ -221,7 +27,9 @@
         0.75187,
         0.18034
       ]
-    }
+    },
+    "elementName": "AdjunctTop_01",
+    "elementId": 3337817677
   },
   "env_adjunct-top_002_s_col": {
     "box": {
@@ -235,7 +43,9 @@
         0.75,
         0.25986
       ]
-    }
+    },
+    "elementName": "AdjunctTop_02",
+    "elementId": 3337817674
   },
   "env_adjunct-top_003_s_col": {
     "box": {
@@ -249,7 +59,9 @@
         0.75,
         0.18724
       ]
-    }
+    },
+    "elementName": "AdjunctTop_03",
+    "elementId": 3337817675
   },
   "env_adjuster_001_l_col": {
     "box": {
@@ -263,7 +75,9 @@
         0.2975,
         1.0
       ]
-    }
+    },
+    "elementName": "AdjusterLarge",
+    "elementId": 2818864930
   },
   "env_adjuster_001_m_col": {
     "box": {
@@ -277,7 +91,9 @@
         0.12719,
         0.5
       ]
-    }
+    },
+    "elementName": "AdjusterMedium",
+    "elementId": 3790013467
   },
   "env_adjuster_001_s_col": {
     "box": {
@@ -291,7 +107,9 @@
         0.07528,
         0.24389
       ]
-    }
+    },
+    "elementName": "AdjusterSmall",
+    "elementId": 47474508
   },
   "env_adjuster_001_xs_col": {
     "box": {
@@ -305,7 +123,9 @@
         0.03764,
         0.12195
       ]
-    }
+    },
+    "elementName": "AdjusterXtraSmall",
+    "elementId": 2648523849
   },
   "env_airbrake_001_l_col": {
     "box": {
@@ -319,7 +139,9 @@
         1.26002,
         0.23837
       ]
-    }
+    },
+    "elementName": "AirbrakeLarge",
+    "elementId": 104971834
   },
   "env_airbrake_001_m_col": {
     "box": {
@@ -333,77 +155,9 @@
         0.34163,
         0.07107
       ]
-    }
-  },
-  "env_alien-prop_001_col": {
-    "box": {
-      "min": [
-        -0.37118,
-        -0.24955,
-        0.11962
-      ],
-      "max": [
-        0.3411,
-        0.24955,
-        1.11721
-      ]
-    }
-  },
-  "env_alien-prop_002_col": {
-    "box": {
-      "min": [
-        -0.28148,
-        -0.22456,
-        0.17372
-      ],
-      "max": [
-        0.32428,
-        0.3183,
-        1.07071
-      ]
-    }
-  },
-  "env_alien-prop_003_col": {
-    "box": {
-      "min": [
-        -0.55387,
-        -0.6419,
-        0.1196
-      ],
-      "max": [
-        0.55387,
-        0.63189,
-        1.14444
-      ]
-    }
-  },
-  "env_alien-prop_004_col": {
-    "box": {
-      "min": [
-        -0.375,
-        -0.10352,
-        0.32857
-      ],
-      "max": [
-        0.375,
-        0.10352,
-        1.375
-      ]
-    }
-  },
-  "env_alien-prop_005_col": {
-    "box": {
-      "min": [
-        -0.875,
-        -2.21361,
-        0.0
-      ],
-      "max": [
-        0.875,
-        1.52909,
-        1.87441
-      ]
-    }
+    },
+    "elementName": "AirbrakeMedium",
+    "elementId": 2198271703
   },
   "env_antenna_001_l_col": {
     "box": {
@@ -417,7 +171,9 @@
         2.31587,
         22.83124
       ]
-    }
+    },
+    "elementName": "AntennaLarge",
+    "elementId": 413322747
   },
   "env_antenna_001_m_col": {
     "box": {
@@ -431,7 +187,9 @@
         1.57682,
         8.42996
       ]
-    }
+    },
+    "elementName": "AntennaMedium",
+    "elementId": 206489025
   },
   "env_antenna_001_s_col": {
     "box": {
@@ -445,245 +203,9 @@
         0.57441,
         1.91754
       ]
-    }
-  },
-  "env_arkship_001_s_col": {
-    "box": {
-      "min": [
-        -0.5044,
-        -0.87626,
-        -2.82939
-      ],
-      "max": [
-        0.49382,
-        0.88301,
-        3.18275
-      ]
-    }
-  },
-  "env_artifact-cathedral_001_col": {
-    "box": {
-      "min": [
-        -231.69238,
-        -134.31885,
-        -63.24315
-      ],
-      "max": [
-        231.69241,
-        134.31885,
-        87.59917
-      ]
-    }
-  },
-  "env_artifact-chapel_001_col": {
-    "box": {
-      "min": [
-        -43.03125,
-        -43.03121,
-        -43.03121
-      ],
-      "max": [
-        43.03125,
-        43.03121,
-        43.0312
-      ]
-    }
-  },
-  "env_artifact-pillar_001_col": {
-    "box": {
-      "min": [
-        -18.74744,
-        -15.42524,
-        -29.4192
-      ],
-      "max": [
-        18.74744,
-        15.42524,
-        29.4192
-      ]
-    }
-  },
-  "env_artifact-pillar_002_col": {
-    "box": {
-      "min": [
-        -18.55896,
-        -15.76224,
-        -30.25779
-      ],
-      "max": [
-        18.55884,
-        15.76224,
-        30.25779
-      ]
-    }
-  },
-  "env_artifact-pillar_003_col": {
-    "box": {
-      "min": [
-        -23.32776,
-        -13.06259,
-        -29.94323
-      ],
-      "max": [
-        23.32776,
-        13.06259,
-        29.94323
-      ]
-    }
-  },
-  "env_artifact-pillar_004_col": {
-    "box": {
-      "min": [
-        -14.74512,
-        -16.65874,
-        -31.17502
-      ],
-      "max": [
-        14.74512,
-        16.65874,
-        31.17502
-      ]
-    }
-  },
-  "env_artifact-pillar_005_col": {
-    "box": {
-      "min": [
-        -14.5448,
-        -14.28035,
-        -27.41882
-      ],
-      "max": [
-        14.54468,
-        14.28035,
-        27.41882
-      ]
-    }
-  },
-  "env_artifact-pillar_006_col": {
-    "box": {
-      "min": [
-        -16.16907,
-        -13.31855,
-        -29.62475
-      ],
-      "max": [
-        16.16907,
-        13.31855,
-        29.62475
-      ]
-    }
-  },
-  "env_artifact-pillar_007_col": {
-    "box": {
-      "min": [
-        -19.17017,
-        -15.60044,
-        -30.50497
-      ],
-      "max": [
-        19.17017,
-        15.60044,
-        30.50497
-      ]
-    }
-  },
-  "env_artifact-pillar_008_col": {
-    "box": {
-      "min": [
-        -15.6427,
-        -19.61918,
-        -30.04212
-      ],
-      "max": [
-        15.64258,
-        19.61918,
-        30.04212
-      ]
-    }
-  },
-  "env_artifact-pillar_009_col": {
-    "box": {
-      "min": [
-        -16.5686,
-        -14.05842,
-        -31.40859
-      ],
-      "max": [
-        16.56873,
-        14.05842,
-        31.40859
-      ]
-    }
-  },
-  "env_artifact-pillar_010_col": {
-    "box": {
-      "min": [
-        -23.32776,
-        -13.06259,
-        -29.94323
-      ],
-      "max": [
-        23.32776,
-        13.06259,
-        29.94323
-      ]
-    }
-  },
-  "env_artifact-pillar_011_col": {
-    "box": {
-      "min": [
-        -18.55896,
-        -15.76224,
-        -30.25779
-      ],
-      "max": [
-        18.55884,
-        15.76224,
-        30.25779
-      ]
-    }
-  },
-  "env_artifact-pillar_012_col": {
-    "box": {
-      "min": [
-        -18.74744,
-        -15.42524,
-        -29.4192
-      ],
-      "max": [
-        18.74744,
-        15.42524,
-        29.4192
-      ]
-    }
-  },
-  "env_artifact-pyramid_001_col": {
-    "box": {
-      "min": [
-        -69.05359,
-        -69.05362,
-        -96.67504
-      ],
-      "max": [
-        69.05359,
-        69.05362,
-        96.67504
-      ]
-    }
-  },
-  "env_artifact-relic_001_col": {
-    "box": {
-      "min": [
-        -5.00006,
-        -2.50003,
-        -12.5
-      ],
-      "max": [
-        5.00006,
-        2.50003,
-        12.5
-      ]
-    }
+    },
+    "elementName": "AntennaSmall",
+    "elementId": 1951235468
   },
   "env_barrier-1x_001_col": {
     "box": {
@@ -697,7 +219,9 @@
         0.08,
         0.64453
       ]
-    }
+    },
+    "elementName": "Barrier1M",
+    "elementId": 3261824822
   },
   "env_barrier-2x_001_col": {
     "box": {
@@ -711,7 +235,9 @@
         0.08,
         0.65125
       ]
-    }
+    },
+    "elementName": "Barrier2M",
+    "elementId": 3261824887
   },
   "env_barrier-corner_001_col": {
     "box": {
@@ -725,7 +251,9 @@
         0.5,
         0.65461
       ]
-    }
+    },
+    "elementName": "BarrierCorner",
+    "elementId": 1377211067
   },
   "env_cable-1x_001_xs_col": {
     "box": {
@@ -739,7 +267,22 @@
         0.5,
         0.10955
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "Cable1M01",
+        "id": 1542390551
+      },
+      {
+        "name": "Cable1M02",
+        "id": 1542390550
+      },
+      {
+        "name": "Cable1M03",
+        "id": 1542390549
+      }
+    ]
   },
   "env_cable-2x_001_s_col": {
     "box": {
@@ -753,7 +296,22 @@
         1.0,
         0.10955
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "Cable2M01",
+        "id": 1542146744
+      },
+      {
+        "name": "Cable2M02",
+        "id": 1542146745
+      },
+      {
+        "name": "Cable2M03",
+        "id": 1542146746
+      }
+    ]
   },
   "env_cable-corner_001_col": {
     "box": {
@@ -767,7 +325,22 @@
         0.49887,
         0.10955
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "CableCorner01",
+        "id": 1700326384
+      },
+      {
+        "name": "CableCorner02",
+        "id": 1700326385
+      },
+      {
+        "name": "CableCorner03",
+        "id": 1700326390
+      }
+    ]
   },
   "env_cannon-heavy-tower_001_col": {
     "box": {
@@ -781,7 +354,9 @@
         5.67785,
         2.0121
       ]
-    }
+    },
+    "elementName": "WeaponCannonMedium",
+    "elementId": 2630926248
   },
   "env_cannon-heavy-tower_001_l_col": {
     "box": {
@@ -795,7 +370,9 @@
         9.56828,
         2.96177
       ]
-    }
+    },
+    "elementName": "WeaponCannonLarge",
+    "elementId": 2248747240
   },
   "env_cannon-heavy-tower_001_s_col": {
     "box": {
@@ -809,7 +386,9 @@
         3.6751,
         1.11609
       ]
-    }
+    },
+    "elementName": "WeaponCannonSmall",
+    "elementId": 2296718426
   },
   "env_cannon-heavy-tower_001_xs_col": {
     "box": {
@@ -823,7 +402,9 @@
         2.61176,
         0.73988
       ]
-    }
+    },
+    "elementName": "WeaponCannonExtraSmall",
+    "elementId": 2320638280
   },
   "env_cannon-laser-tower_001_col": {
     "box": {
@@ -837,7 +418,9 @@
         3.62713,
         5.40443
       ]
-    }
+    },
+    "elementName": "WeaponLaserMedium",
+    "elementId": 1910711523
   },
   "env_cannon-laser-tower_001_l_col": {
     "box": {
@@ -851,7 +434,9 @@
         4.0647,
         5.86844
       ]
-    }
+    },
+    "elementName": "WeaponLaserLarge",
+    "elementId": 3306427333
   },
   "env_cannon-laser-tower_001_s_col": {
     "box": {
@@ -865,7 +450,9 @@
         2.14504,
         2.77833
       ]
-    }
+    },
+    "elementName": "WeaponLaserSmall",
+    "elementId": 3420686849
   },
   "env_cannon-laser-tower_001_xs_col": {
     "box": {
@@ -879,7 +466,9 @@
         1.80588,
         1.61758
       ]
-    }
+    },
+    "elementName": "WeaponLaserExtraSmall",
+    "elementId": 297385229
   },
   "env_cannon-missile-launcher_001_col": {
     "box": {
@@ -893,7 +482,9 @@
         1.92652,
         3.599
       ]
-    }
+    },
+    "elementName": "WeaponMissileMedium",
+    "elementId": 2221258422
   },
   "env_cannon-missile-launcher_001_l_col": {
     "box": {
@@ -907,7 +498,9 @@
         1.74999,
         5.78936
       ]
-    }
+    },
+    "elementName": "WeaponMissileLarge",
+    "elementId": 2598188639
   },
   "env_cannon-missile-launcher_001_s_col": {
     "box": {
@@ -921,7 +514,9 @@
         1.13675,
         2.49901
       ]
-    }
+    },
+    "elementName": "WeaponMissileSmall",
+    "elementId": 1095999127
   },
   "env_cannon-missile-launcher_001_xs_col": {
     "box": {
@@ -935,7 +530,9 @@
         0.50038,
         1.71583
       ]
-    }
+    },
+    "elementName": "WeaponMissileExtraSmall",
+    "elementId": 44734770
   },
   "env_cannon-railgun_001_col": {
     "box": {
@@ -949,7 +546,9 @@
         5.7336,
         3.05417
       ]
-    }
+    },
+    "elementName": "WeaponRailgunMedium",
+    "elementId": 4125971029
   },
   "env_cannon-railgun_001_l_col": {
     "box": {
@@ -963,7 +562,9 @@
         7.62725,
         3.64581
       ]
-    }
+    },
+    "elementName": "WeaponRailgunLarge",
+    "elementId": 3079161527
   },
   "env_cannon-railgun_001_s_col": {
     "box": {
@@ -977,7 +578,9 @@
         3.35988,
         1.48523
       ]
-    }
+    },
+    "elementName": "WeaponRailgunSmall",
+    "elementId": 3629699069
   },
   "env_cannon-railgun_001_xs_col": {
     "box": {
@@ -991,7 +594,9 @@
         2.36653,
         1.17049
       ]
-    }
+    },
+    "elementName": "WeaponRailgunExtraSmall",
+    "elementId": 1655840914
   },
   "env_cannon-stasis_001_l_col": {
     "box": {
@@ -1005,7 +610,9 @@
         2.5,
         2.48235
       ]
-    }
+    },
+    "elementName": "StasisWeaponLarge",
+    "elementId": 2644314167
   },
   "env_cannon-stasis_001_m_col": {
     "box": {
@@ -1019,7 +626,9 @@
         2.07461,
         1.74115
       ]
-    }
+    },
+    "elementName": "StasisWeaponMedium",
+    "elementId": 298719906
   },
   "env_cannon-stasis_001_s_col": {
     "box": {
@@ -1033,7 +642,9 @@
         1.94161,
         1.10899
       ]
-    }
+    },
+    "elementName": "StasisWeaponSmall",
+    "elementId": 3512491987
   },
   "env_cannon-stasis_001_xs_col": {
     "box": {
@@ -1047,49 +658,9 @@
         1.84635,
         0.75176
       ]
-    }
-  },
-  "env_cannon_001_l_col": {
-    "box": {
-      "min": [
-        -4.82983,
-        -10.59022,
-        -3.36508
-      ],
-      "max": [
-        4.82983,
-        10.54841,
-        3.30528
-      ]
-    }
-  },
-  "env_cannon_001_m_col": {
-    "box": {
-      "min": [
-        -1.64509,
-        -2.93134,
-        -0.87223
-      ],
-      "max": [
-        1.64003,
-        3.05716,
-        0.87223
-      ]
-    }
-  },
-  "env_cannon_001_s_col": {
-    "box": {
-      "min": [
-        -0.5876,
-        -1.31696,
-        -0.37254
-      ],
-      "max": [
-        0.5876,
-        1.35323,
-        0.37736
-      ]
-    }
+    },
+    "elementName": "StasisWeaponExtraSmall",
+    "elementId": 3748127459
   },
   "env_canopy-angle_001_l_col": {
     "box": {
@@ -1103,7 +674,18 @@
         0.01775,
         2.49366
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "CanopyAngleLarge_00",
+        "id": 2086563919
+      },
+      {
+        "name": "CanopyAngleMetalLarge",
+        "id": 798367766
+      }
+    ]
   },
   "env_canopy-angle_001_m_col": {
     "box": {
@@ -1117,7 +699,18 @@
         0.01775,
         1.20344
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "CanopyAngleMedium_00",
+        "id": 4167375414
+      },
+      {
+        "name": "CanopyAngleMetalMedium",
+        "id": 4015784029
+      }
+    ]
   },
   "env_canopy-angle_001_s_col": {
     "box": {
@@ -1131,7 +724,18 @@
         0.01782,
         0.58764
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "CanopyAngleMetalSmall",
+        "id": 3294726704
+      },
+      {
+        "name": "CanopyAngleSmall_00",
+        "id": 1326565833
+      }
+    ]
   },
   "env_canopy-corner_001_l_col": {
     "box": {
@@ -1145,7 +749,18 @@
         0.01108,
         2.07731
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "CanopyCornerLarge_00",
+        "id": 4226053198
+      },
+      {
+        "name": "CanopyCornerMetalLarge",
+        "id": 2118024887
+      }
+    ]
   },
   "env_canopy-corner_001_m_col": {
     "box": {
@@ -1159,7 +774,18 @@
         0.01108,
         0.96726
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "CanopyCornerMedium_00",
+        "id": 1484667376
+      },
+      {
+        "name": "CanopyCornerMetalMedium",
+        "id": 283728321
+      }
+    ]
   },
   "env_canopy-corner_001_s_col": {
     "box": {
@@ -1173,7 +799,18 @@
         0.0203,
         0.47569
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "CanopyCornerMetalSmall",
+        "id": 767916091
+      },
+      {
+        "name": "CanopyCornerSmall_00",
+        "id": 695039310
+      }
+    ]
   },
   "env_canopy-flat_001_l_col": {
     "box": {
@@ -1187,7 +824,18 @@
         1.85985,
         0.025
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "CanopyFlatLarge_00",
+        "id": 1001848134
+      },
+      {
+        "name": "CanopyFlatMetalLarge",
+        "id": 2635025376
+      }
+    ]
   },
   "env_canopy-flat_001_m_col": {
     "box": {
@@ -1201,7 +849,18 @@
         0.9,
         0.025
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "CanopyFlatMedium_00",
+        "id": 1900076171
+      },
+      {
+        "name": "CanopyFlatMetalMedium",
+        "id": 3729727572
+      }
+    ]
   },
   "env_canopy-flat_001_s_col": {
     "box": {
@@ -1215,7 +874,18 @@
         0.43988,
         0.025
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "CanopyFlatMetalSmall",
+        "id": 2266058296
+      },
+      {
+        "name": "CanopyFlatSmall_00",
+        "id": 2433054263
+      }
+    ]
   },
   "env_canopy-triangle_001_l_col": {
     "box": {
@@ -1229,7 +899,18 @@
         1.62038,
         1.59549
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "CanopyTriangleLarge_00",
+        "id": 2236273961
+      },
+      {
+        "name": "CanopyTriangleMetalLarge",
+        "id": 3943842048
+      }
+    ]
   },
   "env_canopy-triangle_001_m_col": {
     "box": {
@@ -1243,7 +924,18 @@
         0.72852,
         0.71109
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "CanopyTriangleMedium_00",
+        "id": 3521312761
+      },
+      {
+        "name": "CanopyTriangleMetalMedium",
+        "id": 265675573
+      }
+    ]
   },
   "env_canopy-triangle_001_s_col": {
     "box": {
@@ -1257,161 +949,18 @@
         0.33523,
         0.32661
       ]
-    }
-  },
-  "env_canopy_001_l_col": {
-    "box": {
-      "min": [
-        -4.35614,
-        -4.04926,
-        -4.0
-      ],
-      "max": [
-        4.18557,
-        4.49246,
-        4.0
-      ]
-    }
-  },
-  "env_canopy_001_m_col": {
-    "box": {
-      "min": [
-        -2.17807,
-        -2.02463,
-        -2.0
-      ],
-      "max": [
-        2.09278,
-        2.24623,
-        2.0
-      ]
-    }
-  },
-  "env_canopy_001_s_col": {
-    "box": {
-      "min": [
-        -1.08904,
-        -1.01232,
-        -1.0
-      ],
-      "max": [
-        1.04639,
-        1.12311,
-        1.0
-      ]
-    }
-  },
-  "env_canopy_002_l_col": {
-    "box": {
-      "min": [
-        -4.0,
-        -4.0861,
-        -4.0
-      ],
-      "max": [
-        4.0,
-        -3.57457,
-        4.0
-      ]
-    }
-  },
-  "env_canopy_002_m_col": {
-    "box": {
-      "min": [
-        -2.0,
-        -2.04305,
-        -2.0
-      ],
-      "max": [
-        2.0,
-        -1.78728,
-        2.0
-      ]
-    }
-  },
-  "env_canopy_003_l_col": {
-    "box": {
-      "min": [
-        -4.07003,
-        -4.12712,
-        -4.40995
-      ],
-      "max": [
-        4.07003,
-        4.33913,
-        4.0563
-      ]
-    }
-  },
-  "env_canopy_003_m_col": {
-    "box": {
-      "min": [
-        -2.03502,
-        -2.06356,
-        -2.20498
-      ],
-      "max": [
-        2.03502,
-        2.16956,
-        2.02815
-      ]
-    }
-  },
-  "env_canopy_003_s_col": {
-    "box": {
-      "min": [
-        -1.01751,
-        -1.03178,
-        -1.10249
-      ],
-      "max": [
-        1.01751,
-        1.08478,
-        1.01407
-      ]
-    }
-  },
-  "env_canopy_004_l_col": {
-    "box": {
-      "min": [
-        -4.5094,
-        -4.10809,
-        -4.11547
-      ],
-      "max": [
-        4.14842,
-        4.54974,
-        3.93183
-      ]
-    }
-  },
-  "env_canopy_004_m_col": {
-    "box": {
-      "min": [
-        -2.2547,
-        -2.05404,
-        -2.05774
-      ],
-      "max": [
-        2.07421,
-        2.27487,
-        1.96592
-      ]
-    }
-  },
-  "env_canopy_004_s_col": {
-    "box": {
-      "min": [
-        -1.12735,
-        -1.02702,
-        -1.02887
-      ],
-      "max": [
-        1.03711,
-        1.13743,
-        0.98296
-      ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "CanopyTriangleMetalSmall",
+        "id": 1339058404
+      },
+      {
+        "name": "CanopyTriangleSmall_00",
+        "id": 2792485016
+      }
+    ]
   },
   "env_chair-surface_001_col": {
     "box": {
@@ -1425,7 +974,9 @@
         0.2375,
         0.06175
       ]
-    }
+    },
+    "elementName": "ChairSurface",
+    "elementId": 3555832402
   },
   "env_cockpit-hovercraft_001_col": {
     "box": {
@@ -1439,7 +990,9 @@
         0.80215,
         0.19697
       ]
-    }
+    },
+    "elementName": "CockpitHovercraft",
+    "elementId": 1744160618
   },
   "env_cockpit_001_col": {
     "box": {
@@ -1453,7 +1006,9 @@
         1.99856,
         0.75006
       ]
-    }
+    },
+    "elementName": "CockpitFighter",
+    "elementId": 3640291983
   },
   "env_sculpture_rare_col": {
     "box": {
@@ -1467,7 +1022,30 @@
         0.25708,
         1.54152
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "RareSculpture1",
+        "id": 1670137893
+      },
+      {
+        "name": "RareSculpture2",
+        "id": 1670137894
+      },
+      {
+        "name": "RareSculpture3",
+        "id": 1670137895
+      },
+      {
+        "name": "RareSculpture4",
+        "id": 1670137888
+      },
+      {
+        "name": "RareSculpture5",
+        "id": 1670137889
+      }
+    ]
   },
   "env_container-dispenser_001_col": {
     "box": {
@@ -1481,7 +1059,9 @@
         1.00002,
         1.0
       ]
-    }
+    },
+    "elementName": "Dispenser",
+    "elementId": 16651125
   },
   "env_container-military_001_col": {
     "box": {
@@ -1495,7 +1075,9 @@
         0.25,
         0.5
       ]
-    }
+    },
+    "elementName": "AmmoContainerMedium",
+    "elementId": 2300179701
   },
   "env_container-military_001_l_col": {
     "box": {
@@ -1509,7 +1091,9 @@
         0.5,
         0.5
       ]
-    }
+    },
+    "elementName": "AmmoContainerLarge",
+    "elementId": 923167511
   },
   "env_container-military_001_s_col": {
     "box": {
@@ -1523,7 +1107,9 @@
         0.25,
         0.25
       ]
-    }
+    },
+    "elementName": "AmmoContainerSmall",
+    "elementId": 300986010
   },
   "env_container-military_001_xl_col": {
     "box": {
@@ -1537,7 +1123,9 @@
         1.0,
         0.75
       ]
-    }
+    },
+    "elementName": "AmmoContainerXL",
+    "elementId": 50309297
   },
   "env_container-mission_001_l_col": {
     "box": {
@@ -1551,7 +1139,9 @@
         4.0,
         2.0
       ]
-    }
+    },
+    "elementName": "MissionContainerL",
+    "elementId": 4029924862
   },
   "env_container-mission_001_m_col": {
     "box": {
@@ -1565,7 +1155,9 @@
         2.0,
         2.0
       ]
-    }
+    },
+    "elementName": "MissionContainerM",
+    "elementId": 4029924861
   },
   "env_container-mission_001_s_col": {
     "box": {
@@ -1579,7 +1171,9 @@
         1.0,
         1.0
       ]
-    }
+    },
+    "elementName": "MissionContainerS",
+    "elementId": 4029924807
   },
   "env_container-mission_001_xl_col": {
     "box": {
@@ -1593,7 +1187,9 @@
         6.0,
         3.0
       ]
-    }
+    },
+    "elementName": "MissionContainerXL",
+    "elementId": 386276317
   },
   "env_container-mission_001_xs_col": {
     "box": {
@@ -1607,7 +1203,9 @@
         0.5,
         0.5
       ]
-    }
+    },
+    "elementName": "MissionContainerXS",
+    "elementId": 386276308
   },
   "env_container-mission_001_xxl_col": {
     "box": {
@@ -1621,7 +1219,9 @@
         8.0,
         4.0
       ]
-    }
+    },
+    "elementName": "MissionContainerXXL",
+    "elementId": 1920590006
   },
   "env_container_001_l_col": {
     "box": {
@@ -1635,7 +1235,9 @@
         1.99977,
         1.99977
       ]
-    }
+    },
+    "elementName": "ContainerLarge",
+    "elementId": 521274609
   },
   "env_container_001_m_col": {
     "box": {
@@ -1649,7 +1251,9 @@
         0.99984,
         0.99971
       ]
-    }
+    },
+    "elementName": "ContainerMedium",
+    "elementId": 1594689569
   },
   "env_container_001_s_col": {
     "box": {
@@ -1663,7 +1267,9 @@
         0.49981,
         0.49973
       ]
-    }
+    },
+    "elementName": "ContainerSmall",
+    "elementId": 1689381593
   },
   "env_container_001_xl_col": {
     "box": {
@@ -1677,7 +1283,9 @@
         4.0403,
         2.14799
       ]
-    }
+    },
+    "elementName": "ContainerXL",
+    "elementId": 2125213321
   },
   "env_container_001_xxl_col": {
     "box": {
@@ -1691,7 +1299,9 @@
         6.06045,
         3.22198
       ]
-    }
+    },
+    "elementName": "ContainerXXL",
+    "elementId": 373451737
   },
   "env_container_001_xxxl_col": {
     "box": {
@@ -1705,7 +1315,9 @@
         9.09068,
         4.83298
       ]
-    }
+    },
+    "elementName": "ContainerXXXL",
+    "elementId": 572613525
   },
   "env_core-unit-alien-space_001_col": {
     "box": {
@@ -1719,7 +1331,9 @@
         5.0,
         10.0
       ]
-    }
+    },
+    "elementName": "CoreUnitAlien",
+    "elementId": 3511907544
   },
   "env_core-unit-dynamic_001_l_col": {
     "box": {
@@ -1733,7 +1347,9 @@
         2.0,
         2.0
       ]
-    }
+    },
+    "elementName": "CoreUnitDynamic256",
+    "elementId": 1417952990
   },
   "env_core-unit-dynamic_001_m_col": {
     "box": {
@@ -1747,7 +1363,9 @@
         1.0,
         1.0
       ]
-    }
+    },
+    "elementName": "CoreUnitDynamic128",
+    "elementId": 1418170469
   },
   "env_core-unit-dynamic_001_s_col": {
     "box": {
@@ -1761,21 +1379,18 @@
         0.5,
         0.5
       ]
-    }
-  },
-  "env_core-unit-dynamic_001_xl_col": {
-    "box": {
-      "min": [
-        -4.0,
-        -4.0,
-        -4.0
-      ],
-      "max": [
-        4.0,
-        4.0,
-        4.0
-      ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "CoreUnitDynamic64",
+        "id": 183890525
+      },
+      {
+        "name": "CoreUnitStatic64",
+        "id": 2738359893
+      }
+    ]
   },
   "env_core-unit-dynamic_001_xs_col": {
     "box": {
@@ -1789,7 +1404,9 @@
         0.25,
         0.25
       ]
-    }
+    },
+    "elementName": "CoreUnitDynamic32",
+    "elementId": 183890713
   },
   "env_core-unit-space_001_col": {
     "box": {
@@ -1803,7 +1420,9 @@
         1.0,
         1.0
       ]
-    }
+    },
+    "elementName": "CoreUnitSpace128",
+    "elementId": 5904195
   },
   "env_core-unit-space_001_l_col": {
     "box": {
@@ -1817,7 +1436,9 @@
         2.0,
         2.0
       ]
-    }
+    },
+    "elementName": "CoreUnitSpace256",
+    "elementId": 5904544
   },
   "env_core-unit-space_001_s_col": {
     "box": {
@@ -1831,21 +1452,9 @@
         0.5,
         0.5
       ]
-    }
-  },
-  "env_core-unit-space_001_xl_col": {
-    "box": {
-      "min": [
-        -4.0,
-        -4.0,
-        -4.0
-      ],
-      "max": [
-        4.0,
-        4.0,
-        4.0
-      ]
-    }
+    },
+    "elementName": "CoreUnitSpace64",
+    "elementId": 3624940909
   },
   "env_core-unit-space_001_xs_col": {
     "box": {
@@ -1859,7 +1468,9 @@
         0.25,
         0.25
       ]
-    }
+    },
+    "elementName": "CoreUnitSpace32",
+    "elementId": 3624942103
   },
   "env_core-unit-static_001_l_col": {
     "box": {
@@ -1873,7 +1484,9 @@
         2.0,
         2.0
       ]
-    }
+    },
+    "elementName": "CoreUnitStatic256",
+    "elementId": 910155097
   },
   "env_core-unit-static_001_m_col": {
     "box": {
@@ -1887,21 +1500,9 @@
         1.0,
         1.0
       ]
-    }
-  },
-  "env_core-unit-static_001_xl_col": {
-    "box": {
-      "min": [
-        -4.0,
-        -4.0,
-        -4.0
-      ],
-      "max": [
-        4.0,
-        4.0,
-        4.0
-      ]
-    }
+    },
+    "elementName": "CoreUnitStatic128",
+    "elementId": 909184430
   },
   "env_core-unit-static_001_xs_col": {
     "box": {
@@ -1915,7 +1516,9 @@
         0.25,
         0.25
       ]
-    }
+    },
+    "elementName": "CoreUnitStatic32",
+    "elementId": 2738359963
   },
   "env_cryogenic-tube_001_col": {
     "box": {
@@ -1929,7 +1532,9 @@
         0.625,
         2.5
       ]
-    }
+    },
+    "elementName": "CryogenicPod",
+    "elementId": 3106214287
   },
   "env_detector-button-manual_001_col": {
     "box": {
@@ -1943,21 +1548,18 @@
         0.125,
         0.04001
       ]
-    }
-  },
-  "env_detector-keyboard_001_col": {
-    "box": {
-      "min": [
-        -0.125,
-        -0.125,
-        -0.125
-      ],
-      "max": [
-        0.125,
-        0.125,
-        0.125
-      ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "InfoButton",
+        "id": 3996923355
+      },
+      {
+        "name": "ManualButton",
+        "id": 2896791363
+      }
+    ]
   },
   "env_detector-laser_001_col": {
     "box": {
@@ -1971,49 +1573,9 @@
         0.11174,
         0.04854
       ]
-    }
-  },
-  "env_detector-light_001_col": {
-    "box": {
-      "min": [
-        -0.125,
-        -0.125,
-        -0.077
-      ],
-      "max": [
-        0.125,
-        0.125,
-        0.077
-      ]
-    }
-  },
-  "env_detector-money-slot_001_col": {
-    "box": {
-      "min": [
-        -0.125,
-        -0.125,
-        -0.125
-      ],
-      "max": [
-        0.125,
-        0.125,
-        0.125
-      ]
-    }
-  },
-  "env_detector-pressure-seat_001_col": {
-    "box": {
-      "min": [
-        -0.125,
-        -0.125,
-        -0.125
-      ],
-      "max": [
-        0.125,
-        0.125,
-        0.125
-      ]
-    }
+    },
+    "elementName": "LaserDetector",
+    "elementId": 783555860
   },
   "env_detector-pressure-tile_001_col": {
     "box": {
@@ -2027,7 +1589,9 @@
         0.5,
         0.005
       ]
-    }
+    },
+    "elementName": "PressureTile",
+    "elementId": 2012928469
   },
   "env_detector-switch-manual_001_col": {
     "box": {
@@ -2041,7 +1605,9 @@
         0.125,
         0.04719
       ]
-    }
+    },
+    "elementName": "ManualSwitch",
+    "elementId": 4181147843
   },
   "env_detector-zone_001_col": {
     "box": {
@@ -2055,49 +1621,26 @@
         0.12503,
         0.03963
       ]
-    }
-  },
-  "env_dispenser_001_l_col": {
-    "box": {
-      "min": [
-        -2.2499,
-        -2.25005,
-        -2.25
-      ],
-      "max": [
-        2.2499,
-        2.25005,
-        2.25
-      ]
-    }
-  },
-  "env_dispenser_001_m_col": {
-    "box": {
-      "min": [
-        -1.49993,
-        -1.50003,
-        -1.5
-      ],
-      "max": [
-        1.49993,
-        1.50003,
-        1.5
-      ]
-    }
-  },
-  "env_door_001_col": {
-    "box": {
-      "min": [
-        -0.125,
-        -0.125,
-        -0.125
-      ],
-      "max": [
-        0.125,
-        0.125,
-        0.125
-      ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "DetectionZone16m",
+        "id": 4241228057
+      },
+      {
+        "name": "DetectionZone2m",
+        "id": 485151209
+      },
+      {
+        "name": "DetectionZone4m",
+        "id": 485149228
+      },
+      {
+        "name": "DetectionZone8m",
+        "id": 485149481
+      }
+    ]
   },
   "env_elevator_001_col": {
     "box": {
@@ -2111,7 +1654,9 @@
         0.39196,
         0.25017
       ]
-    }
+    },
+    "elementName": "ElevatorXSmall",
+    "elementId": 3663249627
   },
   "env_elevator_001_xs_col": {
     "box": {
@@ -2125,7 +1670,10 @@
         0.75,
         0.02104
       ]
-    }
+    },
+    "elementMappingStatus": "manualOverride",
+    "elementName": "ElevatorXSmall",
+    "elementId": 3663249627
   },
   "env_emergency-unit_001_col": {
     "box": {
@@ -2139,7 +1687,9 @@
         0.22689,
         0.04362
       ]
-    }
+    },
+    "elementName": "BasicECU",
+    "elementId": 286542481
   },
   "env_engine-antigrav-pulsor_001_col": {
     "box": {
@@ -2153,7 +1703,9 @@
         0.47175,
         2.02986
       ]
-    }
+    },
+    "elementName": "AntiGravityPulsor",
+    "elementId": 966816758
   },
   "env_engine-antigrav_001_l_col": {
     "box": {
@@ -2167,7 +1719,9 @@
         18.41605,
         7.46383
       ]
-    }
+    },
+    "elementName": "AntiGravityGeneratorLarge",
+    "elementId": 294414265
   },
   "env_engine-antigrav_001_m_col": {
     "box": {
@@ -2181,7 +1735,9 @@
         8.83784,
         3.99411
       ]
-    }
+    },
+    "elementName": "AntiGravityGeneratorMedium",
+    "elementId": 233079829
   },
   "env_engine-antigrav_001_s_col": {
     "box": {
@@ -2195,21 +1751,9 @@
         4.68975,
         2.0
       ]
-    }
-  },
-  "env_engine-atmospheric-rotating_001_col": {
-    "box": {
-      "min": [
-        -1.28255,
-        -1.49846,
-        -0.68931
-      ],
-      "max": [
-        1.28255,
-        1.49846,
-        0.68931
-      ]
-    }
+    },
+    "elementName": "AntiGravityGeneratorSmall",
+    "elementId": 3997343699
   },
   "env_engine-atmospheric-vertical-booster_001_l_col": {
     "box": {
@@ -2223,7 +1767,9 @@
         0.35304,
         1.99368
       ]
-    }
+    },
+    "elementName": "AtmosphericVerticalBoosterLarge",
+    "elementId": 2216363013
   },
   "env_engine-atmospheric-vertical-booster_001_m_col": {
     "box": {
@@ -2237,7 +1783,9 @@
         0.16471,
         0.99318
       ]
-    }
+    },
+    "elementName": "AtmosphericVerticalBoosterMedium",
+    "elementId": 913372512
   },
   "env_engine-atmospheric-vertical-booster_001_s_col": {
     "box": {
@@ -2251,7 +1799,9 @@
         0.09668,
         0.50134
       ]
-    }
+    },
+    "elementName": "AtmosphericVerticalBoosterSmall",
+    "elementId": 3556600005
   },
   "env_engine-atmospheric-vertical-booster_001_xs_col": {
     "box": {
@@ -2265,7 +1815,9 @@
         0.0447,
         0.25067
       ]
-    }
+    },
+    "elementName": "AtmosphericVerticalBoosterXtraSmall",
+    "elementId": 3775402879
   },
   "env_engine-atmospheric_001_l_col": {
     "box": {
@@ -2279,7 +1831,30 @@
         2.5262,
         1.82232
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "AtmosphericEngineLarge",
+        "id": 2375915630
+      },
+      {
+        "name": "AtmosphericEngineLargeFreight",
+        "id": 1053170502
+      },
+      {
+        "name": "AtmosphericEngineLargeManeuver",
+        "id": 3475626911
+      },
+      {
+        "name": "AtmosphericEngineLargeMilitary",
+        "id": 2714399324
+      },
+      {
+        "name": "AtmosphericEngineLargeSafe",
+        "id": 2510112556
+      }
+    ]
   },
   "env_engine-atmospheric_001_m_col": {
     "box": {
@@ -2293,7 +1868,30 @@
         1.62577,
         1.10414
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "AtmosphericEngineMedium",
+        "id": 4072611011
+      },
+      {
+        "name": "AtmosphericEngineMediumFreight",
+        "id": 230429858
+      },
+      {
+        "name": "AtmosphericEngineMediumManeuver",
+        "id": 3847351355
+      },
+      {
+        "name": "AtmosphericEngineMediumMilitary",
+        "id": 3295665550
+      },
+      {
+        "name": "AtmosphericEngineMediumSafe",
+        "id": 260237137
+      }
+    ]
   },
   "env_engine-atmospheric_001_s_col": {
     "box": {
@@ -2307,7 +1905,30 @@
         0.85723,
         0.33072
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "AtmosphericEngineSmall",
+        "id": 2043566501
+      },
+      {
+        "name": "AtmosphericEngineSmallFreight",
+        "id": 1503780712
+      },
+      {
+        "name": "AtmosphericEngineSmallManeuver",
+        "id": 317861818
+      },
+      {
+        "name": "AtmosphericEngineSmallMilitary",
+        "id": 2203746213
+      },
+      {
+        "name": "AtmosphericEngineSmallSafe",
+        "id": 1679964557
+      }
+    ]
   },
   "env_engine-atmospheric_001_xs_col": {
     "box": {
@@ -2321,7 +1942,30 @@
         0.55,
         0.2475
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "AtmosphericEngineXtraSmall",
+        "id": 710193240
+      },
+      {
+        "name": "AtmosphericEngineXtraSmallFreight",
+        "id": 3174850377
+      },
+      {
+        "name": "AtmosphericEngineXtraSmallManeuver",
+        "id": 1933133404
+      },
+      {
+        "name": "AtmosphericEngineXtraSmallMilitary",
+        "id": 676012472
+      },
+      {
+        "name": "AtmosphericEngineXtraSmallSafe",
+        "id": 887167900
+      }
+    ]
   },
   "env_engine-hover-under_001_l_col": {
     "box": {
@@ -2335,7 +1979,9 @@
         0.56622,
         1.5
       ]
-    }
+    },
+    "elementName": "HoverEngineLargeUnder",
+    "elementId": 1105322870
   },
   "env_engine-hover_001_l_col": {
     "box": {
@@ -2349,7 +1995,9 @@
         1.19003,
         2.49421
       ]
-    }
+    },
+    "elementName": "HoverEngineLarge",
+    "elementId": 2494203891
   },
   "env_engine-hover_001_m_col": {
     "box": {
@@ -2363,7 +2011,9 @@
         0.2594,
         1.49582
       ]
-    }
+    },
+    "elementName": "HoverEngineMedium",
+    "elementId": 2991279664
   },
   "env_engine-hover_001_s_col": {
     "box": {
@@ -2377,7 +2027,9 @@
         0.1252,
         0.7547
       ]
-    }
+    },
+    "elementName": "HoverEngineSmall",
+    "elementId": 2333052331
   },
   "env_engine-retro_001_l_col": {
     "box": {
@@ -2391,7 +2043,9 @@
         0.36788,
         1.84142
       ]
-    }
+    },
+    "elementName": "RetroEngineLarge",
+    "elementId": 1452351552
   },
   "env_engine-retro_001_m_col": {
     "box": {
@@ -2405,7 +2059,9 @@
         0.19975,
         0.99984
       ]
-    }
+    },
+    "elementName": "RetroEngineMedium",
+    "elementId": 3243532126
   },
   "env_engine-retro_001_s_col": {
     "box": {
@@ -2419,7 +2075,9 @@
         0.11126,
         0.55691
       ]
-    }
+    },
+    "elementName": "RetroEngine",
+    "elementId": 3039211660
   },
   "env_engine-rocket_001_col": {
     "box": {
@@ -2433,7 +2091,9 @@
         0.70593,
         1.02501
       ]
-    }
+    },
+    "elementName": "RocketEngineMedium",
+    "elementId": 3623903713
   },
   "env_engine-rocket_001_l_col": {
     "box": {
@@ -2447,7 +2107,9 @@
         1.73122,
         2.38236
       ]
-    }
+    },
+    "elementName": "RocketEngineLarge",
+    "elementId": 359938916
   },
   "env_engine-rocket_001_s_col": {
     "box": {
@@ -2461,7 +2123,9 @@
         0.46835,
         0.4909
       ]
-    }
+    },
+    "elementName": "RocketEngineSmall",
+    "elementId": 2112772336
   },
   "env_engine-space_001_l_col": {
     "box": {
@@ -2475,7 +2139,30 @@
         4.54978,
         1.70296
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "SpaceEngineLarge",
+        "id": 2495558023
+      },
+      {
+        "name": "SpaceEngineLargeFreight",
+        "id": 273900142
+      },
+      {
+        "name": "SpaceEngineLargeManeuver",
+        "id": 613453124
+      },
+      {
+        "name": "SpaceEngineLargeMilitary",
+        "id": 2637003463
+      },
+      {
+        "name": "SpaceEngineLargeSafe",
+        "id": 892904533
+      }
+    ]
   },
   "env_engine-space_001_m_col": {
     "box": {
@@ -2489,7 +2176,30 @@
         2.01397,
         1.04143
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "SpaceEngineMedium",
+        "id": 85796763
+      },
+      {
+        "name": "SpaceEngineMediumFreight",
+        "id": 99470466
+      },
+      {
+        "name": "SpaceEngineMediumManeuver",
+        "id": 3024541675
+      },
+      {
+        "name": "SpaceEngineMediumMilitary",
+        "id": 3897078752
+      },
+      {
+        "name": "SpaceEngineMediumSafe",
+        "id": 2489350112
+      }
+    ]
   },
   "env_engine-space_001_s_col": {
     "box": {
@@ -2503,7 +2213,30 @@
         0.94151,
         0.52393
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "SpaceEngineSmall",
+        "id": 1326357437
+      },
+      {
+        "name": "SpaceEngineSmallFreight",
+        "id": 3764949976
+      },
+      {
+        "name": "SpaceEngineSmallManeuver",
+        "id": 1171610140
+      },
+      {
+        "name": "SpaceEngineSmallMilitary",
+        "id": 529520576
+      },
+      {
+        "name": "SpaceEngineSmallSafe",
+        "id": 2090364569
+      }
+    ]
   },
   "env_engine-space_001_xl_col": {
     "box": {
@@ -2517,7 +2250,30 @@
         9.15984,
         2.95326
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "SpaceEngineXtraLarge",
+        "id": 2200254788
+      },
+      {
+        "name": "SpaceEngineXtraLargeFreight",
+        "id": 130796680
+      },
+      {
+        "name": "SpaceEngineXtraLargeManeuver",
+        "id": 1237158531
+      },
+      {
+        "name": "SpaceEngineXtraLargeMilitary",
+        "id": 701947611
+      },
+      {
+        "name": "SpaceEngineXtraLargeSafe",
+        "id": 3846850308
+      }
+    ]
   },
   "env_engine-space_001_xs_col": {
     "box": {
@@ -2531,35 +2287,30 @@
         0.49638,
         0.24761
       ]
-    }
-  },
-  "env_factory-drone_001_col": {
-    "box": {
-      "min": [
-        -0.67107,
-        -0.76414,
-        -0.5868
-      ],
-      "max": [
-        0.63659,
-        0.73618,
-        0.5868
-      ]
-    }
-  },
-  "env_factory_001_col": {
-    "box": {
-      "min": [
-        -1.99991,
-        -2.00004,
-        -2.0
-      ],
-      "max": [
-        1.99991,
-        2.00004,
-        2.0
-      ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "SpaceEngineXtraSmall",
+        "id": 2243775376
+      },
+      {
+        "name": "SpaceEngineXtraSmallFreight",
+        "id": 16482091
+      },
+      {
+        "name": "SpaceEngineXtraSmallManeuver",
+        "id": 1213509759
+      },
+      {
+        "name": "SpaceEngineXtraSmallMilitary",
+        "id": 1971700279
+      },
+      {
+        "name": "SpaceEngineXtraSmallSafe",
+        "id": 3083225012
+      }
+    ]
   },
   "env_firework-launcher_001_col": {
     "box": {
@@ -2573,7 +2324,9 @@
         0.25,
         0.15061
       ]
-    }
+    },
+    "elementName": "FireworksLauncher",
+    "elementId": 3882559017
   },
   "env_flap-atmospheric_001_col": {
     "box": {
@@ -2587,7 +2340,9 @@
         0.2525,
         0.02524
       ]
-    }
+    },
+    "elementName": "AtmosphericFlap",
+    "elementId": 65048663
   },
   "env_force-field-plane-1x1_001_s_col": {
     "box": {
@@ -2601,7 +2356,9 @@
         0.02705,
         0.022
       ]
-    }
+    },
+    "elementName": "ForceField1x1",
+    "elementId": 3686074288
   },
   "env_force-field-plane-2x1_001_m_col": {
     "box": {
@@ -2615,7 +2372,9 @@
         0.02705,
         0.022
       ]
-    }
+    },
+    "elementName": "ForceField2x1",
+    "elementId": 3685998465
   },
   "env_force-field-plane-4x1_001_l_col": {
     "box": {
@@ -2629,7 +2388,9 @@
         0.02705,
         0.022
       ]
-    }
+    },
+    "elementName": "ForceField4x1",
+    "elementId": 3686006062
   },
   "env_force-field-plane-6x1_001_xl_col": {
     "box": {
@@ -2643,7 +2404,9 @@
         0.02705,
         0.022
       ]
-    }
+    },
+    "elementName": "ForceField6x1",
+    "elementId": 3685982092
   },
   "env_fueltank-atmospheric-radial_001_l_col": {
     "box": {
@@ -2657,7 +2420,9 @@
         3.16714,
         1.8367
       ]
-    }
+    },
+    "elementName": "RadialAtmoFuelTankLarge",
+    "elementId": 3039582547
   },
   "env_fueltank-atmospheric-radial_001_m_col": {
     "box": {
@@ -2671,7 +2436,9 @@
         1.69901,
         0.91118
       ]
-    }
+    },
+    "elementName": "RadialAtmoFuelTankMedium",
+    "elementId": 3464628964
   },
   "env_fueltank-atmospheric-radial_001_s_col": {
     "box": {
@@ -2685,7 +2452,9 @@
         0.79178,
         0.45918
       ]
-    }
+    },
+    "elementName": "RadialAtmoFuelTank",
+    "elementId": 2183619036
   },
   "env_fueltank-atmospheric-radial_001_xs_col": {
     "box": {
@@ -2699,7 +2468,9 @@
         0.5,
         0.2462
       ]
-    }
+    },
+    "elementName": "RadialAtmoFuelTankXSmall",
+    "elementId": 3273319200
   },
   "env_fueltank-rocket_001_col": {
     "box": {
@@ -2713,7 +2484,9 @@
         4.94244,
         1.08669
       ]
-    }
+    },
+    "elementName": "RadialRocketFuelTankMedium",
+    "elementId": 2477859329
   },
   "env_fueltank-rocket_001_l_col": {
     "box": {
@@ -2727,7 +2500,9 @@
         10.26879,
         2.40769
       ]
-    }
+    },
+    "elementName": "RadialRocketFuelTankLarge",
+    "elementId": 4180073139
   },
   "env_fueltank-rocket_001_s_col": {
     "box": {
@@ -2741,7 +2516,9 @@
         2.5023,
         0.52203
       ]
-    }
+    },
+    "elementName": "RadialRocketFuelTank",
+    "elementId": 3126840739
   },
   "env_fueltank-rocket_001_xs_col": {
     "box": {
@@ -2755,7 +2532,9 @@
         1.25,
         0.52203
       ]
-    }
+    },
+    "elementName": "RadialRocketFuelTankXSmall",
+    "elementId": 1663412227
   },
   "env_fueltank-space-radial_001_l_col": {
     "box": {
@@ -2769,7 +2548,9 @@
         3.74235,
         1.98685
       ]
-    }
+    },
+    "elementName": "RadialSpaceFuelLarge",
+    "elementId": 2212207656
   },
   "env_fueltank-space-radial_001_m_col": {
     "box": {
@@ -2783,7 +2564,9 @@
         1.60663,
         0.91118
       ]
-    }
+    },
+    "elementName": "RadialSpaceFuelTankMedium",
+    "elementId": 773467906
   },
   "env_fueltank-space-radial_001_s_col": {
     "box": {
@@ -2797,7 +2580,9 @@
         0.80331,
         0.45451
       ]
-    }
+    },
+    "elementName": "RadialSpaceFuelTank",
+    "elementId": 1790622152
   },
   "env_fueltank-space-radial_001_xs_col": {
     "box": {
@@ -2811,49 +2596,9 @@
         0.5,
         0.26642
       ]
-    }
-  },
-  "env_fueltank_001_l_col": {
-    "box": {
-      "min": [
-        -2.0,
-        -2.0,
-        -2.0
-      ],
-      "max": [
-        2.0,
-        2.0,
-        2.02678
-      ]
-    }
-  },
-  "env_fueltank_001_m_col": {
-    "box": {
-      "min": [
-        -1.0,
-        -1.0,
-        -1.0
-      ],
-      "max": [
-        1.0,
-        1.0,
-        1.0
-      ]
-    }
-  },
-  "env_fueltank_001_s_col": {
-    "box": {
-      "min": [
-        -0.5,
-        -0.5,
-        -0.5
-      ],
-      "max": [
-        0.5,
-        0.5,
-        0.5
-      ]
-    }
+    },
+    "elementName": "RadialSpaceFuelTankXSmall",
+    "elementId": 2421673145
   },
   "env_glass-1x1_001_m_col": {
     "box": {
@@ -2867,7 +2612,9 @@
         0.5,
         0.025
       ]
-    }
+    },
+    "elementName": "GlassSmall",
+    "elementId": 561162197
   },
   "env_glass-2x2_001_l_col": {
     "box": {
@@ -2881,7 +2628,9 @@
         1.0,
         0.025
       ]
-    }
+    },
+    "elementName": "GlassMedium",
+    "elementId": 2266946860
   },
   "env_glass-4x4_001_xl_col": {
     "box": {
@@ -2895,21 +2644,9 @@
         2.0,
         0.025
       ]
-    }
-  },
-  "env_glass-slate_001_col": {
-    "box": {
-      "min": [
-        -1.5,
-        -0.07396,
-        -0.79399
-      ],
-      "max": [
-        1.5,
-        0.12604,
-        1.20601
-      ]
-    }
+    },
+    "elementName": "GlassLarge",
+    "elementId": 1165506034
   },
   "env_gyroscope_001_col": {
     "box": {
@@ -2923,7 +2660,9 @@
         0.25062,
         0.0836
       ]
-    }
+    },
+    "elementName": "Gyroscope",
+    "elementId": 2585415184
   },
   "env_hologram-arkship-base_001_col": {
     "box": {
@@ -2937,7 +2676,10 @@
         0.34508,
         0.08729
       ]
-    }
+    },
+    "elementMappingStatus": "manualOverride",
+    "elementName": "ProjectorHologramSpaceshipLarge_Arkship",
+    "elementId": 1147784546
   },
   "env_hologram-base_001_col": {
     "box": {
@@ -2951,7 +2693,46 @@
         0.34508,
         0.08729
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "BigHologramPlanet1",
+        "id": 1541106442
+      },
+      {
+        "name": "BigHologramPlanet1_Solar-System",
+        "id": 133985418
+      },
+      {
+        "name": "ProjectorHologramPlanet1",
+        "id": 4090740447
+      },
+      {
+        "name": "ProjectorHologramSpaceshipLarge",
+        "id": 2137895179
+      },
+      {
+        "name": "ProjectorHologramSpaceshipLarge_Arkship",
+        "id": 1147784546
+      },
+      {
+        "name": "ProjectorHologramSpaceshipMedium",
+        "id": 85154060
+      },
+      {
+        "name": "ProjectorHologramSpaceshipsmall",
+        "id": 124823209
+      },
+      {
+        "name": "SolarSystemModel",
+        "id": 2358357442
+      },
+      {
+        "name": "VirtualProjector",
+        "id": 3929462194
+      }
+    ]
   },
   "env_hologram-solar-system-base_001_col": {
     "box": {
@@ -2965,7 +2746,46 @@
         0.34508,
         0.08729
       ]
-    }
+    },
+    "elementMappingStatus": "tokenLookup",
+    "lookupToken": "hologram",
+    "elementCandidates": [
+      {
+        "name": "BigHologramPlanet1",
+        "id": 1541106442,
+        "score": 5
+      },
+      {
+        "name": "BigHologramPlanet1_Solar-System",
+        "id": 133985418,
+        "score": 5
+      },
+      {
+        "name": "ProjectorHologramPlanet1",
+        "id": 4090740447,
+        "score": 5
+      },
+      {
+        "name": "ProjectorHologramSpaceshipLarge",
+        "id": 2137895179,
+        "score": 5
+      },
+      {
+        "name": "ProjectorHologramSpaceshipLarge_Arkship",
+        "id": 1147784546,
+        "score": 5
+      },
+      {
+        "name": "ProjectorHologramSpaceshipMedium",
+        "id": 85154060,
+        "score": 5
+      },
+      {
+        "name": "ProjectorHologramSpaceshipsmall",
+        "id": 124823209,
+        "score": 5
+      }
+    ]
   },
   "env_industry-3dprinter_001_col": {
     "box": {
@@ -2979,7 +2799,9 @@
         1.5,
         2.59658
       ]
-    }
+    },
+    "elementName": "Industry3DPrinter",
+    "elementId": 409410678
   },
   "env_industry-assembly_001_col": {
     "box": {
@@ -2993,7 +2815,9 @@
         4.8394,
         5.36217
       ]
-    }
+    },
+    "elementName": "IndustryAssemblyM",
+    "elementId": 983225808
   },
   "env_industry-assembly_001_l_col": {
     "box": {
@@ -3007,7 +2831,9 @@
         7.2591,
         8.04326
       ]
-    }
+    },
+    "elementName": "IndustryAssemblyL",
+    "elementId": 983225811
   },
   "env_industry-assembly_001_s_col": {
     "box": {
@@ -3021,7 +2847,9 @@
         3.22626,
         3.57478
       ]
-    }
+    },
+    "elementName": "IndustryAssemblyS",
+    "elementId": 983225818
   },
   "env_industry-assembly_001_xl_col": {
     "box": {
@@ -3035,7 +2863,9 @@
         10.87251,
         12.04702
       ]
-    }
+    },
+    "elementName": "IndustryAssemblyXL",
+    "elementId": 1762226819
   },
   "env_industry-assembly_001_xs_col": {
     "box": {
@@ -3049,7 +2879,9 @@
         2.12933,
         2.35936
       ]
-    }
+    },
+    "elementName": "IndustryAssemblyXS",
+    "elementId": 1762226876
   },
   "env_industry-chemical_001_col": {
     "box": {
@@ -3063,7 +2895,9 @@
         1.6114,
         6.7208
       ]
-    }
+    },
+    "elementName": "IndustryChemical",
+    "elementId": 2681009434
   },
   "env_industry-electronics_001_col": {
     "box": {
@@ -3077,7 +2911,9 @@
         1.73564,
         1.56502
       ]
-    }
+    },
+    "elementName": "IndustryElectronics",
+    "elementId": 2702446443
   },
   "env_industry-glass_001_col": {
     "box": {
@@ -3091,7 +2927,9 @@
         1.03724,
         6.00997
       ]
-    }
+    },
+    "elementName": "IndustryGlass",
+    "elementId": 1215026169
   },
   "env_industry-honeycomber_001_col": {
     "box": {
@@ -3105,7 +2943,9 @@
         2.75,
         3.2053
       ]
-    }
+    },
+    "elementName": "IndustryHoneycomber",
+    "elementId": 3857150880
   },
   "env_industry-metalwork_001_col": {
     "box": {
@@ -3119,7 +2959,9 @@
         3.19003,
         2.21737
       ]
-    }
+    },
+    "elementName": "IndustryMetalwork",
+    "elementId": 2022563937
   },
   "env_industry-recycler_001_col": {
     "box": {
@@ -3133,7 +2975,9 @@
         3.65659,
         3.0122
       ]
-    }
+    },
+    "elementName": "IndustryRecycler",
+    "elementId": 3914155468
   },
   "env_industry-refiner_001_col": {
     "box": {
@@ -3147,7 +2991,9 @@
         2.90126,
         2.5572
       ]
-    }
+    },
+    "elementName": "IndustryRefiner",
+    "elementId": 3701755071
   },
   "env_industry-smelter_002_col": {
     "box": {
@@ -3161,7 +3007,9 @@
         3.36266,
         2.51427
       ]
-    }
+    },
+    "elementName": "IndustrySmelter",
+    "elementId": 2556123438
   },
   "env_industry-transfer-unit_001_col": {
     "box": {
@@ -3175,21 +3023,9 @@
         0.98136,
         2.55466
       ]
-    }
-  },
-  "env_bin_001_col": {
-    "box": {
-      "min": [
-        -0.16461,
-        -0.16487,
-        -0.30176
-      ],
-      "max": [
-        0.16461,
-        0.16487,
-        0.30027
-      ]
-    }
+    },
+    "elementName": "TransferUnit",
+    "elementId": 4139262245
   },
   "env_chair-club_001_col": {
     "box": {
@@ -3203,7 +3039,9 @@
         0.8,
         0.71106
       ]
-    }
+    },
+    "elementName": "Club_S01",
+    "elementId": 3736537839
   },
   "env_chair_001_col": {
     "box": {
@@ -3217,7 +3055,18 @@
         0.44349,
         0.64848
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "Chair",
+        "id": 554266799
+      },
+      {
+        "name": "Chair_S01",
+        "id": 2453312794
+      }
+    ]
   },
   "env_dresser_001_col": {
     "box": {
@@ -3231,21 +3080,18 @@
         0.234,
         0.52143
       ]
-    }
-  },
-  "env_locker_001_col": {
-    "box": {
-      "min": [
-        -0.30627,
-        -0.24228,
-        -0.86862
-      ],
-      "max": [
-        0.30627,
-        0.24385,
-        0.87962
-      ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "Dresser_S01",
+        "id": 3824401006
+      },
+      {
+        "name": "dresser",
+        "id": 283549593
+      }
+    ]
   },
   "env_shower_001_col": {
     "box": {
@@ -3259,7 +3105,9 @@
         0.75,
         1.353
       ]
-    }
+    },
+    "elementName": "Shower_S01",
+    "elementId": 2846288811
   },
   "env_sofa_001_col": {
     "box": {
@@ -3273,7 +3121,18 @@
         0.625,
         0.5
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "Sofa",
+        "id": 1235633417
+      },
+      {
+        "name": "Sofa_S01",
+        "id": 2018455538
+      }
+    ]
   },
   "env_table-end_001_col": {
     "box": {
@@ -3287,7 +3146,9 @@
         0.8,
         0.27108
       ]
-    }
+    },
+    "elementName": "EndTable_S01",
+    "elementId": 1082668972
   },
   "env_table_001_col": {
     "box": {
@@ -3301,7 +3162,18 @@
         1.0,
         0.44724
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "Table",
+        "id": 1395483977
+      },
+      {
+        "name": "Table_S01",
+        "id": 3845900543
+      }
+    ]
   },
   "env_table_001_l_col": {
     "box": {
@@ -3315,7 +3187,9 @@
         3.6,
         0.4158
       ]
-    }
+    },
+    "elementName": "TableBig_S01",
+    "elementId": 3893102542
   },
   "env_urinal_001_col": {
     "box": {
@@ -3329,7 +3203,9 @@
         0.19879,
         0.36427
       ]
-    }
+    },
+    "elementName": "Urinal_S01",
+    "elementId": 3517217013
   },
   "env_wardrobe_001_col": {
     "box": {
@@ -3343,7 +3219,18 @@
         0.252,
         1.344
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "Wardrobe",
+        "id": 2428627426
+      },
+      {
+        "name": "Wardrobe_S01",
+        "id": 1268259677
+      }
+    ]
   },
   "env_washbasin_001_col": {
     "box": {
@@ -3357,7 +3244,9 @@
         0.375,
         0.32169
       ]
-    }
+    },
+    "elementName": "Washbasin_S01",
+    "elementId": 400937499
   },
   "env_wc_001_col": {
     "box": {
@@ -3371,7 +3260,9 @@
         0.3817,
         -0.15132
       ]
-    }
+    },
+    "elementName": "WC_01_S01",
+    "elementId": 4186859262
   },
   "env_wc_002_col": {
     "box": {
@@ -3385,7 +3276,9 @@
         0.3817,
         0.19488
       ]
-    }
+    },
+    "elementName": "WC_02_S01",
+    "elementId": 3929116491
   },
   "env_bed_001_col": {
     "box": {
@@ -3399,7 +3292,9 @@
         1.25472,
         0.22647
       ]
-    }
+    },
+    "elementName": "Bed",
+    "elementId": 4216497731
   },
   "env_bench_001_col": {
     "box": {
@@ -3413,7 +3308,9 @@
         0.4984,
         0.51651
       ]
-    }
+    },
+    "elementName": "Bench",
+    "elementId": 542122758
   },
   "env_board_001_col": {
     "box": {
@@ -3427,7 +3324,9 @@
         0.20413,
         0.15646
       ]
-    }
+    },
+    "elementName": "Board",
+    "elementId": 542805258
   },
   "env_carpet_001_col": {
     "box": {
@@ -3441,7 +3340,9 @@
         1.152,
         -0.00107
       ]
-    }
+    },
+    "elementName": "Carpet01",
+    "elementId": 3813093435
   },
   "env_carpet_002_col": {
     "box": {
@@ -3455,7 +3356,9 @@
         1.152,
         -0.00363
       ]
-    }
+    },
+    "elementName": "Carpet02",
+    "elementId": 3813093434
   },
   "env_chair_002_col": {
     "box": {
@@ -3469,7 +3372,9 @@
         0.25825,
         0.64059
       ]
-    }
+    },
+    "elementName": "Chair02",
+    "elementId": 2169816178
   },
   "env_column-deco_001_col": {
     "box": {
@@ -3483,7 +3388,9 @@
         0.07163,
         1.00003
       ]
-    }
+    },
+    "elementName": "DecoColumn2x",
+    "elementId": 1220701936
   },
   "env_nightstand_001_col": {
     "box": {
@@ -3497,7 +3404,9 @@
         0.27,
         0.27
       ]
-    }
+    },
+    "elementName": "NightStand",
+    "elementId": 2216112746
   },
   "env_painting_001_col": {
     "box": {
@@ -3511,7 +3420,22 @@
         0.01,
         0.5
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "Painting01",
+        "id": 3193900800
+      },
+      {
+        "name": "Painting02",
+        "id": 3193900801
+      },
+      {
+        "name": "Painting03",
+        "id": 3193900802
+      }
+    ]
   },
   "env_panel-deco_001_col": {
     "box": {
@@ -3525,7 +3449,9 @@
         0.03785,
         0.5
       ]
-    }
+    },
+    "elementName": "DecoPanel1x2",
+    "elementId": 4145570204
   },
   "env_shelf_001_col": {
     "box": {
@@ -3539,7 +3465,22 @@
         0.1091,
         0.25834
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "Shelf01",
+        "id": 4083139485
+      },
+      {
+        "name": "Shelf02",
+        "id": 4083139484
+      },
+      {
+        "name": "Shelf03",
+        "id": 4083139459
+      }
+    ]
   },
   "env_trash_001_col": {
     "box": {
@@ -3553,63 +3494,9 @@
         0.25,
         0.5
       ]
-    }
-  },
-  "env_light-alien_001_col": {
-    "box": {
-      "min": [
-        -0.49053,
-        -0.49053,
-        -0.49053
-      ],
-      "max": [
-        0.49053,
-        0.49053,
-        0.49053
-      ]
-    }
-  },
-  "env_light-area_001_col": {
-    "box": {
-      "min": [
-        -0.94614,
-        -0.94614,
-        -13.04778
-      ],
-      "max": [
-        0.94614,
-        0.94614,
-        13.04778
-      ]
-    }
-  },
-  "env_light-area_002_col": {
-    "box": {
-      "min": [
-        -2.11377,
-        -0.92368,
-        -13.16968
-      ],
-      "max": [
-        1.73696,
-        0.96861,
-        12.96449
-      ]
-    }
-  },
-  "env_light-area_003_col": {
-    "box": {
-      "min": [
-        -3.54548,
-        -3.21104,
-        -12.91127
-      ],
-      "max": [
-        3.15923,
-        3.49366,
-        12.78211
-      ]
-    }
+    },
+    "elementName": "Trash",
+    "elementId": 1407324391
   },
   "env_light-headlight_001_col": {
     "box": {
@@ -3623,7 +3510,9 @@
         0.09858,
         0.15734
       ]
-    }
+    },
+    "elementName": "Headlight",
+    "elementId": 787207321
   },
   "env_light-quad_001_l_col": {
     "box": {
@@ -3637,7 +3526,9 @@
         2.0,
         0.03782
       ]
-    }
+    },
+    "elementName": "LightQuadLarge",
+    "elementId": 3524314552
   },
   "env_light-quad_001_m_col": {
     "box": {
@@ -3651,7 +3542,9 @@
         1.0,
         0.03782
       ]
-    }
+    },
+    "elementName": "LightQuadMedium",
+    "elementId": 677591159
   },
   "env_light-quad_001_s_col": {
     "box": {
@@ -3665,7 +3558,9 @@
         0.5,
         0.03782
       ]
-    }
+    },
+    "elementName": "LightQuadSmall",
+    "elementId": 3180371725
   },
   "env_light-quad_001_xs_col": {
     "box": {
@@ -3679,7 +3574,9 @@
         0.25,
         0.03782
       ]
-    }
+    },
+    "elementName": "LightQuadXsmall",
+    "elementId": 25682791
   },
   "env_light-square_001_l_col": {
     "box": {
@@ -3693,7 +3590,9 @@
         1.0,
         0.05737
       ]
-    }
+    },
+    "elementName": "LightSquareLarge",
+    "elementId": 823697268
   },
   "env_light-square_001_m_col": {
     "box": {
@@ -3707,7 +3606,9 @@
         0.5,
         0.04357
       ]
-    }
+    },
+    "elementName": "LightSquareMedium",
+    "elementId": 632353355
   },
   "env_light-square_001_s_col": {
     "box": {
@@ -3721,7 +3622,9 @@
         0.25,
         0.03343
       ]
-    }
+    },
+    "elementName": "LightSquareSmall",
+    "elementId": 3981684520
   },
   "env_light-square_001_xs_col": {
     "box": {
@@ -3735,7 +3638,9 @@
         0.125,
         0.02108
       ]
-    }
+    },
+    "elementName": "LightSquareXSmall",
+    "elementId": 177821174
   },
   "env_light-vertical_001_l_col": {
     "box": {
@@ -3749,7 +3654,9 @@
         0.36785,
         1.99552
       ]
-    }
+    },
+    "elementName": "LightVerticalLarge",
+    "elementId": 2027152926
   },
   "env_light-vertical_001_m_col": {
     "box": {
@@ -3763,7 +3670,9 @@
         0.18425,
         0.99949
       ]
-    }
+    },
+    "elementName": "LightVerticalMedium",
+    "elementId": 1603266808
   },
   "env_light-vertical_001_s_col": {
     "box": {
@@ -3777,7 +3686,9 @@
         0.18425,
         0.4995
       ]
-    }
+    },
+    "elementName": "LightVerticalSmall",
+    "elementId": 3231255047
   },
   "env_light-vertical_001_xs_col": {
     "box": {
@@ -3791,91 +3702,9 @@
         0.09239,
         0.25
       ]
-    }
-  },
-  "env_market-unit-pod_001_col": {
-    "box": {
-      "min": [
-        -0.58965,
-        -0.60316,
-        -1.37488
-      ],
-      "max": [
-        0.58965,
-        0.60886,
-        0.72931
-      ]
-    }
-  },
-  "env_market-unit_001_l_col": {
-    "box": {
-      "min": [
-        -6.70147,
-        -11.99641,
-        -34.01734
-      ],
-      "max": [
-        6.70147,
-        11.99641,
-        34.01734
-      ]
-    }
-  },
-  "env_market-unit_001_m_col": {
-    "box": {
-      "min": [
-        -4.41797,
-        -7.58578,
-        -13.4091
-      ],
-      "max": [
-        4.41797,
-        7.58441,
-        13.47802
-      ]
-    }
-  },
-  "env_market-unit_001_s_col": {
-    "box": {
-      "min": [
-        -2.52963,
-        -3.23729,
-        -5.81844
-      ],
-      "max": [
-        2.52963,
-        3.2457,
-        5.8217
-      ]
-    }
-  },
-  "env_market-unit_001_xl_col": {
-    "box": {
-      "min": [
-        -8.54536,
-        -22.56155,
-        -74.06571
-      ],
-      "max": [
-        8.64543,
-        22.48093,
-        40.56841
-      ]
-    }
-  },
-  "env_market-unit_001_xs_col": {
-    "box": {
-      "min": [
-        -1.6681,
-        -2.2661,
-        -2.80931
-      ],
-      "max": [
-        1.6681,
-        2.26373,
-        2.75272
-      ]
-    }
+    },
+    "elementName": "LightVerticalXsmall",
+    "elementId": 3923388834
   },
   "env_operator_001_col": {
     "box": {
@@ -3889,7 +3718,34 @@
         0.125,
         0.125
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "AndOperator",
+        "id": 2569152632
+      },
+      {
+        "name": "NandOperator",
+        "id": 3600874516
+      },
+      {
+        "name": "NorOperator",
+        "id": 1839029088
+      },
+      {
+        "name": "NotOperator",
+        "id": 2629309308
+      },
+      {
+        "name": "OrOperator",
+        "id": 1707712023
+      },
+      {
+        "name": "XorOperator",
+        "id": 3437395596
+      }
+    ]
   },
   "env_artdeco-aquarium-holo_001_col": {
     "box": {
@@ -3903,7 +3759,18 @@
         0.25,
         0.6
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "env_artdeco-aquarium-holo-black_001",
+        "id": 3016497942
+      },
+      {
+        "name": "env_artdeco-aquarium-holo_001",
+        "id": 2812001001
+      }
+    ]
   },
   "env_artdeco-bench_001_col": {
     "box": {
@@ -3917,7 +3784,18 @@
         0.25,
         0.45
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "env_artdeco-bench-black_001",
+        "id": 1074103226
+      },
+      {
+        "name": "env_artdeco-bench_001",
+        "id": 222175900
+      }
+    ]
   },
   "env_artdeco-chair_001_col": {
     "box": {
@@ -3931,7 +3809,18 @@
         0.27048,
         0.74834
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "env_artdeco-chair-black_001",
+        "id": 3544879660
+      },
+      {
+        "name": "env_artdeco-chair_001",
+        "id": 370062566
+      }
+    ]
   },
   "env_artdeco-fire-place_001_col": {
     "box": {
@@ -3945,7 +3834,18 @@
         0.25,
         0.75
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "env_artdeco-fire-place-black_001",
+        "id": 2183080014
+      },
+      {
+        "name": "env_artdeco-fire-place_001",
+        "id": 1601079559
+      }
+    ]
   },
   "env_artdeco-jar_001_col": {
     "box": {
@@ -3959,7 +3859,18 @@
         0.125,
         0.5
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "env_artdeco-jar-black_001",
+        "id": 874608843
+      },
+      {
+        "name": "env_artdeco-jar_001",
+        "id": 4020821654
+      }
+    ]
   },
   "env_artdeco-lamp_001_col": {
     "box": {
@@ -3973,7 +3884,18 @@
         0.25,
         1.25
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "env_artdeco-lamp-black_001",
+        "id": 1102948802
+      },
+      {
+        "name": "env_artdeco-lamp_001",
+        "id": 861366393
+      }
+    ]
   },
   "env_artdeco-table_001_col": {
     "box": {
@@ -3987,7 +3909,18 @@
         0.74277,
         1.0
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "env_artdeco-table-black_001",
+        "id": 823241373
+      },
+      {
+        "name": "env_artdeco-table_001",
+        "id": 3287609460
+      }
+    ]
   },
   "env_artdeco-wall-deco_001_col": {
     "box": {
@@ -4001,7 +3934,34 @@
         0.5,
         0.15
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "env_artdeco-wall-deco-black_001",
+        "id": 3953708134
+      },
+      {
+        "name": "env_artdeco-wall-deco-black_002",
+        "id": 3953708135
+      },
+      {
+        "name": "env_artdeco-wall-deco-black_003",
+        "id": 3953708132
+      },
+      {
+        "name": "env_artdeco-wall-deco_001",
+        "id": 3150116772
+      },
+      {
+        "name": "env_artdeco-wall-deco_002",
+        "id": 3150116771
+      },
+      {
+        "name": "env_artdeco-wall-deco_003",
+        "id": 3150116770
+      }
+    ]
   },
   "env_artdeco-wall-deco_002_col": {
     "box": {
@@ -4015,7 +3975,111 @@
         0.5,
         0.15
       ]
-    }
+    },
+    "elementMappingStatus": "tokenLookup",
+    "lookupToken": "artdeco",
+    "elementCandidates": [
+      {
+        "name": "env_artdeco-aquarium-holo-black_001",
+        "id": 3016497942,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-aquarium-holo_001",
+        "id": 2812001001,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-bench-black_001",
+        "id": 1074103226,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-bench_001",
+        "id": 222175900,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-carpet_001",
+        "id": 1614330970,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-chair-black_001",
+        "id": 3544879660,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-chair_001",
+        "id": 370062566,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-fire-place-black_001",
+        "id": 2183080014,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-fire-place_001",
+        "id": 1601079559,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-jar-black_001",
+        "id": 874608843,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-jar_001",
+        "id": 4020821654,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-lamp-black_001",
+        "id": 1102948802,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-lamp_001",
+        "id": 861366393,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-table-black_001",
+        "id": 823241373,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-table_001",
+        "id": 3287609460,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-wall-deco-black_001",
+        "id": 3953708134,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-wall-deco-black_002",
+        "id": 3953708135,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-wall-deco-black_003",
+        "id": 3953708132,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-wall-deco_001",
+        "id": 3150116772,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-wall-deco_002",
+        "id": 3150116771,
+        "score": 7
+      }
+    ]
   },
   "env_artdeco-wall-deco_003_col": {
     "box": {
@@ -4029,7 +4093,111 @@
         0.5,
         0.15
       ]
-    }
+    },
+    "elementMappingStatus": "tokenLookup",
+    "lookupToken": "artdeco",
+    "elementCandidates": [
+      {
+        "name": "env_artdeco-aquarium-holo-black_001",
+        "id": 3016497942,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-aquarium-holo_001",
+        "id": 2812001001,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-bench-black_001",
+        "id": 1074103226,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-bench_001",
+        "id": 222175900,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-carpet_001",
+        "id": 1614330970,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-chair-black_001",
+        "id": 3544879660,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-chair_001",
+        "id": 370062566,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-fire-place-black_001",
+        "id": 2183080014,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-fire-place_001",
+        "id": 1601079559,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-jar-black_001",
+        "id": 874608843,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-jar_001",
+        "id": 4020821654,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-lamp-black_001",
+        "id": 1102948802,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-lamp_001",
+        "id": 861366393,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-table-black_001",
+        "id": 823241373,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-table_001",
+        "id": 3287609460,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-wall-deco-black_001",
+        "id": 3953708134,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-wall-deco-black_002",
+        "id": 3953708135,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-wall-deco-black_003",
+        "id": 3953708132,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-wall-deco_001",
+        "id": 3150116772,
+        "score": 7
+      },
+      {
+        "name": "env_artdeco-wall-deco_002",
+        "id": 3150116771,
+        "score": 7
+      }
+    ]
   },
   "env_artdeco-weather-station_001_col": {
     "box": {
@@ -4043,7 +4211,18 @@
         0.125,
         0.5
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "env_artdeco-weather-station-black_001",
+        "id": 1325636171
+      },
+      {
+        "name": "env_artdeco-weather-station_001",
+        "id": 1379618328
+      }
+    ]
   },
   "env_pipe-corner_001_col": {
     "box": {
@@ -4057,7 +4236,9 @@
         3.99988,
         1.99903
       ]
-    }
+    },
+    "elementName": "PipeCornerMedium",
+    "elementId": 2123842216
   },
   "env_pipe-cross_001_col": {
     "box": {
@@ -4071,7 +4252,9 @@
         4.03852,
         1.98995
       ]
-    }
+    },
+    "elementName": "PipeCrossMedium",
+    "elementId": 2917319456
   },
   "env_pipe-line_001_col": {
     "box": {
@@ -4085,7 +4268,9 @@
         3.99996,
         1.99998
       ]
-    }
+    },
+    "elementName": "PipeLine01Medium",
+    "elementId": 2824951359
   },
   "env_pipe-line_002_col": {
     "box": {
@@ -4099,7 +4284,9 @@
         3.99996,
         1.99998
       ]
-    }
+    },
+    "elementName": "PipeLine02Medium",
+    "elementId": 2709793409
   },
   "env_pipe-line_003_col": {
     "box": {
@@ -4113,7 +4300,9 @@
         7.99988,
         1.99998
       ]
-    }
+    },
+    "elementName": "PipeLine03Medium",
+    "elementId": 2937058341
   },
   "env_pipe-line_004_col": {
     "box": {
@@ -4127,7 +4316,9 @@
         7.99988,
         1.99998
       ]
-    }
+    },
+    "elementName": "PipeLine04Medium",
+    "elementId": 543225023
   },
   "env_plant-bonsai_001_col": {
     "box": {
@@ -4141,7 +4332,9 @@
         0.11877,
         0.25
       ]
-    }
+    },
+    "elementName": "Bonsai",
+    "elementId": 2648123924
   },
   "env_plant-deco-bag_001_col": {
     "box": {
@@ -4155,7 +4348,9 @@
         0.23223,
         0.2201
       ]
-    }
+    },
+    "elementName": "SacDeco01",
+    "elementId": 630574506
   },
   "env_plant-deco-bag_002_col": {
     "box": {
@@ -4169,7 +4364,9 @@
         0.23191,
         1.50263
       ]
-    }
+    },
+    "elementName": "SacDeco02",
+    "elementId": 630574505
   },
   "env_plant-deco-bag_003_col": {
     "box": {
@@ -4183,7 +4380,22 @@
         0.3012,
         0.46426
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "SacDeco03",
+        "id": 630574504
+      },
+      {
+        "name": "SacDeco04",
+        "id": 630574503
+      },
+      {
+        "name": "SacDeco05",
+        "id": 630574502
+      }
+    ]
   },
   "env_plant-deco-pot_001_col": {
     "box": {
@@ -4197,7 +4409,22 @@
         0.58594,
         -0.01164
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "BacDeco01",
+        "id": 3106061133
+      },
+      {
+        "name": "BacDeco03",
+        "id": 3106061131
+      },
+      {
+        "name": "BacDeco04",
+        "id": 3106061128
+      }
+    ]
   },
   "env_plant-deco-pot_002_col": {
     "box": {
@@ -4211,7 +4438,34 @@
         0.58752,
         -0.01164
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "BacDeco02",
+        "id": 3106061130
+      },
+      {
+        "name": "BacDeco05",
+        "id": 3106061129
+      },
+      {
+        "name": "BacDeco06",
+        "id": 3106061142
+      },
+      {
+        "name": "BacDeco07",
+        "id": 3106061143
+      },
+      {
+        "name": "BacDeco08",
+        "id": 3106061140
+      },
+      {
+        "name": "BacDeco09",
+        "id": 3106061141
+      }
+    ]
   },
   "env_plant-deco_001_col": {
     "box": {
@@ -4225,7 +4479,18 @@
         0.96399,
         0.80937
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "PlantDeco01",
+        "id": 195870295
+      },
+      {
+        "name": "PlantDeco02",
+        "id": 195870294
+      }
+    ]
   },
   "env_plant-deco_002_col": {
     "box": {
@@ -4239,7 +4504,9 @@
         0.24707,
         0.69682
       ]
-    }
+    },
+    "elementName": "PlantDeco03",
+    "elementId": 195870297
   },
   "env_plant-deco_003_col": {
     "box": {
@@ -4253,7 +4520,18 @@
         0.33329,
         0.79803
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "PlantDeco04",
+        "id": 195870296
+      },
+      {
+        "name": "PlantDeco05",
+        "id": 195870299
+      }
+    ]
   },
   "env_plant_001_col": {
     "box": {
@@ -4267,49 +4545,9 @@
         0.16063,
         0.5
       ]
-    }
-  },
-  "env_platform-teleportation_001_col": {
-    "box": {
-      "min": [
-        -1.25902,
-        -1.23989,
-        -0.0493
-      ],
-      "max": [
-        1.25902,
-        1.23989,
-        0.01275
-      ]
-    }
-  },
-  "env_power-battery_001_col": {
-    "box": {
-      "min": [
-        -0.5,
-        -1.0,
-        -0.49747
-      ],
-      "max": [
-        0.5,
-        1.0,
-        0.49747
-      ]
-    }
-  },
-  "env_power-generator_001_col": {
-    "box": {
-      "min": [
-        -0.50055,
-        -1.00111,
-        -0.3337
-      ],
-      "max": [
-        0.50055,
-        1.00111,
-        0.3337
-      ]
-    }
+    },
+    "elementName": "Plant",
+    "elementId": 1797415729
   },
   "env_programming-board_001_col": {
     "box": {
@@ -4323,21 +4561,9 @@
         0.18586,
         0.10025
       ]
-    }
-  },
-  "env_pulser_001_col": {
-    "box": {
-      "min": [
-        -0.125,
-        -0.125,
-        -0.07921
-      ],
-      "max": [
-        0.125,
-        0.125,
-        0.07921
-      ]
-    }
+    },
+    "elementName": "ProgrammingBoard",
+    "elementId": 3415128439
   },
   "env_radar-atmo_001_l_col": {
     "box": {
@@ -4351,7 +4577,9 @@
         2.04137,
         1.62616
       ]
-    }
+    },
+    "elementName": "RadarPVPLarge",
+    "elementId": 3094514782
   },
   "env_radar-atmo_001_m_col": {
     "box": {
@@ -4365,7 +4593,9 @@
         1.05307,
         0.90875
       ]
-    }
+    },
+    "elementName": "RadarPVPMedium",
+    "elementId": 612626034
   },
   "env_radar-atmo_001_s_col": {
     "box": {
@@ -4379,7 +4609,9 @@
         0.51954,
         0.46029
       ]
-    }
+    },
+    "elementName": "RadarPVPSmall",
+    "elementId": 4213791403
   },
   "env_radar-space_001_l_col": {
     "box": {
@@ -4393,7 +4625,9 @@
         1.821,
         2.40723
       ]
-    }
+    },
+    "elementName": "RadarPVPSpaceLarge",
+    "elementId": 2802863920
   },
   "env_radar-space_001_m_col": {
     "box": {
@@ -4407,7 +4641,9 @@
         0.66883,
         2.42542
       ]
-    }
+    },
+    "elementName": "RadarPVPSpaceMedium",
+    "elementId": 3831485995
   },
   "env_radar-space_001_s_col": {
     "box": {
@@ -4421,7 +4657,9 @@
         0.15878,
         0.40985
       ]
-    }
+    },
+    "elementName": "RadarPVPSpaceSmall",
+    "elementId": 4118496992
   },
   "env_radar_001_l_col": {
     "box": {
@@ -4435,35 +4673,111 @@
         1.821,
         2.40723
       ]
-    }
-  },
-  "env_radar_001_m_col": {
-    "box": {
-      "min": [
-        -0.76473,
-        -1.03859,
-        -0.90875
-      ],
-      "max": [
-        0.76473,
-        1.05307,
-        0.90875
-      ]
-    }
-  },
-  "env_radar_001_s_col": {
-    "box": {
-      "min": [
-        -0.40027,
-        -0.49413,
-        -0.42062
-      ],
-      "max": [
-        0.40027,
-        0.51954,
-        0.46029
-      ]
-    }
+    },
+    "elementMappingStatus": "tokenLookup",
+    "lookupToken": "radar",
+    "elementCandidates": [
+      {
+        "name": "RadarPVPLarge",
+        "id": 3094514782,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPMedium",
+        "id": 612626034,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSmall",
+        "id": 4213791403,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceLarge",
+        "id": 2802863920,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceLargePhasedarray3",
+        "id": 2075264944,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceLargePhasedarray4",
+        "id": 2075264591,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceLargePhasedarray5",
+        "id": 2075264590,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceLargeProtected3",
+        "id": 3250064332,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceLargeProtected4",
+        "id": 3250064333,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceLargeProtected5",
+        "id": 3250064334,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceLargeQuickwired3",
+        "id": 3612800224,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceLargeQuickwired4",
+        "id": 3612800255,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceLargeQuickwired5",
+        "id": 3612800254,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceMedium",
+        "id": 3831485995,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceMediumPhasedarray3",
+        "id": 1707018154,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceMediumPhasedarray4",
+        "id": 1707018149,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceMediumPhasedarray5",
+        "id": 1707018148,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceMediumProtected3",
+        "id": 3060580950,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceMediumProtected4",
+        "id": 3060580945,
+        "score": 8
+      },
+      {
+        "name": "RadarPVPSpaceMediumProtected5",
+        "id": 3060580944,
+        "score": 8
+      }
+    ]
   },
   "env_remote-control_001_col": {
     "box": {
@@ -4477,7 +4791,9 @@
         0.125,
         -0.0128
       ]
-    }
+    },
+    "elementName": "RemoteControl",
+    "elementId": 1866437084
   },
   "env_resurrection-node_001_col": {
     "box": {
@@ -4491,7 +4807,9 @@
         0.88612,
         0.09266
       ]
-    }
+    },
+    "elementName": "ResurrectionNode",
+    "elementId": 1109114394
   },
   "env_round-table_001_col": {
     "box": {
@@ -4505,231 +4823,9 @@
         1.99817,
         0.44543
       ]
-    }
-  },
-  "env_scene_001_col": {
-    "box": {
-      "min": [
-        -2.75828,
-        -2.58679,
-        -0.79947
-      ],
-      "max": [
-        2.62502,
-        2.48887,
-        0.91079
-      ]
-    }
-  },
-  "env_scene_002_col": {
-    "box": {
-      "min": [
-        -2.65198,
-        -2.88249,
-        -0.86381
-      ],
-      "max": [
-        2.34402,
-        2.90072,
-        0.93894
-      ]
-    }
-  },
-  "env_scene_003_col": {
-    "box": {
-      "min": [
-        -2.90737,
-        -2.83914,
-        -1.03214
-      ],
-      "max": [
-        2.84263,
-        2.98097,
-        1.06935
-      ]
-    }
-  },
-  "env_scene_004_col": {
-    "box": {
-      "min": [
-        -2.92836,
-        -2.8176,
-        -1.13931
-      ],
-      "max": [
-        2.76447,
-        2.89132,
-        1.33488
-      ]
-    }
-  },
-  "env_scene_005_col": {
-    "box": {
-      "min": [
-        -1.37471,
-        -1.72631,
-        -0.57825
-      ],
-      "max": [
-        1.42485,
-        1.72174,
-        0.73354
-      ]
-    }
-  },
-  "env_scene_006_col": {
-    "box": {
-      "min": [
-        -2.91475,
-        -2.61758,
-        -1.19615
-      ],
-      "max": [
-        2.94899,
-        2.54233,
-        1.2848
-      ]
-    }
-  },
-  "env_scene_007_col": {
-    "box": {
-      "min": [
-        -2.86522,
-        -1.92821,
-        -0.87798
-      ],
-      "max": [
-        2.75041,
-        1.97237,
-        1.12205
-      ]
-    }
-  },
-  "env_scene_008_col": {
-    "box": {
-      "min": [
-        -1.01624,
-        -2.6223,
-        -0.17691
-      ],
-      "max": [
-        1.71801,
-        1.72445,
-        1.72464
-      ]
-    }
-  },
-  "env_scene_009_col": {
-    "box": {
-      "min": [
-        -2.08706,
-        -1.8719,
-        -0.27922
-      ],
-      "max": [
-        1.91308,
-        1.80472,
-        1.09009
-      ]
-    }
-  },
-  "env_scene_010_col": {
-    "box": {
-      "min": [
-        -3.21362,
-        -1.76524,
-        -0.51823
-      ],
-      "max": [
-        3.11029,
-        1.71914,
-        0.5458
-      ]
-    }
-  },
-  "env_scene_011_col": {
-    "box": {
-      "min": [
-        -1.72392,
-        -1.81369,
-        -0.45251
-      ],
-      "max": [
-        1.7601,
-        1.73677,
-        0.47331
-      ]
-    }
-  },
-  "env_scene_012_col": {
-    "box": {
-      "min": [
-        -1.95896,
-        -1.94983,
-        -0.84891
-      ],
-      "max": [
-        1.95034,
-        1.9878,
-        0.9216
-      ]
-    }
-  },
-  "env_scene_013_col": {
-    "box": {
-      "min": [
-        -2.69202,
-        -2.36561,
-        0.0
-      ],
-      "max": [
-        2.76589,
-        2.01262,
-        2.03605
-      ]
-    }
-  },
-  "env_scene_014_col": {
-    "box": {
-      "min": [
-        -2.76161,
-        -2.25617,
-        -0.63337
-      ],
-      "max": [
-        2.77581,
-        1.65208,
-        0.77945
-      ]
-    }
-  },
-  "env_scene_015_col": {
-    "box": {
-      "min": [
-        -2.21129,
-        -1.22632,
-        -0.58377
-      ],
-      "max": [
-        3.50433,
-        1.71148,
-        0.65394
-      ]
-    }
-  },
-  "env_scene_016_col": {
-    "box": {
-      "min": [
-        -2.74241,
-        -1.43712,
-        -1.16813
-      ],
-      "max": [
-        1.62932,
-        2.32092,
-        1.31278
-      ]
-    }
+    },
+    "elementName": "Table_S01_Obsidian",
+    "elementId": 82404567
   },
   "env_screen_l_001_col": {
     "box": {
@@ -4743,7 +4839,18 @@
         0.01075,
         1.2
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "ScreenBruteL",
+        "id": 819161541
+      },
+      {
+        "name": "ScreenBruteTransparentL",
+        "id": 953504974
+      }
+    ]
   },
   "env_screen_m_001_col": {
     "box": {
@@ -4757,7 +4864,18 @@
         0.01075,
         0.9
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "ScreenBruteM",
+        "id": 819161540
+      },
+      {
+        "name": "ScreenBruteTransparentM",
+        "id": 953504975
+      }
+    ]
   },
   "env_screen_s_001_col": {
     "box": {
@@ -4771,7 +4889,18 @@
         0.01075,
         0.6
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "ScreenBruteS",
+        "id": 819161538
+      },
+      {
+        "name": "ScreenBruteTransparentS",
+        "id": 953504969
+      }
+    ]
   },
   "env_screen_xl_001_col": {
     "box": {
@@ -4785,7 +4914,18 @@
         0.0215,
         2.4
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "ScreenBruteTransparentXL",
+        "id": 3642010391
+      },
+      {
+        "name": "ScreenBruteXL",
+        "id": 4019561218
+      }
+    ]
   },
   "env_screen_xs_001_col": {
     "box": {
@@ -4799,7 +4939,18 @@
         0.01075,
         0.3
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "ScreenBruteTransparentXS",
+        "id": 3642010398
+      },
+      {
+        "name": "ScreenBruteXS",
+        "id": 4019561275
+      }
+    ]
   },
   "env_screen_xxl_001_col": {
     "box": {
@@ -4813,7 +4964,18 @@
         0.04299,
         4.8
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "ScreenBruteTransparentXXL",
+        "id": 3233007246
+      },
+      {
+        "name": "ScreenBruteXXL",
+        "id": 1343230282
+      }
+    ]
   },
   "env_screen_xxxl_001_col": {
     "box": {
@@ -4827,49 +4989,18 @@
         0.05374,
         6.0
       ]
-    }
-  },
-  "env_screen-console_001_col": {
-    "box": {
-      "min": [
-        -1.0,
-        -0.5,
-        -0.5
-      ],
-      "max": [
-        1.0,
-        0.5,
-        0.5
-      ]
-    }
-  },
-  "env_screen-console_002_col": {
-    "box": {
-      "min": [
-        -1.0,
-        -0.5,
-        -0.5
-      ],
-      "max": [
-        1.0,
-        0.5,
-        0.5
-      ]
-    }
-  },
-  "env_screen-console_003_col": {
-    "box": {
-      "min": [
-        -1.0,
-        -0.5,
-        -0.5
-      ],
-      "max": [
-        1.0,
-        0.5,
-        0.5
-      ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "ScreenBruteTransparentXXXL",
+        "id": 1004917969
+      },
+      {
+        "name": "ScreenBruteXXXL",
+        "id": 3861905322
+      }
+    ]
   },
   "env_screen-op-20x_001_col": {
     "box": {
@@ -4883,7 +5014,9 @@
         0.4082,
         6.7295
       ]
-    }
+    },
+    "elementName": "ScreenOp20x",
+    "elementId": 879675317
   },
   "env_screen-sign-h_001_col": {
     "box": {
@@ -4897,7 +5030,9 @@
         0.00501,
         0.5
       ]
-    }
+    },
+    "elementName": "ScreenSignHMedium",
+    "elementId": 3068429457
   },
   "env_screen-sign-h_001_l_col": {
     "box": {
@@ -4911,7 +5046,9 @@
         0.00501,
         0.5
       ]
-    }
+    },
+    "elementName": "ScreenSignHLarge",
+    "elementId": 166549741
   },
   "env_screen-sign-h_001_s_col": {
     "box": {
@@ -4925,7 +5062,9 @@
         0.00501,
         0.5
       ]
-    }
+    },
+    "elementName": "ScreenSignHSmall",
+    "elementId": 362159734
   },
   "env_screen-sign-h_001_xs_col": {
     "box": {
@@ -4939,7 +5078,9 @@
         0.00501,
         0.25
       ]
-    }
+    },
+    "elementName": "ScreenSignHXSmall",
+    "elementId": 166656023
   },
   "env_screen-sign-v_001_col": {
     "box": {
@@ -4953,7 +5094,9 @@
         0.005,
         1.0
       ]
-    }
+    },
+    "elementName": "ScreenSignVMedium",
+    "elementId": 2610895147
   },
   "env_screen-sign-v_001_l_col": {
     "box": {
@@ -4967,7 +5110,9 @@
         0.00501,
         2.0
       ]
-    }
+    },
+    "elementName": "ScreenSignVLarge",
+    "elementId": 1533790308
   },
   "env_screen-sign-v_001_xs_col": {
     "box": {
@@ -4981,7 +5126,9 @@
         0.00501,
         0.5
       ]
-    }
+    },
+    "elementName": "ScreenSignVXSmall",
+    "elementId": 3919696834
   },
   "env_screen-trans-1x_001_col": {
     "box": {
@@ -4995,7 +5142,9 @@
         0.01055,
         0.3
       ]
-    }
+    },
+    "elementName": "ScreenTransparent1x",
+    "elementId": 3988665660
   },
   "env_screen-trans-2x_001_col": {
     "box": {
@@ -5009,7 +5158,9 @@
         0.02049,
         0.6
       ]
-    }
+    },
+    "elementName": "ScreenTransparent2x",
+    "elementId": 3988663014
   },
   "env_screen-trans-3x_001_col": {
     "box": {
@@ -5023,7 +5174,9 @@
         0.03043,
         0.9
       ]
-    }
+    },
+    "elementName": "ScreenTransparent3x",
+    "elementId": 3988662951
   },
   "env_screen-trans-4x_001_col": {
     "box": {
@@ -5037,7 +5190,9 @@
         0.04037,
         1.2
       ]
-    }
+    },
+    "elementName": "ScreenTransparent4x",
+    "elementId": 3988662884
   },
   "env_commander-seat_001_col": {
     "box": {
@@ -5051,7 +5206,9 @@
         0.65396,
         0.76128
       ]
-    }
+    },
+    "elementName": "CockpitCommandment",
+    "elementId": 3655856020
   },
   "env_gunner-seat_001_l_col": {
     "box": {
@@ -5065,7 +5222,9 @@
         0.58972,
         0.81365
       ]
-    }
+    },
+    "elementName": "PVPSeatLarge",
+    "elementId": 3327293642
   },
   "env_gunner-seat_001_m_col": {
     "box": {
@@ -5079,7 +5238,9 @@
         0.58972,
         0.81365
       ]
-    }
+    },
+    "elementName": "PVPSeatMedium",
+    "elementId": 564736657
   },
   "env_gunner-seat_001_s_col": {
     "box": {
@@ -5093,7 +5254,9 @@
         0.60823,
         0.81365
       ]
-    }
+    },
+    "elementName": "PVPSeat",
+    "elementId": 1373443625
   },
   "env_seat-commander-chair_001_col": {
     "box": {
@@ -5107,7 +5270,26 @@
         0.41081,
         0.7569
       ]
-    }
+    },
+    "elementMappingStatus": "tokenLookup",
+    "lookupToken": "seat",
+    "elementCandidates": [
+      {
+        "name": "PVPSeat",
+        "id": 1373443625,
+        "score": 5
+      },
+      {
+        "name": "PVPSeatLarge",
+        "id": 3327293642,
+        "score": 5
+      },
+      {
+        "name": "PVPSeatMedium",
+        "id": 564736657,
+        "score": 5
+      }
+    ]
   },
   "env_seat-navigator_001_col": {
     "box": {
@@ -5121,7 +5303,9 @@
         0.5657,
         0.85679
       ]
-    }
+    },
+    "elementName": "NavigatorChair",
+    "elementId": 1261703398
   },
   "env_stabilizer-vertical_001_col": {
     "box": {
@@ -5135,7 +5319,31 @@
         0.69407,
         3.00669
       ]
-    }
+    },
+    "elementMappingStatus": "tokenLookup",
+    "lookupToken": "stabilizer",
+    "elementCandidates": [
+      {
+        "name": "StabilizerLarge",
+        "id": 1090402453,
+        "score": 8
+      },
+      {
+        "name": "StabilizerMedium",
+        "id": 3474622996,
+        "score": 8
+      },
+      {
+        "name": "StabilizerSmall",
+        "id": 1234961120,
+        "score": 8
+      },
+      {
+        "name": "StabilizerXtraSmall",
+        "id": 1455311973,
+        "score": 8
+      }
+    ]
   },
   "env_stabilizer-vertical_001_l_col": {
     "box": {
@@ -5149,7 +5357,31 @@
         1.04028,
         7.65219
       ]
-    }
+    },
+    "elementMappingStatus": "tokenLookup",
+    "lookupToken": "stabilizer",
+    "elementCandidates": [
+      {
+        "name": "StabilizerLarge",
+        "id": 1090402453,
+        "score": 8
+      },
+      {
+        "name": "StabilizerMedium",
+        "id": 3474622996,
+        "score": 8
+      },
+      {
+        "name": "StabilizerSmall",
+        "id": 1234961120,
+        "score": 8
+      },
+      {
+        "name": "StabilizerXtraSmall",
+        "id": 1455311973,
+        "score": 8
+      }
+    ]
   },
   "env_stabilizer-vertical_001_s_col": {
     "box": {
@@ -5163,7 +5395,31 @@
         0.19976,
         1.2469
       ]
-    }
+    },
+    "elementMappingStatus": "tokenLookup",
+    "lookupToken": "stabilizer",
+    "elementCandidates": [
+      {
+        "name": "StabilizerLarge",
+        "id": 1090402453,
+        "score": 8
+      },
+      {
+        "name": "StabilizerMedium",
+        "id": 3474622996,
+        "score": 8
+      },
+      {
+        "name": "StabilizerSmall",
+        "id": 1234961120,
+        "score": 8
+      },
+      {
+        "name": "StabilizerXtraSmall",
+        "id": 1455311973,
+        "score": 8
+      }
+    ]
   },
   "env_stabilizer_001_col": {
     "box": {
@@ -5177,7 +5433,9 @@
         2.29075,
         0.7
       ]
-    }
+    },
+    "elementName": "StabilizerMedium",
+    "elementId": 3474622996
   },
   "env_stabilizer_001_l_col": {
     "box": {
@@ -5191,7 +5449,9 @@
         5.7855,
         1.04028
       ]
-    }
+    },
+    "elementName": "StabilizerLarge",
+    "elementId": 1090402453
   },
   "env_stabilizer_001_s_col": {
     "box": {
@@ -5205,7 +5465,9 @@
         0.90485,
         0.19999
       ]
-    }
+    },
+    "elementName": "StabilizerSmall",
+    "elementId": 1234961120
   },
   "env_stabilizer_001_xs_col": {
     "box": {
@@ -5219,7 +5481,9 @@
         0.40593,
         0.12491
       ]
-    }
+    },
+    "elementName": "StabilizerXtraSmall",
+    "elementId": 1455311973
   },
   "env_surrogate-pod-station_001_col": {
     "box": {
@@ -5233,7 +5497,9 @@
         0.88612,
         0.09266
       ]
-    }
+    },
+    "elementName": "SurrogatePodStation",
+    "elementId": 3667785070
   },
   "env_surrogate-vr-station_001_col": {
     "box": {
@@ -5247,7 +5513,9 @@
         0.49528,
         2.25668
       ]
-    }
+    },
+    "elementName": "SurrogateVRStation",
+    "elementId": 2093838343
   },
   "env_telemeter_001_col": {
     "box": {
@@ -5261,7 +5529,9 @@
         0.03356,
         0.24957
       ]
-    }
+    },
+    "elementName": "Telemeter",
+    "elementId": 1722901246
   },
   "env_territory-unit_001_col": {
     "box": {
@@ -5275,7 +5545,18 @@
         2.04673,
         5.93052
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "TerritoryUnitBasic",
+        "id": 1358842892
+      },
+      {
+        "name": "TerritoryUnitBasicSanctuary",
+        "id": 3954055294
+      }
+    ]
   },
   "env_throne_001_col": {
     "box": {
@@ -5289,21 +5570,22 @@
         0.62331,
         2.51433
       ]
-    }
-  },
-  "env_tool_001_col": {
-    "box": {
-      "min": [
-        -3.58364,
-        -16.12639,
-        -1E-05
-      ],
-      "max": [
-        3.58364,
-        12.54274,
-        17.91821
-      ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "NavigatorChair_Gold",
+        "id": 392866463
+      },
+      {
+        "name": "NavigatorChair_Metal",
+        "id": 2542033786
+      },
+      {
+        "name": "NavigatorChair_Obsidian",
+        "id": 536277576
+      }
+    ]
   },
   "env_transformer-counter_001_col": {
     "box": {
@@ -5317,7 +5599,30 @@
         0.12357,
         0.04237
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "Counter02",
+        "id": 888062905
+      },
+      {
+        "name": "Counter03",
+        "id": 888062906
+      },
+      {
+        "name": "Counter05",
+        "id": 888062908
+      },
+      {
+        "name": "Counter07",
+        "id": 888062910
+      },
+      {
+        "name": "Counter10",
+        "id": 888063487
+      }
+    ]
   },
   "env_transformer-databank_001_col": {
     "box": {
@@ -5331,7 +5636,9 @@
         0.125,
         0.125
       ]
-    }
+    },
+    "elementName": "DataBank",
+    "elementId": 812400865
   },
   "env_transformer-delay-line_001_col": {
     "box": {
@@ -5345,7 +5652,9 @@
         0.12479,
         0.05977
       ]
-    }
+    },
+    "elementName": "DelayLine",
+    "elementId": 1474604499
   },
   "env_transformer-detector-ir_001_col": {
     "box": {
@@ -5359,7 +5668,18 @@
         0.125,
         0.125
       ]
-    }
+    },
+    "elementMappingStatus": "ambiguous",
+    "elementCandidates": [
+      {
+        "name": "IRDetector",
+        "id": 2153998731
+      },
+      {
+        "name": "IREmitter",
+        "id": 609676854
+      }
+    ]
   },
   "env_transformer-emitter-laser_001_col": {
     "box": {
@@ -5373,7 +5693,9 @@
         0.11197,
         0.0409
       ]
-    }
+    },
+    "elementName": "LaserEmitter",
+    "elementId": 1784722190
   },
   "env_transformer-emitter_001_m_col": {
     "box": {
@@ -5387,7 +5709,9 @@
         1.99998,
         2.76137
       ]
-    }
+    },
+    "elementName": "EmitterMedium",
+    "elementId": 2809213930
   },
   "env_transformer-emitter_001_s_col": {
     "box": {
@@ -5401,7 +5725,9 @@
         0.48351,
         0.56574
       ]
-    }
+    },
+    "elementName": "EmitterSmall",
+    "elementId": 3287187256
   },
   "env_transformer-emitter_001_xs_col": {
     "box": {
@@ -5415,35 +5741,9 @@
         0.125,
         0.15642
       ]
-    }
-  },
-  "env_transformer-mirror_001_col": {
-    "box": {
-      "min": [
-        -0.125,
-        -0.125,
-        -0.125
-      ],
-      "max": [
-        0.125,
-        0.125,
-        0.125
-      ]
-    }
-  },
-  "env_transformer-randomiser_001_col": {
-    "box": {
-      "min": [
-        -0.125,
-        -0.125,
-        -0.125
-      ],
-      "max": [
-        0.125,
-        0.125,
-        0.125
-      ]
-    }
+    },
+    "elementName": "Emitter",
+    "elementId": 1279651501
   },
   "env_transformer-receiver_001_m_col": {
     "box": {
@@ -5457,7 +5757,9 @@
         1.99998,
         -0.12873
       ]
-    }
+    },
+    "elementName": "ReceiverMedium",
+    "elementId": 736740615
   },
   "env_transformer-receiver_001_s_col": {
     "box": {
@@ -5471,7 +5773,9 @@
         0.49242,
         -0.06881
       ]
-    }
+    },
+    "elementName": "ReceiverSmall",
+    "elementId": 2082095499
   },
   "env_transformer-receiver_001_xs_col": {
     "box": {
@@ -5485,7 +5789,9 @@
         0.125,
         -0.06779
       ]
-    }
+    },
+    "elementName": "Receiver",
+    "elementId": 3732634076
   },
   "env_transformer-relay_001_col": {
     "box": {
@@ -5499,35 +5805,9 @@
         0.1246,
         0.03898
       ]
-    }
-  },
-  "env_transformer-toggler_001_col": {
-    "box": {
-      "min": [
-        -0.125,
-        -0.125,
-        -0.125
-      ],
-      "max": [
-        0.125,
-        0.125,
-        0.125
-      ]
-    }
-  },
-  "env_transformer-tube_001_col": {
-    "box": {
-      "min": [
-        -0.125,
-        -0.125,
-        -0.5
-      ],
-      "max": [
-        0.125,
-        0.125,
-        0.5
-      ]
-    }
+    },
+    "elementName": "Relay",
+    "elementId": 1694177571
   },
   "env_transponder_001_s_col": {
     "box": {
@@ -5541,7 +5821,9 @@
         0.25,
         0.5
       ]
-    }
+    },
+    "elementName": "TransponderUnit",
+    "elementId": 63667997
   },
   "env_warp-beacon_001_col": {
     "box": {
@@ -5555,7 +5837,9 @@
         4.0,
         8.0
       ]
-    }
+    },
+    "elementName": "WarpBeacon",
+    "elementId": 2468029849
   },
   "env_warp-drive_001_col": {
     "box": {
@@ -5569,7 +5853,9 @@
         3.0,
         3.0
       ]
-    }
+    },
+    "elementName": "WarpDrive",
+    "elementId": 2643443936
   },
   "env_window-protection_001_col": {
     "box": {
@@ -5583,7 +5869,9 @@
         0.125,
         1.01358
       ]
-    }
+    },
+    "elementName": "WindowProtectionMedium",
+    "elementId": 2158665549
   },
   "env_window-protection_001_l_col": {
     "box": {
@@ -5597,7 +5885,9 @@
         0.125,
         1.01358
       ]
-    }
+    },
+    "elementName": "WindowProtectionLarge",
+    "elementId": 1804139232
   },
   "env_window-protection_001_s_col": {
     "box": {
@@ -5611,7 +5901,9 @@
         0.125,
         0.5
       ]
-    }
+    },
+    "elementName": "WindowProtectionSmall",
+    "elementId": 3014939922
   },
   "env_window-protection_001_xs_col": {
     "box": {
@@ -5625,7 +5917,9 @@
         0.125,
         0.5
       ]
-    }
+    },
+    "elementName": "WindowProtectionXSmall",
+    "elementId": 515378511
   },
   "env_window_001_col": {
     "box": {
@@ -5639,7 +5933,9 @@
         0.625,
         1.5
       ]
-    }
+    },
+    "elementName": "WindowVeryLarge",
+    "elementId": 1952409967
   },
   "env_window_001_l_col": {
     "box": {
@@ -5653,7 +5949,9 @@
         0.175,
         0.99987
       ]
-    }
+    },
+    "elementName": "WindowLarge",
+    "elementId": 894516284
   },
   "env_window_001_m_col": {
     "box": {
@@ -5667,7 +5965,9 @@
         0.175,
         0.99987
       ]
-    }
+    },
+    "elementName": "WindowMedium",
+    "elementId": 3924941627
   },
   "env_window_001_s_col": {
     "box": {
@@ -5681,7 +5981,9 @@
         0.175,
         0.49993
       ]
-    }
+    },
+    "elementName": "WindowSmall",
+    "elementId": 242448402
   },
   "env_window_001_xs_col": {
     "box": {
@@ -5695,7 +5997,9 @@
         0.175,
         0.49993
       ]
-    }
+    },
+    "elementName": "WindowXSmall",
+    "elementId": 3268459843
   },
   "env_wing-aileron-gold_l_001_col": {
     "box": {
@@ -5709,105 +6013,31 @@
         4.0,
         1.02129
       ]
-    }
-  },
-  "env_wing-aileron-gold_xl_001_col": {
-    "box": {
-      "min": [
-        -12.0,
-        -6.25043,
-        -1.5221
-      ],
-      "max": [
-        12.0,
-        4.0,
-        1.53101
-      ]
-    }
-  },
-  "env_wing-aileron-obsidian_l_001_col": {
-    "box": {
-      "min": [
-        -8.0,
-        -2.83357,
-        -1.01238
-      ],
-      "max": [
-        8.0,
-        4.0,
-        1.02129
-      ]
-    }
-  },
-  "env_wing-aileron-obsidian_xl_001_col": {
-    "box": {
-      "min": [
-        -12.0,
-        -6.25043,
-        -1.5221
-      ],
-      "max": [
-        12.0,
-        4.0,
-        1.53101
-      ]
-    }
-  },
-  "env_wing-aileron-rust_l_001_col": {
-    "box": {
-      "min": [
-        -8.0,
-        -2.83357,
-        -1.01238
-      ],
-      "max": [
-        8.0,
-        4.0,
-        1.02129
-      ]
-    }
-  },
-  "env_wing-aileron-rust_xl_001_col": {
-    "box": {
-      "min": [
-        -12.0,
-        -6.25043,
-        -1.5221
-      ],
-      "max": [
-        12.0,
-        4.0,
-        1.53101
-      ]
-    }
-  },
-  "env_wing-aileron-silver_l_001_col": {
-    "box": {
-      "min": [
-        -8.0,
-        -2.83357,
-        -1.01238
-      ],
-      "max": [
-        8.0,
-        4.0,
-        1.02129
-      ]
-    }
-  },
-  "env_wing-aileron-silver_xl_001_col": {
-    "box": {
-      "min": [
-        -12.0,
-        -6.25043,
-        -1.5221
-      ],
-      "max": [
-        12.0,
-        4.0,
-        1.53101
-      ]
-    }
+    },
+    "elementMappingStatus": "tokenLookup",
+    "lookupToken": "wing",
+    "elementCandidates": [
+      {
+        "name": "WingMedium2",
+        "id": 404188468,
+        "score": 8
+      },
+      {
+        "name": "WingMedium2Bis",
+        "id": 4179758576,
+        "score": 8
+      },
+      {
+        "name": "WingSmall2",
+        "id": 2532454166,
+        "score": 8
+      },
+      {
+        "name": "WingXtraSmall2",
+        "id": 1727614690,
+        "score": 8
+      }
+    ]
   },
   "env_wing-aileron_001_col": {
     "box": {
@@ -5821,7 +6051,9 @@
         0.84781,
         0.25
       ]
-    }
+    },
+    "elementName": "AileronMedium2",
+    "elementId": 2737703104
   },
   "env_wing-aileron_001_l_col": {
     "box": {
@@ -5835,7 +6067,9 @@
         1.69562,
         0.5
       ]
-    }
+    },
+    "elementName": "AileronLarge2",
+    "elementId": 1856288931
   },
   "env_wing-aileron_001_s_col": {
     "box": {
@@ -5849,35 +6083,9 @@
         0.39592,
         0.125
       ]
-    }
-  },
-  "env_wing-aileron_l_001_col": {
-    "box": {
-      "min": [
-        -8.0,
-        -2.83357,
-        -1.01238
-      ],
-      "max": [
-        8.0,
-        4.0,
-        1.02129
-      ]
-    }
-  },
-  "env_wing-aileron_xl_001_col": {
-    "box": {
-      "min": [
-        -12.0,
-        -6.25043,
-        -1.5221
-      ],
-      "max": [
-        12.0,
-        4.0,
-        1.53101
-      ]
-    }
+    },
+    "elementName": "AileronSmall2",
+    "elementId": 2292270972
   },
   "env_wing-aileron_002_col": {
     "box": {
@@ -5891,7 +6099,9 @@
         0.84781,
         0.25
       ]
-    }
+    },
+    "elementName": "AileronShortMedium2",
+    "elementId": 1923840124
   },
   "env_wing-aileron_002_l_col": {
     "box": {
@@ -5905,7 +6115,9 @@
         1.69562,
         0.5
       ]
-    }
+    },
+    "elementName": "AileronShortLarge2",
+    "elementId": 4017253256
   },
   "env_wing-aileron_002_s_col": {
     "box": {
@@ -5919,35 +6131,9 @@
         0.32342,
         0.125
       ]
-    }
-  },
-  "env_wing-aileron_xl_002_col": {
-    "box": {
-      "min": [
-        -4.0,
-        -2.94069,
-        -1.0
-      ],
-      "max": [
-        4.0,
-        4.0,
-        1.0
-      ]
-    }
-  },
-  "env_wing-aileron_xxl_002_col": {
-    "box": {
-      "min": [
-        -8.0,
-        -6.85109,
-        -2.0
-      ],
-      "max": [
-        8.0,
-        7.0,
-        2.0
-      ]
-    }
+    },
+    "elementName": "AileronShortSmall2",
+    "elementId": 2334843027
   },
   "env_wing_001_s_col": {
     "box": {
@@ -5961,7 +6147,9 @@
         2.0564,
         0.26118
       ]
-    }
+    },
+    "elementName": "WingMedium2Bis",
+    "elementId": 4179758576
   },
   "env_wing_002_s_col": {
     "box": {
@@ -5975,7 +6163,9 @@
         1.60521,
         0.24886
       ]
-    }
+    },
+    "elementName": "WingMedium2",
+    "elementId": 404188468
   },
   "env_wing_003_s_col": {
     "box": {
@@ -5989,7 +6179,9 @@
         0.84633,
         0.11048
       ]
-    }
+    },
+    "elementName": "WingSmall2",
+    "elementId": 2532454166
   },
   "env_wing_004_s_col": {
     "box": {
@@ -6003,7 +6195,9 @@
         0.36491,
         0.06642
       ]
-    }
+    },
+    "elementName": "WingXtraSmall2",
+    "elementId": 1727614690
   },
   "env_wing_005_s_col": {
     "box": {
@@ -6017,91 +6211,9 @@
         1.34488,
         1.03419
       ]
-    }
-  },
-  "env_wing_006_s_col": {
-    "box": {
-      "min": [
-        -10.51694,
-        -7.34938,
-        -1.0
-      ],
-      "max": [
-        10.51695,
-        7.33732,
-        1.0
-      ]
-    }
-  },
-  "env_industry-arm_001_col": {
-    "box": {
-      "min": [
-        -1.09003,
-        -0.61771,
-        0.0
-      ],
-      "max": [
-        1.09003,
-        1.51236,
-        2.59658
-      ]
-    }
-  },
-  "env_industry-convoyer-orientable_001_col": {
-    "box": {
-      "min": [
-        -1.0,
-        -2.625,
-        -0.0
-      ],
-      "max": [
-        1.0,
-        3.25926,
-        0.50169
-      ]
-    }
-  },
-  "env_industry-core-cube_001_col": {
-    "box": {
-      "min": [
-        -1.0,
-        -1.625,
-        0.0
-      ],
-      "max": [
-        1.0,
-        1.625,
-        2.5
-      ]
-    }
-  },
-  "env_industry-core-round-side_002_col": {
-    "box": {
-      "min": [
-        -0.84238,
-        -0.37526,
-        0.0
-      ],
-      "max": [
-        0.8432,
-        0.37245,
-        1.50022
-      ]
-    }
-  },
-  "env_industry-tank-double_001_col": {
-    "box": {
-      "min": [
-        -1.44279,
-        -0.49557,
-        -0.01547
-      ],
-      "max": [
-        0.96119,
-        0.86768,
-        2.54234
-      ]
-    }
+    },
+    "elementName": "Adjunct_05",
+    "elementId": 1894947006
   },
   "env_wing-lift-end_001_col": {
     "box": {
@@ -6115,7 +6227,9 @@
         0.25,
         0.4886
       ]
-    }
+    },
+    "elementName": "AdjunctTipMedium",
+    "elementId": 3695530525
   },
   "env_wing-lift-end_001_l_col": {
     "box": {
@@ -6129,7 +6243,9 @@
         0.5,
         0.9772
       ]
-    }
+    },
+    "elementName": "AdjunctTipLarge",
+    "elementId": 3292462663
   },
   "env_wing-lift-end_001_s_col": {
     "box": {
@@ -6143,6 +6259,8 @@
         0.125,
         0.21632
       ]
-    }
+    },
+    "elementName": "AdjunctTipSmall",
+    "elementId": 2429336341
   }
 }
