@@ -1,20 +1,25 @@
 # MeshDump
 
-Extracts axis-aligned bounding boxes (AABB) from Dual Universe game client `.mesh` files and writes the results to a single JSON file.
+Extracts axis-aligned bounding boxes (AABB) from Dual Universe game client collision `.mesh` files (`*_col.mesh`) and writes the results to a single JSON file.
 
 ## How it works
 
-1. Recursively scans the game client's `resources_generated/elements` directory for `.mesh` files.
-2. Reads each file's raw bytes and checks for the Unigine mesh magic header (`ms__`, e.g. `ms11`).
-3. Extracts six IEEE-754 floats immediately after the 4-byte magic: `minX`, `minY`, `minZ`, `maxX`, `maxY`, `maxZ`.
-4. Rounds coordinates to 5 decimal places and stores them keyed by mesh filename (without extension).
-5. Serializes to pretty-printed JSON via `Newtonsoft.Json`.
+1. Resolves the Dual Universe install folder from registry first:
+   - `HKEY_LOCAL_MACHINE\SOFTWARE\Novaquark\DualUniverse\Settings-MYDU`
+   - Value name: `InstallFolder`
+2. Falls back to hardcoded install path (`D:\MyDualUniverse`) if registry lookup is unavailable or fails.
+3. Recursively scans `<InstallFolder>\Game\data\resources_generated\elements` for `.mesh` files.
+4. Filters to collision meshes only (`*_col.mesh`), skipping visual meshes.
+5. Reads each file's raw bytes and checks for the Unigine mesh magic header (`ms__`, e.g. `ms11`).
+6. Extracts six IEEE-754 floats immediately after the 4-byte magic: `minX`, `minY`, `minZ`, `maxX`, `maxY`, `maxZ`.
+7. Rounds coordinates to 5 decimal places and stores them keyed by mesh filename (without extension).
+8. Serializes to pretty-printed JSON via `Newtonsoft.Json`.
 
 ## Output format
 
 ```json
 {
-  "element_name": {
+  "element_name_col": {
     "box": {
       "min": [ x, y, z ],
       "max": [ x, y, z ]
@@ -27,9 +32,9 @@ The output file `all-mesh-boxes.json` in the repository root is a copy of this o
 
 ## Configuration
 
-`searchDir` and `outPath` are currently hardcoded in `MeshDump.cs`. Adjust them before running:
+`fallbackInstallFolder` and `outPath` are currently hardcoded in `MeshDump.cs`. Adjust them before running:
 
-- `searchDir`: path to the game client's `data\resources_generated\elements` directory
+- `fallbackInstallFolder`: fallback DU install path if registry lookup fails
 - `outPath`: where to write the JSON output
 
 ## Usage

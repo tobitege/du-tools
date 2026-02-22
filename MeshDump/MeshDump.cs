@@ -4,24 +4,26 @@
 //
 // Purpose:
 //   Scans the Dual Universe game client's generated element assets and extracts
-//   the axis-aligned bounding box (AABB) from every Unigine .mesh file it finds.
-//   The results are written to a single JSON file that maps each element name to
-//   its { min, max } bounding box coordinates.
+//   the axis-aligned bounding box (AABB) from collision Unigine .mesh files
+//   only (filenames ending with `_col`).
+//   The results are written to a single JSON file that maps each collision mesh
+//   name to its { min, max } bounding box coordinates.
 //
 // How it works:
 //   1. Recursively walks the `resources_generated/elements` directory for all
 //      .mesh files produced by the game client.
-//   2. Reads each file's raw bytes and checks for the Unigine mesh magic header
+//   2. Filters to collision meshes only (`*_col.mesh`) and skips visual meshes.
+//   3. Reads each file's raw bytes and checks for the Unigine mesh magic header
 //      ("ms__", e.g. "ms11").
-//   3. Extracts six IEEE-754 floats immediately after the 4-byte magic that
+//   4. Extracts six IEEE-754 floats immediately after the 4-byte magic that
 //      represent the mesh's AABB: minX, minY, minZ, maxX, maxY, maxZ.
-//   4. Rounds coordinates to 5 decimal places and stores them keyed by the
+//   5. Rounds coordinates to 5 decimal places and stores them keyed by the
 //      mesh filename (without extension).
-//   5. Serialises the dictionary to pretty-printed JSON via Newtonsoft.Json.
+//   6. Serialises the dictionary to pretty-printed JSON via Newtonsoft.Json.
 //
 // Output format (all-mesh-boxes.json):
 //   {
-//     "element_name": {
+//     "element_name_col": {
 //       "box": {
 //         "min": [ x, y, z ],
 //         "max": [ x, y, z ]
@@ -31,7 +33,10 @@
 //   }
 //
 // Usage:
-//   Adjust `searchDir` and `outPath` below, then run with `dotnet run`.
+//   The install folder is resolved from registry first:
+//   HKLM\SOFTWARE\Novaquark\DualUniverse\Settings-MYDU\InstallFolder
+//   If unavailable, it falls back to the hardcoded install folder below.
+//   Then run with `dotnet run`.
 //   The output JSON is consumed by mydu-server-mods for physics / placement
 //   calculations that need accurate element dimensions.
 // ============================================================================
@@ -39,15 +44,54 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
+using Microsoft.Win32;
 using Newtonsoft.Json;
 
 class Program
 {
+    static string ResolveInstallFolder(string fallbackInstallFolder)
+    {
+        const string subKeyPath = @"SOFTWARE\Novaquark\DualUniverse\Settings-MYDU";
+        const string valueName = "InstallFolder";
+
+        if (!OperatingSystem.IsWindows())
+        {
+            Console.WriteLine($"Registry lookup is only supported on Windows. Falling back to: {fallbackInstallFolder}");
+            return fallbackInstallFolder;
+        }
+
+        foreach (var view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
+        {
+            try
+            {
+                using var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view);
+                using var key = baseKey.OpenSubKey(subKeyPath, writable: false);
+                string? installFolder = key?.GetValue(valueName) as string;
+                if (!string.IsNullOrWhiteSpace(installFolder))
+                {
+                    string resolvedFolder = installFolder.Trim();
+                    Console.WriteLine($"Using install folder from registry ({view}): {resolvedFolder}");
+                    return resolvedFolder;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to read install folder from registry ({view}): {ex.Message}");
+            }
+        }
+
+        Console.WriteLine($"Registry install folder unavailable. Falling back to hardcoded path: {fallbackInstallFolder}");
+        return fallbackInstallFolder;
+    }
+
     static void Main(string[] args)
     {
-        // Scanning the entire elements folder for all .mesh files
-        string searchDir = @"D:\MyDualUniverse\Game\data\resources_generated\elements";
-        string outPath = @"D:\github\mydu-server-mods\all-mesh-boxes.json";
+        string fallbackInstallFolder = @"D:\MyDualUniverse";
+        string installFolder = ResolveInstallFolder(fallbackInstallFolder);
+
+        // Scan the elements folder and keep only collision meshes (`*_col.mesh`)
+        string searchDir = Path.Combine(installFolder, "Game", "data", "resources_generated", "elements");
+        string outPath = @"D:\github\du-tobi\all-mesh-boxes.json";
 
         var result = new Dictionary<string, object>();
 
@@ -60,6 +104,12 @@ class Program
             {
                 try
                 {
+                    string key = Path.GetFileNameWithoutExtension(f);
+                    if (!key.EndsWith("_col", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
                     byte[] data = File.ReadAllBytes(f);
                     if (data.Length > 28)
                     {
@@ -73,8 +123,6 @@ class Program
                             float maxX = BitConverter.ToSingle(data, 16);
                             float maxY = BitConverter.ToSingle(data, 20);
                             float maxZ = BitConverter.ToSingle(data, 24);
-
-                            string key = Path.GetFileNameWithoutExtension(f);
 
                             result[key] = new {
                                 box = new {
@@ -101,7 +149,7 @@ class Program
 
             string json = JsonConvert.SerializeObject(result, Formatting.Indented);
             File.WriteAllText(outPath, json);
-            Console.WriteLine($"Successfully wrote {result.Count} mesh bounds to {outPath}");
+            Console.WriteLine($"Successfully wrote {result.Count} collision mesh bounds to {outPath}");
         }
         else
         {
