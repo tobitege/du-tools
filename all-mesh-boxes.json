@@ -1380,15 +1380,23 @@
         0.5
       ]
     },
-    "elementMappingStatus": "ambiguous",
-    "elementCandidates": [
-      {
-        "name": "CoreUnitDynamic64",
-        "id": 183890525
-      },
+    "elementMappingStatus": "coreEquivalent",
+    "equivalenceRule": "coreUnitSameSize",
+    "elementName": "CoreUnitStatic64",
+    "elementId": 2738359893,
+    "coreSize": 64,
+    "equivalentElementCandidates": [
       {
         "name": "CoreUnitStatic64",
-        "id": 2738359893
+        "id": 2738359893,
+        "variant": "Static",
+        "coreSize": 64
+      },
+      {
+        "name": "CoreUnitDynamic64",
+        "id": 183890525,
+        "variant": "Dynamic",
+        "coreSize": 64
       }
     ]
   },
@@ -2801,7 +2809,30 @@
       ]
     },
     "elementName": "Industry3DPrinter",
-    "elementId": 409410678
+    "elementId": 409410678,
+    "equivalenceRule": "industryTierSameMachineSize",
+    "equivalentElementCandidates": [
+      {
+        "name": "Industry3DPrinter",
+        "id": 409410678,
+        "size": "M"
+      },
+      {
+        "name": "Industry3DPrinter2",
+        "id": 2793358078,
+        "size": "M"
+      },
+      {
+        "name": "Industry3DPrinter3",
+        "id": 2793358079,
+        "size": "M"
+      },
+      {
+        "name": "Industry3DPrinter4",
+        "id": 2793358076,
+        "size": "M"
+      }
+    ]
   },
   "env_industry-assembly_001_col": {
     "box": {
@@ -2817,7 +2848,30 @@
       ]
     },
     "elementName": "IndustryAssemblyM",
-    "elementId": 983225808
+    "elementId": 983225808,
+    "equivalenceRule": "industryTierSameMachineSize",
+    "equivalentElementCandidates": [
+      {
+        "name": "IndustryAssemblyM",
+        "id": 983225808,
+        "size": "M"
+      },
+      {
+        "name": "IndustryAssemblyM2",
+        "id": 1762227855,
+        "size": "M"
+      },
+      {
+        "name": "IndustryAssemblyM3",
+        "id": 1762227888,
+        "size": "M"
+      },
+      {
+        "name": "IndustryAssemblyM4",
+        "id": 1762227889,
+        "size": "M"
+      }
+    ]
   },
   "env_industry-assembly_001_l_col": {
     "box": {
@@ -2833,7 +2887,30 @@
       ]
     },
     "elementName": "IndustryAssemblyL",
-    "elementId": 983225811
+    "elementId": 983225811,
+    "equivalenceRule": "industryTierSameMachineSize",
+    "equivalentElementCandidates": [
+      {
+        "name": "IndustryAssemblyL",
+        "id": 983225811,
+        "size": "L"
+      },
+      {
+        "name": "IndustryAssemblyL2",
+        "id": 1762226636,
+        "size": "L"
+      },
+      {
+        "name": "IndustryAssemblyL3",
+        "id": 1762226675,
+        "size": "L"
+      },
+      {
+        "name": "IndustryAssemblyL4",
+        "id": 1762226674,
+        "size": "L"
+      }
+    ]
   },
   "env_industry-assembly_001_s_col": {
     "box": {
@@ -2849,7 +2926,30 @@
       ]
     },
     "elementName": "IndustryAssemblyS",
-    "elementId": 983225818
+    "elementId": 983225818,
+    "equivalenceRule": "industryTierSameMachineSize",
+    "equivalentElementCandidates": [
+      {
+        "name": "IndustryAssemblyS",
+        "id": 983225818,
+        "size": "S"
+      },
+      {
+        "name": "IndustryAssemblyS2",
+        "id": 1762226235,
+        "size": "S"
+      },
+      {
+        "name": "IndustryAssemblyS3",
+        "id": 1762226232,
+        "size": "S"
+      },
+      {
+        "name": "IndustryAssemblyS4",
+        "id": 1762226233,
+        "size": "S"
+      }
+    ]
   },
   "env_industry-assembly_001_xl_col": {
     "box": {
@@ -2865,7 +2965,30 @@
       ]
     },
     "elementName": "IndustryAssemblyXL",
-    "elementId": 1762226819
+    "elementId": 1762226819,
+    "equivalenceRule": "industryTierSameMachineSize",
+    "equivalentElementCandidates": [
+      {
+        "name": "IndustryAssemblyXL",
+        "id": 1762226819,
+        "size": "XL"
+      },
+      {
+        "name": "IndustryAssemblyXL2",
+        "id": 2480866760,
+        "size": "XL"
+      },
+      {
+        "name": "IndustryAssemblyXL3",
+        "id": 2480866767,
+        "size": "XL"
+      },
+      {
+        "name": "IndustryAssemblyXL4",
+        "id": 2480866766,
+        "size": "XL"
+      }
+    ]
   },
   "env_industry-assembly_001_xs_col": {
     "box": {
@@ -2881,7 +3004,30 @@
       ]
     },
     "elementName": "IndustryAssemblyXS",
-    "elementId": 1762226876
+    "elementId": 1762226876,
+    "equivalenceRule": "industryTierSameMachineSize",
+    "equivalentElementCandidates": [
+      {
+        "name": "IndustryAssemblyXS",
+        "id": 1762226876,
+        "size": "XS"
+      },
+      {
+        "name": "IndustryAssemblyXS2",
+        "id": 2480928550,
+        "size": "XS"
+      },
+      {
+        "name": "IndustryAssemblyXS3",
+        "id": 2480928551,
+        "size": "XS"
+      },
+      {
+        "name": "IndustryAssemblyXS4",
+        "id": 2480928544,
+        "size": "XS"
+      }
+    ]
   },
   "env_industry-chemical_001_col": {
     "box": {
@@ -2897,7 +3043,30 @@
       ]
     },
     "elementName": "IndustryChemical",
-    "elementId": 2681009434
+    "elementId": 2681009434,
+    "equivalenceRule": "industryTierSameMachineSize",
+    "equivalentElementCandidates": [
+      {
+        "name": "IndustryChemical",
+        "id": 2681009434,
+        "size": "M"
+      },
+      {
+        "name": "IndustryChemical2",
+        "id": 648743083,
+        "size": "M"
+      },
+      {
+        "name": "IndustryChemical3",
+        "id": 648743080,
+        "size": "M"
+      },
+      {
+        "name": "IndustryChemical4",
+        "id": 648743081,
+        "size": "M"
+      }
+    ]
   },
   "env_industry-electronics_001_col": {
     "box": {
@@ -2913,7 +3082,30 @@
       ]
     },
     "elementName": "IndustryElectronics",
-    "elementId": 2702446443
+    "elementId": 2702446443,
+    "equivalenceRule": "industryTierSameMachineSize",
+    "equivalentElementCandidates": [
+      {
+        "name": "IndustryElectronics",
+        "id": 2702446443,
+        "size": "M"
+      },
+      {
+        "name": "IndustryElectronics2",
+        "id": 2861848558,
+        "size": "M"
+      },
+      {
+        "name": "IndustryElectronics3",
+        "id": 2861848557,
+        "size": "M"
+      },
+      {
+        "name": "IndustryElectronics4",
+        "id": 2861848556,
+        "size": "M"
+      }
+    ]
   },
   "env_industry-glass_001_col": {
     "box": {
@@ -2929,7 +3121,30 @@
       ]
     },
     "elementName": "IndustryGlass",
-    "elementId": 1215026169
+    "elementId": 1215026169,
+    "equivalenceRule": "industryTierSameMachineSize",
+    "equivalentElementCandidates": [
+      {
+        "name": "IndustryGlass",
+        "id": 1215026169,
+        "size": "M"
+      },
+      {
+        "name": "IndustryGlass2",
+        "id": 2200747728,
+        "size": "M"
+      },
+      {
+        "name": "IndustryGlass3",
+        "id": 2200747731,
+        "size": "M"
+      },
+      {
+        "name": "IndustryGlass4",
+        "id": 2200747730,
+        "size": "M"
+      }
+    ]
   },
   "env_industry-honeycomber_001_col": {
     "box": {
@@ -2945,7 +3160,30 @@
       ]
     },
     "elementName": "IndustryHoneycomber",
-    "elementId": 3857150880
+    "elementId": 3857150880,
+    "equivalenceRule": "industryTierSameMachineSize",
+    "equivalentElementCandidates": [
+      {
+        "name": "IndustryHoneycomber",
+        "id": 3857150880,
+        "size": "M"
+      },
+      {
+        "name": "IndustryHoneycomber2",
+        "id": 3026799987,
+        "size": "M"
+      },
+      {
+        "name": "IndustryHoneycomber3",
+        "id": 3026799988,
+        "size": "M"
+      },
+      {
+        "name": "IndustryHoneycomber4",
+        "id": 3026799989,
+        "size": "M"
+      }
+    ]
   },
   "env_industry-metalwork_001_col": {
     "box": {
@@ -2961,7 +3199,30 @@
       ]
     },
     "elementName": "IndustryMetalwork",
-    "elementId": 2022563937
+    "elementId": 2022563937,
+    "equivalenceRule": "industryTierSameMachineSize",
+    "equivalentElementCandidates": [
+      {
+        "name": "IndustryMetalwork",
+        "id": 2022563937,
+        "size": "M"
+      },
+      {
+        "name": "IndustryMetalwork2",
+        "id": 2808015394,
+        "size": "M"
+      },
+      {
+        "name": "IndustryMetalwork3",
+        "id": 2808015397,
+        "size": "M"
+      },
+      {
+        "name": "IndustryMetalwork4",
+        "id": 2808015396,
+        "size": "M"
+      }
+    ]
   },
   "env_industry-recycler_001_col": {
     "box": {
@@ -2977,7 +3238,30 @@
       ]
     },
     "elementName": "IndustryRecycler",
-    "elementId": 3914155468
+    "elementId": 3914155468,
+    "equivalenceRule": "industryTierSameMachineSize",
+    "equivalentElementCandidates": [
+      {
+        "name": "IndustryRecycler",
+        "id": 3914155468,
+        "size": "M"
+      },
+      {
+        "name": "IndustryRecycler2",
+        "id": 3264314258,
+        "size": "M"
+      },
+      {
+        "name": "IndustryRecycler3",
+        "id": 3264314259,
+        "size": "M"
+      },
+      {
+        "name": "IndustryRecycler4",
+        "id": 3264314284,
+        "size": "M"
+      }
+    ]
   },
   "env_industry-refiner_001_col": {
     "box": {
@@ -2993,7 +3277,30 @@
       ]
     },
     "elementName": "IndustryRefiner",
-    "elementId": 3701755071
+    "elementId": 3701755071,
+    "equivalenceRule": "industryTierSameMachineSize",
+    "equivalentElementCandidates": [
+      {
+        "name": "IndustryRefiner",
+        "id": 3701755071,
+        "size": "M"
+      },
+      {
+        "name": "IndustryRefiner2",
+        "id": 584577125,
+        "size": "M"
+      },
+      {
+        "name": "IndustryRefiner3",
+        "id": 584577124,
+        "size": "M"
+      },
+      {
+        "name": "IndustryRefiner4",
+        "id": 584577123,
+        "size": "M"
+      }
+    ]
   },
   "env_industry-smelter_002_col": {
     "box": {
@@ -3009,7 +3316,30 @@
       ]
     },
     "elementName": "IndustrySmelter",
-    "elementId": 2556123438
+    "elementId": 2556123438,
+    "equivalenceRule": "industryTierSameMachineSize",
+    "equivalentElementCandidates": [
+      {
+        "name": "IndustrySmelter",
+        "id": 2556123438,
+        "size": "M"
+      },
+      {
+        "name": "IndustrySmelter2",
+        "id": 1132446360,
+        "size": "M"
+      },
+      {
+        "name": "IndustrySmelter3",
+        "id": 1132446361,
+        "size": "M"
+      },
+      {
+        "name": "IndustrySmelter4",
+        "id": 1132446358,
+        "size": "M"
+      }
+    ]
   },
   "env_industry-transfer-unit_001_col": {
     "box": {

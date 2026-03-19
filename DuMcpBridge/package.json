@@ -1,0 +1,22 @@
+{
+  "name": "du-mcp-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bidirectional MCP bridge for Dual Universe editor and board workflows",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "dev": "node --enable-source-maps --loader ts-node/esm src/server.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.5",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.14",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2"
+  }
+}

@@ -524,6 +524,10 @@ fn discover_sources(root: &Path) -> Vec<SourceSummary> {
         ("logs".to_string(), root.join("logs")),
         ("stacklogs".to_string(), root.join("stacklogs")),
         ("flight-logs".to_string(), root.join("flight-logs")),
+        (
+            "ui-mcp-bridge".to_string(),
+            root.join("tmp\\ui-dumps\\mcp-bridge\\events"),
+        ),
         ("kafka".to_string(), root.join("kafka_2.13-3.8.0\\logs")),
         ("nginx".to_string(), root.join("nginx-1.27.1\\logs")),
         (

@@ -353,6 +353,17 @@ Mode note:
 - Default behavior is live-tail mode: existing NDJSON content is ignored on startup, and only new packets are processed.
 - Use `-ReplayFromStart` only for replay/backfill scenarios (for example tests that pre-seed NDJSON before watcher startup).
 
+## DuMcpBridge integration (MCP file bus)
+
+`DuMcpBridge` drops JSON commands under `tmp\ui-dumps\mcp-bridge\commands\`. This mod watches that folder, runs the command in the player HUD client, and appends structured lines to `tmp\ui-dumps\mcp-bridge\events\bridge-events.ndjson`.
+
+For `action: "probe_call"`, the Lua runtime probe (`payload/lua-editor-probe.modules/035-lua-mcp-runtime.js`, loaded via the usual Lua probe injection) handles the live editor. The mod maps `lua_mcp_result` packets to bridge events:
+
+- `command_result` — dispatch / injection acknowledgement
+- `probe_result` — `method`, `success`, `result`, `error`
+
+Supported probe methods: `describe`, `select_slot`, `select_filter`, `set_code`, `apply`. MCP-side entry point and example payloads: `DuMcpBridge/README.md` (`du_lua_probe_call`).
+
 ## Local Lua Editor Rig (No Game Client)
 
 Use this when iterating on Lua probe + IDE sync without launching the game.

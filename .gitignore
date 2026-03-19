@@ -237,3 +237,5 @@ ui-extractions/*
 !ui-extractions/README.md
 !ui-extractions/tools/
 !ui-extractions/tools/**
+**/node_modules
+/devlogs

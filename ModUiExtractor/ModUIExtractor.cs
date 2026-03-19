@@ -45,6 +45,11 @@ public sealed class MyDuMod : IMod
     private const string RuntimeLuaProbeModulesManifestFileName = "manifest.txt";
     private const string DefaultTargetStylesheetHref = "coui://data/gui/hud/dpu_editor/css/dpu_editor.css";
     private const string TargetStylesheetFileName = "target-stylesheet-url.txt";
+    private const string McpBridgeDirectoryName = "mcp-bridge";
+    private const string McpBridgeCommandsDirectoryName = "commands";
+    private const string McpBridgeEventsDirectoryName = "events";
+    private const string McpBridgeStateDirectoryName = "state";
+    private const string McpBridgeProcessedCommandsDirectoryName = "processed-commands";
 
     private IClusterClient orleans = null!;
     private IPub pub = null!;
@@ -56,6 +61,11 @@ public sealed class MyDuMod : IMod
     private string runtimeLuaProbePayloadPath = "";
     private string runtimeLuaProbeModulesDirectoryPath = "";
     private string runtimeLuaProbeModulesManifestPath = "";
+    private string mcpBridgeRootDirectory = "";
+    private string mcpBridgeCommandsDirectory = "";
+    private string mcpBridgeEventsDirectory = "";
+    private string mcpBridgeStateDirectory = "";
+    private string mcpBridgeProcessedCommandsDirectory = "";
     private string payloadJs = "";
     private string luaProbeJs = "";
     private readonly ConcurrentDictionary<string, object> dumpFileLocks = new();
@@ -66,6 +76,7 @@ public sealed class MyDuMod : IMod
     }
 
     private Task? ideImportTask;
+    private Task? mcpBridgeCommandTask;
 
     public Task Initialize(IServiceProvider isp)
     {
@@ -92,7 +103,16 @@ public sealed class MyDuMod : IMod
         runtimeLuaProbePayloadPath = Path.Combine(payloadOverridesDirectory, RuntimeLuaProbePayloadFileName);
         runtimeLuaProbeModulesDirectoryPath = Path.Combine(payloadOverridesDirectory, RuntimeLuaProbeModulesDirectoryName);
         runtimeLuaProbeModulesManifestPath = Path.Combine(runtimeLuaProbeModulesDirectoryPath, RuntimeLuaProbeModulesManifestFileName);
+        mcpBridgeRootDirectory = Path.Combine(outputDirectory, McpBridgeDirectoryName);
+        mcpBridgeCommandsDirectory = Path.Combine(mcpBridgeRootDirectory, McpBridgeCommandsDirectoryName);
+        mcpBridgeEventsDirectory = Path.Combine(mcpBridgeRootDirectory, McpBridgeEventsDirectoryName);
+        mcpBridgeStateDirectory = Path.Combine(mcpBridgeRootDirectory, McpBridgeStateDirectoryName);
+        mcpBridgeProcessedCommandsDirectory = Path.Combine(mcpBridgeStateDirectory, McpBridgeProcessedCommandsDirectoryName);
         Directory.CreateDirectory(runtimeLuaProbeModulesDirectoryPath);
+        Directory.CreateDirectory(mcpBridgeCommandsDirectory);
+        Directory.CreateDirectory(mcpBridgeEventsDirectory);
+        Directory.CreateDirectory(mcpBridgeStateDirectory);
+        Directory.CreateDirectory(mcpBridgeProcessedCommandsDirectory);
         EnsureTargetStylesheetFile();
 
         payloadJs = LoadEmbeddedScriptSafe(EmbeddedPayloadResourceName, "extractor payload");
@@ -116,7 +136,7 @@ public sealed class MyDuMod : IMod
         }
 
         logger.LogInformation(
-            "UIExtractor initialized. Payload bytes={PayloadSize}, LuaProbe bytes={LuaProbeSize}, output={OutputDirectory}, overrides={OverridesDir}, extractorOverride={ExtractorOverridePath}, luaProbeOverride={LuaProbeOverridePath}, luaProbeModulesDir={LuaProbeModulesDir}, luaProbeModulesManifest={LuaProbeModulesManifest}, targetStylesheetFile={TargetStylesheetFile}",
+            "UIExtractor initialized. Payload bytes={PayloadSize}, LuaProbe bytes={LuaProbeSize}, output={OutputDirectory}, overrides={OverridesDir}, extractorOverride={ExtractorOverridePath}, luaProbeOverride={LuaProbeOverridePath}, luaProbeModulesDir={LuaProbeModulesDir}, luaProbeModulesManifest={LuaProbeModulesManifest}, targetStylesheetFile={TargetStylesheetFile}, mcpBridgeRoot={McpBridgeRoot}, mcpBridgeCommands={McpBridgeCommands}, mcpBridgeEvents={McpBridgeEvents}",
             payloadJs.Length,
             luaProbeJs.Length,
             outputDirectory,
@@ -125,9 +145,13 @@ public sealed class MyDuMod : IMod
             runtimeLuaProbePayloadPath,
             runtimeLuaProbeModulesDirectoryPath,
             runtimeLuaProbeModulesManifestPath,
-            targetStylesheetFilePath);
+            targetStylesheetFilePath,
+            mcpBridgeRootDirectory,
+            mcpBridgeCommandsDirectory,
+            mcpBridgeEventsDirectory);
 
         ideImportTask = Task.Run(WatchIdeImportFile);
+        mcpBridgeCommandTask = Task.Run(WatchMcpBridgeCommands);
 
         return Task.CompletedTask;
     }
@@ -174,6 +198,349 @@ public sealed class MyDuMod : IMod
                 // Ignore transient read errors
             }
         }
+    }
+
+    private async Task WatchMcpBridgeCommands()
+    {
+        while (true)
+        {
+            try
+            {
+                await Task.Delay(500);
+
+                if (!Directory.Exists(mcpBridgeCommandsDirectory))
+                {
+                    continue;
+                }
+
+                foreach (var commandPath in Directory.GetFiles(mcpBridgeCommandsDirectory, "*.json").OrderBy(static p => p, StringComparer.OrdinalIgnoreCase))
+                {
+                    await ProcessMcpBridgeCommandFile(commandPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "UIExtractor MCP bridge command watcher tick failed");
+            }
+        }
+    }
+
+    private async Task ProcessMcpBridgeCommandFile(string commandPath)
+    {
+        var commandId = Path.GetFileNameWithoutExtension(commandPath);
+        ulong? playerId = null;
+        var targetKind = "bridge";
+        string? boardId = null;
+
+        try
+        {
+            var raw = await File.ReadAllTextAsync(commandPath, Encoding.UTF8);
+            var command = JObject.Parse(raw);
+
+            commandId = command["commandId"]?.Value<string>() ?? commandId;
+            if (command.TryGetValue("playerId", out var playerIdToken) && playerIdToken.Type != JTokenType.Null)
+            {
+                playerId = playerIdToken.Value<ulong>();
+            }
+
+            targetKind = command.SelectToken("target.kind")?.Value<string>()?.Trim() ?? "bridge";
+            boardId = command.SelectToken("target.boardId")?.Value<string>();
+            var action = command["action"]?.Value<string>()?.Trim() ?? "";
+            var payload = command["payload"] as JObject ?? new JObject();
+
+            if (!playerId.HasValue || playerId.Value == 0)
+            {
+                await AppendMcpBridgeEvent(
+                    targetKind,
+                    "command_result",
+                    null,
+                    new JObject
+                    {
+                        ["commandId"] = commandId,
+                        ["status"] = "rejected",
+                        ["reason"] = "missing_player_id"
+                    },
+                    boardId);
+
+                MoveMcpBridgeCommandToProcessed(commandPath, commandId);
+                return;
+            }
+
+            if (!TryBuildMcpBridgeCommandScript(commandId, targetKind, action, payload, out var injectCode, out var summary, out var status, out var details))
+            {
+                await AppendMcpBridgeEvent(
+                    targetKind,
+                    "command_result",
+                    playerId,
+                    new JObject
+                    {
+                        ["commandId"] = commandId,
+                        ["status"] = status,
+                        ["reason"] = details ?? "unsupported_command",
+                        ["action"] = action
+                    },
+                    boardId);
+
+                MoveMcpBridgeCommandToProcessed(commandPath, commandId);
+                return;
+            }
+
+            var injected = await InjectJavaScript(
+                playerId.Value,
+                injectCode,
+                $"mcp-bridge:{targetKind}:{action}",
+                notifyMessage: null,
+                notifyPlayer: false);
+
+            await AppendMcpBridgeEvent(
+                targetKind,
+                "command_result",
+                playerId,
+                new JObject
+                {
+                    ["commandId"] = commandId,
+                    ["status"] = injected ? "injected" : "inject_failed",
+                    ["action"] = action,
+                    ["summary"] = summary
+                },
+                boardId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "UIExtractor failed to process MCP bridge command file {CommandPath}", commandPath);
+
+            await AppendMcpBridgeEvent(
+                targetKind,
+                "command_result",
+                playerId,
+                new JObject
+                {
+                    ["commandId"] = commandId,
+                    ["status"] = "processing_failed",
+                    ["reason"] = ex.Message
+                },
+                boardId);
+        }
+        finally
+        {
+            MoveMcpBridgeCommandToProcessed(commandPath, commandId);
+        }
+    }
+
+    private void MoveMcpBridgeCommandToProcessed(string commandPath, string commandId)
+    {
+        try
+        {
+            if (!File.Exists(commandPath))
+            {
+                return;
+            }
+
+            Directory.CreateDirectory(mcpBridgeProcessedCommandsDirectory);
+            var processedFileName = Path.GetFileName(commandPath);
+            var processedPath = Path.Combine(mcpBridgeProcessedCommandsDirectory, processedFileName);
+            if (File.Exists(processedPath))
+            {
+                processedPath = Path.Combine(
+                    mcpBridgeProcessedCommandsDirectory,
+                    DateTime.UtcNow.ToString("yyyyMMdd-HHmmssfff") + "-" + processedFileName);
+            }
+
+            File.Move(commandPath, processedPath, true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "UIExtractor failed to move processed MCP bridge command {CommandId}", commandId);
+        }
+    }
+
+    private bool TryBuildMcpBridgeCommandScript(
+        string commandId,
+        string targetKind,
+        string action,
+        JObject payload,
+        out string injectCode,
+        out string summary,
+        out string status,
+        out string? details)
+    {
+        injectCode = "";
+        summary = "";
+        status = "unsupported_command";
+        details = null;
+
+        if (string.Equals(targetKind, "lua_editor", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.Equals(action, "set_code", StringComparison.OrdinalIgnoreCase))
+            {
+                var code = payload["code"]?.Value<string>();
+                if (code is null)
+                {
+                    status = "rejected";
+                    details = "missing_code";
+                    return false;
+                }
+
+                var save = payload["save"]?.Value<bool>() ?? false;
+                var escapedCode = Newtonsoft.Json.JsonConvert.SerializeObject(code);
+                var saveLiteral = save ? "true" : "false";
+                injectCode =
+                    "(function(){" +
+                    "var code=" + escapedCode + ";" +
+                    "var applied=false;" +
+                    "if(window.__UI_EXTRACTOR_LUA_PROBE_STATE__&&typeof window.__UI_EXTRACTOR_LUA_PROBE_STATE__.applyIdeCode==='function'){" +
+                    "window.__UI_EXTRACTOR_LUA_PROBE_STATE__.applyIdeCode(code);" +
+                    "applied=true;" +
+                    "}else if(window.LUAEditorManager&&typeof LUAEditorManager.getLuaEditor==='function'){" +
+                    "var cm=LUAEditorManager.getLuaEditor();" +
+                    "if(cm&&typeof cm.setValue==='function'){cm.setValue(code);applied=true;}" +
+                    "}" +
+                    "if(applied&&" + saveLiteral + "&&window.LUAEditorManager&&typeof LUAEditorManager.apply==='function'){LUAEditorManager.apply();}" +
+                    "})();";
+                summary = save ? "lua_editor set_code + save" : "lua_editor set_code";
+                status = "ok";
+                return true;
+            }
+
+            if (string.Equals(action, "save", StringComparison.OrdinalIgnoreCase))
+            {
+                injectCode =
+                    "(function(){" +
+                    "if(window.LUAEditorManager&&typeof LUAEditorManager.apply==='function'){LUAEditorManager.apply();}" +
+                    "})();";
+                summary = "lua_editor save";
+                status = "ok";
+                return true;
+            }
+
+            if (string.Equals(action, "probe_call", StringComparison.OrdinalIgnoreCase))
+            {
+                var probeMethod = payload["probeMethod"]?.Value<string>()?.Trim();
+                var probeArgsToken = payload["probeArgs"] as JArray ?? new JArray();
+                if (string.IsNullOrWhiteSpace(probeMethod))
+                {
+                    status = "rejected";
+                    details = "missing_probe_method";
+                    return false;
+                }
+
+                var escapedCommandId = Newtonsoft.Json.JsonConvert.SerializeObject(commandId);
+                var escapedProbeMethod = Newtonsoft.Json.JsonConvert.SerializeObject(probeMethod);
+                var escapedProbeArgs = probeArgsToken.ToString(Newtonsoft.Json.Formatting.None);
+                injectCode =
+                    "(function(){" +
+                    "var probe=window.__UI_EXTRACTOR_LUA_PROBE_STATE__;" +
+                    "if(!probe){return;}" +
+                    "var commandId=" + escapedCommandId + ";" +
+                    "var method=" + escapedProbeMethod + ";" +
+                    "var args=" + escapedProbeArgs + ";" +
+                    "if(probe.mcp&&typeof probe.mcp.invoke==='function'){probe.mcp.invoke(commandId,method,args);return;}" +
+                    "if(typeof probe.invokeMcpCommand==='function'){probe.invokeMcpCommand(commandId,method,args);}" +
+                    "})();";
+                summary = "lua_editor probe_call " + probeMethod;
+                status = "ok";
+                return true;
+            }
+        }
+
+        if (string.Equals(targetKind, "screen_editor", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.Equals(action, "set_code", StringComparison.OrdinalIgnoreCase))
+            {
+                var code = payload["code"]?.Value<string>();
+                if (code is null)
+                {
+                    status = "rejected";
+                    details = "missing_code";
+                    return false;
+                }
+
+                var save = payload["save"]?.Value<bool>() ?? false;
+                var isHtmlMode = payload["isHtmlMode"]?.Value<bool?>();
+                var waitForEditor = payload["waitForEditor"]?.Value<bool>() ?? false;
+                var maxAttempts = payload["maxAttempts"]?.Value<int?>() ?? 10;
+                var retryDelayMs = payload["retryDelayMs"]?.Value<int?>() ?? 2000;
+                maxAttempts = Math.Max(1, Math.Min(120, maxAttempts));
+                retryDelayMs = Math.Max(50, Math.Min(10000, retryDelayMs));
+                var escapedCode = Newtonsoft.Json.JsonConvert.SerializeObject(code);
+                var saveLiteral = save ? "true" : "false";
+                var htmlModeLiteral = isHtmlMode.HasValue ? (isHtmlMode.Value ? "true" : "false") : "null";
+                var waitLiteral = waitForEditor ? "true" : "false";
+                injectCode =
+                    "(function(){" +
+                    "var code=" + escapedCode + ";" +
+                    "var modeValue=" + htmlModeLiteral + ";" +
+                    "var waitForEditor=" + waitLiteral + ";" +
+                    "var maxAttempts=" + maxAttempts + ";" +
+                    "var retryDelayMs=" + retryDelayMs + ";" +
+                    "var attempt=0;" +
+                    "var applyToPanel=function(){" +
+                    "var panel=window.screenContentEditorPanel;" +
+                    "if(panel&&panel.textEditor){" +
+                    "if(typeof modeValue==='boolean'&&panel.HTMLNodes&&panel.HTMLNodes.isHTMLModeCheckbox){" +
+                    "panel.HTMLNodes.isHTMLModeCheckbox.checked=modeValue;" +
+                    "if(typeof panel._onSwitchMode==='function'){panel._onSwitchMode();}" +
+                    "}" +
+                    "panel.textEditor.value=code;" +
+                    "if(typeof panel._onCodeChange==='function'){panel._onCodeChange();}" +
+                    "if(" + saveLiteral + "&&window.CPPScreenContentEditor&&typeof CPPScreenContentEditor.save==='function'){" +
+                    "CPPScreenContentEditor.save(panel.textEditor.value,panel.isInHTMLMode);" +
+                    "if(typeof CPPScreenContentEditor.close==='function'){CPPScreenContentEditor.close();}" +
+                    "}" +
+                    "return;" +
+                    "}" +
+                    "attempt+=1;" +
+                    "if(waitForEditor&&attempt<maxAttempts&&typeof window.setTimeout==='function'){" +
+                    "window.setTimeout(applyToPanel,retryDelayMs);" +
+                    "}" +
+                    "};" +
+                    "applyToPanel();" +
+                    "})();";
+                summary = save
+                    ? (waitForEditor ? "screen_editor set_code + save + wait" : "screen_editor set_code + save")
+                    : (waitForEditor ? "screen_editor set_code + wait" : "screen_editor set_code");
+                status = "ok";
+                return true;
+            }
+
+            if (string.Equals(action, "save", StringComparison.OrdinalIgnoreCase))
+            {
+                var waitForEditor = payload["waitForEditor"]?.Value<bool>() ?? false;
+                var maxAttempts = payload["maxAttempts"]?.Value<int?>() ?? 10;
+                var retryDelayMs = payload["retryDelayMs"]?.Value<int?>() ?? 2000;
+                maxAttempts = Math.Max(1, Math.Min(120, maxAttempts));
+                retryDelayMs = Math.Max(50, Math.Min(10000, retryDelayMs));
+                var waitLiteral = waitForEditor ? "true" : "false";
+                injectCode =
+                    "(function(){" +
+                    "var waitForEditor=" + waitLiteral + ";" +
+                    "var maxAttempts=" + maxAttempts + ";" +
+                    "var retryDelayMs=" + retryDelayMs + ";" +
+                    "var attempt=0;" +
+                    "var savePanel=function(){" +
+                    "var panel=window.screenContentEditorPanel;" +
+                    "if(panel&&panel.textEditor){" +
+                    "if(window.CPPScreenContentEditor&&typeof CPPScreenContentEditor.save==='function'){" +
+                    "CPPScreenContentEditor.save(panel.textEditor.value,panel.isInHTMLMode);" +
+                    "if(typeof CPPScreenContentEditor.close==='function'){CPPScreenContentEditor.close();}" +
+                    "}" +
+                    "return;" +
+                    "}" +
+                    "attempt+=1;" +
+                    "if(waitForEditor&&attempt<maxAttempts&&typeof window.setTimeout==='function'){" +
+                    "window.setTimeout(savePanel,retryDelayMs);" +
+                    "}" +
+                    "};" +
+                    "savePanel();" +
+                    "})();";
+                summary = waitForEditor ? "screen_editor save + wait" : "screen_editor save";
+                status = "ok";
+                return true;
+            }
+        }
+
+        details = "unsupported_target_or_action";
+        return false;
     }
 
     public Task<ModInfo> GetModInfoFor(ulong playerId, bool admin)
@@ -439,7 +806,7 @@ public sealed class MyDuMod : IMod
         return script.Contains(quotedMode, StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task InjectJavaScript(ulong playerId, string injectCode, string modeTag, string notifyMessage)
+    private async Task<bool> InjectJavaScript(ulong playerId, string injectCode, string modeTag, string? notifyMessage = null, bool notifyPlayer = true)
     {
         try
         {
@@ -458,13 +825,61 @@ public sealed class MyDuMod : IMod
                 modeTag,
                 injectCode.Length);
 
-            await Notify(playerId, notifyMessage);
+            if (notifyPlayer && !string.IsNullOrWhiteSpace(notifyMessage))
+            {
+                await Notify(playerId, notifyMessage);
+            }
+
+            return true;
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "UIExtractor injection failed for player {PlayerId}", playerId);
-            await Notify(playerId, "UI injection failed. Check Orleans logs.");
+            if (notifyPlayer)
+            {
+                await Notify(playerId, "UI injection failed. Check Orleans logs.");
+            }
+
+            return false;
         }
+    }
+
+    private Task AppendMcpBridgeEvent(string sourceKind, string eventType, ulong? playerId, JObject payload, string? boardId = null)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(mcpBridgeEventsDirectory))
+            {
+                return Task.CompletedTask;
+            }
+
+            var eventPath = Path.Combine(mcpBridgeEventsDirectory, "bridge-events.ndjson");
+            var line = new JObject
+            {
+                ["eventId"] = Guid.NewGuid().ToString("N"),
+                ["createdAtUtc"] = DateTime.UtcNow.ToString("O"),
+                ["playerId"] = playerId.HasValue ? JToken.FromObject(playerId.Value) : JValue.CreateNull(),
+                ["source"] = new JObject
+                {
+                    ["kind"] = sourceKind,
+                    ["boardId"] = boardId is null ? JValue.CreateNull() : boardId
+                },
+                ["type"] = eventType,
+                ["payload"] = payload
+            };
+
+            var fileLock = dumpFileLocks.GetOrAdd(eventPath, _ => new object());
+            lock (fileLock)
+            {
+                File.AppendAllText(eventPath, line.ToString(Newtonsoft.Json.Formatting.None) + Environment.NewLine, Encoding.UTF8);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "UIExtractor failed to append MCP bridge event {EventType}", eventType);
+        }
+
+        return Task.CompletedTask;
     }
 
     private void EnsureTargetStylesheetFile()
@@ -581,6 +996,16 @@ public sealed class MyDuMod : IMod
         lock (fileLock)
         {
             File.AppendAllText(dumpPath, line.ToString(Newtonsoft.Json.Formatting.None) + Environment.NewLine);
+        }
+
+        if (parsedPacket is not null)
+        {
+            var packetType = parsedPacket["type"]?.Value<string>()?.Trim() ?? "";
+            if (string.Equals(packetType, "lua_mcp_result", StringComparison.OrdinalIgnoreCase))
+            {
+                var packetData = parsedPacket["data"] as JObject ?? new JObject();
+                await AppendMcpBridgeEvent("lua_editor", "probe_result", playerId, packetData);
+            }
         }
 
         if (envelope?.type == "ui_dump_complete")
