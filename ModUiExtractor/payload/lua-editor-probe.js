@@ -18,6 +18,7 @@
   var actionId = cfg.actionId || 900001;
   var dumpId = "lua-probe-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
   var caretHighlightPrefStorageKey = "ModUiExtractor.lua.caret-highlight-enabled.v1";
+  var mcpResultChunkSize = 7000;
 
   function loadCaretHighlightPreference() {
     try {
@@ -51,7 +52,7 @@
     menuHits: 0,
     editorVisible: false,
     managerWrapped: false,
-    activeTheme: "yellow",
+    activeTheme: "monokai",
     lastAppliedTheme: "",
     scrollTopByContext: Object.create(null),
     lastContextKey: "",
@@ -81,25 +82,103 @@
   state.applyIdeCode = applyIdeCode;
   var colorThemes = [
     {
-      name: "green",
-      dot: "#5ce890",
-      accent: "rgba(92,232,144,0.95)",
-      header: "rgba(14,54,39,0.96)",
-      caretBg: "rgba(92,232,144,0.20)"
+      name: "monokai",
+      label: "Monokai",
+      dot: "#a6e22e",
+      accent: "rgba(166,226,46,0.92)",
+      header: "rgba(39,40,34,0.97)",
+      caretBg: "rgba(166,226,46,0.18)",
+      accentSolid: "#a6e22e",
+      onAccent: "#272822",
+      surfaceMain: "#272822",
+      surfaceElevated: "#3e3d32",
+      surfaceRow: "#49483e",
+      surfaceDeep: "#1e1f1c",
+      surfaceRowAlt: "#423f36",
+      borderStrong: "#75715e",
+      borderHover: "#66d9ef",
+      shadow: "rgba(0,0,0,0.5)",
+      textMuted: "#cfcfc2",
+      textDim: "#90908a",
+      cmComment: "#75715e",
+      cmLineNumber: "#90908a",
+      gutterBorder: "#49483e",
+      btnApplyBg: "linear-gradient(180deg,#646e52 0%,#4a5540 45%,#343c30 100%)",
+      btnApplyBorder: "rgba(166,226,46,0.78)",
+      btnApplyColor: "#f8f8f2",
+      btnApplyHoverBg: "linear-gradient(180deg,#727c60 0%,#586348 45%,#3e4836 100%)",
+      btnApplyActiveBg: "linear-gradient(180deg,#525a48 0%,#3a4236 45%,#2b3028 100%)",
+      btnCancelBg: "linear-gradient(180deg,#525046 0%,#403e38 45%,#302e2a 100%)",
+      btnCancelBorder: "rgba(183,174,140,0.55)",
+      btnCancelColor: "#cfcfc2",
+      btnCancelHoverBg: "linear-gradient(180deg,#5e5a50 0%,#4a4640 45%,#38342f 100%)",
+      btnCancelActiveBg: "linear-gradient(180deg,#45423a 0%,#35322d 45%,#282622 100%)"
     },
     {
-      name: "yellow",
-      dot: "#f4d25d",
-      accent: "rgba(244,210,93,0.95)",
-      header: "rgba(54,45,18,0.96)",
-      caretBg: "rgba(244,210,93,0.20)"
+      name: "github-dark",
+      label: "GitHub Dark",
+      dot: "#58a6ff",
+      accent: "rgba(88,166,255,0.92)",
+      header: "rgba(13,17,23,0.97)",
+      caretBg: "rgba(88,166,255,0.15)",
+      accentSolid: "#58a6ff",
+      onAccent: "#0d1117",
+      surfaceMain: "#0d1117",
+      surfaceElevated: "#161b22",
+      surfaceRow: "#21262d",
+      surfaceDeep: "#010409",
+      surfaceRowAlt: "#30363d",
+      borderStrong: "#30363d",
+      borderHover: "#58a6ff",
+      shadow: "rgba(1,4,9,0.55)",
+      textMuted: "#8b949e",
+      textDim: "#6e7681",
+      cmComment: "#8b949e",
+      cmLineNumber: "#6e7681",
+      gutterBorder: "#30363d",
+      btnApplyBg: "linear-gradient(180deg,#1c4a8c 0%,#143a6e 45%,#0c2848 100%)",
+      btnApplyBorder: "rgba(88,166,255,0.78)",
+      btnApplyColor: "#e6edf3",
+      btnApplyHoverBg: "linear-gradient(180deg,#2657a0 0%,#1a457e 45%,#12325c 100%)",
+      btnApplyActiveBg: "linear-gradient(180deg,#153a6c 0%,#0f2d52 45%,#0a2040 100%)",
+      btnCancelBg: "linear-gradient(180deg,#30363d 0%,#252b33 45%,#1a1f26 100%)",
+      btnCancelBorder: "rgba(139,148,158,0.45)",
+      btnCancelColor: "#8b949e",
+      btnCancelHoverBg: "linear-gradient(180deg,#3d444d 0%,#30363d 45%,#252b32 100%)",
+      btnCancelActiveBg: "linear-gradient(180deg,#282e35 0%,#1e242a 45%,#161b22 100%)"
     },
     {
-      name: "red",
-      dot: "#ec6b6b",
-      accent: "rgba(236,107,107,0.95)",
-      header: "rgba(58,20,24,0.96)",
-      caretBg: "rgba(236,107,107,0.20)"
+      name: "gruvbox-dark",
+      label: "Gruvbox Dark",
+      dot: "#fe8019",
+      accent: "rgba(254,128,25,0.92)",
+      header: "rgba(40,40,40,0.97)",
+      caretBg: "rgba(254,128,25,0.18)",
+      accentSolid: "#fe8019",
+      onAccent: "#282828",
+      surfaceMain: "#282828",
+      surfaceElevated: "#3c3836",
+      surfaceRow: "#504945",
+      surfaceDeep: "#1d2021",
+      surfaceRowAlt: "#403c3a",
+      borderStrong: "#665c54",
+      borderHover: "#83a598",
+      shadow: "rgba(0,0,0,0.5)",
+      textMuted: "#a89984",
+      textDim: "#928374",
+      cmComment: "#928374",
+      cmLineNumber: "#a89984",
+      gutterBorder: "#504945",
+      btnApplyBg: "linear-gradient(180deg,#76634a 0%,#5a4a3a 45%,#423d34 100%)",
+      btnApplyBorder: "rgba(254,128,25,0.82)",
+      btnApplyColor: "#fbf1c7",
+      btnApplyHoverBg: "linear-gradient(180deg,#857256 0%,#685442 45%,#4d4036 100%)",
+      btnApplyActiveBg: "linear-gradient(180deg,#5f5142 0%,#483e32 45%,#362f28 100%)",
+      btnCancelBg: "linear-gradient(180deg,#504945 0%,#403c3a 45%,#32302f 100%)",
+      btnCancelBorder: "rgba(168,153,132,0.5)",
+      btnCancelColor: "#a89984",
+      btnCancelHoverBg: "linear-gradient(180deg,#5c534d 0%,#4a4541 45%,#3a3634 100%)",
+      btnCancelActiveBg: "linear-gradient(180deg,#454039 0%,#363230 45%,#292726 100%)"
     }
   ];
   var quickEditLuaMenuItemId = "ModUiExtractor-quick-edit-lua";
@@ -152,6 +231,34 @@
       window.CPPMod.sendModAction(modName, actionId, [], payload);
     } catch (err) {
       safeLog("sendPacket failed", String(err && err.message ? err.message : err));
+    }
+  }
+
+  function splitTextIntoChunks(text, chunkSize) {
+    var value = String(text || "");
+    var size = typeof chunkSize === "number" && chunkSize > 0 ? chunkSize : 7000;
+    var chunks = [];
+    if (!value) {
+      chunks.push("");
+      return chunks;
+    }
+    for (var i = 0; i < value.length; i += size) {
+      chunks.push(value.slice(i, i + size));
+    }
+    return chunks;
+  }
+
+  function sendJsonPacketChunked(type, payload, chunkSize) {
+    var json = JSON.stringify(payload || {});
+    var chunks = splitTextIntoChunks(json, chunkSize);
+    var packetId = type + "-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
+    for (var i = 0; i < chunks.length; i += 1) {
+      sendPacket(type + "_chunk", {
+        packetId: packetId,
+        part: i + 1,
+        total: chunks.length,
+        jsonChunk: chunks[i]
+      });
     }
   }
 
@@ -233,7 +340,6 @@
     }
     return out;
   }
-
   function collectManagerIdentifiers() {
     var manager = window.LUAEditorManager;
     if (!manager || !manager.currentData || typeof manager.currentData !== "object") {
@@ -476,12 +582,209 @@
     style.type = "text/css";
     style.textContent = ""
       + "#dpu_editor[data-lua-probe-active=\"1\"]{"
-      + "--lua-probe-accent:rgba(244,210,93,0.95);"
-      + "--lua-probe-header-bg:rgba(54,45,18,0.96);"
-      + "--lua-probe-caret-line-bg:rgba(244,210,93,0.20);}"
+      + "--lua-probe-accent:rgba(166,226,46,0.92);"
+      + "--lua-probe-header-bg:rgba(39,40,34,0.97);"
+      + "--lua-probe-caret-line-bg:rgba(166,226,46,0.18);"
+      + "--lua-probe-accent-solid:#a6e22e;"
+      + "--lua-probe-on-accent:#272822;"
+      + "--lua-probe-surface-main:#272822;"
+      + "--lua-probe-surface-elevated:#3e3d32;"
+      + "--lua-probe-surface-row:#49483e;"
+      + "--lua-probe-surface-deep:#1e1f1c;"
+      + "--lua-probe-surface-row-alt:#423f36;"
+      + "--lua-probe-border-strong:#75715e;"
+      + "--lua-probe-border-hover:#66d9ef;"
+      + "--lua-probe-shadow:rgba(0,0,0,0.5);"
+      + "--lua-probe-text-muted:#cfcfc2;"
+      + "--lua-probe-text-dim:#90908a;"
+      + "--lua-probe-cm-comment:#75715e;"
+      + "--lua-probe-cm-linenumber:#90908a;"
+      + "--lua-probe-gutter-border:#49483e;"
+      + "--lua-probe-btn-apply-bg:linear-gradient(180deg,#646e52 0%,#4a5540 45%,#343c30 100%);"
+      + "--lua-probe-btn-apply-border:rgba(166,226,46,0.78);"
+      + "--lua-probe-btn-apply-color:#f8f8f2;"
+      + "--lua-probe-btn-apply-hover-bg:linear-gradient(180deg,#727c60 0%,#586348 45%,#3e4836 100%);"
+      + "--lua-probe-btn-apply-active-bg:linear-gradient(180deg,#525a48 0%,#3a4236 45%,#2b3028 100%);"
+      + "--lua-probe-btn-cancel-bg:linear-gradient(180deg,#525046 0%,#403e38 45%,#302e2a 100%);"
+      + "--lua-probe-btn-cancel-border:rgba(183,174,140,0.55);"
+      + "--lua-probe-btn-cancel-color:#cfcfc2;"
+      + "--lua-probe-btn-cancel-hover-bg:linear-gradient(180deg,#5e5a50 0%,#4a4640 45%,#38342f 100%);"
+      + "--lua-probe-btn-cancel-active-bg:linear-gradient(180deg,#45423a 0%,#35322d 45%,#282622 100%);}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper{"
+      + "background-color:var(--lua-probe-surface-main) !important;"
+      + "filter:drop-shadow(var(--lua-probe-shadow) 0 0 5px) !important;"
       + "box-shadow:0 0 0 1px var(--lua-probe-accent), 0 0 22px var(--lua-probe-accent) !important;"
       + "border-color:var(--lua-probe-accent) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .header_col{"
+      + "background-color:var(--lua-probe-surface-elevated) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .header_col .header_col_description{"
+      + "color:var(--lua-probe-text-muted) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .editor_header .header_bar .title{"
+      + "background:transparent !important;color:#f8f8f2 !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots{"
+      + "background-color:var(--lua-probe-surface-elevated) !important;"
+      + "box-shadow:var(--lua-probe-shadow) 3px 3px 5px !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot{"
+      + "background-color:var(--lua-probe-surface-row) !important;color:#f8f8f2 !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot:not(.disabled):not(.selected):not(.active):not(.active_tab):hover{"
+      + "background-color:var(--lua-probe-surface-row) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot:not(.disabled):hover{"
+      + "border-color:var(--lua-probe-border-hover) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot.selected{"
+      + "background-color:var(--lua-probe-surface-row) !important;color:#f8f8f2 !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot.selected::after{"
+      + "background-color:var(--lua-probe-accent-solid) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot.active,"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot.active_tab{"
+      + "background-color:var(--lua-probe-accent-solid) !important;color:var(--lua-probe-on-accent) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot.active .icon,"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot.active_tab .icon{"
+      + "fill:var(--lua-probe-on-accent) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot.disabled{"
+      + "background-color:var(--lua-probe-surface-deep) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot.disabled input{"
+      + "background-color:var(--lua-probe-surface-deep) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot input{"
+      + "background-color:transparent !important;box-shadow:none !important;"
+      + "border-color:var(--lua-probe-border-strong) !important;"
+      + "color:var(--lua-probe-text-muted) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot input::-webkit-input-placeholder{"
+      + "color:var(--lua-probe-text-dim) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot input[type=\"text\"]:focus{"
+      + "background-color:var(--lua-probe-surface-deep) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot:nth-child(2)::before,"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot:nth-child(5)::before{"
+      + "background-color:var(--lua-probe-border-strong) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .filters_window_wrapper{"
+      + "background-color:var(--lua-probe-surface-elevated) !important;"
+      + "box-shadow:var(--lua-probe-shadow) 3px 3px 5px !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .filters_window_wrapper .lua_editor_filters_wrapper{"
+      + "background-color:var(--lua-probe-surface-elevated) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter{"
+      + "background-color:var(--lua-probe-surface-row) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter:hover{"
+      + "border-color:var(--lua-probe-border-hover) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter .filter_wrapper .filter_header .delete_btn{"
+      + "fill:var(--lua-probe-text-muted) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter .filter_wrapper .filter_header .delete_btn:hover{"
+      + "fill:var(--lua-probe-accent-solid) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter .filter_wrapper .filter_container .actionsContainer .toggleBtnContainer .action_list_button_wrapper .ddContainer svg{"
+      + "fill:var(--lua-probe-text-muted) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter .filter_wrapper .filter_container .actionsContainer .toggleBtnContainer .actionInputs input{"
+      + "background-color:var(--lua-probe-surface-main) !important;color:var(--lua-probe-text-muted) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter .filter_wrapper .filter_container .actionsContainer .toggleBtnContainer .actionInputs input[type=\"text\"]:focus{"
+      + "background-color:var(--lua-probe-surface-deep) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter .filter_wrapper .filter_container .actionsContainer .toggleBtnContainer .actionBindList{"
+      + "background-color:var(--lua-probe-surface-row) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter .filter_wrapper .filter_container .actionsContainer .toggleBtnContainer .actionBindList li{"
+      + "background-color:var(--lua-probe-surface-row-alt) !important;"
+      + "border-color:var(--lua-probe-text-muted) !important;color:var(--lua-probe-text-muted) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter .filter_wrapper .filter_container .actionsContainer .toggleBtnContainer .actionBindList li:hover{"
+      + "background-color:var(--lua-probe-border-strong) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter.selected .filter_wrapper::after{"
+      + "background-color:var(--lua-probe-accent-solid) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .lua_empty_container{"
+      + "color:var(--lua-probe-text-dim) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .actions_container .actions_list_wrapper .action_element{"
+      + "background-color:var(--lua-probe-surface-row) !important;color:var(--lua-probe-text-muted) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter .filter_wrapper .filter_container .actionsContainer .toggleBtnContainer .action_list_button_wrapper .ddContainer .actionsList li{"
+      + "background-color:var(--lua-probe-surface-row) !important;"
+      + "color:var(--lua-probe-text-muted) !important;border-color:var(--lua-probe-surface-deep) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter .filter_wrapper .filter_container .actionsContainer .toggleBtnContainer .action_list_button_wrapper .ddContainer .actionsList li:hover{"
+      + "background-color:var(--lua-probe-text-muted) !important;color:var(--lua-probe-surface-main) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button:not(.disabled){"
+      + "font-family:Play,sans-serif !important;font-weight:900 !important;"
+      + "border-radius:0.55555556vh !important;"
+      + "border:1px solid rgba(250,212,122,0.58) !important;"
+      + "color:rgb(250,222,145) !important;"
+      + "background:linear-gradient(180deg,rgba(64,67,58,0.96) 0%,rgba(37,43,34,0.96) 100%) !important;"
+      + "background-image:none !important;"
+      + "text-shadow:rgba(20,40,52,0.9) 0px 1px 0px !important;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.08),inset 0 -1px 0 rgba(0,0,0,0.58),0 0 0 1px rgba(0,0,0,0.28) !important;"
+      + "transition:background-color 0.14s ease,border-color 0.14s ease,color 0.14s ease,box-shadow 0.14s ease,transform 0.05s ease;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button:hover:not(.disabled){"
+      + "border-color:rgba(228,244,252,0.85) !important;color:rgb(245,252,255) !important;"
+      + "background:linear-gradient(180deg,rgba(56,82,99,0.98) 0%,rgba(26,48,61,0.98) 100%) !important;"
+      + "background-image:none !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button:active:not(.disabled){"
+      + "transform:translateY(1px);"
+      + "background:linear-gradient(180deg,rgba(30,48,60,0.98) 0%,rgba(18,32,41,0.98) 100%) !important;"
+      + "background-image:none !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button:not(.disabled) .icon{"
+      + "fill:rgb(250,222,145) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button:hover:not(.disabled) .icon{"
+      + "fill:rgb(245,252,255) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button:active:not(.disabled) svg,"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button:active:not(.disabled):hover svg{"
+      + "fill:rgb(245,252,255) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button.disabled{"
+      + "border-color:rgba(84,122,135,0.45) !important;color:rgba(132,160,170,0.72) !important;"
+      + "background:linear-gradient(180deg,rgba(28,40,48,0.85) 0%,rgba(18,28,34,0.85) 100%) !important;"
+      + "background-image:none !important;"
+      + "text-shadow:none !important;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.04),inset 0 -1px 0 rgba(0,0,0,0.5) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button.disabled .icon{"
+      + "fill:rgba(132,160,170,0.72) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button.active{"
+      + "color:rgb(250,222,145) !important;border-color:rgba(250,212,122,0.72) !important;"
+      + "background:linear-gradient(180deg,rgba(64,67,58,0.96) 0%,rgba(37,43,34,0.96) 100%) !important;"
+      + "background-image:none !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper{"
+      + "background-color:var(--lua-probe-surface-elevated) !important;"
+      + "box-shadow:var(--lua-probe-shadow) 3px 3px 5px !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code{"
+      + "background-color:var(--lua-probe-surface-deep) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror{"
+      + "background-color:var(--lua-probe-surface-deep) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror .CodeMirror-gutters{"
+      + "background-color:var(--lua-probe-surface-deep) !important;"
+      + "border-right-color:var(--lua-probe-gutter-border) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror span.cm-comment{"
+      + "color:var(--lua-probe-cm-comment) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror .CodeMirror-linenumber{"
+      + "color:var(--lua-probe-cm-linenumber) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .codeMirror{"
+      + "background-color:var(--lua-probe-surface-row-alt) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .header_editor .right_wrapper .font_size_wrapper .lua_change_font_size,"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .header_editor .right_wrapper .wrap_line_wrapper .lua_change_font_size{"
+      + "background-color:var(--lua-probe-surface-row-alt) !important;"
+      + "border-color:var(--lua-probe-text-muted) !important;color:var(--lua-probe-text-muted) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .header_editor .right_wrapper .font_size_wrapper .lua_change_font_size:hover:not(.disabled),"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .header_editor .right_wrapper .wrap_line_wrapper .lua_change_font_size:hover:not(.disabled){"
+      + "background-color:var(--lua-probe-surface-row) !important;"
+      + "border-color:var(--lua-probe-border-hover) !important;color:#ffffff !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .header_editor .right_wrapper .font_size_wrapper .lua_change_font_size.active,"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .header_editor .right_wrapper .wrap_line_wrapper .lua_change_font_size.active{"
+      + "background-color:var(--lua-probe-accent-solid) !important;color:var(--lua-probe-on-accent) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .header_editor .right_wrapper .wrap_line_wrapper .checkbox{"
+      + "background-color:var(--lua-probe-surface-row) !important;"
+      + "outline-color:var(--lua-probe-border-hover) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .header_editor .right_wrapper .wrap_line_wrapper .checkbox:checked{"
+      + "background-color:var(--lua-probe-accent-solid) !important;"
+      + "outline-color:var(--lua-probe-accent-solid) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn{"
+      + "background-color:var(--lua-probe-surface-elevated) !important;"
+      + "box-shadow:var(--lua-probe-shadow) 3px 3px 5px !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn .error_list_header{"
+      + "background-color:var(--lua-probe-surface-elevated) !important;"
+      + "border-bottom-color:var(--lua-probe-border-strong) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn .error_list_header span{"
+      + "color:var(--lua-probe-text-dim) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn .error_list{"
+      + "background-color:var(--lua-probe-surface-elevated) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn .error_list .error_li{"
+      + "background-color:var(--lua-probe-surface-elevated) !important;"
+      + "border-top-color:var(--lua-probe-surface-main) !important;color:var(--lua-probe-text-muted) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn .error_list .error_li:nth-child(odd){"
+      + "background-color:var(--lua-probe-surface-row-alt) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn .error_list .error_li:hover{"
+      + "background-color:var(--lua-probe-surface-row) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn .header .lua_error_header_wrapper .value{"
+      + "color:var(--lua-probe-text-muted) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn .header .lua_error_header_wrapper .value .lua_error_ctn_value{"
+      + "color:var(--lua-probe-accent-solid) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn .header .reduce_size{"
+      + "fill:var(--lua-probe-accent-solid) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .editor_header .header_container{"
       + "position:relative;"
       + "background:var(--lua-probe-header-bg) !important;"
@@ -523,6 +826,64 @@
       + "background:linear-gradient(180deg,rgba(30,48,60,0.98) 0%,rgba(18,32,41,0.98) 100%);}"
       + "#dpu_editor #ModUiExtractor-lua-caret-toggle:focus,#dpu_editor #ModUiExtractor-lua-ide-sync:focus{"
       + "outline:none;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button::before,"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button::after{"
+      + "display:none !important;content:none !important;animation:none !important;opacity:0 !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button:not(.disabled){"
+      + "font-family:Play,sans-serif !important;font-weight:900 !important;"
+      + "border-radius:0.55555556vh !important;"
+      + "border:1px solid var(--lua-probe-btn-apply-border) !important;"
+      + "color:var(--lua-probe-btn-apply-color) !important;"
+      + "background:var(--lua-probe-btn-apply-bg) !important;"
+      + "text-shadow:0 1px 0 rgba(0,0,0,0.42),0 0 1px rgba(0,0,0,0.35) !important;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.16),inset 0 -2px 0 rgba(0,0,0,0.4),0 1px 0 rgba(0,0,0,0.22),0 3px 10px rgba(0,0,0,0.3) !important;"
+      + "transition:background 0.14s ease,border-color 0.14s ease,color 0.14s ease,box-shadow 0.14s ease,transform 0.05s ease;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_cancel_button:not(.disabled){"
+      + "font-family:Play,sans-serif !important;font-weight:900 !important;"
+      + "border-radius:0.55555556vh !important;"
+      + "border:1px solid var(--lua-probe-btn-cancel-border) !important;"
+      + "color:var(--lua-probe-btn-cancel-color) !important;"
+      + "background:var(--lua-probe-btn-cancel-bg) !important;"
+      + "text-shadow:0 1px 0 rgba(0,0,0,0.42),0 0 1px rgba(0,0,0,0.35) !important;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.11),inset 0 -2px 0 rgba(0,0,0,0.46),0 1px 0 rgba(0,0,0,0.2),0 3px 10px rgba(0,0,0,0.28) !important;"
+      + "transition:background 0.14s ease,border-color 0.14s ease,color 0.14s ease,box-shadow 0.14s ease,transform 0.05s ease;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button:hover:not(.disabled){"
+      + "border-color:var(--lua-probe-border-hover) !important;color:#f5fcff !important;"
+      + "background:var(--lua-probe-btn-apply-hover-bg) !important;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.22),inset 0 -2px 0 rgba(0,0,0,0.38),0 2px 10px rgba(0,0,0,0.34) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_cancel_button:hover:not(.disabled){"
+      + "border-color:rgba(245,252,255,0.48) !important;color:#f2f5f8 !important;"
+      + "background:var(--lua-probe-btn-cancel-hover-bg) !important;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.18),inset 0 -2px 0 rgba(0,0,0,0.4),0 2px 10px rgba(0,0,0,0.3) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button:active:not(.disabled){"
+      + "transform:translateY(1px);"
+      + "background:var(--lua-probe-btn-apply-active-bg) !important;"
+      + "box-shadow:inset 0 2px 0 rgba(0,0,0,0.38),inset 0 1px 0 rgba(255,255,255,0.08),0 1px 3px rgba(0,0,0,0.28) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_cancel_button:active:not(.disabled){"
+      + "transform:translateY(1px);"
+      + "background:var(--lua-probe-btn-cancel-active-bg) !important;"
+      + "box-shadow:inset 0 2px 0 rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.06),0 1px 3px rgba(0,0,0,0.26) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button:not(.disabled) .icon{"
+      + "fill:var(--lua-probe-btn-apply-color) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_cancel_button:not(.disabled) .icon{"
+      + "fill:var(--lua-probe-btn-cancel-color) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button:hover:not(.disabled) .icon{"
+      + "fill:#f5fcff !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_cancel_button:hover:not(.disabled) .icon{"
+      + "fill:#f2f5f8 !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button.disabled,"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_cancel_button.disabled{"
+      + "border-color:rgba(84,122,135,0.45) !important;color:rgba(132,160,170,0.72) !important;"
+      + "background:linear-gradient(180deg,rgba(28,40,48,0.85) 0%,rgba(18,28,34,0.85) 100%) !important;"
+      + "background-image:none !important;"
+      + "text-shadow:none !important;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.04),inset 0 -1px 0 rgba(0,0,0,0.5) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button.active{"
+      + "color:var(--lua-probe-btn-apply-color) !important;border-color:var(--lua-probe-btn-apply-border) !important;"
+      + "background:var(--lua-probe-btn-apply-hover-bg) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_cancel_button.active{"
+      + "color:var(--lua-probe-btn-cancel-color) !important;border-color:var(--lua-probe-btn-cancel-border) !important;"
+      + "background:var(--lua-probe-btn-cancel-hover-bg) !important;}"
       + "#dpu_editor .CodeMirror .lua-probe-caret-line{"
       + "background:var(--lua-probe-caret-line-bg) !important;}"
       + "#dpu_editor #filters_container .filter[data-lua-probe-active-filter=\"1\"]{"
@@ -1780,13 +2141,24 @@
     state.filtersObserverRoot = root;
   }
 
+  function normalizeLegacyThemeName(themeName) {
+    var map = {
+      green: "monokai",
+      yellow: "github-dark",
+      red: "gruvbox-dark"
+    };
+    var key = String(themeName || "").toLowerCase();
+    return map[key] || themeName;
+  }
+
   function getThemeByName(themeName) {
+    var wanted = normalizeLegacyThemeName(themeName);
     for (var i = 0; i < colorThemes.length; i += 1) {
-      if (colorThemes[i].name === themeName) {
+      if (colorThemes[i].name === wanted) {
         return colorThemes[i];
       }
     }
-    return colorThemes[1];
+    return colorThemes[0];
   }
 
   function updateThemeDotSelection(activeThemeName) {
@@ -2077,6 +2449,31 @@
       root.style.setProperty("--lua-probe-accent", theme.accent);
       root.style.setProperty("--lua-probe-header-bg", theme.header);
       root.style.setProperty("--lua-probe-caret-line-bg", theme.caretBg);
+      root.style.setProperty("--lua-probe-accent-solid", theme.accentSolid);
+      root.style.setProperty("--lua-probe-on-accent", theme.onAccent);
+      root.style.setProperty("--lua-probe-surface-main", theme.surfaceMain);
+      root.style.setProperty("--lua-probe-surface-elevated", theme.surfaceElevated);
+      root.style.setProperty("--lua-probe-surface-row", theme.surfaceRow);
+      root.style.setProperty("--lua-probe-surface-deep", theme.surfaceDeep);
+      root.style.setProperty("--lua-probe-surface-row-alt", theme.surfaceRowAlt);
+      root.style.setProperty("--lua-probe-border-strong", theme.borderStrong);
+      root.style.setProperty("--lua-probe-border-hover", theme.borderHover);
+      root.style.setProperty("--lua-probe-shadow", theme.shadow);
+      root.style.setProperty("--lua-probe-text-muted", theme.textMuted);
+      root.style.setProperty("--lua-probe-text-dim", theme.textDim);
+      root.style.setProperty("--lua-probe-cm-comment", theme.cmComment);
+      root.style.setProperty("--lua-probe-cm-linenumber", theme.cmLineNumber);
+      root.style.setProperty("--lua-probe-gutter-border", theme.gutterBorder);
+      root.style.setProperty("--lua-probe-btn-apply-bg", theme.btnApplyBg);
+      root.style.setProperty("--lua-probe-btn-apply-border", theme.btnApplyBorder);
+      root.style.setProperty("--lua-probe-btn-apply-color", theme.btnApplyColor);
+      root.style.setProperty("--lua-probe-btn-apply-hover-bg", theme.btnApplyHoverBg);
+      root.style.setProperty("--lua-probe-btn-apply-active-bg", theme.btnApplyActiveBg);
+      root.style.setProperty("--lua-probe-btn-cancel-bg", theme.btnCancelBg);
+      root.style.setProperty("--lua-probe-btn-cancel-border", theme.btnCancelBorder);
+      root.style.setProperty("--lua-probe-btn-cancel-color", theme.btnCancelColor);
+      root.style.setProperty("--lua-probe-btn-cancel-hover-bg", theme.btnCancelHoverBg);
+      root.style.setProperty("--lua-probe-btn-cancel-active-bg", theme.btnCancelActiveBg);
       state.lastAppliedTheme = theme.name;
     }
     updateThemeDotSelection(theme.name);
@@ -2084,9 +2481,11 @@
     if (emitPacket) {
       sendPacket("lua_theme_changed", {
         theme: theme.name,
+        label: theme.label,
         accent: theme.accent,
         header: theme.header,
-        caretBg: theme.caretBg
+        caretBg: theme.caretBg,
+        surfaceMain: theme.surfaceMain
       });
     }
   }
@@ -2115,7 +2514,8 @@
           dot.style.background = theme.dot;
           dot.setAttribute("data-theme", theme.name);
           dot.setAttribute("data-active", "0");
-          dot.setAttribute("title", "Probe color: " + theme.name);
+          dot.setAttribute("title", "Theme: " + (theme.label || theme.name));
+          dot.setAttribute("aria-label", "Theme: " + (theme.label || theme.name));
           dot.addEventListener("click", function () {
             applyTheme(theme.name, true);
           }, true);
@@ -2128,10 +2528,11 @@
       header.appendChild(switcher);
     }
 
-    if (state.lastAppliedTheme !== (state.activeTheme || "yellow")) {
-      applyTheme(state.activeTheme || "yellow", false);
+    var defaultTheme = (colorThemes[0] && colorThemes[0].name) ? colorThemes[0].name : "monokai";
+    if (state.lastAppliedTheme !== (state.activeTheme || defaultTheme)) {
+      applyTheme(state.activeTheme || defaultTheme, false);
     } else {
-      updateThemeDotSelection(state.activeTheme || "yellow");
+      updateThemeDotSelection(state.activeTheme || defaultTheme);
     }
   }
 
@@ -2294,6 +2695,277 @@
     return fallback;
   }
 
+  function normalizeEventKey(name) {
+    var s = String(name || "").trim().toLowerCase();
+    s = s.replace(/\s+/g, "");
+    s = s.replace(/\([^)]*\)/g, "");
+    return s;
+  }
+
+  function filterRowHasChosenEvent(filterNode) {
+    var raw = String(getFilterEventName(filterNode) || "").trim();
+    if (!raw) {
+      return false;
+    }
+    var t = normalizeProbeText(raw);
+    if (!t || t.indexOf("select event") >= 0) {
+      return false;
+    }
+    return true;
+  }
+
+  function isPromiseLike(value) {
+    return !!value && (typeof value === "object" || typeof value === "function") && typeof value.then === "function";
+  }
+
+  function pollUntilAsync(stepFn, maxRounds, delayMs, timeoutErrorFactory) {
+    var rounds = typeof maxRounds === "number" && maxRounds > 0 ? maxRounds : 60;
+    var waitMs = typeof delayMs === "number" && delayMs >= 0 ? delayMs : 25;
+    return new Promise(function(resolve, reject) {
+      var round = 0;
+
+      function tick() {
+        var outcome = null;
+        try {
+          outcome = stepFn(round);
+        } catch (err) {
+          reject(err);
+          return;
+        }
+
+        if (outcome) {
+          resolve(outcome);
+          return;
+        }
+
+        round += 1;
+        if (round >= rounds) {
+          if (typeof timeoutErrorFactory === "function") {
+            try {
+              reject(timeoutErrorFactory());
+            } catch (timeoutErr) {
+              reject(timeoutErr);
+            }
+          } else {
+            reject(new Error("poll_timeout"));
+          }
+          return;
+        }
+
+        window.setTimeout(tick, waitMs);
+      }
+
+      tick();
+    });
+  }
+
+  function dispatchMouse(kind, el) {
+    if (!el || typeof el.dispatchEvent !== "function") {
+      return;
+    }
+    try {
+      if (typeof MouseEvent === "function") {
+        el.dispatchEvent(new MouseEvent(kind, { bubbles: true, cancelable: true, view: window }));
+      }
+    } catch (_ignoreMouse) {}
+  }
+
+  function openFilterAddMenu(anchorFilter) {
+    var wrap = anchorFilter.querySelector(".action_list_button_wrapper");
+    var dd = anchorFilter.querySelector(".ddContainer");
+    var kebab = anchorFilter.querySelector(".icon_kebab_menu");
+    var hoverTarget = wrap || dd || kebab;
+    if (!hoverTarget) {
+      return false;
+    }
+    dispatchMouse("mouseenter", hoverTarget);
+    dispatchMouse("mouseover", hoverTarget);
+    dispatchMouse("mousemove", hoverTarget);
+    if (kebab) {
+      dispatchMouse("mouseenter", kebab);
+      dispatchMouse("mouseover", kebab);
+    }
+    return true;
+  }
+
+  function nudgeFilterMenuOpen(anchorFilter) {
+    var wrap = anchorFilter.querySelector(".action_list_button_wrapper");
+    var target = wrap || anchorFilter.querySelector(".ddContainer");
+    if (!target) {
+      return;
+    }
+    dispatchMouse("mousedown", target);
+    dispatchMouse("mouseup", target);
+    openFilterAddMenu(anchorFilter);
+  }
+
+  function queryActionMenuItems(anchorFilter) {
+    var ul = anchorFilter.querySelector("ul.actionsList");
+    if (!ul || !ul.querySelectorAll) {
+      return [];
+    }
+    return ul.querySelectorAll("li");
+  }
+
+  function findActionMenuItemForEvent(anchorFilter, wantKey) {
+    var lis = queryActionMenuItems(anchorFilter);
+    var j;
+    for (j = 0; j < lis.length; j += 1) {
+      var li = lis[j];
+      var label = normalizeEventKey(li.textContent || "");
+      if (!label) {
+        continue;
+      }
+      if (label === wantKey || label.indexOf(wantKey) === 0 || wantKey.indexOf(label) === 0) {
+        return li;
+      }
+    }
+    return null;
+  }
+
+  function findLuaAddFilterButton() {
+    var root = getLuaEditorRoot();
+    var btn = null;
+    if (root && root.querySelector) {
+      btn = root.querySelector(".lua_add_filter_button");
+    }
+    if (!btn) {
+      btn = document.querySelector("#dpu_editor .lua_add_filter_button");
+    }
+    return btn;
+  }
+
+  function clickLuaAddFilterButton() {
+    var btn = findLuaAddFilterButton();
+    if (!btn) {
+      return false;
+    }
+    return clickNode(btn);
+  }
+
+  function pickUnsettledFilterRow() {
+    var filters = getFilterNodes(true);
+    var i;
+    for (i = filters.length - 1; i >= 0; i -= 1) {
+      if (!filterRowHasChosenEvent(filters[i])) {
+        return filters[i];
+      }
+    }
+    return null;
+  }
+
+  function waitForUnsettledFilterRowAsync(maxRounds, delayMs) {
+    return pollUntilAsync(
+      function() {
+        return pickUnsettledFilterRow();
+      },
+      maxRounds,
+      delayMs,
+      function() {
+        return new Error("add_filter_no_placeholder_row");
+      }
+    );
+  }
+
+  function addFilterByEventName(rawEventName) {
+    var wantKey = normalizeEventKey(rawEventName);
+    if (!wantKey) {
+      throw new Error("add_filter_empty_name");
+    }
+
+    var filters = getFilterNodes(true);
+    var idx;
+    for (idx = 0; idx < filters.length; idx += 1) {
+      var fNode = filters[idx];
+      if (!filterRowHasChosenEvent(fNode)) {
+        continue;
+      }
+      if (normalizeEventKey(getFilterEventName(fNode)) === wantKey) {
+        var presentSnap = describeLuaEditor();
+        presentSnap.alreadyPresent = true;
+        return presentSnap;
+      }
+    }
+
+    return Promise.resolve()
+      .then(function() {
+        var anchor = pickUnsettledFilterRow();
+        if (anchor) {
+          return anchor;
+        }
+
+        var countBefore = getFilterNodes(true).length;
+        var clickedAdd = clickLuaAddFilterButton();
+        if (!clickedAdd) {
+          if (!window.LUAEditorManager || typeof window.LUAEditorManager.addNewFilter !== "function") {
+            throw new Error("add_filter_no_add_button");
+          }
+          window.LUAEditorManager.addNewFilter(true);
+        }
+
+        return waitForUnsettledFilterRowAsync(120, 25).catch(function(initialErr) {
+          var filtersAfter = getFilterNodes(true).length;
+          if (filtersAfter <= countBefore) {
+            throw new Error("add_filter_no_new_row");
+          }
+          return waitForUnsettledFilterRowAsync(60, 25).catch(function() {
+            throw initialErr;
+          });
+        });
+      })
+      .then(function(anchor) {
+        if (!openFilterAddMenu(anchor)) {
+          throw new Error("add_filter_no_menu_anchor");
+        }
+
+        return pollUntilAsync(
+          function(round) {
+            var choice = findActionMenuItemForEvent(anchor, wantKey);
+            if (choice) {
+              return {
+                anchor: anchor,
+                choice: choice
+              };
+            }
+            if (round === 6 || round === 14 || round === 28) {
+              nudgeFilterMenuOpen(anchor);
+            }
+            return null;
+          },
+          90,
+          25,
+          function() {
+            return new Error("add_filter_option_not_found:" + rawEventName);
+          }
+        );
+      })
+      .then(function(step) {
+        try {
+          if (!clickNode(step.choice)) {
+            throw new Error("add_filter_click_failed:" + rawEventName);
+          }
+        } catch (clickErr) {
+          throw new Error("add_filter_click_failed:" + rawEventName + ":" + String(clickErr && clickErr.message ? clickErr.message : clickErr));
+        }
+
+        return pollUntilAsync(
+          function() {
+            if (normalizeEventKey(getFilterEventName(step.anchor)) !== wantKey) {
+              return null;
+            }
+            var out = describeLuaEditor();
+            out.added = String(rawEventName || "").trim();
+            return out;
+          },
+          80,
+          25,
+          function() {
+            return new Error("add_filter_selection_not_observed:" + rawEventName);
+          }
+        );
+      });
+  }
+
   function describeLuaEditor() {
     var root = getLuaEditorRoot();
     var titleNode = document.getElementById("lua_editor_title");
@@ -2402,6 +3074,59 @@
     };
   }
 
+  var MAX_OUTER_HTML_CHARS = 350000;
+
+  function outerHtmlForSelector(rawSelector) {
+    var sel = String(rawSelector || "").trim();
+    if (!sel) {
+      sel = "#filters";
+    }
+    var root = getLuaEditorRoot();
+    var el = null;
+    try {
+      if (root && root.querySelector) {
+        el = root.querySelector(sel);
+      }
+    } catch (_badSel) {}
+    if (!el) {
+      try {
+        el = document.querySelector(sel);
+      } catch (_badSel2) {}
+    }
+    if (!el) {
+      throw new Error("outer_html_not_found:" + sel);
+    }
+    var html = "";
+    try {
+      html = typeof el.outerHTML === "string" ? el.outerHTML : "";
+    } catch (_ignoreOh) {}
+    var originalLength = html.length;
+    var truncated = false;
+    if (html.length > MAX_OUTER_HTML_CHARS) {
+      html = html.slice(0, MAX_OUTER_HTML_CHARS);
+      truncated = true;
+    }
+    return {
+      selector: sel,
+      outerHTML: html,
+      originalLength: originalLength,
+      truncated: truncated
+    };
+  }
+
+  function runRawProbeEval(source) {
+    var src = String(source || "").trim();
+    if (!src) {
+      throw new Error("raw_eval_empty");
+    }
+    var st = window.__UI_EXTRACTOR_LUA_PROBE_STATE__;
+    if (!st) {
+      throw new Error("raw_eval_no_state");
+    }
+    var factory = new Function("state", '"use strict"; ' + src);
+    return factory(st);
+  }
+
   function serializeProbeValue(value, depth) {
     var maxDepth = typeof depth === "number" ? depth : 0;
     if (value === null || typeof value === "undefined") {
@@ -2438,13 +3163,24 @@
   }
 
   function emitMcpResult(commandId, method, success, result, errorMessage) {
-    sendPacket("lua_mcp_result", {
+    var payload = {
       commandId: String(commandId || ""),
       method: String(method || ""),
       success: !!success,
       result: success ? serializeProbeValue(result, 0) : null,
       error: success ? null : String(errorMessage || "unknown_error")
-    });
+    };
+    var payloadJson = "";
+    try {
+      payloadJson = JSON.stringify(payload);
+    } catch (_ignoreSerialize) {}
+
+    if (payloadJson && payloadJson.length > mcpResultChunkSize) {
+      sendJsonPacketChunked("lua_mcp_result", payload, mcpResultChunkSize);
+      return;
+    }
+
+    sendPacket("lua_mcp_result", payload);
   }
 
   function invokeMcpCommand(commandId, method, args) {
@@ -2463,8 +3199,24 @@
         result = setLuaEditorCode(listArgs[0]);
       } else if (normalizedMethod === "apply") {
         result = applyLuaEditorChanges();
+      } else if (normalizedMethod === "add_filter") {
+        result = addFilterByEventName(listArgs[0]);
+      } else if (normalizedMethod === "outer_html") {
+        result = outerHtmlForSelector(listArgs[0]);
+      } else if (normalizedMethod === "raw_eval") {
+        result = runRawProbeEval(listArgs[0]);
       } else {
         throw new Error("unsupported_method:" + normalizedMethod);
+      }
+
+      if (isPromiseLike(result)) {
+        result.then(function(asyncResult) {
+          emitMcpResult(commandId, normalizedMethod, true, asyncResult, null);
+        }).catch(function(asyncErr) {
+          var asyncMessage = String(asyncErr && asyncErr.message ? asyncErr.message : asyncErr);
+          emitMcpResult(commandId, normalizedMethod, false, null, asyncMessage);
+        });
+        return null;
       }
 
       emitMcpResult(commandId, normalizedMethod, true, result, null);
@@ -2481,6 +3233,9 @@
   state.selectFilterByEvent = selectFilterByEvent;
   state.setLuaEditorCode = setLuaEditorCode;
   state.applyLuaEditorChanges = applyLuaEditorChanges;
+  state.addFilterByEventName = addFilterByEventName;
+  state.outerHtmlForSelector = outerHtmlForSelector;
+  state.runRawProbeEval = runRawProbeEval;
   state.invokeMcpCommand = invokeMcpCommand;
   state.mcp = {
     invoke: invokeMcpCommand,
@@ -2488,7 +3243,10 @@
     selectSlotByName: selectSlotByName,
     selectFilterByEvent: selectFilterByEvent,
     setCode: setLuaEditorCode,
-    apply: applyLuaEditorChanges
+    apply: applyLuaEditorChanges,
+    addFilter: addFilterByEventName,
+    outerHtml: outerHtmlForSelector,
+    rawEval: runRawProbeEval
   };
   function isInterestingMenuText(txtLower) {
     return txtLower.indexOf("lua") >= 0 ||
@@ -4229,4 +4987,5 @@
   });
   safeLog("installed", dumpId);
   startObservers();
+
 })();

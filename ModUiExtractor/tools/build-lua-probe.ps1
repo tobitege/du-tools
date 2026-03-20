@@ -1,6 +1,10 @@
 # Builds the monolithic Lua probe payload from ordered module files.
 # Why: we keep source maintainable in payload/lua-editor-probe.modules/*
 # while still generating one final script for injection compatibility.
+# The outer IIFE + "use strict" are injected here so every module file is valid
+# standalone JavaScript (IDE/linter friendly); do not put (function(){...})(); in modules.
+# Keep $luaProbeIifePreamble / $luaProbeIifePostamble in sync with ModUIExtractor.cs
+# (LuaProbeModulesPreamble / LuaProbeModulesPostamble) for runtime module override injection.
 #
 # Usage:
 #   .\tools\build-lua-probe.ps1
@@ -78,14 +82,78 @@ foreach ($entry in $moduleEntries) {
     }
 }
 
-$composed = $builder.ToString()
+$luaProbeIifePreamble = "(function () {`r`n  ""use strict"";`r`n`r`n"
+$luaProbeIifePostamble = "`r`n})();"
+$composed = $luaProbeIifePreamble + $builder.ToString() + $luaProbeIifePostamble
+$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+$payloadDir = Join-Path $repoRoot "payload"
+
+function Get-LuaProbeContentSha256Hex([string]$Text) {
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $bytes = $utf8NoBom.GetBytes($Text)
+    $hashBytes = $sha.ComputeHash($bytes)
+    return ([BitConverter]::ToString($hashBytes)).Replace("-", "").ToLowerInvariant()
+}
+
+function Write-LuaProbeBuildJson {
+    param(
+        [string]$ScriptContent,
+        [string]$ProbeBuild,
+        [string]$PayloadDirectory,
+        [string]$ModulesDirectory
+    )
+    $hashHex = Get-LuaProbeContentSha256Hex $ScriptContent
+    $short = if ($hashHex.Length -ge 8) { $hashHex.Substring(0, 8) } else { $hashHex }
+    $utc = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $obj = [ordered]@{
+        probeBuild     = $ProbeBuild
+        buildUtc       = $utc
+        contentSha256  = $hashHex
+        contentSha256Short = $short
+    }
+    $json = ($obj | ConvertTo-Json -Compress)
+    $outPayload = Join-Path $PayloadDirectory "lua-editor-probe.build.json"
+    $outMod = Join-Path $ModulesDirectory "lua-editor-probe.build.json"
+    [System.IO.File]::WriteAllText($outPayload, $json, $utf8NoBom)
+    [System.IO.File]::WriteAllText($outMod, $json, $utf8NoBom)
+}
+
+function Sync-LuaProbeBuildMetadata {
+    param(
+        [string]$ScriptContent,
+        [bool]$BundleWasJustWritten
+    )
+    $hashHex = Get-LuaProbeContentSha256Hex $ScriptContent
+    $outPayload = Join-Path $payloadDir "lua-editor-probe.build.json"
+    $needsWrite = $BundleWasJustWritten
+    if (-not $needsWrite -and (Test-Path $outPayload)) {
+        try {
+            $prev = Get-Content $outPayload -Raw -Encoding UTF8 | ConvertFrom-Json
+            $prevHash = [string]$prev.contentSha256
+            if ($prevHash -ne $hashHex) { $needsWrite = $true }
+        }
+        catch {
+            $needsWrite = $true
+        }
+    }
+    elseif (-not (Test-Path $outPayload)) {
+        $needsWrite = $true
+    }
+    if (-not $needsWrite) {
+        return
+    }
+    $probeBuild = [DateTime]::UtcNow.ToString("yyyyMMdd-HHmmss")
+    Write-LuaProbeBuildJson -ScriptContent $ScriptContent -ProbeBuild $probeBuild -PayloadDirectory $payloadDir -ModulesDirectory $ModuleDir
+}
+
 $existing = ""
 if (Test-Path $OutFile) {
-    $existing = [System.IO.File]::ReadAllText($OutFile, [System.Text.Encoding]::UTF8)
+    $existing = [System.IO.File]::ReadAllText($OutFile, $utf8NoBom)
 }
 
 if ($existing -eq $composed) {
     Write-Host "lua-editor-probe.js is up to date."
+    Sync-LuaProbeBuildMetadata -ScriptContent $existing -BundleWasJustWritten $false
     exit 0
 }
 
@@ -94,5 +162,6 @@ if ($CheckOnly) {
     exit 2
 }
 
-[System.IO.File]::WriteAllText($OutFile, $composed, [System.Text.UTF8Encoding]::new($false))
+[System.IO.File]::WriteAllText($OutFile, $composed, $utf8NoBom)
+Sync-LuaProbeBuildMetadata -ScriptContent $composed -BundleWasJustWritten $true
 Write-Host "Wrote $OutFile from $($moduleEntries.Count) modules."

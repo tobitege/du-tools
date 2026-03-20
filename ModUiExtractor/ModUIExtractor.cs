@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -25,6 +26,14 @@ public sealed class UiDumpPacketEnvelope
     public string? timestamp { get; set; }
 }
 
+sealed class LuaMcpResultChunkAssembly
+{
+    public object Gate { get; } = new();
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+    public int ExpectedTotal { get; set; }
+    public Dictionary<int, string> Chunks { get; } = new();
+}
+
 public sealed class MyDuMod : IMod
 {
     private const string ModName = "NQ.UIExtractor";
@@ -43,6 +52,14 @@ public sealed class MyDuMod : IMod
     private const string RuntimeLuaProbePayloadFileName = "lua-editor-probe.override.js";
     private const string RuntimeLuaProbeModulesDirectoryName = "lua-editor-probe.modules";
     private const string RuntimeLuaProbeModulesManifestFileName = "manifest.txt";
+
+    /// <summary>
+    /// Outer IIFE for lua-editor-probe module concat. Must match <c>tools/build-lua-probe.ps1</c>
+    /// (<c>LuaProbeIifePreamble</c> / <c>LuaProbeIifePostamble</c>); module files omit this wrapper so they parse in the IDE.
+    /// </summary>
+    private const string LuaProbeModulesPreamble = "(function () {\r\n  \"use strict\";\r\n\r\n";
+
+    private const string LuaProbeModulesPostamble = "\r\n})();";
     private const string DefaultTargetStylesheetHref = "coui://data/gui/hud/dpu_editor/css/dpu_editor.css";
     private const string TargetStylesheetFileName = "target-stylesheet-url.txt";
     private const string McpBridgeDirectoryName = "mcp-bridge";
@@ -50,6 +67,8 @@ public sealed class MyDuMod : IMod
     private const string McpBridgeEventsDirectoryName = "events";
     private const string McpBridgeStateDirectoryName = "state";
     private const string McpBridgeProcessedCommandsDirectoryName = "processed-commands";
+    private const int MaxLuaMcpResultChunkCount = 256;
+    private static readonly TimeSpan LuaMcpResultChunkTtl = TimeSpan.FromMinutes(5);
 
     private IClusterClient orleans = null!;
     private IPub pub = null!;
@@ -69,6 +88,7 @@ public sealed class MyDuMod : IMod
     private string payloadJs = "";
     private string luaProbeJs = "";
     private readonly ConcurrentDictionary<string, object> dumpFileLocks = new();
+    private readonly ConcurrentDictionary<string, LuaMcpResultChunkAssembly> luaMcpResultChunkAssemblies = new();
 
     public string GetName()
     {
@@ -752,6 +772,8 @@ public sealed class MyDuMod : IMod
             notifyMessage += " (runtime override script active)";
         }
 
+        notifyMessage += FormatLuaProbeInjectChatSuffix(luaProbeScript);
+
         await InjectJavaScript(playerId, injectCode, "lua-probe", notifyMessage);
     }
 
@@ -1006,6 +1028,15 @@ public sealed class MyDuMod : IMod
                 var packetData = parsedPacket["data"] as JObject ?? new JObject();
                 await AppendMcpBridgeEvent("lua_editor", "probe_result", playerId, packetData);
             }
+            else if (string.Equals(packetType, "lua_mcp_result_chunk", StringComparison.OrdinalIgnoreCase))
+            {
+                var packetData = parsedPacket["data"] as JObject ?? new JObject();
+                var assembledPayload = TryAssembleLuaMcpResultChunk(playerId, packetData);
+                if (assembledPayload is not null)
+                {
+                    await AppendMcpBridgeEvent("lua_editor", "probe_result", playerId, assembledPayload);
+                }
+            }
         }
 
         if (envelope?.type == "ui_dump_complete")
@@ -1026,6 +1057,102 @@ public sealed class MyDuMod : IMod
                 dumpPath);
             await Notify(playerId, $"UI dump failed: {dumpId} (check logs)");
         }
+    }
+
+    private JObject? TryAssembleLuaMcpResultChunk(ulong playerId, JObject packetData)
+    {
+        CleanupExpiredLuaMcpResultChunks(DateTime.UtcNow);
+
+        var packetId = packetData["packetId"]?.Value<string>()?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(packetId))
+        {
+            logger.LogDebug("UIExtractor ignored lua_mcp_result_chunk without packetId for player {PlayerId}", playerId);
+            return null;
+        }
+
+        var total = packetData["total"]?.Value<int>() ?? 0;
+        var part = packetData["part"]?.Value<int>() ?? 0;
+        var jsonChunk = packetData["jsonChunk"]?.Value<string>() ?? "";
+        if (total <= 0 || total > MaxLuaMcpResultChunkCount || part <= 0 || part > total)
+        {
+            logger.LogDebug(
+                "UIExtractor ignored invalid lua_mcp_result_chunk metadata for player {PlayerId}: packetId={PacketId}, part={Part}, total={Total}",
+                playerId,
+                packetId,
+                part,
+                total);
+            luaMcpResultChunkAssemblies.TryRemove(BuildLuaMcpResultChunkKey(playerId, packetId), out _);
+            return null;
+        }
+
+        var assemblyKey = BuildLuaMcpResultChunkKey(playerId, packetId);
+        var state = luaMcpResultChunkAssemblies.GetOrAdd(
+            assemblyKey,
+            static _ => new LuaMcpResultChunkAssembly());
+
+        lock (state.Gate)
+        {
+            if (state.ExpectedTotal != 0 && state.ExpectedTotal != total)
+            {
+                state.ExpectedTotal = total;
+                state.Chunks.Clear();
+            }
+            else if (state.ExpectedTotal == 0)
+            {
+                state.ExpectedTotal = total;
+            }
+
+            state.UpdatedAtUtc = DateTime.UtcNow;
+            state.Chunks[part] = jsonChunk;
+            if (state.Chunks.Count < state.ExpectedTotal)
+            {
+                return null;
+            }
+
+            var builder = new StringBuilder();
+            for (var i = 1; i <= state.ExpectedTotal; i += 1)
+            {
+                if (!state.Chunks.TryGetValue(i, out var chunkPart))
+                {
+                    return null;
+                }
+
+                builder.Append(chunkPart);
+            }
+
+            luaMcpResultChunkAssemblies.TryRemove(assemblyKey, out _);
+            try
+            {
+                return JObject.Parse(builder.ToString());
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(
+                    ex,
+                    "UIExtractor failed to parse reassembled lua_mcp_result chunk payload for player {PlayerId}: packetId={PacketId}",
+                    playerId,
+                    packetId);
+                return null;
+            }
+        }
+    }
+
+    private void CleanupExpiredLuaMcpResultChunks(DateTime nowUtc)
+    {
+        foreach (var entry in luaMcpResultChunkAssemblies)
+        {
+            if (nowUtc - entry.Value.UpdatedAtUtc <= LuaMcpResultChunkTtl)
+            {
+                continue;
+            }
+
+            luaMcpResultChunkAssemblies.TryRemove(entry.Key, out _);
+        }
+    }
+
+    private static string BuildLuaMcpResultChunkKey(ulong playerId, string packetId)
+    {
+        return playerId.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + packetId;
     }
 
     private string LoadEmbeddedScriptSafe(string resourceHint, string scriptLabel)
@@ -1105,6 +1232,32 @@ public sealed class MyDuMod : IMod
         return ResolveRuntimeScript(runtimeLuaProbePayloadPath, luaProbeJs, "lua probe", out usingRuntimeOverride);
     }
 
+    /// <summary>
+    /// Chat suffix from the actual script bytes injected (SHA-256 of UTF-8 probe body + inject UTC time).
+    /// Matches <c>contentSha256Short</c> in <c>lua-editor-probe.build.json</c> after <c>build-lua-probe.ps1</c>.
+    /// </summary>
+    private static string FormatLuaProbeInjectChatSuffix(string luaProbeScript)
+    {
+        if (string.IsNullOrWhiteSpace(luaProbeScript))
+        {
+            return "";
+        }
+
+        try
+        {
+            var utf8 = Encoding.UTF8.GetBytes(luaProbeScript);
+            var hashBytes = SHA256.HashData(utf8);
+            var hex = Convert.ToHexString(hashBytes).ToLowerInvariant();
+            var shortHex = hex.Length >= 8 ? hex.Substring(0, 8) : hex;
+            var injectUtc = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+            return $" [probe {injectUtc} {shortHex}]";
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
     private string ResolveRuntimeModuleScript(string moduleDirectoryPath, string manifestPath, string scriptLabel, out int moduleCount)
     {
         moduleCount = 0;
@@ -1181,7 +1334,7 @@ public sealed class MyDuMod : IMod
                 moduleCount += 1;
             }
 
-            return scriptBuilder.ToString();
+            return LuaProbeModulesPreamble + scriptBuilder.ToString() + LuaProbeModulesPostamble;
         }
         catch (Exception ex)
         {

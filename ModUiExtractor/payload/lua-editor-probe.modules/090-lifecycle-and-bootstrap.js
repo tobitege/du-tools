@@ -223,4 +223,3 @@
   });
   safeLog("installed", dumpId);
   startObservers();
-})();

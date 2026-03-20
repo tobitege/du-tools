@@ -1,11 +1,22 @@
 
+  function normalizeLegacyThemeName(themeName) {
+    var map = {
+      green: "monokai",
+      yellow: "github-dark",
+      red: "gruvbox-dark"
+    };
+    var key = String(themeName || "").toLowerCase();
+    return map[key] || themeName;
+  }
+
   function getThemeByName(themeName) {
+    var wanted = normalizeLegacyThemeName(themeName);
     for (var i = 0; i < colorThemes.length; i += 1) {
-      if (colorThemes[i].name === themeName) {
+      if (colorThemes[i].name === wanted) {
         return colorThemes[i];
       }
     }
-    return colorThemes[1];
+    return colorThemes[0];
   }
 
   function updateThemeDotSelection(activeThemeName) {
@@ -296,6 +307,31 @@
       root.style.setProperty("--lua-probe-accent", theme.accent);
       root.style.setProperty("--lua-probe-header-bg", theme.header);
       root.style.setProperty("--lua-probe-caret-line-bg", theme.caretBg);
+      root.style.setProperty("--lua-probe-accent-solid", theme.accentSolid);
+      root.style.setProperty("--lua-probe-on-accent", theme.onAccent);
+      root.style.setProperty("--lua-probe-surface-main", theme.surfaceMain);
+      root.style.setProperty("--lua-probe-surface-elevated", theme.surfaceElevated);
+      root.style.setProperty("--lua-probe-surface-row", theme.surfaceRow);
+      root.style.setProperty("--lua-probe-surface-deep", theme.surfaceDeep);
+      root.style.setProperty("--lua-probe-surface-row-alt", theme.surfaceRowAlt);
+      root.style.setProperty("--lua-probe-border-strong", theme.borderStrong);
+      root.style.setProperty("--lua-probe-border-hover", theme.borderHover);
+      root.style.setProperty("--lua-probe-shadow", theme.shadow);
+      root.style.setProperty("--lua-probe-text-muted", theme.textMuted);
+      root.style.setProperty("--lua-probe-text-dim", theme.textDim);
+      root.style.setProperty("--lua-probe-cm-comment", theme.cmComment);
+      root.style.setProperty("--lua-probe-cm-linenumber", theme.cmLineNumber);
+      root.style.setProperty("--lua-probe-gutter-border", theme.gutterBorder);
+      root.style.setProperty("--lua-probe-btn-apply-bg", theme.btnApplyBg);
+      root.style.setProperty("--lua-probe-btn-apply-border", theme.btnApplyBorder);
+      root.style.setProperty("--lua-probe-btn-apply-color", theme.btnApplyColor);
+      root.style.setProperty("--lua-probe-btn-apply-hover-bg", theme.btnApplyHoverBg);
+      root.style.setProperty("--lua-probe-btn-apply-active-bg", theme.btnApplyActiveBg);
+      root.style.setProperty("--lua-probe-btn-cancel-bg", theme.btnCancelBg);
+      root.style.setProperty("--lua-probe-btn-cancel-border", theme.btnCancelBorder);
+      root.style.setProperty("--lua-probe-btn-cancel-color", theme.btnCancelColor);
+      root.style.setProperty("--lua-probe-btn-cancel-hover-bg", theme.btnCancelHoverBg);
+      root.style.setProperty("--lua-probe-btn-cancel-active-bg", theme.btnCancelActiveBg);
       state.lastAppliedTheme = theme.name;
     }
     updateThemeDotSelection(theme.name);
@@ -303,9 +339,11 @@
     if (emitPacket) {
       sendPacket("lua_theme_changed", {
         theme: theme.name,
+        label: theme.label,
         accent: theme.accent,
         header: theme.header,
-        caretBg: theme.caretBg
+        caretBg: theme.caretBg,
+        surfaceMain: theme.surfaceMain
       });
     }
   }
@@ -334,7 +372,8 @@
           dot.style.background = theme.dot;
           dot.setAttribute("data-theme", theme.name);
           dot.setAttribute("data-active", "0");
-          dot.setAttribute("title", "Probe color: " + theme.name);
+          dot.setAttribute("title", "Theme: " + (theme.label || theme.name));
+          dot.setAttribute("aria-label", "Theme: " + (theme.label || theme.name));
           dot.addEventListener("click", function () {
             applyTheme(theme.name, true);
           }, true);
@@ -347,10 +386,11 @@
       header.appendChild(switcher);
     }
 
-    if (state.lastAppliedTheme !== (state.activeTheme || "yellow")) {
-      applyTheme(state.activeTheme || "yellow", false);
+    var defaultTheme = (colorThemes[0] && colorThemes[0].name) ? colorThemes[0].name : "monokai";
+    if (state.lastAppliedTheme !== (state.activeTheme || defaultTheme)) {
+      applyTheme(state.activeTheme || defaultTheme, false);
     } else {
-      updateThemeDotSelection(state.activeTheme || "yellow");
+      updateThemeDotSelection(state.activeTheme || defaultTheme);
     }
   }
 

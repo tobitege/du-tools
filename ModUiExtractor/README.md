@@ -115,8 +115,9 @@ This writes `all_scripts_manifest.json` plus `all_script_js_*.js` sections after
 - `payload/ModUiExtractor-payload.js`: embedded payload
 - `payload/lua-editor-probe.modules/`: source modules for Lua probe (manifest-driven)
 - `payload/lua-editor-probe.js`: composed Lua probe payload (generated from modules)
-- `tools/build-lua-probe.ps1`: compose `lua-editor-probe.modules` into `payload/lua-editor-probe.js`
-- `tools/publish-lua-probe.ps1`: compose + publish probe to runtime override paths
+- `payload/lua-editor-probe.build.json`: fingerprint from `build-lua-probe.ps1` (`contentSha256Short` matches the chat hash); **embedded** in the DLL (LogicalName `lua-editor-probe.build.json`) and mirrored under `lua-editor-probe.modules/` for publishes
+- `tools/build-lua-probe.ps1`: compose `lua-editor-probe.modules` into `payload/lua-editor-probe.js` (injects outer IIFE + `"use strict"`; module sources omit the wrapper so IDEs can lint them)
+- `tools/publish-lua-probe.ps1`: compose + publish probe to runtime override paths (default `DumpDir`: `D:\MyDUserver\tmp\ui-dumps`)
 - `tools/reassemble-ui-dump.ps1`: reassemble NDJSON to files
 - `tools/split-html-dump.py`: split `html.html` by direct `<body>` root elements
 
@@ -181,6 +182,7 @@ Runtime payload override directory (read fresh on every injection):
 - `D:\MyDUserver\tmp\ui-dumps\payload-overrides`
 - `ModUiExtractor-payload.override.js`
 - `lua-editor-probe.override.js`
+- `lua-editor-probe.build.json` (optional: repo fingerprint from `build-lua-probe.ps1`; compare `contentSha256Short` to the chat suffix hash)
 - `lua-editor-probe.modules\manifest.txt` (optional module override mode)
 
 Each run writes:
@@ -202,6 +204,20 @@ Probe override resolution order on each inject:
 2. `payload-overrides\lua-editor-probe.override.js`
 3. embedded `payload/lua-editor-probe.js` in DLL
 
+**Inject confirmation chat:** after a successful Lua probe inject, the chat line ends with **`[probe <injectUtc> <sha8>]`** where **`sha8`** is the first 8 hex chars of **SHA-256 (UTF-8)** over the **exact probe script body** loaded for that inject (concatenated modules, bundle override, or embedded payload). That matches **`contentSha256Short`** in `lua-editor-probe.build.json` after `build-lua-probe.ps1`. **`injectUtc`** is the server inject time (`yyyyMMdd-HHmmss`), not the PS1 stamp.
+
+### Probe composition (IIFE wrapper)
+
+- **Module files** (`*.js` in `payload/lua-editor-probe.modules/`) do **not** contain the outer `(function () { … })();` — they must parse as normal scripts (no top-level `return`).
+- **`build-lua-probe.ps1`** wraps the concatenated manifest body with the same preamble/postamble as **`ModUIExtractor.ResolveRuntimeModuleScript`** (`LuaProbeModulesPreamble` / `LuaProbeModulesPostamble` in `ModUIExtractor.cs`). If you change one, keep the other in sync.
+- Without that wrapper, runtime **module override** mode would inject invalid JS (illegal top-level `return`).
+
+### Lua editor themes & footer buttons (probe UI)
+
+- **Three dots** in the title/header bar switch presets: **monokai**, **github-dark**, **gruvbox-dark** (legacy dot names `green` / `yellow` / `red` map to these). They drive `--lua-probe-*` CSS variables on `#dpu_editor` (surfaces, borders, CodeMirror accents, etc.); see `000-core.js` (`colorThemes`), `010-context-and-viewport.js` (injected overrides), `030-caret-theme-ide-sync.js` (`applyTheme`).
+- **`lua_theme_changed`** packets include `theme`, `label`, `accent`, `header`, `caretBg`, `surfaceMain` (and related vars are applied inline on the editor root).
+- **APPLY / CANCEL** use theme-specific gradients and 3D shadows (`btnApply*`, `btnCancel*` tokens per preset) so they stay distinct from vanilla DU chrome while matching the active theme.
+
 After each edit:
 
 1. Save changed module or `lua-editor-probe.override.js`.
@@ -218,7 +234,7 @@ No DLL rebuild needed for:
 
 DLL rebuild required for:
 
-- `ModUIExtractor.cs` changes
+- `ModUIExtractor.cs` changes (including **Lua probe module concat** / `ResolveRuntimeModuleScript` IIFE wrapper)
 - action/menu wiring changes
 - payload loader/ingest C# logic changes
 
@@ -240,6 +256,9 @@ Copy-Item `
 Copy-Item `
   'D:\github\du-tobi\ModUiExtractor\payload\lua-editor-probe.js' `
   'D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.override.js' -Force
+Copy-Item `
+  'D:\github\du-tobi\ModUiExtractor\payload\lua-editor-probe.build.json' `
+  'D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.build.json' -Force
 
 # Source module payloads -> live module override dir
 Copy-Item `
@@ -362,7 +381,12 @@ For `action: "probe_call"`, the Lua runtime probe (`payload/lua-editor-probe.mod
 - `command_result` — dispatch / injection acknowledgement
 - `probe_result` — `method`, `success`, `result`, `error`
 
-Supported probe methods: `describe`, `select_slot`, `select_filter`, `set_code`, `apply`. MCP-side entry point and example payloads: `DuMcpBridge/README.md` (`du_lua_probe_call`).
+Supported probe methods: `describe`, `select_slot`, `select_filter`, `set_code`, `apply`, `add_filter`, `outer_html`, `raw_eval`. MCP entry points: `DuMcpBridge/README.md` (`du_lua_probe_call`, `du_lua_add_filter`, `du_lua_outer_html`, `du_lua_probe_raw`, `du_ui_*`).
+
+Probe workflow notes (see `DuMcpBridge/README.md` for detail):
+
+- Reliable automation order: **`select_slot` → `select_filter` → `set_code`**. `apply` often closes the full Lua editor window.
+- **`select_filter`** activates an **existing** `.filter.view` row. **`add_filter`** uses **`+ add filter`** when needed, then the new row’s kebab. **`outer_html`** returns truncated `outerHTML`. **`raw_eval`** runs trusted-debug JS with parameter `state` = probe state object.
 
 ## Local Lua Editor Rig (No Game Client)
 

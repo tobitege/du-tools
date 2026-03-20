@@ -1,6 +1,3 @@
-(function () {
-  "use strict";
-
   if (typeof window.__UI_EXTRACTOR_LUA_PROBE_UNINSTALL__ === "function") {
     try {
       window.__UI_EXTRACTOR_LUA_PROBE_UNINSTALL__("reinject");
@@ -18,6 +15,7 @@
   var actionId = cfg.actionId || 900001;
   var dumpId = "lua-probe-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
   var caretHighlightPrefStorageKey = "ModUiExtractor.lua.caret-highlight-enabled.v1";
+  var mcpResultChunkSize = 7000;
 
   function loadCaretHighlightPreference() {
     try {
@@ -51,7 +49,7 @@
     menuHits: 0,
     editorVisible: false,
     managerWrapped: false,
-    activeTheme: "yellow",
+    activeTheme: "monokai",
     lastAppliedTheme: "",
     scrollTopByContext: Object.create(null),
     lastContextKey: "",
@@ -81,25 +79,103 @@
   state.applyIdeCode = applyIdeCode;
   var colorThemes = [
     {
-      name: "green",
-      dot: "#5ce890",
-      accent: "rgba(92,232,144,0.95)",
-      header: "rgba(14,54,39,0.96)",
-      caretBg: "rgba(92,232,144,0.20)"
+      name: "monokai",
+      label: "Monokai",
+      dot: "#a6e22e",
+      accent: "rgba(166,226,46,0.92)",
+      header: "rgba(39,40,34,0.97)",
+      caretBg: "rgba(166,226,46,0.18)",
+      accentSolid: "#a6e22e",
+      onAccent: "#272822",
+      surfaceMain: "#272822",
+      surfaceElevated: "#3e3d32",
+      surfaceRow: "#49483e",
+      surfaceDeep: "#1e1f1c",
+      surfaceRowAlt: "#423f36",
+      borderStrong: "#75715e",
+      borderHover: "#66d9ef",
+      shadow: "rgba(0,0,0,0.5)",
+      textMuted: "#cfcfc2",
+      textDim: "#90908a",
+      cmComment: "#75715e",
+      cmLineNumber: "#90908a",
+      gutterBorder: "#49483e",
+      btnApplyBg: "linear-gradient(180deg,#646e52 0%,#4a5540 45%,#343c30 100%)",
+      btnApplyBorder: "rgba(166,226,46,0.78)",
+      btnApplyColor: "#f8f8f2",
+      btnApplyHoverBg: "linear-gradient(180deg,#727c60 0%,#586348 45%,#3e4836 100%)",
+      btnApplyActiveBg: "linear-gradient(180deg,#525a48 0%,#3a4236 45%,#2b3028 100%)",
+      btnCancelBg: "linear-gradient(180deg,#525046 0%,#403e38 45%,#302e2a 100%)",
+      btnCancelBorder: "rgba(183,174,140,0.55)",
+      btnCancelColor: "#cfcfc2",
+      btnCancelHoverBg: "linear-gradient(180deg,#5e5a50 0%,#4a4640 45%,#38342f 100%)",
+      btnCancelActiveBg: "linear-gradient(180deg,#45423a 0%,#35322d 45%,#282622 100%)"
     },
     {
-      name: "yellow",
-      dot: "#f4d25d",
-      accent: "rgba(244,210,93,0.95)",
-      header: "rgba(54,45,18,0.96)",
-      caretBg: "rgba(244,210,93,0.20)"
+      name: "github-dark",
+      label: "GitHub Dark",
+      dot: "#58a6ff",
+      accent: "rgba(88,166,255,0.92)",
+      header: "rgba(13,17,23,0.97)",
+      caretBg: "rgba(88,166,255,0.15)",
+      accentSolid: "#58a6ff",
+      onAccent: "#0d1117",
+      surfaceMain: "#0d1117",
+      surfaceElevated: "#161b22",
+      surfaceRow: "#21262d",
+      surfaceDeep: "#010409",
+      surfaceRowAlt: "#30363d",
+      borderStrong: "#30363d",
+      borderHover: "#58a6ff",
+      shadow: "rgba(1,4,9,0.55)",
+      textMuted: "#8b949e",
+      textDim: "#6e7681",
+      cmComment: "#8b949e",
+      cmLineNumber: "#6e7681",
+      gutterBorder: "#30363d",
+      btnApplyBg: "linear-gradient(180deg,#1c4a8c 0%,#143a6e 45%,#0c2848 100%)",
+      btnApplyBorder: "rgba(88,166,255,0.78)",
+      btnApplyColor: "#e6edf3",
+      btnApplyHoverBg: "linear-gradient(180deg,#2657a0 0%,#1a457e 45%,#12325c 100%)",
+      btnApplyActiveBg: "linear-gradient(180deg,#153a6c 0%,#0f2d52 45%,#0a2040 100%)",
+      btnCancelBg: "linear-gradient(180deg,#30363d 0%,#252b33 45%,#1a1f26 100%)",
+      btnCancelBorder: "rgba(139,148,158,0.45)",
+      btnCancelColor: "#8b949e",
+      btnCancelHoverBg: "linear-gradient(180deg,#3d444d 0%,#30363d 45%,#252b32 100%)",
+      btnCancelActiveBg: "linear-gradient(180deg,#282e35 0%,#1e242a 45%,#161b22 100%)"
     },
     {
-      name: "red",
-      dot: "#ec6b6b",
-      accent: "rgba(236,107,107,0.95)",
-      header: "rgba(58,20,24,0.96)",
-      caretBg: "rgba(236,107,107,0.20)"
+      name: "gruvbox-dark",
+      label: "Gruvbox Dark",
+      dot: "#fe8019",
+      accent: "rgba(254,128,25,0.92)",
+      header: "rgba(40,40,40,0.97)",
+      caretBg: "rgba(254,128,25,0.18)",
+      accentSolid: "#fe8019",
+      onAccent: "#282828",
+      surfaceMain: "#282828",
+      surfaceElevated: "#3c3836",
+      surfaceRow: "#504945",
+      surfaceDeep: "#1d2021",
+      surfaceRowAlt: "#403c3a",
+      borderStrong: "#665c54",
+      borderHover: "#83a598",
+      shadow: "rgba(0,0,0,0.5)",
+      textMuted: "#a89984",
+      textDim: "#928374",
+      cmComment: "#928374",
+      cmLineNumber: "#a89984",
+      gutterBorder: "#504945",
+      btnApplyBg: "linear-gradient(180deg,#76634a 0%,#5a4a3a 45%,#423d34 100%)",
+      btnApplyBorder: "rgba(254,128,25,0.82)",
+      btnApplyColor: "#fbf1c7",
+      btnApplyHoverBg: "linear-gradient(180deg,#857256 0%,#685442 45%,#4d4036 100%)",
+      btnApplyActiveBg: "linear-gradient(180deg,#5f5142 0%,#483e32 45%,#362f28 100%)",
+      btnCancelBg: "linear-gradient(180deg,#504945 0%,#403c3a 45%,#32302f 100%)",
+      btnCancelBorder: "rgba(168,153,132,0.5)",
+      btnCancelColor: "#a89984",
+      btnCancelHoverBg: "linear-gradient(180deg,#5c534d 0%,#4a4541 45%,#3a3634 100%)",
+      btnCancelActiveBg: "linear-gradient(180deg,#454039 0%,#363230 45%,#292726 100%)"
     }
   ];
   var quickEditLuaMenuItemId = "ModUiExtractor-quick-edit-lua";
@@ -152,6 +228,34 @@
       window.CPPMod.sendModAction(modName, actionId, [], payload);
     } catch (err) {
       safeLog("sendPacket failed", String(err && err.message ? err.message : err));
+    }
+  }
+
+  function splitTextIntoChunks(text, chunkSize) {
+    var value = String(text || "");
+    var size = typeof chunkSize === "number" && chunkSize > 0 ? chunkSize : 7000;
+    var chunks = [];
+    if (!value) {
+      chunks.push("");
+      return chunks;
+    }
+    for (var i = 0; i < value.length; i += size) {
+      chunks.push(value.slice(i, i + size));
+    }
+    return chunks;
+  }
+
+  function sendJsonPacketChunked(type, payload, chunkSize) {
+    var json = JSON.stringify(payload || {});
+    var chunks = splitTextIntoChunks(json, chunkSize);
+    var packetId = type + "-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
+    for (var i = 0; i < chunks.length; i += 1) {
+      sendPacket(type + "_chunk", {
+        packetId: packetId,
+        part: i + 1,
+        total: chunks.length,
+        jsonChunk: chunks[i]
+      });
     }
   }
 
@@ -233,4 +337,3 @@
     }
     return out;
   }
-

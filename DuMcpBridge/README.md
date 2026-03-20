@@ -62,6 +62,7 @@ The current implementation supports:
 - active code snapshots and last-result lookup
 - runtime log tailing
 - a Lua runtime-probe API for the open Lua editor
+- thin MCP convenience wrappers around that probe (`du_lua_describe_editor`, `du_lua_select_slot`, …)
 
 Current in-game targets:
 
@@ -227,6 +228,9 @@ Currently supported probe methods:
 - `select_filter`
 - `set_code`
 - `apply`
+- `add_filter`
+- `outer_html`
+- `raw_eval` (trusted-debug only: arbitrary JS body with parameter `state`)
 
 The probe emits `lua_mcp_result` packets.
 `ModUiExtractor` converts those packets into bridge events of type `probe_result`.
@@ -373,6 +377,9 @@ Inputs:
 - `slotName`
 - `filterEvent`
 - `code`
+- `addFilterName` (for `add_filter`)
+- `outerHtmlSelector` (for `outer_html`, default `#filters`)
+- `rawEvalBody` (for `raw_eval`)
 - `timeoutMs`
 
 Supported methods:
@@ -382,6 +389,9 @@ Supported methods:
 - `select_filter`
 - `set_code`
 - `apply`
+- `add_filter`
+- `outer_html`
+- `raw_eval`
 
 Behavior:
 
@@ -412,7 +422,88 @@ These shapes were verified end-to-end with `playerId = 10000`, `DuMcpBridge` wri
 
 **`visible` caveat:** snapshots use a DOM visibility heuristic (`display`, `offsetParent`). After some slot or filter transitions, `visible` can read `false` while the editor is still open; treat `title`, `selectedSlot`, and `slots` as the primary signals.
 
+### Lua probe workflow, `apply`, and the FILTERS panel
+
+**Reliable `set_code` order**
+
+For edits to land in the script the player sees, call probes in this order:
+
+1. **`select_slot`** — activate the slot tab (library, system, unit, …).
+2. **`select_filter`** — activate the filter tab for the event handler you are editing (`onStart`, `onUpdate`, …).
+3. **`set_code`** — replace the entire editor buffer for that slot+filter context.
+
+If `set_code` runs with **no slot selected** (snapshot shows `selectedSlot: null` and often an empty `filters` array), the probe can still report a non-zero `codeLength` from **some** CodeMirror instance, but the visible board context may be wrong. Establish **slot, then filter**, then inject code.
+
+**MCP calls:** run probe steps **sequentially** for the same `playerId` (one tool call at a time). Parallel calls can race on the file bus and confuse debugging.
+
+**`apply` semantics**
+
+- `apply` invokes `LUAEditorManager.apply()`—the same confirm path as the in-game editor.
+- In practice this often **closes the entire Lua editor panel**, not an in-place save with the window left open.
+- Do not bundle `apply` in parallel with other probe calls.
+- In-game “save / unsaved changes” prompts follow the normal client UI; automated `apply` may not surface the same dialogs you see when clicking manually.
+
+**FILTERS UI**
+
+- **New filter rows** are created with **`+ add filter`** (`.lua_add_filter_button` under `#dpu_editor`), same as `LUAEditorManager.addNewFilter(true)`. The **three-dots / kebab** on a row only **chooses or changes the event type** for that row; it does not add another row.
+- The kebab hover (`.action_list_button_wrapper`) reveals `ul.actionsList li` entries (`onStart`, `onStop`, `onUpdate`, …). The **available list is context-dependent** (slot + device). Treat `describe` → `filters[].event` as the source of truth for rows already in the DOM.
+
+**What `select_filter` does**
+
+- The probe only walks **existing** `.filter` nodes under `#filters_container` that have the `view` class (see `035-lua-mcp-runtime.js`).
+- `select_filter` **activates** one of those rows by matching the `.actionName` text (normalized; game text may look like `onStart()` in the UI).
+
+**Adding a filter by command (`add_filter`)**
+
+- Implemented in `035-lua-mcp-runtime.js`. Flow: if no row already has the target event, the probe uses an **unsettled** row (no real event chosen yet, e.g. “Select event”) if one exists; otherwise it **clicks `.lua_add_filter_button`** (fallback: `LUAEditorManager.addNewFilter(true)`), waits for an unsettled row, then opens that row’s kebab (`.action_list_button_wrapper` hover / nudges) and clicks the matching `ul.actionsList li`. Normalization strips spaces and trailing `()`.
+- Cohtml: heavy work runs inside **`setTimeout(..., 0)`**; allow a longer MCP `timeoutMs` (e.g. 15s). Waits use **yieldCpu** iteration yields, not `Date.now()` busy-loops.
+- If a row already shows that event, the result includes **`alreadyPresent: true`** (idempotent).
+- **MCP:** `du_lua_probe_call` with `method: "add_filter"` and `addFilterName`, or **`du_lua_add_filter`**.
+- Unknown handler → `add_filter_option_not_found:…`. Missing add path → `add_filter_no_add_button` / `add_filter_no_new_row` / `add_filter_no_placeholder_row`.
+- After adding, use **`select_filter`** then **`set_code`** if you need to edit that handler’s buffer.
+
+**`outer_html` (DOM snapshot)**
+
+- Probe method **`outer_html`** with one string argument: a **CSS selector**. Resolution: `querySelector` on `#dpu_editor` first, then `document`. Default when omitted: `"#filters"`.
+- Result JSON: `selector`, `outerHTML`, `originalLength`, `truncated` (markup is capped at **350000** characters so MCP/JSON stays bounded).
+- **MCP:** `du_lua_probe_call` with `method: "outer_html"` and `outerHtmlSelector`, or **`du_lua_outer_html`** with `selector`.
+
+**`raw_eval` (escape hatch)**
+
+- Runs a **function body** (not wrapped by you) with parameter **`state`** = `window.__UI_EXTRACTOR_LUA_PROBE_STATE__`, in **strict** mode via `new Function("state", body)(st)`.
+- Example `rawEvalBody`: `return state.describeLuaEditor();`
+- **Security:** executes arbitrary JS in the HUD context — use only for trusted debugging.
+- **MCP:** `du_lua_probe_call` with `method: "raw_eval"` and `rawEvalBody`, or **`du_lua_probe_raw`** with `functionBody`.
+
+**Generic `du_ui_*` tools (preview)**
+
+- **`du_ui_describe`**, **`du_ui_invoke`**, **`du_ui_wait`**, **`du_ui_eval_raw`** take **`uiKind`**. Only **`lua_editor`** is implemented today; they delegate to the same file-bus `probe_call` as the `du_lua_*` tools. When a second surface (e.g. screen editor probe) shares the envelope, extend `uiKind` and branch in the server.
+
 This tool is the first concrete step toward a “transport-only” MCP server with runtime UI intelligence in the probe.
+
+### Lua probe convenience wrappers
+
+These tools enqueue the same `probe_call` commands as `du_lua_probe_call`. They add no extra business logic on the server.
+
+| Tool | Role |
+|------|------|
+| `du_lua_describe_editor` | `method = describe` |
+| `du_lua_select_slot` | `select_slot` with `slotName` |
+| `du_lua_select_filter` | `select_filter` with `filterName` (same value as the probe’s filter event / `du_lua_probe_call`’s `filterEvent`) |
+| `du_lua_add_filter` | `add_filter` — `+ add filter` when needed, then kebab on the new/unsettled row (`filterName`) |
+| `du_lua_outer_html` | `outer_html` — `outerHTML` for a selector (default `#filters`; truncated if huge) |
+| `du_lua_probe_raw` | `raw_eval` — trusted-debug JS body with `state` parameter |
+| `du_lua_set_code` | `set_code` with full-buffer `code` |
+| `du_lua_apply` | `apply` |
+| `du_lua_get_selection` | one `describe`, structured output: `selectedSlot`, `selectedFilter`, `title`, `canApply`, `visible`, `wrapLines`, `codeLength` |
+| `du_lua_wait_for_editor` | polls `describe` until a readiness heuristic succeeds or `maxWaitMs` is reached; each attempt’s wait is capped so the loop respects the total budget; separate from `du_editor_push_code` retries |
+
+| `du_ui_describe` | `uiKind` + same as `du_lua_describe_editor` (only `lua_editor` today) |
+| `du_ui_invoke` | `uiKind` + full `du_lua_probe_call`-style `method` and optional args |
+| `du_ui_wait` | `uiKind` + same as `du_lua_wait_for_editor` |
+| `du_ui_eval_raw` | `uiKind` + same as `du_lua_probe_raw` |
+
+Structured outputs match `du_lua_probe_call` where noted in the MCP schemas, except `du_lua_get_selection` (narrower fields) and `du_lua_wait_for_editor` (`ready`, `attempts`, `waitedMs`, plus last snapshot fields).
 
 ### `du_editor_pull_code`
 

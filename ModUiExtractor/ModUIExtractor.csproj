@@ -42,5 +42,6 @@
   <ItemGroup>
     <EmbeddedResource Include="payload\ModUiExtractor-payload.js" LogicalName="ModUiExtractor-payload.js" />
     <EmbeddedResource Include="payload\lua-editor-probe.js" LogicalName="lua-editor-probe.js" />
+    <EmbeddedResource Include="payload\lua-editor-probe.build.json" LogicalName="lua-editor-probe.build.json" />
   </ItemGroup>
 </Project>
