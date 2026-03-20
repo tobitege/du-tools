@@ -51,6 +51,7 @@ This repo now includes:
   - injected entries are left-aligned and styled from native menu template structure,
   - quick `Edit Lua script` now resolves the real top-level `Advanced -> Edit Lua script` path, extracts `helperid` (for example `menu_item_30`), and executes the native bridge action using `CPPMainContextMenu/CPPContextMenu.executeAction(<numeric helper index>)`,
   - bridge-first path now waits for editor open before fallback and only keeps a lightweight `Ctrl + L` fallback,
+  - that synthetic `Ctrl + L` fallback is Lua-specific and best-effort only; it is not a generic hotkey/input layer for arbitrary gameplay actions such as `F` / `Use`,
   - emits `lua_quick_menu_edit_lua_result` telemetry steps for debugging.
 - **Breakthrough:** `executeAction` expects a numeric first argument (type conversion fails for string/object signatures). Converting `helperid` (`menu_item_30`) to numeric index (`30`) is the reliable trigger.
 - Final Lua editor stabilization points (what made slot/filter sync reliable):
@@ -206,6 +207,8 @@ Each run writes:
 
 Use this when you want to tweak Lua editor UI behavior live without rebuilding the DLL.
 
+**WICHTIG IN GROSSBUCHSTABEN, WEIL ES SONST IMMER WIEDER PASSIERT: BEI JEDER PAYLOAD-AENDERUNG IMMER BUILD + PUBLISH. NUR REINJECT REICHT NICHT. NUR BUILD REICHT NICHT. ERST `build-lua-probe.ps1`, DANN `publish-lua-probe.ps1`, DANN INGAME REINJECT.**
+
 Edit one of these for live changes:
 
 - `D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.override.js`
@@ -230,6 +233,8 @@ Probe override resolution order on each inject:
 - **Three dots** in the title/header bar switch presets: **monokai**, **github-dark**, **gruvbox-dark** (legacy dot names `green` / `yellow` / `red` map to these). They drive `--lua-probe-*` CSS variables on `#dpu_editor` (surfaces, borders, CodeMirror accents, etc.); see `000-core.js` (`colorThemes`), `010-context-and-viewport.js` (injected overrides), `030-caret-theme-ide-sync.js` (`applyTheme`).
 - **`lua_theme_changed`** packets include `theme`, `label`, `accent`, `header`, `caretBg`, `surfaceMain` (and related vars are applied inline on the editor root).
 - **APPLY / CANCEL** use theme-specific gradients and 3D shadows (`btnApply*`, `btnCancel*` tokens per preset) so they stay distinct from vanilla DU chrome while matching the active theme.
+- The visible `screen_editor` now reuses the same theme token set and theme dots, so both editor UIs stay visually aligned without moving any UI logic into the MCP server.
+- The `screen_editor` content header panel (`sub_title`, wrap/font controls, mode switch block) is now themed as well, so the whole top control area matches the active probe theme instead of keeping the vanilla DU look.
 
 After each edit:
 
@@ -299,7 +304,7 @@ This is the exact sequence that reproduces the currently working behavior.
 
 Recommended (module-first) prep before testing:
 
-Do not stop at `build-lua-probe.ps1`. `build` refreshes the repo bundle, but the game inject path reads from `D:\MyDUserver\tmp\ui-dumps\payload-overrides`. For live tests you must run `publish-lua-probe.ps1` so the override files and build stamp are updated.
+**NICHT BEI `build-lua-probe.ps1` STOPPEN.** `build` aktualisiert nur das Repo-Bundle. Der Live-Injektionspfad liest aus `D:\MyDUserver\tmp\ui-dumps\payload-overrides`. **FUER JEDEN LIVE-TEST NACH PAYLOAD-AENDERUNGEN IMMER BUILD + PUBLISH + REINJECT.**
 
 ```powershell
 .\tools\publish-lua-probe.ps1
@@ -379,10 +384,19 @@ The Lua probe supports exporting the current script to a local file, automatical
    ```
 
 3. In the game's Lua editor, click the `IDE Sync` button in the top header.
-4. The script will be chunked, written to the server's dump directory, reassembled into `tmp\ui-dumps\ide-workspace\snippet.lua`, and opened in your IDE.
+4. The script will be chunked, written to the server's dump directory, reassembled into `tmp\ui-dumps\ide-workspace\player-<playerId>\lua_editor\snippet.lua`, and opened in your IDE.
 5. Edit `snippet.lua` in your IDE and save.
-6. The sync script watches for file changes and writes them to a semaphore file (`ide_import.json`).
-7. The C# mod detects the semaphore and hot-loads the updated code back into the active Lua editor instance instantly.
+6. The sync script watches for file changes and writes them to a player-scoped semaphore file (`ide_import.player-<playerId>.lua_editor.json`).
+7. The C# mod detects the semaphore, injects an IDE import request into the probe, and only treats that request as done after an explicit `ide_import_result` ack from the live editor.
+
+Atomicity / target-isolation notes:
+
+- Export now writes a sidecar file `tmp\ui-dumps\ide-workspace\player-<playerId>\lua_editor\snippet.sync.json` with `targetKind`, `contextKey`, editor reference, and export hashes alongside `snippet.lua`.
+- Reassembly writes both the workspace code file and the sidecar atomically through temp-file swap, so external editors do not see partial chunk states.
+- IDE imports now carry `requestId`, `targetKind`, `contextKey`, `reference`, `baseCodeHash32`, and `baseCodeSha256`.
+- The live probe matches imports against the currently open editor before applying. For the Lua editor the current practical anchor is `constructId + slotElementName`, with `editorTitle` as an additional guard.
+- If the player switched to the wrong board or wrong filter, the probe returns a retryable `ide_import_result` and the mod keeps retrying the same request until the correct target is live again.
+- Base hash/version mismatch is no longer blind, but also not a hard stop: the probe reports `applied_stale_base` when it had to write over a changed live base on the same target.
 
 Mode note:
 
@@ -393,7 +407,7 @@ Mode note:
 
 `DuMcpBridge` drops JSON commands under `tmp\ui-dumps\mcp-bridge\commands\`. This mod watches that folder, runs the command in the player HUD client, and appends structured lines to `tmp\ui-dumps\mcp-bridge\events\bridge-events.ndjson`.
 
-For `action: "probe_call"`, the Lua runtime probe (`payload/lua-editor-probe.modules/035-lua-mcp-runtime.js`, loaded via the usual Lua probe injection) handles the live editor. The mod maps `lua_mcp_result` packets to bridge events:
+For `action: "probe_call"`, the Lua runtime probe (`payload/lua-editor-probe.modules/035-lua-mcp-runtime.js`, loaded via the usual Lua probe injection) now handles both the open Lua editor and the open screen content editor. The mod maps `lua_mcp_result` packets to bridge events:
 
 - `command_result` — dispatch / injection acknowledgement
 - `probe_result` — `method`, `success`, `result`, `error`
@@ -405,12 +419,19 @@ Chat timestamp note:
 
 - if chat messages include a `date` field from the in-game chat model, that timestamp is emitted in UTC
 
-Supported probe methods: `describe`, `chat_snapshot`, `chat_send`, `chat_join_channel`, `select_slot`, `select_filter`, `set_code`, `apply`, `add_filter`, `outer_html`, `raw_eval`. MCP entry points: `DuMcpBridge/README.md` (`du_lua_probe_call`, `du_chat_snapshot`, `du_chat_ai_mentions`, `du_chat_send_message`, `du_chat_create_channel`, `du_lua_add_filter`, `du_lua_outer_html`, `du_lua_probe_raw`, `du_ui_*`).
+Supported probe methods:
+
+- `lua_editor`: `describe`, `chat_snapshot`, `chat_send`, `chat_join_channel`, `chat_select_channel`, `select_slot`, `select_filter`, `set_code`, `apply`, `add_filter`, `outer_html`, `raw_eval`
+- `screen_editor`: `describe`, `set_code`, `apply`, `outer_html`, `raw_eval`
+
+For `lua_mcp_result`, the probe now emits `targetKind` so bridge events can keep `lua_editor` and `screen_editor` separated. MCP entry points: `DuMcpBridge/README.md` (`du_lua_probe_call`, `du_chat_snapshot`, `du_chat_ai_mentions`, `du_chat_send_message`, `du_chat_create_channel`, `du_lua_add_filter`, `du_lua_outer_html`, `du_lua_probe_raw`, `du_ui_*`).
 
 Probe workflow notes (see `DuMcpBridge/README.md` for detail):
 
 - Reliable automation order: **`select_slot` → `select_filter` → `set_code`**. `apply` often closes the full Lua editor window.
 - **`select_filter`** activates an **existing** `.filter.view` row. **`add_filter`** uses **`+ add filter`** when needed, then the new row’s kebab. **`outer_html`** returns truncated `outerHTML`. **`raw_eval`** runs trusted-debug JS with parameter `state` = probe state object.
+- For `lua_editor`, hidden editor state is treated as stale cache. The probe only reports live content while the editor is visible; hidden snapshots are zeroed and editor-mutating methods reject with `lua_editor_not_visible`.
+- For `screen_editor`, hidden editor state is treated as stale cache. The probe only reports live content while the editor is visible; hidden snapshots are zeroed and `set_code` / `apply` reject with `screen_editor_not_visible`.
 - `chat_send` uses the real HUD send path via `chatManager.sendMessageToCPP(channelId, message)`.
 - `chat_join_channel` does not click the HUD modal. It uses `/join <name>` on the chat send path and then selects `room_<lowercase>`.
 - Current runtime note: if the HUD sits on a construct chat tab (`HC_TestCore_L`) with `open = false`, the follow-up select step can still time out even though the server-side `server_chat` snapshot already sees the target room.
@@ -439,14 +460,14 @@ Use this when iterating on Lua probe + IDE sync without launching the game.
    - `http://localhost:8765/`
 
 4. In the editor header, click `IDE Sync`.
-5. The packet is written to `rig-lua-editor.ndjson`, reassembled into `ide-workspace\snippet.lua`, and opened in your IDE.
+5. The packet is written to `rig-lua-editor.ndjson`, reassembled into `ide-workspace\player-<playerId>\lua_editor\snippet.lua`, and opened in your IDE.
 6. Edit `snippet.lua` and save.
-7. `sync-ide.ps1` writes `payload-overrides\ide_import.json`, and the local rig applies it back into the editor via `applyIdeCode`.
+7. `sync-ide.ps1` writes `payload-overrides\ide_import.player-<playerId>.lua_editor.json`, and the local rig applies it back into the editor.
 
 Notes:
 
 - The local rig injects `payload\lua-editor-probe.js` and bridges `CPPMod.sendModAction` to `/api/mod-action`.
-- This rig exercises the same file-based sync loop (`*.ndjson` + `ide_import.json`) as the in-game workflow.
+- This rig exercises the same file-based sync loop (`*.ndjson` + player-scoped `ide_import*.json`) as the in-game workflow.
 - Automated smoke test: `.\tests\test-lua-editor-rig.ps1`
 
 ### TUI Command Center
@@ -561,6 +582,8 @@ When resuming work or debugging regressions, inspect the newest `lua-probe-*.ndj
 
 - `lua_slot_auto_open`: verifies slot auto-open state machine and where it failed.
 - `lua_cm_settle_signal`: verifies CodeMirror settle gate progression (`cm-attached`, `start`, `viewport`, `scroll`, `target-snippet`).
+- `lua_initdem_observed`: compact summary of `LUAEditorManager.initDEM(...)` including context, parsed slot metadata, and current probe-visible reference fields such as `constructId`, title, slot/filter keys, and `slotElementName`.
+- `lua_initdem_payload_chunk`: chunked raw `initDEM(...)` argument capture (`data`, `slotData`, `luaActions`, `luaErrors`) for deeper offline analysis without truncation.
 - `lua_quick_menu_edit_lua`: confirms quick menu edit entry activation was attempted.
 - `lua_quick_menu_edit_lua_result`: shows quick edit path outcome (`native-target-inspect`, `native-click`, `native-opened`, `fallback-ctrl-l`) and bridge status (`bridgeInvoked`, `bridgeAttempts`).
 - `lua_editor_opened`: confirms editor was opened after quick-menu action.

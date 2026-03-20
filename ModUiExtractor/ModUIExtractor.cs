@@ -45,6 +45,24 @@ sealed class ServerChatSqlTable
     public Dictionary<string, string> Columns { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 }
 
+sealed class IdeImportResultState
+{
+    public string RequestId { get; set; } = "";
+    public bool Success { get; set; }
+    public bool Retryable { get; set; } = true;
+    public string Status { get; set; } = "";
+    public DateTime ReceivedAtUtc { get; set; } = DateTime.UtcNow;
+    public JObject Payload { get; set; } = new JObject();
+}
+
+sealed class IdeImportWatchState
+{
+    public DateTime LastObservedWriteUtc { get; set; } = DateTime.MinValue;
+    public string LastObservedContent { get; set; } = "";
+    public string LastAttemptedRequestId { get; set; } = "";
+    public DateTime LastAttemptAtUtc { get; set; } = DateTime.MinValue;
+}
+
 public sealed class MyDuMod : IMod
 {
     private const string ModName = "NQ.UIExtractor";
@@ -63,6 +81,7 @@ public sealed class MyDuMod : IMod
     private const string RuntimeLuaProbePayloadFileName = "lua-editor-probe.override.js";
     private const string RuntimeLuaProbeModulesDirectoryName = "lua-editor-probe.modules";
     private const string RuntimeLuaProbeModulesManifestFileName = "manifest.txt";
+    private const string IdeImportFilePattern = "ide_import*.json";
 
     /// <summary>
     /// Outer IIFE for lua-editor-probe module concat. Must match <c>tools/build-lua-probe.ps1</c>
@@ -80,6 +99,8 @@ public sealed class MyDuMod : IMod
     private const string McpBridgeProcessedCommandsDirectoryName = "processed-commands";
     private const int MaxLuaMcpResultChunkCount = 256;
     private static readonly TimeSpan LuaMcpResultChunkTtl = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan IdeImportResultTtl = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan IdeImportRetryInterval = TimeSpan.FromMilliseconds(1500);
 
     private IServiceProvider services = null!;
     private IClusterClient orleans = null!;
@@ -101,6 +122,7 @@ public sealed class MyDuMod : IMod
     private string luaProbeJs = "";
     private readonly ConcurrentDictionary<string, object> dumpFileLocks = new();
     private readonly ConcurrentDictionary<string, LuaMcpResultChunkAssembly> luaMcpResultChunkAssemblies = new();
+    private readonly ConcurrentDictionary<string, IdeImportResultState> ideImportResultsByRequestId = new ConcurrentDictionary<string, IdeImportResultState>(StringComparer.Ordinal);
 
     public string GetName()
     {
@@ -191,45 +213,220 @@ public sealed class MyDuMod : IMod
 
     private async Task WatchIdeImportFile()
     {
-        var importPath = Path.Combine(payloadOverridesDirectory, "ide_import.json");
-        var lastProcessedWrite = DateTime.MinValue;
-        var lastProcessedContent = "";
-
+        var watchStates = new Dictionary<string, IdeImportWatchState>(StringComparer.OrdinalIgnoreCase);
         while (true)
         {
             try
             {
                 await Task.Delay(500);
-                if (File.Exists(importPath))
+
+                CleanupExpiredIdeImportResults(DateTime.UtcNow);
+
+                if (!Directory.Exists(payloadOverridesDirectory))
                 {
-                    var writeTime = File.GetLastWriteTimeUtc(importPath);
-                    var content = await File.ReadAllTextAsync(importPath);
-                    var hasPotentialChange = writeTime != lastProcessedWrite || !string.Equals(content, lastProcessedContent, StringComparison.Ordinal);
+                    continue;
+                }
 
-                    if (hasPotentialChange)
+                var importPaths = Directory
+                    .GetFiles(payloadOverridesDirectory, IdeImportFilePattern)
+                    .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+
+                var activePaths = new HashSet<string>(importPaths, StringComparer.OrdinalIgnoreCase);
+                foreach (var knownPath in watchStates.Keys.ToArray())
+                {
+                    if (!activePaths.Contains(knownPath))
                     {
-                        var obj = JObject.Parse(content);
-                        if (obj.TryGetValue("playerId", out var pidToken) && obj.TryGetValue("code", out var codeToken))
-                        {
-                            var playerId = pidToken.Value<ulong>();
-                            var code = codeToken.Type == JTokenType.Null ? string.Empty : (codeToken.Value<string>() ?? string.Empty);
-
-                            var escapedCode = Newtonsoft.Json.JsonConvert.SerializeObject(code);
-                            var js = $"if (window.__UI_EXTRACTOR_LUA_PROBE_STATE__ && window.__UI_EXTRACTOR_LUA_PROBE_STATE__.applyIdeCode) window.__UI_EXTRACTOR_LUA_PROBE_STATE__.applyIdeCode({escapedCode});";
-
-                            await InjectJavaScript(playerId, js, "ide-sync", "Code imported from IDE");
-
-                            // Advance checkpoints only after successful parse + inject.
-                            lastProcessedWrite = writeTime;
-                            lastProcessedContent = content;
-                        }
+                        watchStates.Remove(knownPath);
                     }
                 }
+
+                foreach (var importPath in importPaths)
+                {
+                    await ProcessIdeImportFile(importPath, watchStates);
+                }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Ignore transient read errors
+                logger.LogDebug(ex, "UIExtractor IDE import watcher tick failed");
             }
+        }
+    }
+
+    private async Task ProcessIdeImportFile(string importPath, Dictionary<string, IdeImportWatchState> watchStates)
+    {
+        IdeImportWatchState watchState;
+        if (!watchStates.TryGetValue(importPath, out watchState))
+        {
+            watchState = new IdeImportWatchState();
+            watchStates[importPath] = watchState;
+        }
+
+        DateTime writeTime;
+        string content;
+        try
+        {
+            writeTime = File.GetLastWriteTimeUtc(importPath);
+            content = await File.ReadAllTextAsync(importPath);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "UIExtractor failed to read IDE import file {ImportPath}", importPath);
+            return;
+        }
+
+        var hasPotentialChange = writeTime != watchState.LastObservedWriteUtc || !string.Equals(content, watchState.LastObservedContent, StringComparison.Ordinal);
+
+        JObject obj;
+        try
+        {
+            obj = JObject.Parse(content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "UIExtractor failed to parse IDE import file {ImportPath}", importPath);
+            return;
+        }
+
+        if (!TryParseIdeImportPayload(obj, importPath, out var playerId, out var requestId, out var targetKind, out var code))
+        {
+            return;
+        }
+
+        IdeImportResultState resultState;
+        if (ideImportResultsByRequestId.TryGetValue(requestId, out resultState) && resultState.Success)
+        {
+            watchState.LastObservedWriteUtc = writeTime;
+            watchState.LastObservedContent = content;
+            watchState.LastAttemptedRequestId = requestId;
+            return;
+        }
+
+        var shouldAttempt =
+            hasPotentialChange ||
+            !string.Equals(watchState.LastAttemptedRequestId, requestId, StringComparison.Ordinal) ||
+            (DateTime.UtcNow - watchState.LastAttemptAtUtc) >= IdeImportRetryInterval;
+
+        if (!shouldAttempt)
+        {
+            return;
+        }
+
+        var serializedPayload = obj.ToString(Newtonsoft.Json.Formatting.None);
+        var escapedCode = Newtonsoft.Json.JsonConvert.SerializeObject(code);
+        var injectCode =
+            "(function(){" +
+            "var payload=" + serializedPayload + ";" +
+            "var probe=window.__UI_EXTRACTOR_LUA_PROBE_STATE__;" +
+            "if(probe&&typeof probe.applyIdeImport==='function'){probe.applyIdeImport(payload);return;}" +
+            "if(probe&&payload&&payload.targetKind==='lua_editor'&&typeof probe.applyIdeCode==='function'){probe.applyIdeCode(" + escapedCode + ");}" +
+            "})();";
+        var modeTag = string.Equals(targetKind, "screen_editor", StringComparison.OrdinalIgnoreCase)
+            ? "ide-sync-screen"
+            : "ide-sync";
+
+        watchState.LastAttemptAtUtc = DateTime.UtcNow;
+        watchState.LastAttemptedRequestId = requestId;
+        await InjectJavaScript(playerId, injectCode, modeTag, notifyMessage: null, notifyPlayer: false);
+    }
+
+    private static bool TryParseIdeImportPayload(
+        JObject obj,
+        string importPath,
+        out ulong playerId,
+        out string requestId,
+        out string targetKind,
+        out string code)
+    {
+        playerId = 0;
+        requestId = "";
+        targetKind = "lua_editor";
+        code = "";
+
+        if (!obj.TryGetValue("playerId", out var playerIdToken) || playerIdToken.Type == JTokenType.Null)
+        {
+            return false;
+        }
+
+        try
+        {
+            playerId = playerIdToken.Value<ulong>();
+        }
+        catch
+        {
+            return false;
+        }
+
+        if (playerId == 0)
+        {
+            return false;
+        }
+
+        if (obj.TryGetValue("code", out var codeToken))
+        {
+            code = codeToken.Type == JTokenType.Null ? string.Empty : (codeToken.Value<string>() ?? string.Empty);
+        }
+
+        requestId = obj["requestId"]?.Value<string>()?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(requestId))
+        {
+            requestId = obj["codeSha256"]?.Value<string>()?.Trim() ?? "";
+        }
+        if (string.IsNullOrWhiteSpace(requestId))
+        {
+            requestId = obj["codeHash32"]?.Value<string>()?.Trim() ?? "";
+        }
+        if (string.IsNullOrWhiteSpace(requestId))
+        {
+            requestId = "legacy-" + Path.GetFileName(importPath);
+        }
+
+        targetKind = obj["targetKind"]?.Value<string>()?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(targetKind))
+        {
+            targetKind = Path.GetFileName(importPath).IndexOf("screen_editor", StringComparison.OrdinalIgnoreCase) >= 0
+                ? "screen_editor"
+                : "lua_editor";
+        }
+        targetKind = string.Equals(targetKind, "screen_editor", StringComparison.OrdinalIgnoreCase)
+            ? "screen_editor"
+            : "lua_editor";
+        obj["targetKind"] = targetKind;
+
+        return true;
+    }
+
+    private void RegisterIdeImportResult(JObject packetData)
+    {
+        var requestId = packetData["requestId"]?.Value<string>()?.Trim();
+        if (string.IsNullOrWhiteSpace(requestId))
+        {
+            return;
+        }
+
+        var state = new IdeImportResultState
+        {
+            RequestId = requestId,
+            Success = packetData["success"]?.Value<bool>() ?? false,
+            Retryable = packetData["retryable"]?.Value<bool?>() ?? true,
+            Status = packetData["status"]?.Value<string>() ?? "",
+            ReceivedAtUtc = DateTime.UtcNow,
+            Payload = packetData
+        };
+
+        ideImportResultsByRequestId[requestId] = state;
+    }
+
+    private void CleanupExpiredIdeImportResults(DateTime nowUtc)
+    {
+        foreach (var entry in ideImportResultsByRequestId)
+        {
+            if (nowUtc - entry.Value.ReceivedAtUtc <= IdeImportResultTtl)
+            {
+                continue;
+            }
+
+            ideImportResultsByRequestId.TryRemove(entry.Key, out _);
         }
     }
 
@@ -562,6 +759,7 @@ public sealed class MyDuMod : IMod
             }
         }
 #else
+        await Task.CompletedTask;
         return CreateServerChatSnapshotFailure(commandId, "server_chat_opt_in_disabled");
 #endif
     }
@@ -942,13 +1140,17 @@ ORDER BY table_schema, table_name, ordinal_position";
                 var escapedCommandId = Newtonsoft.Json.JsonConvert.SerializeObject(commandId);
                 var escapedProbeMethod = Newtonsoft.Json.JsonConvert.SerializeObject(probeMethod);
                 var escapedProbeArgs = probeArgsToken.ToString(Newtonsoft.Json.Formatting.None);
+                var escapedTargetKind = Newtonsoft.Json.JsonConvert.SerializeObject("lua_editor");
                 injectCode =
                     "(function(){" +
                     "var probe=window.__UI_EXTRACTOR_LUA_PROBE_STATE__;" +
                     "if(!probe){return;}" +
                     "var commandId=" + escapedCommandId + ";" +
+                    "var targetKind=" + escapedTargetKind + ";" +
                     "var method=" + escapedProbeMethod + ";" +
                     "var args=" + escapedProbeArgs + ";" +
+                    "if(probe.mcp&&typeof probe.mcp.invokeForTarget==='function'){probe.mcp.invokeForTarget(commandId,targetKind,method,args);return;}" +
+                    "if(typeof probe.invokeMcpCommandForTarget==='function'){probe.invokeMcpCommandForTarget(commandId,targetKind,method,args);return;}" +
                     "if(probe.mcp&&typeof probe.mcp.invoke==='function'){probe.mcp.invoke(commandId,method,args);return;}" +
                     "if(typeof probe.invokeMcpCommand==='function'){probe.invokeMcpCommand(commandId,method,args);}" +
                     "})();";
@@ -1049,6 +1251,39 @@ ORDER BY table_schema, table_name, ordinal_position";
                     "savePanel();" +
                     "})();";
                 summary = waitForEditor ? "screen_editor save + wait" : "screen_editor save";
+                status = "ok";
+                return true;
+            }
+
+            if (string.Equals(action, "probe_call", StringComparison.OrdinalIgnoreCase))
+            {
+                var probeMethod = payload["probeMethod"]?.Value<string>()?.Trim();
+                var probeArgsToken = payload["probeArgs"] as JArray ?? new JArray();
+                if (string.IsNullOrWhiteSpace(probeMethod))
+                {
+                    status = "rejected";
+                    details = "missing_probe_method";
+                    return false;
+                }
+
+                var escapedCommandId = Newtonsoft.Json.JsonConvert.SerializeObject(commandId);
+                var escapedProbeMethod = Newtonsoft.Json.JsonConvert.SerializeObject(probeMethod);
+                var escapedProbeArgs = probeArgsToken.ToString(Newtonsoft.Json.Formatting.None);
+                var escapedTargetKind = Newtonsoft.Json.JsonConvert.SerializeObject("screen_editor");
+                injectCode =
+                    "(function(){" +
+                    "var probe=window.__UI_EXTRACTOR_LUA_PROBE_STATE__;" +
+                    "if(!probe){return;}" +
+                    "var commandId=" + escapedCommandId + ";" +
+                    "var targetKind=" + escapedTargetKind + ";" +
+                    "var method=" + escapedProbeMethod + ";" +
+                    "var args=" + escapedProbeArgs + ";" +
+                    "if(probe.mcp&&typeof probe.mcp.invokeForTarget==='function'){probe.mcp.invokeForTarget(commandId,targetKind,method,args);return;}" +
+                    "if(typeof probe.invokeMcpCommandForTarget==='function'){probe.invokeMcpCommandForTarget(commandId,targetKind,method,args);return;}" +
+                    "if(probe.mcp&&typeof probe.mcp.invoke==='function'){probe.mcp.invoke(commandId,method,args);return;}" +
+                    "if(typeof probe.invokeMcpCommand==='function'){probe.invokeMcpCommand(commandId,method,args);}" +
+                    "})();";
+                summary = "screen_editor probe_call " + probeMethod;
                 status = "ok";
                 return true;
             }
@@ -1399,6 +1634,17 @@ ORDER BY table_schema, table_name, ordinal_position";
         return Task.CompletedTask;
     }
 
+    private static string ResolveProbeTargetKind(JObject payload)
+    {
+        var raw = payload["targetKind"]?.Value<string>()?.Trim();
+        if (string.Equals(raw, "screen_editor", StringComparison.OrdinalIgnoreCase))
+        {
+            return "screen_editor";
+        }
+
+        return "lua_editor";
+    }
+
     private void EnsureTargetStylesheetFile()
     {
         try
@@ -1521,7 +1767,7 @@ ORDER BY table_schema, table_name, ordinal_position";
             if (string.Equals(packetType, "lua_mcp_result", StringComparison.OrdinalIgnoreCase))
             {
                 var packetData = parsedPacket["data"] as JObject ?? new JObject();
-                await AppendMcpBridgeEvent("lua_editor", "probe_result", playerId, packetData);
+                await AppendMcpBridgeEvent(ResolveProbeTargetKind(packetData), "probe_result", playerId, packetData);
             }
             else if (string.Equals(packetType, "lua_mcp_result_chunk", StringComparison.OrdinalIgnoreCase))
             {
@@ -1529,7 +1775,7 @@ ORDER BY table_schema, table_name, ordinal_position";
                 var assembledPayload = TryAssembleLuaMcpResultChunk(playerId, packetData);
                 if (assembledPayload is not null)
                 {
-                    await AppendMcpBridgeEvent("lua_editor", "probe_result", playerId, assembledPayload);
+                    await AppendMcpBridgeEvent(ResolveProbeTargetKind(assembledPayload), "probe_result", playerId, assembledPayload);
                 }
             }
             else if (string.Equals(packetType, "chat_snapshot", StringComparison.OrdinalIgnoreCase))
@@ -1546,6 +1792,11 @@ ORDER BY table_schema, table_name, ordinal_position";
             {
                 var packetData = parsedPacket["data"] as JObject ?? new JObject();
                 await AppendMcpBridgeEvent("lua_editor", "chat_channel_result", playerId, packetData);
+            }
+            else if (string.Equals(packetType, "ide_import_result", StringComparison.OrdinalIgnoreCase))
+            {
+                var packetData = parsedPacket["data"] as JObject ?? new JObject();
+                RegisterIdeImportResult(packetData);
             }
         }
 

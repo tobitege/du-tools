@@ -55,6 +55,8 @@
     state.forceEditorFocusOnNextSwitch = false;
     state.skipNextSetCodeRestore = false;
     state.suppressRestoreUntilInteraction = true;
+    state.lastIdeSyncContextKey = "";
+    state.lastIdeSyncReference = null;
     removeFreshOpenViewportGuard();
     try {
       clearCaretLineHighlight(getLuaCodeMirror());
@@ -91,6 +93,7 @@
     tryAttachMenuObserver();
     wrapLuaEditorManager();
     refreshEditorState();
+    ensureScreenEditorFacelift();
     ensureChatPlainTextCopyButton();
   }
 
@@ -161,6 +164,10 @@
       clearCaretLineHighlight(getLuaCodeMirror());
     } catch (_ignoreCaret) {}
 
+    state.lastIdeSyncContextKey = "";
+    state.lastIdeSyncReference = null;
+    state.lastInitDemReference = null;
+
     try {
       var manager = window.LUAEditorManager;
       if (manager && manager.currentData) {
@@ -182,6 +189,13 @@
     } catch (_ignoreRoot) {}
 
     try {
+      var screenRoot = getScreenEditorRoot();
+      if (screenRoot) {
+        screenRoot.removeAttribute("data-lua-probe-active");
+      }
+    } catch (_ignoreScreenRoot) {}
+
+    try {
       var menuRoot = document.getElementById("main_context_menu");
       if (menuRoot) {
         removeQuickLuaMenuEntries(menuRoot);
@@ -195,6 +209,7 @@
       "ModUiExtractor-lua-theme-dots",
       "ModUiExtractor-lua-caret-toggle",
       "ModUiExtractor-lua-ide-sync",
+      "ModUiExtractor-screen-theme-dots",
       "ModUiExtractor-chat-copy-plain",
       quickEditLuaMenuItemId,
       quickInjectProbeMenuItemId

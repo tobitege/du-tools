@@ -94,8 +94,10 @@ Meaning:
 
 Legacy paths still used by the Lua workflow:
 
-- `D:\MyDUserver\tmp\ui-dumps\payload-overrides\ide_import.json`
-- `D:\MyDUserver\tmp\ui-dumps\ide-workspace\snippet.lua`
+- `D:\MyDUserver\tmp\ui-dumps\payload-overrides\ide_import.player-<playerId>.lua_editor.json`
+- `D:\MyDUserver\tmp\ui-dumps\ide-workspace\player-<playerId>\lua_editor\snippet.lua`
+- `D:\MyDUserver\tmp\ui-dumps\ide-workspace\player-<playerId>\lua_editor\snippet.sync.json`
+- older single-player fallback files are still read as legacy compatibility paths
 
 Lua probe override path:
 
@@ -166,7 +168,9 @@ Important behavioral rules:
 - `du_editor_save` also assumes the target UI is already open
 - `waitForEditor` only waits for the UI to appear
 - `waitForEditor` does not open the editor
+- hidden `lua_editor` state is treated as stale cache and must not be used as live editor content
 - `screen_editor` is still bound only to the currently open active UI
+- hidden `screen_editor` state is treated as stale cache and must not be used as live board content
 - `boardId` is not yet enforced as a verified in-game board identity
 
 For newly added MCP tools after a rebuild, the MCP host must be reloaded so the tool inventory updates.
@@ -200,22 +204,40 @@ It exists because some MCP host UIs do not reliably preserve the configured work
 
 When a command targets `lua_editor`, `ModUiExtractor` currently tries the following in order:
 
-1. `window.__UI_EXTRACTOR_LUA_PROBE_STATE__.applyIdeCode(code)`
-2. fallback to `LUAEditorManager.getLuaEditor().setValue(code)`
-3. if `save: true`, call `LUAEditorManager.apply()`
+1. `window.__UI_EXTRACTOR_LUA_PROBE_STATE__.applyIdeImport(payload)` for file-based IDE sync requests with target/reference metadata
+2. fallback: `window.__UI_EXTRACTOR_LUA_PROBE_STATE__.applyIdeCode(code)`
+3. fallback to `LUAEditorManager.getLuaEditor().setValue(code)`
+4. if `save: true`, call `LUAEditorManager.apply()`
 
-This is the same base path already used by the existing IDE sync workflow.
+This is the same base path used by the IDE sync workflow, but the file-based path now adds request acks plus target/context/reference checks before an import is considered committed.
+
+Important scope note:
+
+- this path assumes the Lua editor is already open in the client
+- when the editor is not visible, `describe` returns a safe empty snapshot
+- editor-mutating methods such as `select_slot`, `select_filter`, `add_filter`, `set_code`, and `apply` reject with `lua_editor_not_visible`
 
 ### `screen_editor`
 
 When a command targets `screen_editor`, `ModUiExtractor` works against:
 
 - `window.screenContentEditorPanel`
-- `panel.textEditor.value`
+- the live `.CodeMirror` instance when the editor is visible
+- `panel.textEditor.value` / hidden textarea only as a compatibility fallback while the editor is visible
 - the optional HTML/Lua mode switch
 - `CPPScreenContentEditor.save(...)` when save is requested
+- the same injected probe surface for `describe`, `set_code`, `apply`, `outer_html`, `raw_eval`
 
 If `waitForEditor: true` is enabled, the mod retries until the editor UI appears or the retry budget is exhausted.
+
+Important scope note:
+
+- this path assumes the screen editor is already opening or open in the client
+- when the editor is not visible, `describe` returns a safe empty snapshot and `set_code` / `apply` reject with `screen_editor_not_visible`
+- when visible, the injected probe now also gives `screen_editor` the same theme-switcher treatment as the Lua editor and themes the content header panel as well; this remains probe-side UI logic, not MCP-side state
+- opening or toggling a screen through gameplay hotkeys such as `Ctrl+L` or `F` is not currently exposed through MCP
+- the generic `du_ui_*` probe envelope now supports `screen_editor` for `describe`, `set_code`, `apply`, `outer_html`, `raw_eval`
+- slot/filter/chat methods remain `lua_editor`-only
 
 ### Lua runtime probe
 
@@ -230,8 +252,7 @@ The runtime probe attaches its API to:
 Currently supported probe methods:
 
 - `describe`
-- `chat_snapshot`
-- `chat_send`
+d- `chat_send`
 - `chat_join_channel`
 - `chat_select_channel`
 - `select_slot`
@@ -241,6 +262,8 @@ Currently supported probe methods:
 - `add_filter`
 - `outer_html`
 - `raw_eval` (trusted-debug only: arbitrary JS body with parameter `state`)
+
+The dedicated MCP chat snapshot tools still use the runtime probe internally, but `chat_snapshot` is not exposed through the generic `du_lua_probe_call` / `du_ui_invoke` method enums.
 
 The probe emits `lua_mcp_result` packets for editor actions plus `chat_snapshot`, `chat_send_result`, and `chat_channel_result` packets for chat-specific actions.
 `ModUiExtractor` converts those packets into bridge events of type `probe_result`, `chat_snapshot`, `chat_send_result`, and `chat_channel_result`.
@@ -337,6 +360,7 @@ Currently relevant event types:
 - `chat_snapshot`
 - `chat_send_result`
 - `chat_channel_result`
+- `server_chat_snapshot`
 
 Typical `command_result` payload:
 
@@ -459,9 +483,9 @@ Inputs:
 Supported methods:
 
 - `describe`
-- `chat_snapshot`
 - `chat_send`
 - `chat_join_channel`
+- `chat_select_channel`
 - `select_slot`
 - `select_filter`
 - `set_code`
@@ -572,6 +596,88 @@ Chat message note:
 - returned messages keep the same `date` semantics as `du_chat_snapshot`
 - if present, `date` is an in-game UTC timestamp
 - recommended multi-agent contract: outgoing AI replies should be prefixed as `[AI:<agentId>]` and incoming targeted requests use `@ai:<agentId>`
+
+### `du_chat_server_snapshot`
+
+Purpose:
+
+- read recent chat messages across server-side channels relevant to the player
+- avoid the visible HUD tab restriction of the normal `du_chat_snapshot` path
+- use an explicit opt-in path that requires a `ModUiExtractor` build with server chat support
+
+Inputs:
+
+- `playerId`
+- `limit`
+- `timeoutMs`
+
+Behavior:
+
+1. `DuMcpBridge` queues a server-side read command instead of a HUD probe call
+2. `ModUiExtractor` executes the opt-in `server_chat` read path in the server process
+3. the mod writes a `server_chat_snapshot` bridge event
+4. `DuMcpBridge` waits for that event and returns the structured snapshot
+
+Return fields:
+
+- `found`
+- `commandId`
+- `createdAtUtc`
+- `success`
+- `error`
+- `visible`
+- `open`
+- `source`
+- `selectedChannelId`
+- `selectedChannelName`
+- `messageCount`
+- `messages`
+- `snapshotJson`
+- `parseError`
+
+Chat message note:
+
+- if the structured message objects contain a `date` field, that timestamp comes from the in-game chat model or the server-side read payload and is returned unchanged
+
+### `du_chat_server_mentions`
+
+Purpose:
+
+- read the same opt-in server-side chat snapshot as `du_chat_server_snapshot`
+- return only messages that contain `@ai` case-insensitively
+- optionally route targeted mentions like `@ai:helper` to one specific MCP-side agent
+
+Inputs:
+
+- `playerId`
+- `agentId` optional, e.g. `helper`
+- `includeGenericMentions` optional, default `true`
+- `limit`
+- `timeoutMs`
+
+Behavior:
+
+1. `DuMcpBridge` queues the same server-side snapshot read as `du_chat_server_snapshot`
+2. `ModUiExtractor` writes a `server_chat_snapshot` bridge event
+3. `DuMcpBridge` filters the returned messages to plain `@ai` or, if `agentId` is set, to `@ai:<agentId>`
+4. messages with a leading `[AI:<agentId>]` prefix are ignored to avoid self-loops across multiple MCP-side agents
+
+Return fields:
+
+- `found`
+- `commandId`
+- `createdAtUtc`
+- `success`
+- `error`
+- `agentId`
+- `includeGenericMentions`
+- `source`
+- `selectedChannelId`
+- `selectedChannelName`
+- `count`
+- `messages`
+- `snapshotJson`
+- `parseError`
 
 ### `du_chat_send_message`
 
@@ -770,7 +876,12 @@ If `set_code` runs with **no slot selected** (snapshot shows `selectedSlot: null
 
 **Generic `du_ui_*` tools (preview)**
 
-- **`du_ui_describe`**, **`du_ui_invoke`**, **`du_ui_wait`**, **`du_ui_eval_raw`** take **`uiKind`**. Only **`lua_editor`** is implemented today; they delegate to the same file-bus `probe_call` as the `du_lua_*` tools. When a second surface (e.g. screen editor probe) shares the envelope, extend `uiKind` and branch in the server.
+- **`du_ui_describe`**, **`du_ui_invoke`**, **`du_ui_wait`**, **`du_ui_eval_raw`** take **`uiKind`** and delegate to the same file-bus `probe_call` envelope.
+- Supported today:
+  - `uiKind = lua_editor`: schema-exposed probe surface (`describe`, `select_slot`, `select_filter`, `chat_send`, `chat_join_channel`, `chat_select_channel`, `set_code`, `apply`, `add_filter`, `outer_html`, `raw_eval`)
+  - `uiKind = screen_editor`: `describe`, `set_code`, `apply`, `outer_html`, `raw_eval`
+- `du_chat_snapshot` remains a dedicated MCP tool path; it is not currently part of the generic `du_ui_invoke` / `du_lua_probe_call` method enum.
+- The screen snapshot is intentionally different from the Lua editor snapshot: one editor only, no slots/filters, plus mode/wrap/error metadata from the screen panel.
 
 This tool is the first concrete step toward a “transport-only” MCP server with runtime UI intelligence in the probe.
 
@@ -798,10 +909,10 @@ These tools enqueue the same `probe_call` commands as `du_lua_probe_call`. They 
 | `du_chat_create_channel` | creates or joins a custom channel via `/join <name>` and selects `room_<lowercase>` |
 | `du_chat_select_channel` | selects an already existing HUD channel by `channelId` and never joins/creates |
 
-| `du_ui_describe` | `uiKind` + same as `du_lua_describe_editor` (only `lua_editor` today) |
-| `du_ui_invoke` | `uiKind` + full `du_lua_probe_call`-style `method` and optional args |
-| `du_ui_wait` | `uiKind` + same as `du_lua_wait_for_editor` |
-| `du_ui_eval_raw` | `uiKind` + same as `du_lua_probe_raw` |
+| `du_ui_describe` | `uiKind = lua_editor` or `screen_editor`; generic `describe` snapshot |
+| `du_ui_invoke` | `uiKind` + schema-exposed generic probe-call surface; `lua_editor` supports `describe`, `select_slot`, `select_filter`, `chat_send`, `chat_join_channel`, `chat_select_channel`, `set_code`, `apply`, `add_filter`, `outer_html`, `raw_eval`; `screen_editor` currently supports `describe`, `set_code`, `apply`, `outer_html`, `raw_eval` |
+| `du_ui_wait` | `uiKind` + generic readiness wait with target-specific heuristics |
+| `du_ui_eval_raw` | `uiKind` + same raw-eval escape hatch as `du_lua_probe_raw` |
 
 Structured outputs match `du_lua_probe_call` where noted in the MCP schemas, except `du_lua_get_selection` (narrower fields) and `du_lua_wait_for_editor` (`ready`, `attempts`, `waitedMs`, plus last snapshot fields).
 
@@ -814,8 +925,10 @@ Purpose:
 Lookup order:
 
 1. `state/{targetKind}-{playerId}.json`
-2. for `lua_editor`, also `ide-workspace/snippet.lua`
-3. for `lua_editor`, also `payload-overrides/ide_import.json`
+2. for `lua_editor`, also `ide-workspace/player-<playerId>/lua_editor/snippet.lua`
+3. for `lua_editor`, also `payload-overrides/ide_import.player-<playerId>.lua_editor.json`
+4. older single-player fallback paths are still read for compatibility
+5. for `screen_editor`, the bridge can also fall back to the persisted screen state snapshot if no queued state exists
 
 Return fields:
 
@@ -878,6 +991,10 @@ Included event types:
 - `runtime_log`
 - `command_result`
 - `bridge_status`
+- `chat_snapshot`
+- `chat_send_result`
+- `chat_channel_result`
+- `server_chat_snapshot`
 
 ### `du_list_active_sessions`
 
@@ -888,7 +1005,8 @@ Purpose:
 Sources:
 
 - recent bridge events
-- legacy fallback from `ide_import.json`
+- player-scoped legacy IDE import files such as `ide_import.player-<playerId>.lua_editor.json`
+- older single-player fallback file `ide_import.json`
 
 ## MCP Resources
 
@@ -989,6 +1107,7 @@ Verified live:
 - newly added probe modules require the override folder to contain the updated module set
 - HUD channel switching is still state-dependent; in one live session with `open = false` and a selected construct channel (`HC_TestCore_L`), select/join to `room_ai_hlp2` timed out even though `server_chat` could still read that room
 - normal HUD mention reads are intentionally limited to the currently selected client tab; if the visible tab is `POIN` or another unrelated channel, `du_chat_ai_mentions` can correctly return zero while `du_chat_server_mentions` still sees relevant server-side traffic such as `room_ai_hlp2`
+- there is no general hotkey contract yet: the repo contains a lightweight synthetic `Ctrl+L` fallback for the Lua quick-menu path, but still no global keyboard observer and no MCP path for gameplay inputs like `F` / `Use`
 
 ## Recommended Next Steps
 

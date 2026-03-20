@@ -20,11 +20,10 @@
   }
 
   function updateThemeDotSelection(activeThemeName) {
-    var dotsRoot = document.getElementById("ModUiExtractor-lua-theme-dots");
-    if (!dotsRoot || !dotsRoot.querySelectorAll) {
+    var dots = document.querySelectorAll(".lua-theme-dot");
+    if (!dots || !dots.length) {
       return;
     }
-    var dots = dotsRoot.querySelectorAll(".lua-theme-dot");
     for (var i = 0; i < dots.length; i += 1) {
       var dot = dots[i];
       var isActive = String(dot.getAttribute("data-theme") || "") === activeThemeName;
@@ -249,17 +248,29 @@
       return;
     }
     state.lastIdeSyncContextKey = getEditorContextKey(codeMirror);
-    var code = typeof codeMirror.getValue === "function" ? codeMirror.getValue() : "";
+    state.lastIdeSyncReference = cloneIdeSyncObject(getLuaIdeSyncReference());
+    var code = typeof codeMirror.getValue === "function" ? String(codeMirror.getValue() || "") : "";
     var chunkSize = 8000;
     var total = Math.ceil(code.length / chunkSize) || 1;
     var syncId = "sync-" + Date.now();
+    var codeHash32 = hashStringFNV1a(code);
+    var reference = cloneIdeSyncObject(state.lastIdeSyncReference);
+    var exportedAtUtc = null;
+    try {
+      exportedAtUtc = new Date().toISOString();
+    } catch (_ignoreExportedAtUtc) {}
     for (var i = 0; i < total; i += 1) {
       var chunk = code.substring(i * chunkSize, (i + 1) * chunkSize);
       sendPacket("lua_ide_sync", {
         syncId: syncId,
         part: i + 1,
         total: total,
-        codeChunk: chunk
+        codeChunk: chunk,
+        targetKind: "lua_editor",
+        contextKey: state.lastIdeSyncContextKey || "",
+        reference: reference,
+        codeHash32: codeHash32,
+        exportedAtUtc: exportedAtUtc
       });
     }
   }
@@ -293,47 +304,90 @@
     }
   }
 
-  function applyTheme(themeName, emitPacket) {
-    var root = document.getElementById("dpu_editor");
-    if (!root) {
+  function getDefaultThemeName() {
+    return (colorThemes[0] && colorThemes[0].name) ? colorThemes[0].name : "monokai";
+  }
+
+  function createThemeDotSwitcher(switcherId) {
+    var switcher = document.createElement("div");
+    switcher.id = switcherId;
+    switcher.className = "modui-theme-switcher";
+
+    for (var i = 0; i < colorThemes.length; i += 1) {
+      (function (theme) {
+        var dot = document.createElement("button");
+        dot.type = "button";
+        dot.className = "lua-theme-dot";
+        dot.style.background = theme.dot;
+        dot.setAttribute("data-theme", theme.name);
+        dot.setAttribute("data-active", "0");
+        dot.setAttribute("title", "Theme: " + (theme.label || theme.name));
+        dot.setAttribute("aria-label", "Theme: " + (theme.label || theme.name));
+        dot.addEventListener("click", function () {
+          applyTheme(theme.name, true);
+        }, true);
+        switcher.appendChild(dot);
+      })(colorThemes[i]);
+    }
+
+    return switcher;
+  }
+
+  function getThemeRoots() {
+    var roots = [];
+    var luaRoot = document.getElementById("dpu_editor");
+    var screenRoot = getScreenEditorRoot();
+    if (luaRoot) {
+      roots.push(luaRoot);
+    }
+    if (screenRoot && screenRoot !== luaRoot) {
+      roots.push(screenRoot);
+    }
+    return roots;
+  }
+
+  function applyThemeToRoot(root, theme) {
+    if (!root || !root.style || typeof root.style.setProperty !== "function") {
       return;
     }
+    root.style.setProperty("--lua-probe-accent", theme.accent);
+    root.style.setProperty("--lua-probe-header-bg", theme.header);
+    root.style.setProperty("--lua-probe-caret-line-bg", theme.caretBg);
+    root.style.setProperty("--lua-probe-accent-solid", theme.accentSolid);
+    root.style.setProperty("--lua-probe-on-accent", theme.onAccent);
+    root.style.setProperty("--lua-probe-surface-main", theme.surfaceMain);
+    root.style.setProperty("--lua-probe-surface-elevated", theme.surfaceElevated);
+    root.style.setProperty("--lua-probe-surface-row", theme.surfaceRow);
+    root.style.setProperty("--lua-probe-surface-deep", theme.surfaceDeep);
+    root.style.setProperty("--lua-probe-surface-row-alt", theme.surfaceRowAlt);
+    root.style.setProperty("--lua-probe-border-strong", theme.borderStrong);
+    root.style.setProperty("--lua-probe-border-hover", theme.borderHover);
+    root.style.setProperty("--lua-probe-shadow", theme.shadow);
+    root.style.setProperty("--lua-probe-text-muted", theme.textMuted);
+    root.style.setProperty("--lua-probe-text-dim", theme.textDim);
+    root.style.setProperty("--lua-probe-cm-comment", theme.cmComment);
+    root.style.setProperty("--lua-probe-cm-linenumber", theme.cmLineNumber);
+    root.style.setProperty("--lua-probe-gutter-border", theme.gutterBorder);
+    root.style.setProperty("--lua-probe-btn-apply-bg", theme.btnApplyBg);
+    root.style.setProperty("--lua-probe-btn-apply-border", theme.btnApplyBorder);
+    root.style.setProperty("--lua-probe-btn-apply-color", theme.btnApplyColor);
+    root.style.setProperty("--lua-probe-btn-apply-hover-bg", theme.btnApplyHoverBg);
+    root.style.setProperty("--lua-probe-btn-apply-active-bg", theme.btnApplyActiveBg);
+    root.style.setProperty("--lua-probe-btn-cancel-bg", theme.btnCancelBg);
+    root.style.setProperty("--lua-probe-btn-cancel-border", theme.btnCancelBorder);
+    root.style.setProperty("--lua-probe-btn-cancel-color", theme.btnCancelColor);
+    root.style.setProperty("--lua-probe-btn-cancel-hover-bg", theme.btnCancelHoverBg);
+    root.style.setProperty("--lua-probe-btn-cancel-active-bg", theme.btnCancelActiveBg);
+  }
 
+  function applyTheme(themeName, emitPacket) {
     var theme = getThemeByName(themeName);
-    var sameTheme = state.lastAppliedTheme === theme.name;
+    var roots = getThemeRoots();
     state.activeTheme = theme.name;
-
-    if (!sameTheme || emitPacket) {
-      root.style.setProperty("--lua-probe-accent", theme.accent);
-      root.style.setProperty("--lua-probe-header-bg", theme.header);
-      root.style.setProperty("--lua-probe-caret-line-bg", theme.caretBg);
-      root.style.setProperty("--lua-probe-accent-solid", theme.accentSolid);
-      root.style.setProperty("--lua-probe-on-accent", theme.onAccent);
-      root.style.setProperty("--lua-probe-surface-main", theme.surfaceMain);
-      root.style.setProperty("--lua-probe-surface-elevated", theme.surfaceElevated);
-      root.style.setProperty("--lua-probe-surface-row", theme.surfaceRow);
-      root.style.setProperty("--lua-probe-surface-deep", theme.surfaceDeep);
-      root.style.setProperty("--lua-probe-surface-row-alt", theme.surfaceRowAlt);
-      root.style.setProperty("--lua-probe-border-strong", theme.borderStrong);
-      root.style.setProperty("--lua-probe-border-hover", theme.borderHover);
-      root.style.setProperty("--lua-probe-shadow", theme.shadow);
-      root.style.setProperty("--lua-probe-text-muted", theme.textMuted);
-      root.style.setProperty("--lua-probe-text-dim", theme.textDim);
-      root.style.setProperty("--lua-probe-cm-comment", theme.cmComment);
-      root.style.setProperty("--lua-probe-cm-linenumber", theme.cmLineNumber);
-      root.style.setProperty("--lua-probe-gutter-border", theme.gutterBorder);
-      root.style.setProperty("--lua-probe-btn-apply-bg", theme.btnApplyBg);
-      root.style.setProperty("--lua-probe-btn-apply-border", theme.btnApplyBorder);
-      root.style.setProperty("--lua-probe-btn-apply-color", theme.btnApplyColor);
-      root.style.setProperty("--lua-probe-btn-apply-hover-bg", theme.btnApplyHoverBg);
-      root.style.setProperty("--lua-probe-btn-apply-active-bg", theme.btnApplyActiveBg);
-      root.style.setProperty("--lua-probe-btn-cancel-bg", theme.btnCancelBg);
-      root.style.setProperty("--lua-probe-btn-cancel-border", theme.btnCancelBorder);
-      root.style.setProperty("--lua-probe-btn-cancel-color", theme.btnCancelColor);
-      root.style.setProperty("--lua-probe-btn-cancel-hover-bg", theme.btnCancelHoverBg);
-      root.style.setProperty("--lua-probe-btn-cancel-active-bg", theme.btnCancelActiveBg);
-      state.lastAppliedTheme = theme.name;
+    for (var i = 0; i < roots.length; i += 1) {
+      applyThemeToRoot(roots[i], theme);
     }
+    state.lastAppliedTheme = theme.name;
     updateThemeDotSelection(theme.name);
 
     if (emitPacket) {
@@ -361,36 +415,51 @@
 
     var switcher = document.getElementById("ModUiExtractor-lua-theme-dots");
     if (!switcher) {
-      switcher = document.createElement("div");
-      switcher.id = "ModUiExtractor-lua-theme-dots";
-
-      for (var i = 0; i < colorThemes.length; i += 1) {
-        (function (theme) {
-          var dot = document.createElement("button");
-          dot.type = "button";
-          dot.className = "lua-theme-dot";
-          dot.style.background = theme.dot;
-          dot.setAttribute("data-theme", theme.name);
-          dot.setAttribute("data-active", "0");
-          dot.setAttribute("title", "Theme: " + (theme.label || theme.name));
-          dot.setAttribute("aria-label", "Theme: " + (theme.label || theme.name));
-          dot.addEventListener("click", function () {
-            applyTheme(theme.name, true);
-          }, true);
-          switcher.appendChild(dot);
-        })(colorThemes[i]);
-      }
+      switcher = createThemeDotSwitcher("ModUiExtractor-lua-theme-dots");
     }
 
     if (switcher.parentNode !== header) {
       header.appendChild(switcher);
     }
 
-    var defaultTheme = (colorThemes[0] && colorThemes[0].name) ? colorThemes[0].name : "monokai";
-    if (state.lastAppliedTheme !== (state.activeTheme || defaultTheme)) {
-      applyTheme(state.activeTheme || defaultTheme, false);
-    } else {
-      updateThemeDotSelection(state.activeTheme || defaultTheme);
+    applyTheme(state.activeTheme || getDefaultThemeName(), false);
+  }
+
+  function ensureScreenThemeSwitcher(root) {
+    if (!root || !root.querySelector) {
+      return;
     }
+
+    var header = root.querySelector(".header_block");
+    if (!header) {
+      return;
+    }
+
+    var switcher = document.getElementById("ModUiExtractor-screen-theme-dots");
+    if (!switcher) {
+      switcher = createThemeDotSwitcher("ModUiExtractor-screen-theme-dots");
+    }
+
+    if (switcher.parentNode !== header) {
+      header.appendChild(switcher);
+    }
+  }
+
+  function ensureScreenEditorFacelift() {
+    var root = getScreenEditorRoot();
+    if (!root || !root.querySelector) {
+      return;
+    }
+
+    if (!isElementVisible(root)) {
+      try {
+        root.removeAttribute("data-lua-probe-active");
+      } catch (_ignoreScreenProbeInactive) {}
+      return;
+    }
+
+    root.setAttribute("data-lua-probe-active", "1");
+    ensureScreenThemeSwitcher(root);
+    applyTheme(state.activeTheme || getDefaultThemeName(), false);
   }
 

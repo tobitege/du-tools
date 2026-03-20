@@ -14,18 +14,14 @@ if (-not (Test-Path $WorkspaceDir)) {
     New-Item -ItemType Directory -Path $WorkspaceDir | Out-Null
 }
 
-$LuaFile = Join-Path $WorkspaceDir "snippet.lua"
 $ImportDir = Join-Path $DumpDir "payload-overrides"
 if (-not (Test-Path $ImportDir)) {
     New-Item -ItemType Directory -Path $ImportDir | Out-Null
 }
-$ImportFile = Join-Path $ImportDir "ide_import.json"
 
 $fileOffsets = @{}
 $syncStates = @{}
-$currentPlayerId = 0
-$lastLuaContent = $null
-$warnedNoPlayerContext = $false
+$workspaceStates = @{}
 $resolvedNdjsonFile = $null
 $warnedNdjsonSourceMissing = $false
 $tailFromEnd = -not $ReplayFromStart
@@ -77,25 +73,134 @@ function Build-SyncKey {
     return "$PlayerId::$SyncId"
 }
 
-function Write-IdeImportFile {
+function Get-PlayerWorkspaceDirName {
+    param([object]$PlayerId)
+
+    return ("player-" + [string]$PlayerId)
+}
+
+function Get-NormalizedTargetKind {
+    param([string]$TargetKind)
+
+    $normalized = ([string]$TargetKind).Trim().ToLowerInvariant()
+    if ($normalized -eq "screen_editor") {
+        return "screen_editor"
+    }
+    return "lua_editor"
+}
+
+function Write-AtomicUtf8File {
     param(
-        [string]$Code,
+        [string]$Path,
+        [string]$Content
+    )
+
+    $parent = Split-Path -Parent $Path
+    if (-not [string]::IsNullOrWhiteSpace($parent) -and -not (Test-Path $parent)) {
+        New-Item -ItemType Directory -Path $parent | Out-Null
+    }
+
+    $tempPath = "$Path.tmp"
+    Set-Content -Path $tempPath -Value $Content -Encoding UTF8
+    Move-Item -Path $tempPath -Destination $Path -Force
+}
+
+function Write-AtomicJsonFile {
+    param(
+        [string]$Path,
+        [object]$Object
+    )
+
+    $json = ConvertTo-Json -InputObject $Object -Compress -Depth 20
+    Write-AtomicUtf8File -Path $Path -Content $json
+}
+
+function Get-WorkspaceSpec {
+    param(
+        [string]$TargetKind,
         [object]$PlayerId
     )
 
+    $normalizedTargetKind = Get-NormalizedTargetKind -TargetKind $TargetKind
+    $playerWorkspaceDir = Join-Path $WorkspaceDir (Get-PlayerWorkspaceDirName -PlayerId $PlayerId)
+    $targetWorkspaceDir = Join-Path $playerWorkspaceDir $normalizedTargetKind
+    if (-not (Test-Path $targetWorkspaceDir)) {
+        New-Item -ItemType Directory -Path $targetWorkspaceDir | Out-Null
+    }
+
+    $codeFileName = if ($normalizedTargetKind -eq "lua_editor") { "snippet.lua" } else { "snippet.txt" }
+    return @{
+        targetKind = $normalizedTargetKind
+        workspaceDir = $targetWorkspaceDir
+        playerId = [UInt64]$PlayerId
+        codePath = (Join-Path $targetWorkspaceDir $codeFileName)
+        metadataPath = (Join-Path $targetWorkspaceDir "snippet.sync.json")
+        importPath = (Join-Path $ImportDir ("ide_import.player-" + [string]$PlayerId + "." + $normalizedTargetKind + ".json"))
+    }
+}
+
+function Get-WorkspaceState {
+    param([hashtable]$WorkspaceSpec)
+
+    $key = [string]$WorkspaceSpec.codePath
+    if (-not $workspaceStates.ContainsKey($key)) {
+        $workspaceStates[$key] = @{
+            targetKind = [string]$WorkspaceSpec.targetKind
+            codePath = [string]$WorkspaceSpec.codePath
+            metadataPath = [string]$WorkspaceSpec.metadataPath
+            importPath = [string]$WorkspaceSpec.importPath
+            playerId = 0
+            lastCodeContent = $null
+            lastCodeWriteUtc = [DateTime]::MinValue
+            lastExportMeta = $null
+            warnedNoPlayerContext = $false
+        }
+    }
+
+    return $workspaceStates[$key]
+}
+
+function Write-WorkspaceSnapshot {
+    param(
+        [hashtable]$WorkspaceSpec,
+        [string]$Code,
+        [object]$Metadata
+    )
+
+    Write-AtomicUtf8File -Path ([string]$WorkspaceSpec.codePath) -Content ([string]$Code)
+    Write-AtomicJsonFile -Path ([string]$WorkspaceSpec.metadataPath) -Object $Metadata
+}
+
+function Write-IdeImportFile {
+    param(
+        [hashtable]$WorkspaceState,
+        [string]$Code
+    )
+
     $safeCode = [string]$Code
-    $payload = @{
-        playerId = $PlayerId
+    $requestId = "ide-import-" + [Guid]::NewGuid().ToString("N")
+    $lastExportMeta = $WorkspaceState.lastExportMeta
+    $payload = [ordered]@{
+        requestId = $requestId
+        targetKind = [string]$WorkspaceState.targetKind
+        playerId = [UInt64]$WorkspaceState.playerId
         code = $safeCode
         codeCharLength = $safeCode.Length
         codeUtf8Bytes = [System.Text.Encoding]::UTF8.GetByteCount($safeCode)
         codeHash32 = Get-TextHash32 -Text $safeCode
         codeSha256 = Get-TextSha256Hex -Text $safeCode
+        baseCodeHash32 = if ($null -ne $lastExportMeta) { [string]$lastExportMeta.codeHash32 } else { $null }
+        baseCodeSha256 = if ($null -ne $lastExportMeta) { [string]$lastExportMeta.codeSha256 } else { $null }
+        sourceSyncId = if ($null -ne $lastExportMeta) { [string]$lastExportMeta.syncId } else { $null }
+        contextKey = if ($null -ne $lastExportMeta) { [string]$lastExportMeta.contextKey } else { $null }
+        reference = if ($null -ne $lastExportMeta) { $lastExportMeta.reference } else { $null }
+        exportedAtUtc = if ($null -ne $lastExportMeta) { [string]$lastExportMeta.exportedAtUtc } else { $null }
+        workspaceCodePath = [string]$WorkspaceState.codePath
+        workspaceMetaPath = [string]$WorkspaceState.metadataPath
+        requestCreatedAtUtc = [DateTime]::UtcNow.ToString("O")
     }
-    $json = $payload | ConvertTo-Json -Compress
-    $tempFile = "$ImportFile.tmp"
-    Set-Content -Path $tempFile -Value $json -Encoding UTF8
-    Move-Item -Path $tempFile -Destination $ImportFile -Force
+
+    Write-AtomicJsonFile -Path ([string]$WorkspaceState.importPath) -Object $payload
     return $payload
 }
 
@@ -115,7 +220,6 @@ if ($tailFromEnd) {
 while ($true) {
     $nowUtc = [DateTime]::UtcNow
 
-    # Evict stale/incomplete sync sessions to avoid unbounded memory growth.
     foreach ($key in @($syncStates.Keys)) {
         $state = $syncStates[$key]
         if ($null -eq $state) {
@@ -132,30 +236,43 @@ while ($true) {
         }
     }
 
-    # Check for Lua file changes
-    if (Test-Path $LuaFile) {
+    foreach ($workspaceKey in @($workspaceStates.Keys)) {
+        $workspaceState = $workspaceStates[$workspaceKey]
+        if ($null -eq $workspaceState) {
+            $workspaceStates.Remove($workspaceKey) | Out-Null
+            continue
+        }
+
+        $codePath = [string]$workspaceState.codePath
+        if (-not (Test-Path $codePath)) {
+            continue
+        }
+
         try {
-            $code = Get-Content $LuaFile -Raw -Encoding UTF8
-            if ($null -eq $lastLuaContent) {
-                $lastLuaContent = $code
-            } elseif ($code -ne $lastLuaContent) {
+            $code = Get-Content $codePath -Raw -Encoding UTF8
+            if ($null -eq $workspaceState.lastCodeContent) {
+                $workspaceState.lastCodeContent = $code
+            } elseif ($code -ne $workspaceState.lastCodeContent) {
                 Start-Sleep -Milliseconds 100
-                $code = Get-Content $LuaFile -Raw -Encoding UTF8
-                if ($code -ne $lastLuaContent) {
-                    if ([long]$currentPlayerId -le 0) {
-                        if (-not $warnedNoPlayerContext) {
-                            Write-Host "WARNING: Skipping IDE import write because no valid player context has been seen yet."
-                            $warnedNoPlayerContext = $true
+                $code = Get-Content $codePath -Raw -Encoding UTF8
+                if ($code -ne $workspaceState.lastCodeContent) {
+                    if ([long]$workspaceState.playerId -le 0) {
+                        if (-not $workspaceState.warnedNoPlayerContext) {
+                            Write-Host ("WARNING: Skipping IDE import write because no valid player context has been seen yet for {0}." -f $codePath)
+                            $workspaceState.warnedNoPlayerContext = $true
                         }
-                        $lastLuaContent = $code
+                        $workspaceState.lastCodeContent = $code
                         continue
                     }
 
-                    $importMeta = Write-IdeImportFile -Code $code -PlayerId $currentPlayerId
-                    $lastLuaContent = $code
-                    $warnedNoPlayerContext = $false
-                    Write-Host ("Saved changes to IDE import file (Player {0}, chars {1}, utf8 {2}, h32 {3}, sha256 {4})." -f
-                        $currentPlayerId,
+                    $importMeta = Write-IdeImportFile -WorkspaceState $workspaceState -Code $code
+                    $workspaceState.lastCodeContent = $code
+                    $workspaceState.lastCodeWriteUtc = [System.IO.File]::GetLastWriteTimeUtc($codePath)
+                    $workspaceState.warnedNoPlayerContext = $false
+                    Write-Host ("Saved changes to IDE import file {0} (Target {1}, Player {2}, chars {3}, utf8 {4}, h32 {5}, sha256 {6})." -f
+                        [string]$workspaceState.importPath,
+                        [string]$workspaceState.targetKind,
+                        [UInt64]$workspaceState.playerId,
                         [int]$importMeta.codeCharLength,
                         [int]$importMeta.codeUtf8Bytes,
                         [string]$importMeta.codeHash32,
@@ -163,11 +280,10 @@ while ($true) {
                 }
             }
         } catch {
-            Write-Host "WARNING: Failed to read snippet file: $_"
+            Write-Host ("WARNING: Failed to read workspace code file {0}: {1}" -f $codePath, $_)
         }
     }
 
-    # Process all .ndjson files incrementally (per-file offsets avoid replay)
     $dumpFiles = @()
     if ($null -ne $resolvedNdjsonFile) {
         if (Test-Path $resolvedNdjsonFile -PathType Leaf) {
@@ -186,7 +302,6 @@ while ($true) {
         $dumpFiles = @(Get-ChildItem -Path $DumpDir -Filter "*.ndjson" | Sort-Object FullName)
     }
 
-    # Prune offsets for files that no longer exist.
     $activeDumpPaths = @{}
     foreach ($df in $dumpFiles) {
         $activeDumpPaths[$df.FullName] = $true
@@ -213,7 +328,6 @@ while ($true) {
         $lastPosition = [long]$fileOffsets[$dumpFile.FullName]
         $fileInfo = New-Object System.IO.FileInfo($dumpFile.FullName)
         if ($fileInfo.Length -lt $lastPosition) {
-            # File was truncated/rotated; restart from beginning.
             $lastPosition = 0L
         }
 
@@ -261,7 +375,6 @@ while ($true) {
                         $syncKey = Build-SyncKey -PlayerId $effectivePlayerId -SyncId $syncId
                         if (-not $syncStates.ContainsKey($syncKey)) {
                             if ($syncStates.Count -ge $MaxSyncSessions) {
-                                # Drop oldest session if we're at capacity.
                                 $oldestKey = $null
                                 $oldestUtc = [DateTime]::MaxValue
                                 foreach ($k in $syncStates.Keys) {
@@ -281,6 +394,11 @@ while ($true) {
                                 expectedTotal = $total
                                 chunks = @{}
                                 playerId = $effectivePlayerId
+                                targetKind = Get-NormalizedTargetKind -TargetKind ([string]$data.targetKind)
+                                contextKey = if ($null -ne $data.contextKey) { [string]$data.contextKey } else { "" }
+                                reference = if ($null -ne $data.reference) { $data.reference } else { $null }
+                                exportedAtUtc = if ($null -ne $data.exportedAtUtc) { [string]$data.exportedAtUtc } else { [DateTime]::UtcNow.ToString("O") }
+                                packetCodeHash32 = if ($null -ne $data.codeHash32) { [string]$data.codeHash32 } else { "" }
                                 lastUpdateUtc = $nowUtc
                             }
                         }
@@ -292,7 +410,6 @@ while ($true) {
                             $state.expectedTotal = $total
                         }
                         $state.lastUpdateUtc = $nowUtc
-
                         $state.chunks[$part] = [string]$data.codeChunk
 
                         $expectedTotal = [int]$state.expectedTotal
@@ -307,27 +424,48 @@ while ($true) {
                             }
 
                             if ($null -ne $fullCode) {
-                                Set-Content -Path $LuaFile -Value $fullCode -Encoding UTF8
-                                try {
-                                    $lastLuaContent = Get-Content $LuaFile -Raw -Encoding UTF8
-                                } catch {
-                                    $lastLuaContent = $fullCode
+                                $workspaceSpec = Get-WorkspaceSpec -TargetKind ([string]$state.targetKind) -PlayerId $state.playerId
+                                $h32 = Get-TextHash32 -Text $fullCode
+                                $sha = Get-TextSha256Hex -Text $fullCode
+                                $utf8Bytes = [System.Text.Encoding]::UTF8.GetByteCount([string]$fullCode)
+                                $metadata = [ordered]@{
+                                    targetKind = [string]$state.targetKind
+                                    playerId = [UInt64]$state.playerId
+                                    syncId = $syncId
+                                    exportedAtUtc = [string]$state.exportedAtUtc
+                                    contextKey = [string]$state.contextKey
+                                    reference = $state.reference
+                                    codeCharLength = [int]([string]$fullCode).Length
+                                    codeUtf8Bytes = [int]$utf8Bytes
+                                    codeHash32 = [string]$h32
+                                    codeSha256 = [string]$sha
+                                    packetCodeHash32 = [string]$state.packetCodeHash32
+                                    codePath = [string]$workspaceSpec.codePath
+                                    metadataPath = [string]$workspaceSpec.metadataPath
                                 }
-                                $currentPlayerId = $state.playerId
-                                $h32 = Get-TextHash32 -Text $lastLuaContent
-                                $sha = Get-TextSha256Hex -Text $lastLuaContent
-                                $utf8Bytes = [System.Text.Encoding]::UTF8.GetByteCount([string]$lastLuaContent)
-                                Write-Host ("Reassembled IDE sync packet to {0} (Player {1}, Sync {2}, chars {3}, utf8 {4}, h32 {5}, sha256 {6})" -f
-                                    $LuaFile,
-                                    $currentPlayerId,
+
+                                Write-WorkspaceSnapshot -WorkspaceSpec $workspaceSpec -Code $fullCode -Metadata $metadata
+
+                                $workspaceState = Get-WorkspaceState -WorkspaceSpec $workspaceSpec
+                                $workspaceState.targetKind = [string]$workspaceSpec.targetKind
+                                $workspaceState.playerId = [UInt64]$state.playerId
+                                $workspaceState.lastCodeContent = $fullCode
+                                $workspaceState.lastCodeWriteUtc = [System.IO.File]::GetLastWriteTimeUtc([string]$workspaceSpec.codePath)
+                                $workspaceState.lastExportMeta = $metadata
+                                $workspaceState.warnedNoPlayerContext = $false
+
+                                Write-Host ("Reassembled IDE sync packet to {0} (Target {1}, Player {2}, Sync {3}, chars {4}, utf8 {5}, h32 {6}, sha256 {7})" -f
+                                    [string]$workspaceSpec.codePath,
+                                    [string]$workspaceSpec.targetKind,
+                                    [UInt64]$state.playerId,
                                     $syncId,
-                                    [int]([string]$lastLuaContent).Length,
+                                    [int]([string]$fullCode).Length,
                                     [int]$utf8Bytes,
                                     $h32,
                                     $sha)
 
                                 if ($null -ne $IdePath -and $IdePath -ne "") {
-                                    Start-Process -NoNewWindow -FilePath $IdePath -ArgumentList "`"$LuaFile`""
+                                    Start-Process -NoNewWindow -FilePath $IdePath -ArgumentList "`"$([string]$workspaceSpec.codePath)`""
                                 }
                             }
 

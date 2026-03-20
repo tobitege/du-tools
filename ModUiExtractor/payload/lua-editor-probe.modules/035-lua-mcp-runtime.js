@@ -6,6 +6,14 @@
     return document.getElementById("dpu_editor");
   }
 
+  function ensureLuaEditorVisible() {
+    var root = getLuaEditorRoot();
+    if (!isElementVisible(root)) {
+      throw new Error("lua_editor_not_visible");
+    }
+    return root;
+  }
+
   function isElementVisible(element) {
     if (!element) {
       return false;
@@ -330,6 +338,7 @@
   }
 
   function addFilterByEventName(rawEventName) {
+    ensureLuaEditorVisible();
     var wantKey = normalizeEventKey(rawEventName);
     if (!wantKey) {
       throw new Error("add_filter_empty_name");
@@ -430,6 +439,19 @@
 
   function describeLuaEditor() {
     var root = getLuaEditorRoot();
+    if (!isElementVisible(root)) {
+      return {
+        visible: false,
+        title: "",
+        wrapLines: false,
+        canApply: false,
+        codeLength: 0,
+        selectedSlot: null,
+        selectedFilter: null,
+        slots: [],
+        filters: []
+      };
+    }
     var titleNode = document.getElementById("lua_editor_title");
     var wrapNode = document.getElementById("lua_wrap_lines");
     var applyNode = document.getElementById("applyBtn");
@@ -479,7 +501,7 @@
     }
 
     return {
-      visible: isElementVisible(root),
+      visible: true,
       title: titleNode ? String(titleNode.textContent || "").trim() : "",
       wrapLines: !!(wrapNode && wrapNode.checked),
       canApply: isElementVisible(applyNode),
@@ -492,6 +514,7 @@
   }
 
   function selectSlotByName(slotName) {
+    ensureLuaEditorVisible();
     var slotNode = findSlotNodeByName(slotName);
     if (!slotNode) {
       throw new Error("slot_not_found:" + slotName);
@@ -503,6 +526,7 @@
   }
 
   function selectFilterByEvent(filterEvent) {
+    ensureLuaEditorVisible();
     var filterNode = findFilterNodeByEvent(filterEvent);
     if (!filterNode) {
       throw new Error("filter_not_found:" + filterEvent);
@@ -514,6 +538,7 @@
   }
 
   function setLuaEditorCode(code) {
+    ensureLuaEditorVisible();
     var text = String(code || "");
     try {
       if (window.LUAEditorManager && typeof window.LUAEditorManager.setCodeLuaEditor === "function") {
@@ -527,6 +552,7 @@
   }
 
   function applyLuaEditorChanges() {
+    ensureLuaEditorVisible();
     if (!window.LUAEditorManager || typeof window.LUAEditorManager.apply !== "function") {
       throw new Error("apply_unavailable");
     }
@@ -536,17 +562,302 @@
     };
   }
 
+  function getScreenEditorPanel() {
+    try {
+      if (window.screenContentEditorPanel) {
+        return window.screenContentEditorPanel;
+      }
+    } catch (_ignoreScreenPanel) {}
+    return null;
+  }
+
+  function getScreenEditorRoot() {
+    var panel = getScreenEditorPanel();
+    try {
+      if (panel && panel.HTMLNodes) {
+        if (panel.HTMLNodes.main) {
+          return panel.HTMLNodes.main;
+        }
+        if (panel.HTMLNodes.root) {
+          return panel.HTMLNodes.root;
+        }
+        if (panel.HTMLNodes.panel) {
+          return panel.HTMLNodes.panel;
+        }
+      }
+    } catch (_ignoreScreenHtmlNodes) {}
+    try {
+      return document.querySelector(".screen_content_editor_panel");
+    } catch (_ignoreScreenRootQuery) {}
+    return null;
+  }
+
+  function getScreenEditorCodeNode(panel, root) {
+    if (panel && panel.textEditor) {
+      return panel.textEditor;
+    }
+    if (root && root.querySelector) {
+      try {
+        return root.querySelector("textarea");
+      } catch (_ignoreScreenTextarea) {}
+    }
+    return null;
+  }
+
+  function getScreenEditorCodeMirror(root) {
+    if (!root || !root.querySelector) {
+      return null;
+    }
+    try {
+      var cmNode = root.querySelector(".CodeMirror");
+      if (cmNode && cmNode.CodeMirror) {
+        return cmNode.CodeMirror;
+      }
+    } catch (_ignoreScreenCodeMirror) {}
+    return null;
+  }
+
+  function parseIntegerOrNull(value) {
+    var parsed = parseInt(String(value || "").replace(/[^\d-]/g, ""), 10);
+    return isNaN(parsed) ? null : parsed;
+  }
+
+  function describeScreenEditor() {
+    var panel = getScreenEditorPanel();
+    var root = getScreenEditorRoot();
+    var codeMirror = getScreenEditorCodeMirror(root);
+    var isVisible = isElementVisible(root);
+    var titleNode = null;
+    var wrapNode = null;
+    var saveNode = null;
+    var cancelNode = null;
+    var errorCountNode = null;
+    var enableLogsNode = null;
+    var modeSwitchNode = null;
+    var modeInputNode = null;
+    var codeNode = getScreenEditorCodeNode(panel, root);
+    var code = "";
+
+    if (!isVisible) {
+      return {
+        surface: "screen_editor",
+        visible: false,
+        title: "",
+        wrapLines: false,
+        canApply: false,
+        canCancel: false,
+        codeLength: 0,
+        isHtmlMode: false,
+        mode: "",
+        htmlModeAvailable: false,
+        enableOutputInLuaChannel: false,
+        errorCount: null
+      };
+    }
+
+    if (root && root.querySelector) {
+      try {
+        titleNode = root.querySelector(".header_block .panel_title");
+      } catch (_ignoreScreenTitle) {}
+      try {
+        wrapNode = root.querySelector(".wrap_line_wrapper .checkbox");
+      } catch (_ignoreScreenWrap) {}
+      try {
+        saveNode = root.querySelector(".footer_line .right_block .save_button");
+      } catch (_ignoreScreenSave) {}
+      try {
+        cancelNode = root.querySelector(".footer_line .right_block .cancel_button");
+      } catch (_ignoreScreenCancel) {}
+      try {
+        errorCountNode = root.querySelector(".editor_error_ctn_value");
+      } catch (_ignoreScreenErrorCount) {}
+      try {
+        enableLogsNode = root.querySelector(".enable_logs_wrapper .checkbox");
+      } catch (_ignoreScreenEnableLogs) {}
+      try {
+        modeSwitchNode = root.querySelector(".mode_switch_wrapper .checkbox_switch");
+      } catch (_ignoreScreenModeSwitch) {}
+      try {
+        modeInputNode = root.querySelector(".mode_switch_wrapper .checkbox_switch input");
+      } catch (_ignoreScreenModeInput) {}
+    }
+
+    if (!modeInputNode) {
+      try {
+        if (panel && panel.HTMLNodes && panel.HTMLNodes.isHTMLModeCheckbox) {
+          modeInputNode = panel.HTMLNodes.isHTMLModeCheckbox;
+        }
+      } catch (_ignoreScreenModeCheckbox) {}
+    }
+
+    try {
+      if (codeMirror && typeof codeMirror.getValue === "function") {
+        code = codeMirror.getValue();
+      } else if (codeNode && typeof codeNode.value === "string") {
+        code = codeNode.value;
+      }
+    } catch (_ignoreScreenCode) {}
+
+    var isHtmlMode = false;
+    try {
+      if (panel && typeof panel.isInHTMLMode === "boolean") {
+        isHtmlMode = panel.isInHTMLMode;
+      } else if (modeInputNode && typeof modeInputNode.checked === "boolean") {
+        isHtmlMode = modeInputNode.checked;
+      }
+    } catch (_ignoreScreenModeValue) {}
+
+    var htmlModeAvailable = !!modeInputNode;
+    try {
+      if (modeSwitchNode && modeSwitchNode.classList && modeSwitchNode.classList.contains("disabled")) {
+        htmlModeAvailable = false;
+      }
+    } catch (_ignoreScreenModeAvailable) {}
+
+    var canApply = !!(saveNode && isElementVisible(saveNode));
+    try {
+      if (saveNode && saveNode.classList && saveNode.classList.contains("disabled")) {
+        canApply = false;
+      }
+    } catch (_ignoreScreenSaveDisabled) {}
+    if (!canApply) {
+      canApply = !!(panel && codeNode && window.CPPScreenContentEditor && typeof window.CPPScreenContentEditor.save === "function");
+    }
+
+    return {
+      surface: "screen_editor",
+      visible: true,
+      title: titleNode ? String(titleNode.textContent || "").trim() : "",
+      wrapLines: !!(wrapNode && wrapNode.checked),
+      canApply: canApply,
+      canCancel: !!(cancelNode && isElementVisible(cancelNode)),
+      codeLength: code.length,
+      isHtmlMode: !!isHtmlMode,
+      mode: isHtmlMode ? "html" : "lua",
+      htmlModeAvailable: !!htmlModeAvailable,
+      enableOutputInLuaChannel: !!(enableLogsNode && enableLogsNode.checked),
+      errorCount: parseIntegerOrNull(errorCountNode ? errorCountNode.textContent : "")
+    };
+  }
+
+  function setScreenEditorCode(code) {
+    var panel = getScreenEditorPanel();
+    var root = getScreenEditorRoot();
+    var codeMirror = getScreenEditorCodeMirror(root);
+    var codeNode = getScreenEditorCodeNode(panel, root);
+    var hiddenTextarea = null;
+    var text = String(code || "");
+    if (root && root.querySelector) {
+      try {
+        hiddenTextarea = root.querySelector(".textarea_editor");
+      } catch (_ignoreScreenHiddenTextarea) {}
+    }
+    if (!isElementVisible(root)) {
+      throw new Error("screen_editor_not_visible");
+    }
+    if (!codeMirror && !codeNode && !hiddenTextarea) {
+      throw new Error("screen_editor_unavailable");
+    }
+    try {
+      if (codeMirror && typeof codeMirror.setValue === "function") {
+        codeMirror.setValue(text);
+      }
+    } catch (_ignoreScreenCodeMirrorSet) {}
+    try {
+      if (codeNode && typeof codeNode.value === "string") {
+        codeNode.value = text;
+      }
+    } catch (_ignoreScreenCodeNodeSet) {}
+    try {
+      if (hiddenTextarea && typeof hiddenTextarea.value === "string") {
+        hiddenTextarea.value = text;
+      }
+    } catch (_ignoreScreenHiddenTextareaSet) {}
+    try {
+      if (panel && typeof panel._onCodeChange === "function") {
+        panel._onCodeChange();
+      }
+    } catch (_ignoreScreenCodeChange) {}
+    return describeScreenEditor();
+  }
+
+  function applyScreenEditorChanges() {
+    var panel = getScreenEditorPanel();
+    var root = getScreenEditorRoot();
+    var saveNode = null;
+    var codeNode = getScreenEditorCodeNode(panel, root);
+    if (!isElementVisible(root)) {
+      throw new Error("screen_editor_not_visible");
+    }
+    if (root && root.querySelector) {
+      try {
+        saveNode = root.querySelector(".footer_line .right_block .save_button");
+      } catch (_ignoreScreenSaveButton) {}
+    }
+    if (saveNode && clickNode(saveNode)) {
+      return {
+        applied: true,
+        usedDomButton: true
+      };
+    }
+    if (!panel || !codeNode || !window.CPPScreenContentEditor || typeof window.CPPScreenContentEditor.save !== "function") {
+      throw new Error("apply_unavailable");
+    }
+    window.CPPScreenContentEditor.save(codeNode.value, !!panel.isInHTMLMode);
+    return {
+      applied: true,
+      usedDomButton: false
+    };
+  }
+
+  function normalizeProbeTargetKind(targetKind) {
+    var normalized = String(targetKind || "").trim().toLowerCase();
+    if (normalized === "screen_editor") {
+      return "screen_editor";
+    }
+    return "lua_editor";
+  }
+
+  function describeProbeTarget(targetKind) {
+    if (normalizeProbeTargetKind(targetKind) === "screen_editor") {
+      return describeScreenEditor();
+    }
+    var luaSnapshot = describeLuaEditor();
+    luaSnapshot.surface = "lua_editor";
+    return luaSnapshot;
+  }
+
+  function setCodeForProbeTarget(targetKind, code) {
+    if (normalizeProbeTargetKind(targetKind) === "screen_editor") {
+      return setScreenEditorCode(code);
+    }
+    return setLuaEditorCode(code);
+  }
+
+  function applyChangesForProbeTarget(targetKind) {
+    if (normalizeProbeTargetKind(targetKind) === "screen_editor") {
+      return applyScreenEditorChanges();
+    }
+    return applyLuaEditorChanges();
+  }
+
   var MAX_OUTER_HTML_CHARS = 350000;
 
-  function outerHtmlForSelector(rawSelector) {
+  function outerHtmlForTargetSelector(targetKind, rawSelector) {
+    var normalizedTarget = normalizeProbeTargetKind(targetKind);
     var sel = String(rawSelector || "").trim();
     if (!sel) {
-      sel = "#filters";
+      sel = normalizedTarget === "screen_editor" ? ".screen_content_editor_panel" : "#filters";
     }
-    var root = getLuaEditorRoot();
+    var root = normalizedTarget === "screen_editor" ? getScreenEditorRoot() : getLuaEditorRoot();
     var el = null;
     try {
-      if (root && root.querySelector) {
+      if (root && typeof root.matches === "function" && root.matches(sel)) {
+        el = root;
+      }
+    } catch (_ignoreRootMatch) {}
+    try {
+      if (!el && root && root.querySelector) {
         el = root.querySelector(sel);
       }
     } catch (_badSel) {}
@@ -574,6 +885,10 @@
       originalLength: originalLength,
       truncated: truncated
     };
+  }
+
+  function outerHtmlForSelector(rawSelector) {
+    return outerHtmlForTargetSelector("lua_editor", rawSelector);
   }
 
   function trimChatText(value) {
@@ -1664,13 +1979,14 @@
     return String(value);
   }
 
-  function emitMcpResult(commandId, method, success, result, errorMessage) {
+  function emitMcpResult(commandId, method, success, result, errorMessage, targetKind) {
     var payload = {
       commandId: String(commandId || ""),
       method: String(method || ""),
       success: !!success,
       result: success ? serializeProbeValue(result, 0) : null,
-      error: success ? null : String(errorMessage || "unknown_error")
+      error: success ? null : String(errorMessage || "unknown_error"),
+      targetKind: normalizeProbeTargetKind(targetKind)
     };
     var payloadJson = "";
     try {
@@ -1685,7 +2001,7 @@
     sendPacket("lua_mcp_result", payload);
   }
 
-  function emitCommandResultForMethod(commandId, method, success, result, errorMessage) {
+  function emitCommandResultForMethod(commandId, targetKind, method, success, result, errorMessage) {
     if (method === "chat_snapshot") {
       if (success) {
         emitChatSnapshot(commandId, result);
@@ -1694,45 +2010,67 @@
     }
     if (method === "chat_send") {
       emitChatSendResult(commandId, success, result, errorMessage);
-      emitMcpResult(commandId, method, success, result, errorMessage);
+      emitMcpResult(commandId, method, success, result, errorMessage, targetKind);
       return;
     }
     if (method === "chat_join_channel" || method === "chat_select_channel") {
       emitChatChannelResult(commandId, success, result, errorMessage);
-      emitMcpResult(commandId, method, success, result, errorMessage);
+      emitMcpResult(commandId, method, success, result, errorMessage, targetKind);
       return;
     }
-    emitMcpResult(commandId, method, success, result, errorMessage);
+    emitMcpResult(commandId, method, success, result, errorMessage, targetKind);
   }
 
-  function invokeMcpCommand(commandId, method, args) {
+  function invokeMcpCommandForTarget(commandId, targetKind, method, args) {
+    var normalizedTarget = normalizeProbeTargetKind(targetKind);
     var normalizedMethod = String(method || "").trim().toLowerCase();
     var listArgs = Array.isArray(args) ? args : [];
 
     try {
       var result = null;
       if (normalizedMethod === "describe") {
-        result = describeLuaEditor();
+        result = describeProbeTarget(normalizedTarget);
       } else if (normalizedMethod === "chat_snapshot") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
         result = captureChatSnapshot();
       } else if (normalizedMethod === "chat_send") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
         result = sendChatMessage(listArgs[0], listArgs[1]);
       } else if (normalizedMethod === "chat_join_channel") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
         result = createOrJoinChatChannel(listArgs[0]);
       } else if (normalizedMethod === "chat_select_channel") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
         result = selectExistingChatChannel(listArgs[0]);
       } else if (normalizedMethod === "select_slot") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
         result = selectSlotByName(listArgs[0]);
       } else if (normalizedMethod === "select_filter") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
         result = selectFilterByEvent(listArgs[0]);
       } else if (normalizedMethod === "set_code") {
-        result = setLuaEditorCode(listArgs[0]);
+        result = setCodeForProbeTarget(normalizedTarget, listArgs[0]);
       } else if (normalizedMethod === "apply") {
-        result = applyLuaEditorChanges();
+        result = applyChangesForProbeTarget(normalizedTarget);
       } else if (normalizedMethod === "add_filter") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
         result = addFilterByEventName(listArgs[0]);
       } else if (normalizedMethod === "outer_html") {
-        result = outerHtmlForSelector(listArgs[0]);
+        result = outerHtmlForTargetSelector(normalizedTarget, listArgs[0]);
       } else if (normalizedMethod === "raw_eval") {
         result = runRawProbeEval(listArgs[0]);
       } else {
@@ -1741,28 +2079,35 @@
 
       if (isPromiseLike(result)) {
         result.then(function(asyncResult) {
-          emitCommandResultForMethod(commandId, normalizedMethod, true, asyncResult, null);
+          emitCommandResultForMethod(commandId, normalizedTarget, normalizedMethod, true, asyncResult, null);
         }).catch(function(asyncErr) {
           var asyncMessage = String(asyncErr && asyncErr.message ? asyncErr.message : asyncErr);
-          emitCommandResultForMethod(commandId, normalizedMethod, false, null, asyncMessage);
+          emitCommandResultForMethod(commandId, normalizedTarget, normalizedMethod, false, null, asyncMessage);
         });
         return null;
       }
 
-      emitCommandResultForMethod(commandId, normalizedMethod, true, result, null);
+      emitCommandResultForMethod(commandId, normalizedTarget, normalizedMethod, true, result, null);
       return result;
     } catch (err) {
       var message = String(err && err.message ? err.message : err);
-      emitCommandResultForMethod(commandId, normalizedMethod, false, null, message);
+      emitCommandResultForMethod(commandId, normalizedTarget, normalizedMethod, false, null, message);
       throw err;
     }
   }
 
+  function invokeMcpCommand(commandId, method, args) {
+    return invokeMcpCommandForTarget(commandId, "lua_editor", method, args);
+  }
+
   state.describeLuaEditor = describeLuaEditor;
+  state.describeScreenEditor = describeScreenEditor;
   state.selectSlotByName = selectSlotByName;
   state.selectFilterByEvent = selectFilterByEvent;
   state.setLuaEditorCode = setLuaEditorCode;
+  state.setScreenEditorCode = setScreenEditorCode;
   state.applyLuaEditorChanges = applyLuaEditorChanges;
+  state.applyScreenEditorChanges = applyScreenEditorChanges;
   state.addFilterByEventName = addFilterByEventName;
   state.captureChatSnapshot = captureChatSnapshot;
   state.buildPlainTextChatTranscript = buildPlainTextChatTranscript;
@@ -1772,14 +2117,19 @@
   state.createOrJoinChatChannel = createOrJoinChatChannel;
   state.outerHtmlForSelector = outerHtmlForSelector;
   state.runRawProbeEval = runRawProbeEval;
+  state.invokeMcpCommandForTarget = invokeMcpCommandForTarget;
   state.invokeMcpCommand = invokeMcpCommand;
   state.mcp = {
+    invokeForTarget: invokeMcpCommandForTarget,
     invoke: invokeMcpCommand,
     describeLuaEditor: describeLuaEditor,
+    describeScreenEditor: describeScreenEditor,
     selectSlotByName: selectSlotByName,
     selectFilterByEvent: selectFilterByEvent,
     setCode: setLuaEditorCode,
+    setScreenCode: setScreenEditorCode,
     apply: applyLuaEditorChanges,
+    applyScreen: applyScreenEditorChanges,
     addFilter: addFilterByEventName,
     chatSnapshot: captureChatSnapshot,
     chatSend: sendChatMessage,

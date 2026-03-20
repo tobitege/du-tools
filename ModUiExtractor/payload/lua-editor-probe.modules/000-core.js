@@ -73,10 +73,13 @@
     skipNextSetCodeRestore: false,
     suppressRestoreUntilInteraction: true,
     cursorGuardCodeMirror: null,
-    lastIdeSyncContextKey: ""
+    lastIdeSyncContextKey: "",
+    lastIdeSyncReference: null,
+    lastInitDemReference: null
   };
 
   state.applyIdeCode = applyIdeCode;
+  state.applyIdeImport = applyIdeImport;
   var colorThemes = [
     {
       name: "monokai",
@@ -277,20 +280,446 @@
     }, durationMs);
   }
 
-  function applyIdeCode(newCode) {
+  function normalizeIdeImportTargetKind(targetKind) {
+    return String(targetKind || "").toLowerCase() === "screen_editor" ? "screen_editor" : "lua_editor";
+  }
+
+  function normalizeIdeSyncValue(value) {
+    return String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
+  function cloneIdeSyncObject(value) {
+    if (!value || typeof value !== "object") {
+      return null;
+    }
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch (_ignoreCloneIdeSyncObject) {}
+    return null;
+  }
+
+  function getLuaIdeSyncReference() {
+    var manager = window.LUAEditorManager || null;
+    var currentData = manager && manager.currentData ? manager.currentData : null;
+    var currentSlot = currentData && currentData.currentSlot ? currentData.currentSlot : null;
+    var currentFilter = currentData && currentData.currentFilter ? currentData.currentFilter : null;
+    var currentSlotData = currentSlot && currentSlot.slotData ? currentSlot.slotData : null;
+    var lastReference = state.lastInitDemReference || null;
+    var parsedSelfSlot = lastReference && lastReference.parsedSelfSlot ? lastReference.parsedSelfSlot : null;
+    var slotElementName = null;
+    var constructId = cfg && typeof cfg.constructId !== "undefined" ? cfg.constructId : null;
+
+    try {
+      if (currentSlotData && typeof currentSlotData.slotElementName !== "undefined" && currentSlotData.slotElementName !== null) {
+        slotElementName = currentSlotData.slotElementName;
+      } else if (parsedSelfSlot && typeof parsedSelfSlot.slotElementName !== "undefined" && parsedSelfSlot.slotElementName !== null) {
+        slotElementName = parsedSelfSlot.slotElementName;
+      } else if (lastReference && typeof lastReference.currentSlotElementName !== "undefined" && lastReference.currentSlotElementName !== null) {
+        slotElementName = lastReference.currentSlotElementName;
+      }
+    } catch (_ignoreLuaIdeSyncSlotElementName) {}
+
+    if ((constructId === null || typeof constructId === "undefined") && lastReference && typeof lastReference.constructId !== "undefined") {
+      constructId = lastReference.constructId;
+    }
+
+    return {
+      constructId: constructId,
+      editorTitle: typeof getLuaEditorTitleForDebug === "function" ? getLuaEditorTitleForDebug() : "",
+      slotElementName: slotElementName,
+      currentSlotName: currentSlot && typeof currentSlot.name !== "undefined" ? currentSlot.name : null,
+      currentSlotKey: currentSlot && typeof currentSlot.slotKey !== "undefined" ? currentSlot.slotKey : null,
+      currentFilterKey: currentFilter && typeof currentFilter.key !== "undefined" ? currentFilter.key : null,
+      currentFilterSignature: currentFilter && typeof currentFilter.signature !== "undefined" ? currentFilter.signature : null
+    };
+  }
+
+  function getCurrentIdeImportSnapshot(targetKind) {
+    var normalizedTargetKind = normalizeIdeImportTargetKind(targetKind);
+    if (normalizedTargetKind === "screen_editor") {
+      var screenRoot = typeof getScreenEditorRoot === "function" ? getScreenEditorRoot() : null;
+      var screenVisible = !!(screenRoot && isElementVisible(screenRoot));
+      var screenCodeMirror = (screenVisible && typeof getScreenEditorCodeMirror === "function") ? getScreenEditorCodeMirror(screenRoot) : null;
+      var screenPanel = typeof getScreenEditorPanel === "function" ? getScreenEditorPanel() : null;
+      var screenCodeNode = (screenVisible && typeof getScreenEditorCodeNode === "function") ? getScreenEditorCodeNode(screenPanel, screenRoot) : null;
+      var screenText = "";
+      var screenTitle = "";
+      var screenSubTitle = "";
+      var screenMode = "lua";
+
+      if (!screenVisible) {
+        return {
+          ready: false,
+          targetKind: normalizedTargetKind,
+          status: "screen_editor_not_visible"
+        };
+      }
+
+      try {
+        if (screenCodeMirror && typeof screenCodeMirror.getValue === "function") {
+          screenText = String(screenCodeMirror.getValue() || "");
+        } else if (screenCodeNode && typeof screenCodeNode.value === "string") {
+          screenText = String(screenCodeNode.value || "");
+        }
+      } catch (_ignoreScreenIdeSyncCode) {}
+
+      try {
+        var screenTitleNode = screenRoot && screenRoot.querySelector ? screenRoot.querySelector(".header_block .panel_title") : null;
+        screenTitle = screenTitleNode ? String(screenTitleNode.textContent || "").replace(/\s+/g, " ").trim() : "";
+      } catch (_ignoreScreenIdeSyncTitle) {}
+
+      try {
+        var screenSubTitleNode = screenRoot && screenRoot.querySelector ? screenRoot.querySelector(".content .top_line .sub_title_wrapper .sub_title") : null;
+        screenSubTitle = screenSubTitleNode ? String(screenSubTitleNode.textContent || "").replace(/\s+/g, " ").trim() : "";
+      } catch (_ignoreScreenIdeSyncSubTitle) {}
+
+      try {
+        if (screenPanel && typeof screenPanel.isInHTMLMode === "boolean") {
+          screenMode = screenPanel.isInHTMLMode ? "html" : "lua";
+        }
+      } catch (_ignoreScreenIdeSyncMode) {}
+
+      return {
+        ready: true,
+        targetKind: normalizedTargetKind,
+        status: "ready",
+        code: screenText,
+        codeHash32: hashStringFNV1a(screenText),
+        contextKey: "screen:" + normalizeIdeSyncValue(screenTitle) + "::" + normalizeIdeSyncValue(screenSubTitle) + "::" + normalizeIdeSyncValue(screenMode),
+        reference: {
+          title: screenTitle,
+          subTitle: screenSubTitle,
+          mode: screenMode
+        }
+      };
+    }
+
     var codeMirror = getLuaCodeMirror();
-    if (!codeMirror || typeof codeMirror.setValue !== "function") {
+    if (!codeMirror || typeof codeMirror.getValue !== "function" || !isEditorVisible()) {
+      return {
+        ready: false,
+        targetKind: "lua_editor",
+        status: "lua_editor_not_visible"
+      };
+    }
+
+    var luaText = "";
+    try {
+      luaText = String(codeMirror.getValue() || "");
+    } catch (_ignoreLuaIdeSyncCode) {}
+
+    return {
+      ready: true,
+      targetKind: "lua_editor",
+      status: "ready",
+      codeMirror: codeMirror,
+      code: luaText,
+      codeHash32: hashStringFNV1a(luaText),
+      contextKey: getEditorContextKey(codeMirror),
+      reference: getLuaIdeSyncReference()
+    };
+  }
+
+  function compareIdeImportReference(expectedReference, currentReference, targetKind) {
+    var normalizedTargetKind = normalizeIdeImportTargetKind(targetKind);
+    var expected = expectedReference && typeof expectedReference === "object" ? expectedReference : null;
+    var current = currentReference && typeof currentReference === "object" ? currentReference : null;
+    var reasons = [];
+    if (!expected || !current) {
+      return {
+        match: true,
+        reasons: reasons
+      };
+    }
+
+    if (normalizedTargetKind === "screen_editor") {
+      var expectedTitle = normalizeIdeSyncValue(expected.title);
+      var currentTitle = normalizeIdeSyncValue(current.title);
+      var expectedSubTitle = normalizeIdeSyncValue(expected.subTitle);
+      var currentSubTitle = normalizeIdeSyncValue(current.subTitle);
+      if (expectedTitle && currentTitle && expectedTitle !== currentTitle) {
+        reasons.push("screen_title_mismatch");
+      }
+      if (expectedSubTitle && currentSubTitle && expectedSubTitle !== currentSubTitle) {
+        reasons.push("screen_sub_title_mismatch");
+      }
+      return {
+        match: reasons.length <= 0,
+        reasons: reasons
+      };
+    }
+
+    if (expected.constructId !== null &&
+        typeof expected.constructId !== "undefined" &&
+        current.constructId !== null &&
+        typeof current.constructId !== "undefined" &&
+        String(expected.constructId) !== String(current.constructId)) {
+      reasons.push("construct_id_mismatch");
+    }
+
+    var expectedSlotElementName = normalizeIdeSyncValue(expected.slotElementName);
+    var currentSlotElementName = normalizeIdeSyncValue(current.slotElementName);
+    if (expectedSlotElementName) {
+      if (!currentSlotElementName) {
+        reasons.push("slot_element_name_missing");
+      } else if (expectedSlotElementName !== currentSlotElementName) {
+        reasons.push("slot_element_name_mismatch");
+      }
+    }
+
+    var expectedEditorTitle = normalizeIdeSyncValue(expected.editorTitle);
+    var currentEditorTitle = normalizeIdeSyncValue(current.editorTitle);
+    if (expectedEditorTitle && currentEditorTitle && expectedEditorTitle !== currentEditorTitle) {
+      reasons.push("editor_title_mismatch");
+    }
+
+    return {
+      match: reasons.length <= 0,
+      reasons: reasons
+    };
+  }
+
+  function flashIdeImportStatus(targetKind, message, background, color, durationMs) {
+    if (normalizeIdeImportTargetKind(targetKind) === "lua_editor") {
+      flashIdeSyncButton(message, background, color, durationMs);
+    }
+  }
+
+  function emitIdeImportResult(payload) {
+    sendPacket("ide_import_result", payload);
+  }
+
+  function buildLegacyIdeImportPayload(newCode) {
+    return {
+      requestId: "legacy-" + Date.now(),
+      targetKind: "lua_editor",
+      code: String(newCode || ""),
+      codeHash32: hashStringFNV1a(String(newCode || "")),
+      contextKey: state.lastIdeSyncContextKey || "",
+      reference: cloneIdeSyncObject(state.lastIdeSyncReference || getLuaIdeSyncReference())
+    };
+  }
+
+  function applyIdeImport(importPayload) {
+    var payload = importPayload;
+    if (typeof payload === "string") {
+      payload = buildLegacyIdeImportPayload(payload);
+    }
+    if (!payload || typeof payload !== "object") {
+      emitIdeImportResult({
+        requestId: "invalid-" + Date.now(),
+        targetKind: "lua_editor",
+        success: false,
+        retryable: true,
+        status: "invalid_import_payload"
+      });
+      return {
+        success: false,
+        retryable: true,
+        status: "invalid_import_payload"
+      };
+    }
+
+    var requestId = String(payload.requestId || ("ide-import-" + Date.now()));
+    var targetKind = normalizeIdeImportTargetKind(payload.targetKind);
+    var code = String(payload.code || "");
+    var expectedContextKey = String(payload.contextKey || "");
+    var expectedReference = payload.reference && typeof payload.reference === "object" ? payload.reference : null;
+    var expectedCodeHash32 = String(payload.codeHash32 || hashStringFNV1a(code));
+    var baseCodeHash32 = payload.baseCodeHash32 ? String(payload.baseCodeHash32) : "";
+    var snapshot = getCurrentIdeImportSnapshot(targetKind);
+    var currentReference = snapshot.reference || null;
+    var currentContextKey = snapshot.contextKey || "";
+    var currentCodeHash32 = snapshot.codeHash32 ? String(snapshot.codeHash32) : "";
+
+    if (!snapshot.ready) {
+      emitIdeImportResult({
+        requestId: requestId,
+        targetKind: targetKind,
+        success: false,
+        retryable: true,
+        status: snapshot.status || "editor_not_ready",
+        expectedReference: expectedReference,
+        currentReference: currentReference,
+        expectedContextKey: expectedContextKey || null,
+        currentContextKey: currentContextKey || null
+      });
+      return {
+        success: false,
+        retryable: true,
+        status: snapshot.status || "editor_not_ready"
+      };
+    }
+
+    var referenceMatch = compareIdeImportReference(expectedReference, currentReference, targetKind);
+    if (!referenceMatch.match) {
+      flashIdeImportStatus(targetKind, "Sync wartet auf richtiges Element", "#805019", "#ffffff", 1400);
+      emitIdeImportResult({
+        requestId: requestId,
+        targetKind: targetKind,
+        success: false,
+        retryable: true,
+        status: "target_mismatch",
+        mismatchReasons: referenceMatch.reasons,
+        expectedReference: expectedReference,
+        currentReference: currentReference,
+        expectedContextKey: expectedContextKey || null,
+        currentContextKey: currentContextKey || null,
+        baseCodeHash32: baseCodeHash32 || null,
+        currentCodeHash32: currentCodeHash32 || null
+      });
+      return {
+        success: false,
+        retryable: true,
+        status: "target_mismatch"
+      };
+    }
+
+    if (expectedContextKey && currentContextKey && expectedContextKey !== currentContextKey) {
+      flashIdeImportStatus(targetKind, "Sync wartet auf richtigen Filter", "#8a2424", "#ffffff", 1400);
+      emitIdeImportResult({
+        requestId: requestId,
+        targetKind: targetKind,
+        success: false,
+        retryable: true,
+        status: "context_mismatch",
+        expectedReference: expectedReference,
+        currentReference: currentReference,
+        expectedContextKey: expectedContextKey,
+        currentContextKey: currentContextKey,
+        baseCodeHash32: baseCodeHash32 || null,
+        currentCodeHash32: currentCodeHash32 || null
+      });
+      return {
+        success: false,
+        retryable: true,
+        status: "context_mismatch"
+      };
+    }
+
+    var staleBase = !!(baseCodeHash32 && currentCodeHash32 && baseCodeHash32 !== currentCodeHash32);
+
+    try {
+      if (targetKind === "screen_editor") {
+        if (typeof setScreenEditorCode !== "function") {
+          throw new Error("screen_editor_sync_unavailable");
+        }
+        setScreenEditorCode(code);
+      } else {
+        var codeMirror = snapshot.codeMirror || getLuaCodeMirror();
+        if (!codeMirror || typeof codeMirror.setValue !== "function") {
+          throw new Error("lua_editor_sync_unavailable");
+        }
+        codeMirror.setValue(code);
+      }
+    } catch (error) {
+      var applyError = error && error.message ? error.message : String(error || "ide_import_apply_failed");
+      emitIdeImportResult({
+        requestId: requestId,
+        targetKind: targetKind,
+        success: false,
+        retryable: true,
+        status: applyError,
+        staleBase: staleBase,
+        expectedReference: expectedReference,
+        currentReference: currentReference,
+        expectedContextKey: expectedContextKey || null,
+        currentContextKey: currentContextKey || null,
+        baseCodeHash32: baseCodeHash32 || null,
+        currentCodeHash32: currentCodeHash32 || null
+      });
+      return {
+        success: false,
+        retryable: true,
+        status: applyError
+      };
+    }
+
+    var appliedSnapshot = getCurrentIdeImportSnapshot(targetKind);
+    var appliedCodeHash32 = appliedSnapshot.codeHash32 ? String(appliedSnapshot.codeHash32) : "";
+    var appliedSuccess = !!(appliedSnapshot.ready && appliedCodeHash32 && appliedCodeHash32 === expectedCodeHash32);
+
+    if (!appliedSuccess) {
+      emitIdeImportResult({
+        requestId: requestId,
+        targetKind: targetKind,
+        success: false,
+        retryable: true,
+        status: "apply_verify_failed",
+        staleBase: staleBase,
+        expectedReference: expectedReference,
+        currentReference: appliedSnapshot.reference || currentReference,
+        expectedContextKey: expectedContextKey || null,
+        currentContextKey: appliedSnapshot.contextKey || currentContextKey || null,
+        baseCodeHash32: baseCodeHash32 || null,
+        currentCodeHash32: currentCodeHash32 || null,
+        appliedCodeHash32: appliedCodeHash32 || null
+      });
+      return {
+        success: false,
+        retryable: true,
+        status: "apply_verify_failed"
+      };
+    }
+
+    if (targetKind === "lua_editor") {
+      state.lastIdeSyncContextKey = appliedSnapshot.contextKey || expectedContextKey || "";
+      state.lastIdeSyncReference = cloneIdeSyncObject(appliedSnapshot.reference || expectedReference);
+    }
+
+    flashIdeImportStatus(
+      targetKind,
+      staleBase ? "Synced from IDE (stale base)" : "Synced from IDE!",
+      staleBase ? "#7a6518" : "#2a6b36",
+      "#ffffff",
+      staleBase ? 2200 : 1500);
+
+    emitIdeImportResult({
+      requestId: requestId,
+      targetKind: targetKind,
+      success: true,
+      retryable: false,
+      status: staleBase ? "applied_stale_base" : "applied",
+      staleBase: staleBase,
+      expectedReference: expectedReference,
+      currentReference: appliedSnapshot.reference || currentReference,
+      expectedContextKey: expectedContextKey || null,
+      currentContextKey: appliedSnapshot.contextKey || currentContextKey || null,
+      baseCodeHash32: baseCodeHash32 || null,
+      currentCodeHash32: currentCodeHash32 || null,
+      appliedCodeHash32: appliedCodeHash32 || null,
+      codeCharLength: code.length
+    });
+
+    return {
+      success: true,
+      retryable: false,
+      status: staleBase ? "applied_stale_base" : "applied",
+      staleBase: staleBase
+    };
+  }
+
+  function applyIdeCode(newCode) {
+    var snapshot = getCurrentIdeImportSnapshot("lua_editor");
+    if (!snapshot.ready) {
       return;
     }
 
-    var currentContextKey = getEditorContextKey(codeMirror);
+    var currentContextKey = snapshot.contextKey || "";
     if (state.lastIdeSyncContextKey && currentContextKey !== state.lastIdeSyncContextKey) {
       safeLog("IDE sync blocked: Context changed. Expected: " + state.lastIdeSyncContextKey + ", Got: " + currentContextKey);
       flashIdeSyncButton("Sync Blocked: Wrong Filter", "#8a2424", "#ffffff", 3000);
       return;
     }
 
+    var codeMirror = snapshot.codeMirror || getLuaCodeMirror();
+    if (!codeMirror || typeof codeMirror.setValue !== "function") {
+      return;
+    }
+
     codeMirror.setValue(newCode);
+    state.lastIdeSyncContextKey = currentContextKey;
+    state.lastIdeSyncReference = cloneIdeSyncObject(snapshot.reference || getLuaIdeSyncReference());
     flashIdeSyncButton("Synced from IDE!", "#2a6b36", "#ffffff", 1500);
   }
 

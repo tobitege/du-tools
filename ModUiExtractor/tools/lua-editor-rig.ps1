@@ -90,6 +90,25 @@ function Get-TextHash32 {
     return ("{0:x8}" -f $hash)
 }
 
+function Get-IdeImportPath {
+    param(
+        [string]$PayloadOverridesDir,
+        [UInt64]$TargetPlayerId
+    )
+
+    $playerScoped = Join-Path $PayloadOverridesDir ("ide_import.player-" + [string]$TargetPlayerId + ".lua_editor.json")
+    if (Test-Path $playerScoped) {
+        return $playerScoped
+    }
+
+    $legacy = Join-Path $PayloadOverridesDir "ide_import.json"
+    if (Test-Path $legacy) {
+        return $legacy
+    }
+
+    return $playerScoped
+}
+
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Resolve-RigPath -Path "..\.." -BasePath $scriptDir
 $uiRoot = Resolve-RigPath -Path "..\..\lua_editor" -BasePath $scriptDir
@@ -112,7 +131,7 @@ $payloadOverridesDir = Join-Path $dumpRoot "payload-overrides"
 New-Item -ItemType Directory -Path $payloadOverridesDir -Force | Out-Null
 
 $dumpFile = Join-Path $dumpRoot "rig-lua-editor.ndjson"
-$importFile = Join-Path $payloadOverridesDir "ide_import.json"
+$importFile = Get-IdeImportPath -PayloadOverridesDir $payloadOverridesDir -TargetPlayerId $PlayerId
 $indexPath = Join-Path $uiRoot "index.html"
 $lastIdeImportAck = $null
 $rigStartedUtc = (Get-Date).ToUniversalTime()
@@ -138,7 +157,7 @@ Write-Host "URL: $prefix"
 Write-Host "UI root: $uiRootFull"
 Write-Host "Dump dir: $dumpRoot"
 Write-Host "NDJSON file: $dumpFile"
-Write-Host "Import file: $importFile"
+Write-Host "Import file (preferred): $importFile"
 Write-Host "Rig started (UTC): $($rigStartedUtc.ToString('O'))"
 Write-Host "PlayerId: $PlayerId"
 Write-Host "Press Ctrl+C to stop."
@@ -233,6 +252,7 @@ try {
 
             if ($req.HttpMethod -eq "GET" -and $path -eq "/api/ide-import") {
                 $lastWriteUtcClient = [string]$req.QueryString["lastWriteUtc"]
+                $importFile = Get-IdeImportPath -PayloadOverridesDir $payloadOverridesDir -TargetPlayerId $PlayerId
                 if (-not (Test-Path $importFile)) {
                     Send-Json -Response $res -Payload @{
                         updated = $false

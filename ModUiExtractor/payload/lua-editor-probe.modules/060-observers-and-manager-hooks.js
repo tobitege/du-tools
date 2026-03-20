@@ -100,11 +100,103 @@
     ];
   }
 
+  function getLuaEditorEngineBindings() {
+    return [
+      { eventName: "DPUEditorShow", methodName: "showDEM" },
+      { eventName: "DPUEditorInit", methodName: "initDEM" },
+      { eventName: "DPUEditorCancel", methodName: "cancel" }
+    ];
+  }
+
+  function getHudEngine() {
+    try {
+      if (window.engine) {
+        return window.engine;
+      }
+    } catch (_ignoreWindowEngine) {}
+    try {
+      if (typeof engine !== "undefined" && engine) {
+        return engine;
+      }
+    } catch (_ignoreGlobalEngine) {}
+    return null;
+  }
+
+  function rebindLuaEditorEngineHandlers(manager, useWrappedHandlers) {
+    if (!manager) {
+      return false;
+    }
+
+    var engineRef = getHudEngine();
+    if (!engineRef || typeof engineRef.on !== "function" || typeof engineRef.off !== "function") {
+      sendPacket("lua_engine_rebind", {
+        mode: useWrappedHandlers ? "wrapped" : "original",
+        status: "engine_unavailable"
+      });
+      return false;
+    }
+
+    var bindings = getLuaEditorEngineBindings();
+    var results = [];
+    var reboundAny = false;
+
+    for (var i = 0; i < bindings.length; i += 1) {
+      var binding = bindings[i];
+      var currentFn = manager[binding.methodName];
+      var wrappedFn = typeof currentFn === "function" && currentFn.__luaProbeWrapped ? currentFn : null;
+      var originalFn = wrappedFn && typeof wrappedFn.__luaProbeOriginal === "function"
+        ? wrappedFn.__luaProbeOriginal
+        : (typeof currentFn === "function" ? currentFn : null);
+      var fromFn = useWrappedHandlers ? originalFn : wrappedFn;
+      var toFn = useWrappedHandlers ? wrappedFn : originalFn;
+
+      if (typeof fromFn !== "function" || typeof toFn !== "function" || fromFn === toFn) {
+        results.push({
+          eventName: binding.eventName,
+          methodName: binding.methodName,
+          status: "skipped"
+        });
+        continue;
+      }
+
+      try {
+        engineRef.off(binding.eventName, fromFn);
+        engineRef.on(binding.eventName, toFn);
+        reboundAny = true;
+        results.push({
+          eventName: binding.eventName,
+          methodName: binding.methodName,
+          status: "rebound"
+        });
+      } catch (err) {
+        try {
+          engineRef.on(binding.eventName, fromFn);
+        } catch (_ignoreRebindRollback) {}
+        results.push({
+          eventName: binding.eventName,
+          methodName: binding.methodName,
+          status: "error",
+          error: String(err && err.message ? err.message : err)
+        });
+      }
+    }
+
+    manager.__luaProbeEngineBindingsRebound = useWrappedHandlers && reboundAny;
+    sendPacket("lua_engine_rebind", {
+      mode: useWrappedHandlers ? "wrapped" : "original",
+      status: reboundAny ? "ok" : "noop",
+      results: results
+    });
+    return reboundAny;
+  }
+
   function unwrapLuaEditorManager() {
     var manager = window.LUAEditorManager;
     if (!manager) {
       return;
     }
+
+    rebindLuaEditorEngineHandlers(manager, false);
 
     var methodNames = getWrappedMethodNames();
     for (var i = 0; i < methodNames.length; i += 1) {
@@ -119,6 +211,11 @@
       delete manager.__luaProbeWrapped;
     } catch (_ignore) {
       manager.__luaProbeWrapped = false;
+    }
+    try {
+      delete manager.__luaProbeEngineBindingsRebound;
+    } catch (_ignoreEngineRebindFlag) {
+      manager.__luaProbeEngineBindingsRebound = false;
     }
   }
 
@@ -359,9 +456,222 @@
     tick();
   }
 
+  function parseInitDemJsonArg(raw) {
+    if (typeof raw !== "string" || !raw) {
+      return null;
+    }
+    try {
+      return JSON.parse(raw);
+    } catch (_ignoreParseInitDem) {}
+    return null;
+  }
+
+  function summarizeInitDemRawArg(raw) {
+    if (typeof raw !== "string") {
+      return summarizeArg(raw);
+    }
+    return {
+      type: "string",
+      len: raw.length,
+      hash: hashStringFNV1a(raw),
+      preview: limitText(raw, 160)
+    };
+  }
+
+  function getObjectOwnKeysSafe(obj, maxCount) {
+    try {
+      return Object.getOwnPropertyNames(obj || {}).slice(0, maxCount || 80);
+    } catch (_ignoreOwnKeys) {}
+    return [];
+  }
+
+  function getObjectProtoKeysSafe(obj, maxCount) {
+    try {
+      var proto = Object.getPrototypeOf(obj);
+      return proto ? Object.getOwnPropertyNames(proto).slice(0, maxCount || 80) : [];
+    } catch (_ignoreProtoKeys) {}
+    return [];
+  }
+
+  function collectInterestingObjectFields(obj, maxCount) {
+    var out = {};
+    if (!obj) {
+      return out;
+    }
+    var keys = getObjectOwnKeysSafe(obj, 120);
+    var count = 0;
+    for (var i = 0; i < keys.length; i += 1) {
+      var key = String(keys[i] || "");
+      var lower = key.toLowerCase();
+      if (!(lower.indexOf("id") >= 0 ||
+          lower.indexOf("name") >= 0 ||
+          lower.indexOf("slot") >= 0 ||
+          lower.indexOf("element") >= 0 ||
+          lower.indexOf("uuid") >= 0 ||
+          lower.indexOf("nq") >= 0 ||
+          lower.indexOf("construct") >= 0 ||
+          lower.indexOf("board") >= 0 ||
+          lower.indexOf("item") >= 0 ||
+          lower.indexOf("owner") >= 0 ||
+          lower.indexOf("data") >= 0)) {
+        continue;
+      }
+      try {
+        var value = obj[key];
+        if (value === null || typeof value === "undefined") {
+          out[key] = null;
+        } else if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+          out[key] = limitText(String(value), 160);
+        } else if (Array.isArray(value)) {
+          out[key] = "array:" + value.length;
+        } else if (typeof value === "function") {
+          out[key] = "function";
+        } else if (typeof value === "object") {
+          out[key] = "object";
+        } else {
+          out[key] = limitText(String(value), 160);
+        }
+      } catch (err) {
+        out[key] = "error:" + limitText(String(err && err.message ? err.message : err), 160);
+      }
+      count += 1;
+      if (count >= (maxCount || 20)) {
+        break;
+      }
+    }
+    return out;
+  }
+
+  function summarizeInitDemObject(obj) {
+    return {
+      keys: getObjectOwnKeysSafe(obj, 80),
+      interesting: collectInterestingObjectFields(obj, 20),
+      protoKeys: getObjectProtoKeysSafe(obj, 80)
+    };
+  }
+
+  function summarizeInitDemSlotRow(slot) {
+    if (!slot || typeof slot !== "object") {
+      return null;
+    }
+    var eventCount = 0;
+    try {
+      if (slot.events && typeof slot.events.length === "number") {
+        eventCount = slot.events.length;
+      }
+    } catch (_ignoreSlotEventCount) {}
+    return {
+      slotKey: slot.slotKey,
+      slotElementName: slot.slotElementName || null,
+      eventCount: eventCount
+    };
+  }
+
+  function findInitDemSelfSlot(slotRows) {
+    if (!slotRows || typeof slotRows.length !== "number") {
+      return null;
+    }
+    for (var i = 0; i < slotRows.length; i += 1) {
+      var row = slotRows[i];
+      if (row && String(row.slotKey || "") === "-1") {
+        return row;
+      }
+    }
+    return null;
+  }
+
+  function getLuaEditorTitleForDebug() {
+    try {
+      var root = document.getElementById("dpu_editor");
+      var titleNode = root ? root.querySelector(".editor_header .title, .editor_header .header_bar .title") : null;
+      return titleNode ? String(titleNode.textContent || "").replace(/\s+/g, " ").trim() : "";
+    } catch (_ignoreLuaTitle) {}
+    return "";
+  }
+
+  function buildInitDemReference(parsedData, parsedSlotData) {
+    var manager = window.LUAEditorManager || null;
+    var currentData = manager && manager.currentData ? manager.currentData : null;
+    var currentSlot = currentData && currentData.currentSlot ? currentData.currentSlot : null;
+    var currentFilter = currentData && currentData.currentFilter ? currentData.currentFilter : null;
+    var currentSlotData = currentSlot && currentSlot.slotData ? currentSlot.slotData : null;
+    var selfSlot = findInitDemSelfSlot(parsedSlotData);
+    var slotRows = [];
+    if (parsedSlotData && typeof parsedSlotData.length === "number") {
+      for (var i = 0; i < parsedSlotData.length && i < 16; i += 1) {
+        slotRows.push(summarizeInitDemSlotRow(parsedSlotData[i]));
+      }
+    }
+
+    return {
+      constructId: cfg && typeof cfg.constructId !== "undefined" ? cfg.constructId : null,
+      editorTitle: getLuaEditorTitleForDebug(),
+      currentSlotName: currentSlot && typeof currentSlot.name !== "undefined" ? currentSlot.name : null,
+      currentSlotKey: currentSlot && typeof currentSlot.slotKey !== "undefined" ? currentSlot.slotKey : null,
+      currentSlotElementName: currentSlotData && typeof currentSlotData.slotElementName !== "undefined" ? currentSlotData.slotElementName : null,
+      currentFilterKey: currentFilter && typeof currentFilter.key !== "undefined" ? currentFilter.key : null,
+      currentFilterSlotKey: currentFilter && typeof currentFilter.slotKey !== "undefined" ? currentFilter.slotKey : null,
+      currentFilterSignature: currentFilter && typeof currentFilter.signature !== "undefined" ? currentFilter.signature : null,
+      parsedDataInteresting: collectInterestingObjectFields(parsedData, 20),
+      parsedSelfSlot: summarizeInitDemSlotRow(selfSlot),
+      parsedSlotRows: slotRows,
+      dpuEditorObject: summarizeInitDemObject(window.dpuEditorObject || null)
+    };
+  }
+
+  function emitInitDemObserved(args, hookContext) {
+    var parsedData = parseInitDemJsonArg(args && args.length > 0 ? args[0] : null);
+    var parsedSlotData = parseInitDemJsonArg(args && args.length > 1 ? args[1] : null);
+    var parsedLuaActions = parseInitDemJsonArg(args && args.length > 2 ? args[2] : null);
+    var parsedLuaErrors = parseInitDemJsonArg(args && args.length > 3 ? args[3] : null);
+    var reference = buildInitDemReference(parsedData, parsedSlotData);
+    var beforeContext = hookContext && hookContext.beforeContext ? hookContext.beforeContext : null;
+    var afterContext = getContextSnapshot();
+    var payload = {
+      beforeContext: beforeContext,
+      afterContext: afterContext,
+      argSummary: {
+        data: summarizeInitDemRawArg(args && args.length > 0 ? args[0] : null),
+        slotData: summarizeInitDemRawArg(args && args.length > 1 ? args[1] : null),
+        luaActions: summarizeInitDemRawArg(args && args.length > 2 ? args[2] : null),
+        luaErrors: summarizeInitDemRawArg(args && args.length > 3 ? args[3] : null)
+      },
+      parsedSummary: {
+        data: summarizeInitDemObject(parsedData),
+        slotDataCount: parsedSlotData && typeof parsedSlotData.length === "number" ? parsedSlotData.length : 0,
+        luaActions: summarizeInitDemObject(parsedLuaActions),
+        luaErrors: summarizeArg(parsedLuaErrors)
+      },
+      reference: reference
+    };
+
+    state.lastInitDemReference = cloneIdeSyncObject(reference);
+
+    sendPacket("lua_initdem_observed", payload);
+
+    sendJsonPacketChunked("lua_initdem_payload", {
+      beforeContext: beforeContext,
+      afterContext: afterContext,
+      reference: reference,
+      rawArgs: {
+        data: typeof (args && args.length > 0 ? args[0] : null) === "string" ? args[0] : null,
+        slotData: typeof (args && args.length > 1 ? args[1] : null) === "string" ? args[1] : null,
+        luaActions: typeof (args && args.length > 2 ? args[2] : null) === "string" ? args[2] : null,
+        luaErrors: typeof (args && args.length > 3 ? args[3] : null) === "string" ? args[3] : null
+      }
+    }, 6000);
+  }
+
   function wrapLuaEditorManager() {
     var manager = window.LUAEditorManager;
-    if (!manager || manager.__luaProbeWrapped) {
+    if (!manager) {
+      return false;
+    }
+
+    if (manager.__luaProbeWrapped) {
+      if (!manager.__luaProbeEngineBindingsRebound) {
+        return rebindLuaEditorEngineHandlers(manager, true);
+      }
       return false;
     }
 
@@ -380,6 +690,17 @@
     });
 
     var methodNames = getWrappedMethodNames();
+
+    wrapManagerMethodWithHooks(manager, "initDEM", {
+      before: function () {
+        return {
+          beforeContext: getContextSnapshot()
+        };
+      },
+      after: function (args, _result, hookContext) {
+        emitInitDemObserved(args, hookContext);
+      }
+    });
 
     wrapManagerMethodWithHooks(manager, "setCodeLuaEditor", {
       before: function (args) {
@@ -499,6 +820,8 @@
     for (var i = 0; i < methodNames.length; i += 1) {
       wrapManagerMethod(manager, methodNames[i]);
     }
+
+    rebindLuaEditorEngineHandlers(manager, true);
 
     return true;
   }

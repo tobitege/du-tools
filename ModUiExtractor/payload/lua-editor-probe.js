@@ -76,10 +76,13 @@
     skipNextSetCodeRestore: false,
     suppressRestoreUntilInteraction: true,
     cursorGuardCodeMirror: null,
-    lastIdeSyncContextKey: ""
+    lastIdeSyncContextKey: "",
+    lastIdeSyncReference: null,
+    lastInitDemReference: null
   };
 
   state.applyIdeCode = applyIdeCode;
+  state.applyIdeImport = applyIdeImport;
   var colorThemes = [
     {
       name: "monokai",
@@ -280,20 +283,446 @@
     }, durationMs);
   }
 
-  function applyIdeCode(newCode) {
+  function normalizeIdeImportTargetKind(targetKind) {
+    return String(targetKind || "").toLowerCase() === "screen_editor" ? "screen_editor" : "lua_editor";
+  }
+
+  function normalizeIdeSyncValue(value) {
+    return String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
+  function cloneIdeSyncObject(value) {
+    if (!value || typeof value !== "object") {
+      return null;
+    }
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch (_ignoreCloneIdeSyncObject) {}
+    return null;
+  }
+
+  function getLuaIdeSyncReference() {
+    var manager = window.LUAEditorManager || null;
+    var currentData = manager && manager.currentData ? manager.currentData : null;
+    var currentSlot = currentData && currentData.currentSlot ? currentData.currentSlot : null;
+    var currentFilter = currentData && currentData.currentFilter ? currentData.currentFilter : null;
+    var currentSlotData = currentSlot && currentSlot.slotData ? currentSlot.slotData : null;
+    var lastReference = state.lastInitDemReference || null;
+    var parsedSelfSlot = lastReference && lastReference.parsedSelfSlot ? lastReference.parsedSelfSlot : null;
+    var slotElementName = null;
+    var constructId = cfg && typeof cfg.constructId !== "undefined" ? cfg.constructId : null;
+
+    try {
+      if (currentSlotData && typeof currentSlotData.slotElementName !== "undefined" && currentSlotData.slotElementName !== null) {
+        slotElementName = currentSlotData.slotElementName;
+      } else if (parsedSelfSlot && typeof parsedSelfSlot.slotElementName !== "undefined" && parsedSelfSlot.slotElementName !== null) {
+        slotElementName = parsedSelfSlot.slotElementName;
+      } else if (lastReference && typeof lastReference.currentSlotElementName !== "undefined" && lastReference.currentSlotElementName !== null) {
+        slotElementName = lastReference.currentSlotElementName;
+      }
+    } catch (_ignoreLuaIdeSyncSlotElementName) {}
+
+    if ((constructId === null || typeof constructId === "undefined") && lastReference && typeof lastReference.constructId !== "undefined") {
+      constructId = lastReference.constructId;
+    }
+
+    return {
+      constructId: constructId,
+      editorTitle: typeof getLuaEditorTitleForDebug === "function" ? getLuaEditorTitleForDebug() : "",
+      slotElementName: slotElementName,
+      currentSlotName: currentSlot && typeof currentSlot.name !== "undefined" ? currentSlot.name : null,
+      currentSlotKey: currentSlot && typeof currentSlot.slotKey !== "undefined" ? currentSlot.slotKey : null,
+      currentFilterKey: currentFilter && typeof currentFilter.key !== "undefined" ? currentFilter.key : null,
+      currentFilterSignature: currentFilter && typeof currentFilter.signature !== "undefined" ? currentFilter.signature : null
+    };
+  }
+
+  function getCurrentIdeImportSnapshot(targetKind) {
+    var normalizedTargetKind = normalizeIdeImportTargetKind(targetKind);
+    if (normalizedTargetKind === "screen_editor") {
+      var screenRoot = typeof getScreenEditorRoot === "function" ? getScreenEditorRoot() : null;
+      var screenVisible = !!(screenRoot && isElementVisible(screenRoot));
+      var screenCodeMirror = (screenVisible && typeof getScreenEditorCodeMirror === "function") ? getScreenEditorCodeMirror(screenRoot) : null;
+      var screenPanel = typeof getScreenEditorPanel === "function" ? getScreenEditorPanel() : null;
+      var screenCodeNode = (screenVisible && typeof getScreenEditorCodeNode === "function") ? getScreenEditorCodeNode(screenPanel, screenRoot) : null;
+      var screenText = "";
+      var screenTitle = "";
+      var screenSubTitle = "";
+      var screenMode = "lua";
+
+      if (!screenVisible) {
+        return {
+          ready: false,
+          targetKind: normalizedTargetKind,
+          status: "screen_editor_not_visible"
+        };
+      }
+
+      try {
+        if (screenCodeMirror && typeof screenCodeMirror.getValue === "function") {
+          screenText = String(screenCodeMirror.getValue() || "");
+        } else if (screenCodeNode && typeof screenCodeNode.value === "string") {
+          screenText = String(screenCodeNode.value || "");
+        }
+      } catch (_ignoreScreenIdeSyncCode) {}
+
+      try {
+        var screenTitleNode = screenRoot && screenRoot.querySelector ? screenRoot.querySelector(".header_block .panel_title") : null;
+        screenTitle = screenTitleNode ? String(screenTitleNode.textContent || "").replace(/\s+/g, " ").trim() : "";
+      } catch (_ignoreScreenIdeSyncTitle) {}
+
+      try {
+        var screenSubTitleNode = screenRoot && screenRoot.querySelector ? screenRoot.querySelector(".content .top_line .sub_title_wrapper .sub_title") : null;
+        screenSubTitle = screenSubTitleNode ? String(screenSubTitleNode.textContent || "").replace(/\s+/g, " ").trim() : "";
+      } catch (_ignoreScreenIdeSyncSubTitle) {}
+
+      try {
+        if (screenPanel && typeof screenPanel.isInHTMLMode === "boolean") {
+          screenMode = screenPanel.isInHTMLMode ? "html" : "lua";
+        }
+      } catch (_ignoreScreenIdeSyncMode) {}
+
+      return {
+        ready: true,
+        targetKind: normalizedTargetKind,
+        status: "ready",
+        code: screenText,
+        codeHash32: hashStringFNV1a(screenText),
+        contextKey: "screen:" + normalizeIdeSyncValue(screenTitle) + "::" + normalizeIdeSyncValue(screenSubTitle) + "::" + normalizeIdeSyncValue(screenMode),
+        reference: {
+          title: screenTitle,
+          subTitle: screenSubTitle,
+          mode: screenMode
+        }
+      };
+    }
+
     var codeMirror = getLuaCodeMirror();
-    if (!codeMirror || typeof codeMirror.setValue !== "function") {
+    if (!codeMirror || typeof codeMirror.getValue !== "function" || !isEditorVisible()) {
+      return {
+        ready: false,
+        targetKind: "lua_editor",
+        status: "lua_editor_not_visible"
+      };
+    }
+
+    var luaText = "";
+    try {
+      luaText = String(codeMirror.getValue() || "");
+    } catch (_ignoreLuaIdeSyncCode) {}
+
+    return {
+      ready: true,
+      targetKind: "lua_editor",
+      status: "ready",
+      codeMirror: codeMirror,
+      code: luaText,
+      codeHash32: hashStringFNV1a(luaText),
+      contextKey: getEditorContextKey(codeMirror),
+      reference: getLuaIdeSyncReference()
+    };
+  }
+
+  function compareIdeImportReference(expectedReference, currentReference, targetKind) {
+    var normalizedTargetKind = normalizeIdeImportTargetKind(targetKind);
+    var expected = expectedReference && typeof expectedReference === "object" ? expectedReference : null;
+    var current = currentReference && typeof currentReference === "object" ? currentReference : null;
+    var reasons = [];
+    if (!expected || !current) {
+      return {
+        match: true,
+        reasons: reasons
+      };
+    }
+
+    if (normalizedTargetKind === "screen_editor") {
+      var expectedTitle = normalizeIdeSyncValue(expected.title);
+      var currentTitle = normalizeIdeSyncValue(current.title);
+      var expectedSubTitle = normalizeIdeSyncValue(expected.subTitle);
+      var currentSubTitle = normalizeIdeSyncValue(current.subTitle);
+      if (expectedTitle && currentTitle && expectedTitle !== currentTitle) {
+        reasons.push("screen_title_mismatch");
+      }
+      if (expectedSubTitle && currentSubTitle && expectedSubTitle !== currentSubTitle) {
+        reasons.push("screen_sub_title_mismatch");
+      }
+      return {
+        match: reasons.length <= 0,
+        reasons: reasons
+      };
+    }
+
+    if (expected.constructId !== null &&
+        typeof expected.constructId !== "undefined" &&
+        current.constructId !== null &&
+        typeof current.constructId !== "undefined" &&
+        String(expected.constructId) !== String(current.constructId)) {
+      reasons.push("construct_id_mismatch");
+    }
+
+    var expectedSlotElementName = normalizeIdeSyncValue(expected.slotElementName);
+    var currentSlotElementName = normalizeIdeSyncValue(current.slotElementName);
+    if (expectedSlotElementName) {
+      if (!currentSlotElementName) {
+        reasons.push("slot_element_name_missing");
+      } else if (expectedSlotElementName !== currentSlotElementName) {
+        reasons.push("slot_element_name_mismatch");
+      }
+    }
+
+    var expectedEditorTitle = normalizeIdeSyncValue(expected.editorTitle);
+    var currentEditorTitle = normalizeIdeSyncValue(current.editorTitle);
+    if (expectedEditorTitle && currentEditorTitle && expectedEditorTitle !== currentEditorTitle) {
+      reasons.push("editor_title_mismatch");
+    }
+
+    return {
+      match: reasons.length <= 0,
+      reasons: reasons
+    };
+  }
+
+  function flashIdeImportStatus(targetKind, message, background, color, durationMs) {
+    if (normalizeIdeImportTargetKind(targetKind) === "lua_editor") {
+      flashIdeSyncButton(message, background, color, durationMs);
+    }
+  }
+
+  function emitIdeImportResult(payload) {
+    sendPacket("ide_import_result", payload);
+  }
+
+  function buildLegacyIdeImportPayload(newCode) {
+    return {
+      requestId: "legacy-" + Date.now(),
+      targetKind: "lua_editor",
+      code: String(newCode || ""),
+      codeHash32: hashStringFNV1a(String(newCode || "")),
+      contextKey: state.lastIdeSyncContextKey || "",
+      reference: cloneIdeSyncObject(state.lastIdeSyncReference || getLuaIdeSyncReference())
+    };
+  }
+
+  function applyIdeImport(importPayload) {
+    var payload = importPayload;
+    if (typeof payload === "string") {
+      payload = buildLegacyIdeImportPayload(payload);
+    }
+    if (!payload || typeof payload !== "object") {
+      emitIdeImportResult({
+        requestId: "invalid-" + Date.now(),
+        targetKind: "lua_editor",
+        success: false,
+        retryable: true,
+        status: "invalid_import_payload"
+      });
+      return {
+        success: false,
+        retryable: true,
+        status: "invalid_import_payload"
+      };
+    }
+
+    var requestId = String(payload.requestId || ("ide-import-" + Date.now()));
+    var targetKind = normalizeIdeImportTargetKind(payload.targetKind);
+    var code = String(payload.code || "");
+    var expectedContextKey = String(payload.contextKey || "");
+    var expectedReference = payload.reference && typeof payload.reference === "object" ? payload.reference : null;
+    var expectedCodeHash32 = String(payload.codeHash32 || hashStringFNV1a(code));
+    var baseCodeHash32 = payload.baseCodeHash32 ? String(payload.baseCodeHash32) : "";
+    var snapshot = getCurrentIdeImportSnapshot(targetKind);
+    var currentReference = snapshot.reference || null;
+    var currentContextKey = snapshot.contextKey || "";
+    var currentCodeHash32 = snapshot.codeHash32 ? String(snapshot.codeHash32) : "";
+
+    if (!snapshot.ready) {
+      emitIdeImportResult({
+        requestId: requestId,
+        targetKind: targetKind,
+        success: false,
+        retryable: true,
+        status: snapshot.status || "editor_not_ready",
+        expectedReference: expectedReference,
+        currentReference: currentReference,
+        expectedContextKey: expectedContextKey || null,
+        currentContextKey: currentContextKey || null
+      });
+      return {
+        success: false,
+        retryable: true,
+        status: snapshot.status || "editor_not_ready"
+      };
+    }
+
+    var referenceMatch = compareIdeImportReference(expectedReference, currentReference, targetKind);
+    if (!referenceMatch.match) {
+      flashIdeImportStatus(targetKind, "Sync wartet auf richtiges Element", "#805019", "#ffffff", 1400);
+      emitIdeImportResult({
+        requestId: requestId,
+        targetKind: targetKind,
+        success: false,
+        retryable: true,
+        status: "target_mismatch",
+        mismatchReasons: referenceMatch.reasons,
+        expectedReference: expectedReference,
+        currentReference: currentReference,
+        expectedContextKey: expectedContextKey || null,
+        currentContextKey: currentContextKey || null,
+        baseCodeHash32: baseCodeHash32 || null,
+        currentCodeHash32: currentCodeHash32 || null
+      });
+      return {
+        success: false,
+        retryable: true,
+        status: "target_mismatch"
+      };
+    }
+
+    if (expectedContextKey && currentContextKey && expectedContextKey !== currentContextKey) {
+      flashIdeImportStatus(targetKind, "Sync wartet auf richtigen Filter", "#8a2424", "#ffffff", 1400);
+      emitIdeImportResult({
+        requestId: requestId,
+        targetKind: targetKind,
+        success: false,
+        retryable: true,
+        status: "context_mismatch",
+        expectedReference: expectedReference,
+        currentReference: currentReference,
+        expectedContextKey: expectedContextKey,
+        currentContextKey: currentContextKey,
+        baseCodeHash32: baseCodeHash32 || null,
+        currentCodeHash32: currentCodeHash32 || null
+      });
+      return {
+        success: false,
+        retryable: true,
+        status: "context_mismatch"
+      };
+    }
+
+    var staleBase = !!(baseCodeHash32 && currentCodeHash32 && baseCodeHash32 !== currentCodeHash32);
+
+    try {
+      if (targetKind === "screen_editor") {
+        if (typeof setScreenEditorCode !== "function") {
+          throw new Error("screen_editor_sync_unavailable");
+        }
+        setScreenEditorCode(code);
+      } else {
+        var codeMirror = snapshot.codeMirror || getLuaCodeMirror();
+        if (!codeMirror || typeof codeMirror.setValue !== "function") {
+          throw new Error("lua_editor_sync_unavailable");
+        }
+        codeMirror.setValue(code);
+      }
+    } catch (error) {
+      var applyError = error && error.message ? error.message : String(error || "ide_import_apply_failed");
+      emitIdeImportResult({
+        requestId: requestId,
+        targetKind: targetKind,
+        success: false,
+        retryable: true,
+        status: applyError,
+        staleBase: staleBase,
+        expectedReference: expectedReference,
+        currentReference: currentReference,
+        expectedContextKey: expectedContextKey || null,
+        currentContextKey: currentContextKey || null,
+        baseCodeHash32: baseCodeHash32 || null,
+        currentCodeHash32: currentCodeHash32 || null
+      });
+      return {
+        success: false,
+        retryable: true,
+        status: applyError
+      };
+    }
+
+    var appliedSnapshot = getCurrentIdeImportSnapshot(targetKind);
+    var appliedCodeHash32 = appliedSnapshot.codeHash32 ? String(appliedSnapshot.codeHash32) : "";
+    var appliedSuccess = !!(appliedSnapshot.ready && appliedCodeHash32 && appliedCodeHash32 === expectedCodeHash32);
+
+    if (!appliedSuccess) {
+      emitIdeImportResult({
+        requestId: requestId,
+        targetKind: targetKind,
+        success: false,
+        retryable: true,
+        status: "apply_verify_failed",
+        staleBase: staleBase,
+        expectedReference: expectedReference,
+        currentReference: appliedSnapshot.reference || currentReference,
+        expectedContextKey: expectedContextKey || null,
+        currentContextKey: appliedSnapshot.contextKey || currentContextKey || null,
+        baseCodeHash32: baseCodeHash32 || null,
+        currentCodeHash32: currentCodeHash32 || null,
+        appliedCodeHash32: appliedCodeHash32 || null
+      });
+      return {
+        success: false,
+        retryable: true,
+        status: "apply_verify_failed"
+      };
+    }
+
+    if (targetKind === "lua_editor") {
+      state.lastIdeSyncContextKey = appliedSnapshot.contextKey || expectedContextKey || "";
+      state.lastIdeSyncReference = cloneIdeSyncObject(appliedSnapshot.reference || expectedReference);
+    }
+
+    flashIdeImportStatus(
+      targetKind,
+      staleBase ? "Synced from IDE (stale base)" : "Synced from IDE!",
+      staleBase ? "#7a6518" : "#2a6b36",
+      "#ffffff",
+      staleBase ? 2200 : 1500);
+
+    emitIdeImportResult({
+      requestId: requestId,
+      targetKind: targetKind,
+      success: true,
+      retryable: false,
+      status: staleBase ? "applied_stale_base" : "applied",
+      staleBase: staleBase,
+      expectedReference: expectedReference,
+      currentReference: appliedSnapshot.reference || currentReference,
+      expectedContextKey: expectedContextKey || null,
+      currentContextKey: appliedSnapshot.contextKey || currentContextKey || null,
+      baseCodeHash32: baseCodeHash32 || null,
+      currentCodeHash32: currentCodeHash32 || null,
+      appliedCodeHash32: appliedCodeHash32 || null,
+      codeCharLength: code.length
+    });
+
+    return {
+      success: true,
+      retryable: false,
+      status: staleBase ? "applied_stale_base" : "applied",
+      staleBase: staleBase
+    };
+  }
+
+  function applyIdeCode(newCode) {
+    var snapshot = getCurrentIdeImportSnapshot("lua_editor");
+    if (!snapshot.ready) {
       return;
     }
 
-    var currentContextKey = getEditorContextKey(codeMirror);
+    var currentContextKey = snapshot.contextKey || "";
     if (state.lastIdeSyncContextKey && currentContextKey !== state.lastIdeSyncContextKey) {
       safeLog("IDE sync blocked: Context changed. Expected: " + state.lastIdeSyncContextKey + ", Got: " + currentContextKey);
       flashIdeSyncButton("Sync Blocked: Wrong Filter", "#8a2424", "#ffffff", 3000);
       return;
     }
 
+    var codeMirror = snapshot.codeMirror || getLuaCodeMirror();
+    if (!codeMirror || typeof codeMirror.setValue !== "function") {
+      return;
+    }
+
     codeMirror.setValue(newCode);
+    state.lastIdeSyncContextKey = currentContextKey;
+    state.lastIdeSyncReference = cloneIdeSyncObject(snapshot.reference || getLuaIdeSyncReference());
     flashIdeSyncButton("Synced from IDE!", "#2a6b36", "#ffffff", 1500);
   }
 
@@ -826,6 +1255,144 @@
       + "background:linear-gradient(180deg,rgba(30,48,60,0.98) 0%,rgba(18,32,41,0.98) 100%);}"
       + "#dpu_editor #ModUiExtractor-lua-caret-toggle:focus,#dpu_editor #ModUiExtractor-lua-ide-sync:focus{"
       + "outline:none;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"]{"
+      + "background-color:var(--lua-probe-surface-main) !important;"
+      + "border-color:var(--lua-probe-accent) !important;"
+      + "filter:drop-shadow(var(--lua-probe-shadow) 0 0 5px) !important;"
+      + "box-shadow:0 0 0 1px var(--lua-probe-accent),0 0 22px var(--lua-probe-accent) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .header_block{"
+      + "position:relative;background:var(--lua-probe-header-bg) !important;"
+      + "border-bottom:1px solid var(--lua-probe-accent) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .header_block .panel_title{"
+      + "color:#f8f8f2 !important;"
+      + "text-shadow:0 1px 0 rgba(0,0,0,0.42) !important;"
+      + "padding-left:4.25925926vh !important;"
+      + "padding-right:4.25925926vh !important;"
+      + "box-sizing:border-box;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content{"
+      + "background:var(--lua-probe-surface-main) !important;color:var(--lua-probe-text-muted) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line{"
+      + "background:var(--lua-probe-surface-elevated) !important;"
+      + "border:1px solid var(--lua-probe-border-strong) !important;"
+      + "box-shadow:var(--lua-probe-shadow) 3px 3px 5px !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .code_editor_header{"
+      + "background:transparent !important;border-bottom-color:var(--lua-probe-border-strong) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .left_wrapper,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .right_wrapper,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .mode_switch_wrapper{"
+      + "color:var(--lua-probe-text-muted) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .sub_title_wrapper .sub_title{"
+      + "color:var(--lua-probe-text-muted) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .sub_title_wrapper .icon{"
+      + "fill:var(--lua-probe-accent-solid) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .wrap_line_wrapper,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .font_size_wrapper,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .mode_switch_wrapper{"
+      + "background:var(--lua-probe-surface-row) !important;"
+      + "border:1px solid var(--lua-probe-border-strong) !important;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.04),0 1px 0 rgba(0,0,0,0.16) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .wrap_line_wrapper:hover,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .font_size_wrapper:hover,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .mode_switch_wrapper:hover{"
+      + "border-color:var(--lua-probe-border-hover) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .wrap_line_wrapper .label,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .font_size_wrapper .label,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .mode_switch_wrapper .label{"
+      + "color:var(--lua-probe-text-muted) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .font_size_wrapper .font_button{"
+      + "background:var(--lua-probe-surface-row-alt) !important;"
+      + "border-color:var(--lua-probe-border-strong) !important;"
+      + "color:var(--lua-probe-text-muted) !important;"
+      + "text-shadow:0 1px 0 rgba(0,0,0,0.35) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .font_size_wrapper .font_button:hover{"
+      + "background:var(--lua-probe-surface-row) !important;"
+      + "border-color:var(--lua-probe-border-hover) !important;color:#ffffff !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .font_size_wrapper .font_button:active{"
+      + "background:var(--lua-probe-surface-deep) !important;}"
+      + ".screen_content_editor_panel #ModUiExtractor-screen-theme-dots{"
+      + "position:absolute;left:12px;top:50%;transform:translateY(-50%);"
+      + "display:flex;gap:8px;align-items:center;z-index:11;}"
+      + ".screen_content_editor_panel #ModUiExtractor-screen-theme-dots .lua-theme-dot{"
+      + "width:12px;height:12px;border-radius:999px;border:1px solid rgba(255,255,255,0.6);"
+      + "padding:0;cursor:pointer;opacity:0.88;}"
+      + ".screen_content_editor_panel #ModUiExtractor-screen-theme-dots .lua-theme-dot[data-active=\"1\"]{"
+      + "transform:scale(1.1);opacity:1;box-shadow:0 0 0 1px rgba(0,0,0,0.55),0 0 8px rgba(255,255,255,0.35);}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror{"
+      + "background-color:var(--lua-probe-surface-deep) !important;color:#f8f8f2 !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror .CodeMirror-gutters{"
+      + "background-color:var(--lua-probe-surface-deep) !important;"
+      + "border-right-color:var(--lua-probe-gutter-border) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror .CodeMirror-linenumber{"
+      + "color:var(--lua-probe-cm-linenumber) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line{"
+      + "background:var(--lua-probe-surface-elevated) !important;"
+      + "border-top:1px solid var(--lua-probe-border-strong) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .editor_error_ctn{"
+      + "background:var(--lua-probe-surface-elevated) !important;"
+      + "box-shadow:var(--lua-probe-shadow) 3px 3px 5px !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .editor_error_ctn .editor_error_ctn_value{"
+      + "color:var(--lua-probe-accent-solid) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .wrap_line_wrapper .checkbox,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .enable_logs_wrapper .checkbox{"
+      + "background-color:var(--lua-probe-surface-row) !important;"
+      + "outline-color:var(--lua-probe-border-hover) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .wrap_line_wrapper .checkbox:checked,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .enable_logs_wrapper .checkbox:checked{"
+      + "background-color:var(--lua-probe-accent-solid) !important;"
+      + "outline-color:var(--lua-probe-accent-solid) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .mode_switch_wrapper .checkbox_switch{"
+      + "background-color:var(--lua-probe-surface-row-alt) !important;"
+      + "border-color:var(--lua-probe-border-strong) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .mode_switch_wrapper .checkbox_switch .slider{"
+      + "background:linear-gradient(180deg,rgba(64,67,58,0.96) 0%,rgba(37,43,34,0.96) 100%) !important;"
+      + "border-color:var(--lua-probe-btn-apply-border) !important;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.12),0 1px 4px rgba(0,0,0,0.28) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .mode_switch_wrapper .checkbox_switch .switch_label{"
+      + "color:var(--lua-probe-text-dim) !important;text-shadow:none !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .mode_switch_wrapper .checkbox_switch .unchecked_option{"
+      + "color:var(--lua-probe-text-muted) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .mode_switch_wrapper .checkbox_switch input:checked ~ .checked_option,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .mode_switch_wrapper .checkbox_switch input:not(:checked) ~ .unchecked_option{"
+      + "color:#f8f8f2 !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .character_count{"
+      + "color:var(--lua-probe-text-dim) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .save_button::before,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .save_button::after{"
+      + "display:none !important;content:none !important;animation:none !important;opacity:0 !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .save_button:not(.disabled){"
+      + "font-family:Play,sans-serif !important;font-weight:900 !important;"
+      + "border-radius:0.55555556vh !important;border:1px solid var(--lua-probe-btn-apply-border) !important;"
+      + "color:var(--lua-probe-btn-apply-color) !important;background:var(--lua-probe-btn-apply-bg) !important;"
+      + "text-shadow:0 1px 0 rgba(0,0,0,0.42),0 0 1px rgba(0,0,0,0.35) !important;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.16),inset 0 -2px 0 rgba(0,0,0,0.4),0 1px 0 rgba(0,0,0,0.22),0 3px 10px rgba(0,0,0,0.3) !important;"
+      + "transition:background 0.14s ease,border-color 0.14s ease,color 0.14s ease,box-shadow 0.14s ease,transform 0.05s ease;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .cancel_button:not(.disabled){"
+      + "font-family:Play,sans-serif !important;font-weight:900 !important;"
+      + "border-radius:0.55555556vh !important;border:1px solid var(--lua-probe-btn-cancel-border) !important;"
+      + "color:var(--lua-probe-btn-cancel-color) !important;background:var(--lua-probe-btn-cancel-bg) !important;"
+      + "text-shadow:0 1px 0 rgba(0,0,0,0.42),0 0 1px rgba(0,0,0,0.35) !important;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.11),inset 0 -2px 0 rgba(0,0,0,0.46),0 1px 0 rgba(0,0,0,0.2),0 3px 10px rgba(0,0,0,0.28) !important;"
+      + "transition:background 0.14s ease,border-color 0.14s ease,color 0.14s ease,box-shadow 0.14s ease,transform 0.05s ease;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .save_button:hover:not(.disabled){"
+      + "border-color:var(--lua-probe-border-hover) !important;color:#f5fcff !important;"
+      + "background:var(--lua-probe-btn-apply-hover-bg) !important;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.22),inset 0 -2px 0 rgba(0,0,0,0.38),0 2px 10px rgba(0,0,0,0.34) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .cancel_button:hover:not(.disabled){"
+      + "border-color:rgba(245,252,255,0.48) !important;color:#f2f5f8 !important;"
+      + "background:var(--lua-probe-btn-cancel-hover-bg) !important;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.18),inset 0 -2px 0 rgba(0,0,0,0.4),0 2px 10px rgba(0,0,0,0.3) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .save_button:active:not(.disabled){"
+      + "transform:translateY(1px);background:var(--lua-probe-btn-apply-active-bg) !important;"
+      + "box-shadow:inset 0 2px 0 rgba(0,0,0,0.38),inset 0 1px 0 rgba(255,255,255,0.08),0 1px 3px rgba(0,0,0,0.28) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .cancel_button:active:not(.disabled){"
+      + "transform:translateY(1px);background:var(--lua-probe-btn-cancel-active-bg) !important;"
+      + "box-shadow:inset 0 2px 0 rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.06),0 1px 3px rgba(0,0,0,0.26) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .save_button.disabled,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .cancel_button.disabled{"
+      + "border-color:rgba(84,122,135,0.45) !important;color:rgba(132,160,170,0.72) !important;"
+      + "background:linear-gradient(180deg,rgba(28,40,48,0.85) 0%,rgba(18,28,34,0.85) 100%) !important;"
+      + "background-image:none !important;text-shadow:none !important;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.04),inset 0 -1px 0 rgba(0,0,0,0.5) !important;}"
       + ".main_chat #ModUiExtractor-chat-copy-plain{"
       + "position:absolute;top:2.87037037vh;right:2.59259259vh;z-index:30;"
       + "font-family:Play,sans-serif;font-size:0.92592593vh;font-weight:900;text-transform:uppercase;"
@@ -2185,11 +2752,10 @@
   }
 
   function updateThemeDotSelection(activeThemeName) {
-    var dotsRoot = document.getElementById("ModUiExtractor-lua-theme-dots");
-    if (!dotsRoot || !dotsRoot.querySelectorAll) {
+    var dots = document.querySelectorAll(".lua-theme-dot");
+    if (!dots || !dots.length) {
       return;
     }
-    var dots = dotsRoot.querySelectorAll(".lua-theme-dot");
     for (var i = 0; i < dots.length; i += 1) {
       var dot = dots[i];
       var isActive = String(dot.getAttribute("data-theme") || "") === activeThemeName;
@@ -2414,17 +2980,29 @@
       return;
     }
     state.lastIdeSyncContextKey = getEditorContextKey(codeMirror);
-    var code = typeof codeMirror.getValue === "function" ? codeMirror.getValue() : "";
+    state.lastIdeSyncReference = cloneIdeSyncObject(getLuaIdeSyncReference());
+    var code = typeof codeMirror.getValue === "function" ? String(codeMirror.getValue() || "") : "";
     var chunkSize = 8000;
     var total = Math.ceil(code.length / chunkSize) || 1;
     var syncId = "sync-" + Date.now();
+    var codeHash32 = hashStringFNV1a(code);
+    var reference = cloneIdeSyncObject(state.lastIdeSyncReference);
+    var exportedAtUtc = null;
+    try {
+      exportedAtUtc = new Date().toISOString();
+    } catch (_ignoreExportedAtUtc) {}
     for (var i = 0; i < total; i += 1) {
       var chunk = code.substring(i * chunkSize, (i + 1) * chunkSize);
       sendPacket("lua_ide_sync", {
         syncId: syncId,
         part: i + 1,
         total: total,
-        codeChunk: chunk
+        codeChunk: chunk,
+        targetKind: "lua_editor",
+        contextKey: state.lastIdeSyncContextKey || "",
+        reference: reference,
+        codeHash32: codeHash32,
+        exportedAtUtc: exportedAtUtc
       });
     }
   }
@@ -2458,47 +3036,90 @@
     }
   }
 
-  function applyTheme(themeName, emitPacket) {
-    var root = document.getElementById("dpu_editor");
-    if (!root) {
+  function getDefaultThemeName() {
+    return (colorThemes[0] && colorThemes[0].name) ? colorThemes[0].name : "monokai";
+  }
+
+  function createThemeDotSwitcher(switcherId) {
+    var switcher = document.createElement("div");
+    switcher.id = switcherId;
+    switcher.className = "modui-theme-switcher";
+
+    for (var i = 0; i < colorThemes.length; i += 1) {
+      (function (theme) {
+        var dot = document.createElement("button");
+        dot.type = "button";
+        dot.className = "lua-theme-dot";
+        dot.style.background = theme.dot;
+        dot.setAttribute("data-theme", theme.name);
+        dot.setAttribute("data-active", "0");
+        dot.setAttribute("title", "Theme: " + (theme.label || theme.name));
+        dot.setAttribute("aria-label", "Theme: " + (theme.label || theme.name));
+        dot.addEventListener("click", function () {
+          applyTheme(theme.name, true);
+        }, true);
+        switcher.appendChild(dot);
+      })(colorThemes[i]);
+    }
+
+    return switcher;
+  }
+
+  function getThemeRoots() {
+    var roots = [];
+    var luaRoot = document.getElementById("dpu_editor");
+    var screenRoot = getScreenEditorRoot();
+    if (luaRoot) {
+      roots.push(luaRoot);
+    }
+    if (screenRoot && screenRoot !== luaRoot) {
+      roots.push(screenRoot);
+    }
+    return roots;
+  }
+
+  function applyThemeToRoot(root, theme) {
+    if (!root || !root.style || typeof root.style.setProperty !== "function") {
       return;
     }
+    root.style.setProperty("--lua-probe-accent", theme.accent);
+    root.style.setProperty("--lua-probe-header-bg", theme.header);
+    root.style.setProperty("--lua-probe-caret-line-bg", theme.caretBg);
+    root.style.setProperty("--lua-probe-accent-solid", theme.accentSolid);
+    root.style.setProperty("--lua-probe-on-accent", theme.onAccent);
+    root.style.setProperty("--lua-probe-surface-main", theme.surfaceMain);
+    root.style.setProperty("--lua-probe-surface-elevated", theme.surfaceElevated);
+    root.style.setProperty("--lua-probe-surface-row", theme.surfaceRow);
+    root.style.setProperty("--lua-probe-surface-deep", theme.surfaceDeep);
+    root.style.setProperty("--lua-probe-surface-row-alt", theme.surfaceRowAlt);
+    root.style.setProperty("--lua-probe-border-strong", theme.borderStrong);
+    root.style.setProperty("--lua-probe-border-hover", theme.borderHover);
+    root.style.setProperty("--lua-probe-shadow", theme.shadow);
+    root.style.setProperty("--lua-probe-text-muted", theme.textMuted);
+    root.style.setProperty("--lua-probe-text-dim", theme.textDim);
+    root.style.setProperty("--lua-probe-cm-comment", theme.cmComment);
+    root.style.setProperty("--lua-probe-cm-linenumber", theme.cmLineNumber);
+    root.style.setProperty("--lua-probe-gutter-border", theme.gutterBorder);
+    root.style.setProperty("--lua-probe-btn-apply-bg", theme.btnApplyBg);
+    root.style.setProperty("--lua-probe-btn-apply-border", theme.btnApplyBorder);
+    root.style.setProperty("--lua-probe-btn-apply-color", theme.btnApplyColor);
+    root.style.setProperty("--lua-probe-btn-apply-hover-bg", theme.btnApplyHoverBg);
+    root.style.setProperty("--lua-probe-btn-apply-active-bg", theme.btnApplyActiveBg);
+    root.style.setProperty("--lua-probe-btn-cancel-bg", theme.btnCancelBg);
+    root.style.setProperty("--lua-probe-btn-cancel-border", theme.btnCancelBorder);
+    root.style.setProperty("--lua-probe-btn-cancel-color", theme.btnCancelColor);
+    root.style.setProperty("--lua-probe-btn-cancel-hover-bg", theme.btnCancelHoverBg);
+    root.style.setProperty("--lua-probe-btn-cancel-active-bg", theme.btnCancelActiveBg);
+  }
 
+  function applyTheme(themeName, emitPacket) {
     var theme = getThemeByName(themeName);
-    var sameTheme = state.lastAppliedTheme === theme.name;
+    var roots = getThemeRoots();
     state.activeTheme = theme.name;
-
-    if (!sameTheme || emitPacket) {
-      root.style.setProperty("--lua-probe-accent", theme.accent);
-      root.style.setProperty("--lua-probe-header-bg", theme.header);
-      root.style.setProperty("--lua-probe-caret-line-bg", theme.caretBg);
-      root.style.setProperty("--lua-probe-accent-solid", theme.accentSolid);
-      root.style.setProperty("--lua-probe-on-accent", theme.onAccent);
-      root.style.setProperty("--lua-probe-surface-main", theme.surfaceMain);
-      root.style.setProperty("--lua-probe-surface-elevated", theme.surfaceElevated);
-      root.style.setProperty("--lua-probe-surface-row", theme.surfaceRow);
-      root.style.setProperty("--lua-probe-surface-deep", theme.surfaceDeep);
-      root.style.setProperty("--lua-probe-surface-row-alt", theme.surfaceRowAlt);
-      root.style.setProperty("--lua-probe-border-strong", theme.borderStrong);
-      root.style.setProperty("--lua-probe-border-hover", theme.borderHover);
-      root.style.setProperty("--lua-probe-shadow", theme.shadow);
-      root.style.setProperty("--lua-probe-text-muted", theme.textMuted);
-      root.style.setProperty("--lua-probe-text-dim", theme.textDim);
-      root.style.setProperty("--lua-probe-cm-comment", theme.cmComment);
-      root.style.setProperty("--lua-probe-cm-linenumber", theme.cmLineNumber);
-      root.style.setProperty("--lua-probe-gutter-border", theme.gutterBorder);
-      root.style.setProperty("--lua-probe-btn-apply-bg", theme.btnApplyBg);
-      root.style.setProperty("--lua-probe-btn-apply-border", theme.btnApplyBorder);
-      root.style.setProperty("--lua-probe-btn-apply-color", theme.btnApplyColor);
-      root.style.setProperty("--lua-probe-btn-apply-hover-bg", theme.btnApplyHoverBg);
-      root.style.setProperty("--lua-probe-btn-apply-active-bg", theme.btnApplyActiveBg);
-      root.style.setProperty("--lua-probe-btn-cancel-bg", theme.btnCancelBg);
-      root.style.setProperty("--lua-probe-btn-cancel-border", theme.btnCancelBorder);
-      root.style.setProperty("--lua-probe-btn-cancel-color", theme.btnCancelColor);
-      root.style.setProperty("--lua-probe-btn-cancel-hover-bg", theme.btnCancelHoverBg);
-      root.style.setProperty("--lua-probe-btn-cancel-active-bg", theme.btnCancelActiveBg);
-      state.lastAppliedTheme = theme.name;
+    for (var i = 0; i < roots.length; i += 1) {
+      applyThemeToRoot(roots[i], theme);
     }
+    state.lastAppliedTheme = theme.name;
     updateThemeDotSelection(theme.name);
 
     if (emitPacket) {
@@ -2526,37 +3147,52 @@
 
     var switcher = document.getElementById("ModUiExtractor-lua-theme-dots");
     if (!switcher) {
-      switcher = document.createElement("div");
-      switcher.id = "ModUiExtractor-lua-theme-dots";
-
-      for (var i = 0; i < colorThemes.length; i += 1) {
-        (function (theme) {
-          var dot = document.createElement("button");
-          dot.type = "button";
-          dot.className = "lua-theme-dot";
-          dot.style.background = theme.dot;
-          dot.setAttribute("data-theme", theme.name);
-          dot.setAttribute("data-active", "0");
-          dot.setAttribute("title", "Theme: " + (theme.label || theme.name));
-          dot.setAttribute("aria-label", "Theme: " + (theme.label || theme.name));
-          dot.addEventListener("click", function () {
-            applyTheme(theme.name, true);
-          }, true);
-          switcher.appendChild(dot);
-        })(colorThemes[i]);
-      }
+      switcher = createThemeDotSwitcher("ModUiExtractor-lua-theme-dots");
     }
 
     if (switcher.parentNode !== header) {
       header.appendChild(switcher);
     }
 
-    var defaultTheme = (colorThemes[0] && colorThemes[0].name) ? colorThemes[0].name : "monokai";
-    if (state.lastAppliedTheme !== (state.activeTheme || defaultTheme)) {
-      applyTheme(state.activeTheme || defaultTheme, false);
-    } else {
-      updateThemeDotSelection(state.activeTheme || defaultTheme);
+    applyTheme(state.activeTheme || getDefaultThemeName(), false);
+  }
+
+  function ensureScreenThemeSwitcher(root) {
+    if (!root || !root.querySelector) {
+      return;
     }
+
+    var header = root.querySelector(".header_block");
+    if (!header) {
+      return;
+    }
+
+    var switcher = document.getElementById("ModUiExtractor-screen-theme-dots");
+    if (!switcher) {
+      switcher = createThemeDotSwitcher("ModUiExtractor-screen-theme-dots");
+    }
+
+    if (switcher.parentNode !== header) {
+      header.appendChild(switcher);
+    }
+  }
+
+  function ensureScreenEditorFacelift() {
+    var root = getScreenEditorRoot();
+    if (!root || !root.querySelector) {
+      return;
+    }
+
+    if (!isElementVisible(root)) {
+      try {
+        root.removeAttribute("data-lua-probe-active");
+      } catch (_ignoreScreenProbeInactive) {}
+      return;
+    }
+
+    root.setAttribute("data-lua-probe-active", "1");
+    ensureScreenThemeSwitcher(root);
+    applyTheme(state.activeTheme || getDefaultThemeName(), false);
   }
 
   function normalizeProbeText(value) {
@@ -2565,6 +3201,14 @@
 
   function getLuaEditorRoot() {
     return document.getElementById("dpu_editor");
+  }
+
+  function ensureLuaEditorVisible() {
+    var root = getLuaEditorRoot();
+    if (!isElementVisible(root)) {
+      throw new Error("lua_editor_not_visible");
+    }
+    return root;
   }
 
   function isElementVisible(element) {
@@ -2891,6 +3535,7 @@
   }
 
   function addFilterByEventName(rawEventName) {
+    ensureLuaEditorVisible();
     var wantKey = normalizeEventKey(rawEventName);
     if (!wantKey) {
       throw new Error("add_filter_empty_name");
@@ -2991,6 +3636,19 @@
 
   function describeLuaEditor() {
     var root = getLuaEditorRoot();
+    if (!isElementVisible(root)) {
+      return {
+        visible: false,
+        title: "",
+        wrapLines: false,
+        canApply: false,
+        codeLength: 0,
+        selectedSlot: null,
+        selectedFilter: null,
+        slots: [],
+        filters: []
+      };
+    }
     var titleNode = document.getElementById("lua_editor_title");
     var wrapNode = document.getElementById("lua_wrap_lines");
     var applyNode = document.getElementById("applyBtn");
@@ -3040,7 +3698,7 @@
     }
 
     return {
-      visible: isElementVisible(root),
+      visible: true,
       title: titleNode ? String(titleNode.textContent || "").trim() : "",
       wrapLines: !!(wrapNode && wrapNode.checked),
       canApply: isElementVisible(applyNode),
@@ -3053,6 +3711,7 @@
   }
 
   function selectSlotByName(slotName) {
+    ensureLuaEditorVisible();
     var slotNode = findSlotNodeByName(slotName);
     if (!slotNode) {
       throw new Error("slot_not_found:" + slotName);
@@ -3064,6 +3723,7 @@
   }
 
   function selectFilterByEvent(filterEvent) {
+    ensureLuaEditorVisible();
     var filterNode = findFilterNodeByEvent(filterEvent);
     if (!filterNode) {
       throw new Error("filter_not_found:" + filterEvent);
@@ -3075,6 +3735,7 @@
   }
 
   function setLuaEditorCode(code) {
+    ensureLuaEditorVisible();
     var text = String(code || "");
     try {
       if (window.LUAEditorManager && typeof window.LUAEditorManager.setCodeLuaEditor === "function") {
@@ -3088,6 +3749,7 @@
   }
 
   function applyLuaEditorChanges() {
+    ensureLuaEditorVisible();
     if (!window.LUAEditorManager || typeof window.LUAEditorManager.apply !== "function") {
       throw new Error("apply_unavailable");
     }
@@ -3097,17 +3759,302 @@
     };
   }
 
+  function getScreenEditorPanel() {
+    try {
+      if (window.screenContentEditorPanel) {
+        return window.screenContentEditorPanel;
+      }
+    } catch (_ignoreScreenPanel) {}
+    return null;
+  }
+
+  function getScreenEditorRoot() {
+    var panel = getScreenEditorPanel();
+    try {
+      if (panel && panel.HTMLNodes) {
+        if (panel.HTMLNodes.main) {
+          return panel.HTMLNodes.main;
+        }
+        if (panel.HTMLNodes.root) {
+          return panel.HTMLNodes.root;
+        }
+        if (panel.HTMLNodes.panel) {
+          return panel.HTMLNodes.panel;
+        }
+      }
+    } catch (_ignoreScreenHtmlNodes) {}
+    try {
+      return document.querySelector(".screen_content_editor_panel");
+    } catch (_ignoreScreenRootQuery) {}
+    return null;
+  }
+
+  function getScreenEditorCodeNode(panel, root) {
+    if (panel && panel.textEditor) {
+      return panel.textEditor;
+    }
+    if (root && root.querySelector) {
+      try {
+        return root.querySelector("textarea");
+      } catch (_ignoreScreenTextarea) {}
+    }
+    return null;
+  }
+
+  function getScreenEditorCodeMirror(root) {
+    if (!root || !root.querySelector) {
+      return null;
+    }
+    try {
+      var cmNode = root.querySelector(".CodeMirror");
+      if (cmNode && cmNode.CodeMirror) {
+        return cmNode.CodeMirror;
+      }
+    } catch (_ignoreScreenCodeMirror) {}
+    return null;
+  }
+
+  function parseIntegerOrNull(value) {
+    var parsed = parseInt(String(value || "").replace(/[^\d-]/g, ""), 10);
+    return isNaN(parsed) ? null : parsed;
+  }
+
+  function describeScreenEditor() {
+    var panel = getScreenEditorPanel();
+    var root = getScreenEditorRoot();
+    var codeMirror = getScreenEditorCodeMirror(root);
+    var isVisible = isElementVisible(root);
+    var titleNode = null;
+    var wrapNode = null;
+    var saveNode = null;
+    var cancelNode = null;
+    var errorCountNode = null;
+    var enableLogsNode = null;
+    var modeSwitchNode = null;
+    var modeInputNode = null;
+    var codeNode = getScreenEditorCodeNode(panel, root);
+    var code = "";
+
+    if (!isVisible) {
+      return {
+        surface: "screen_editor",
+        visible: false,
+        title: "",
+        wrapLines: false,
+        canApply: false,
+        canCancel: false,
+        codeLength: 0,
+        isHtmlMode: false,
+        mode: "",
+        htmlModeAvailable: false,
+        enableOutputInLuaChannel: false,
+        errorCount: null
+      };
+    }
+
+    if (root && root.querySelector) {
+      try {
+        titleNode = root.querySelector(".header_block .panel_title");
+      } catch (_ignoreScreenTitle) {}
+      try {
+        wrapNode = root.querySelector(".wrap_line_wrapper .checkbox");
+      } catch (_ignoreScreenWrap) {}
+      try {
+        saveNode = root.querySelector(".footer_line .right_block .save_button");
+      } catch (_ignoreScreenSave) {}
+      try {
+        cancelNode = root.querySelector(".footer_line .right_block .cancel_button");
+      } catch (_ignoreScreenCancel) {}
+      try {
+        errorCountNode = root.querySelector(".editor_error_ctn_value");
+      } catch (_ignoreScreenErrorCount) {}
+      try {
+        enableLogsNode = root.querySelector(".enable_logs_wrapper .checkbox");
+      } catch (_ignoreScreenEnableLogs) {}
+      try {
+        modeSwitchNode = root.querySelector(".mode_switch_wrapper .checkbox_switch");
+      } catch (_ignoreScreenModeSwitch) {}
+      try {
+        modeInputNode = root.querySelector(".mode_switch_wrapper .checkbox_switch input");
+      } catch (_ignoreScreenModeInput) {}
+    }
+
+    if (!modeInputNode) {
+      try {
+        if (panel && panel.HTMLNodes && panel.HTMLNodes.isHTMLModeCheckbox) {
+          modeInputNode = panel.HTMLNodes.isHTMLModeCheckbox;
+        }
+      } catch (_ignoreScreenModeCheckbox) {}
+    }
+
+    try {
+      if (codeMirror && typeof codeMirror.getValue === "function") {
+        code = codeMirror.getValue();
+      } else if (codeNode && typeof codeNode.value === "string") {
+        code = codeNode.value;
+      }
+    } catch (_ignoreScreenCode) {}
+
+    var isHtmlMode = false;
+    try {
+      if (panel && typeof panel.isInHTMLMode === "boolean") {
+        isHtmlMode = panel.isInHTMLMode;
+      } else if (modeInputNode && typeof modeInputNode.checked === "boolean") {
+        isHtmlMode = modeInputNode.checked;
+      }
+    } catch (_ignoreScreenModeValue) {}
+
+    var htmlModeAvailable = !!modeInputNode;
+    try {
+      if (modeSwitchNode && modeSwitchNode.classList && modeSwitchNode.classList.contains("disabled")) {
+        htmlModeAvailable = false;
+      }
+    } catch (_ignoreScreenModeAvailable) {}
+
+    var canApply = !!(saveNode && isElementVisible(saveNode));
+    try {
+      if (saveNode && saveNode.classList && saveNode.classList.contains("disabled")) {
+        canApply = false;
+      }
+    } catch (_ignoreScreenSaveDisabled) {}
+    if (!canApply) {
+      canApply = !!(panel && codeNode && window.CPPScreenContentEditor && typeof window.CPPScreenContentEditor.save === "function");
+    }
+
+    return {
+      surface: "screen_editor",
+      visible: true,
+      title: titleNode ? String(titleNode.textContent || "").trim() : "",
+      wrapLines: !!(wrapNode && wrapNode.checked),
+      canApply: canApply,
+      canCancel: !!(cancelNode && isElementVisible(cancelNode)),
+      codeLength: code.length,
+      isHtmlMode: !!isHtmlMode,
+      mode: isHtmlMode ? "html" : "lua",
+      htmlModeAvailable: !!htmlModeAvailable,
+      enableOutputInLuaChannel: !!(enableLogsNode && enableLogsNode.checked),
+      errorCount: parseIntegerOrNull(errorCountNode ? errorCountNode.textContent : "")
+    };
+  }
+
+  function setScreenEditorCode(code) {
+    var panel = getScreenEditorPanel();
+    var root = getScreenEditorRoot();
+    var codeMirror = getScreenEditorCodeMirror(root);
+    var codeNode = getScreenEditorCodeNode(panel, root);
+    var hiddenTextarea = null;
+    var text = String(code || "");
+    if (root && root.querySelector) {
+      try {
+        hiddenTextarea = root.querySelector(".textarea_editor");
+      } catch (_ignoreScreenHiddenTextarea) {}
+    }
+    if (!isElementVisible(root)) {
+      throw new Error("screen_editor_not_visible");
+    }
+    if (!codeMirror && !codeNode && !hiddenTextarea) {
+      throw new Error("screen_editor_unavailable");
+    }
+    try {
+      if (codeMirror && typeof codeMirror.setValue === "function") {
+        codeMirror.setValue(text);
+      }
+    } catch (_ignoreScreenCodeMirrorSet) {}
+    try {
+      if (codeNode && typeof codeNode.value === "string") {
+        codeNode.value = text;
+      }
+    } catch (_ignoreScreenCodeNodeSet) {}
+    try {
+      if (hiddenTextarea && typeof hiddenTextarea.value === "string") {
+        hiddenTextarea.value = text;
+      }
+    } catch (_ignoreScreenHiddenTextareaSet) {}
+    try {
+      if (panel && typeof panel._onCodeChange === "function") {
+        panel._onCodeChange();
+      }
+    } catch (_ignoreScreenCodeChange) {}
+    return describeScreenEditor();
+  }
+
+  function applyScreenEditorChanges() {
+    var panel = getScreenEditorPanel();
+    var root = getScreenEditorRoot();
+    var saveNode = null;
+    var codeNode = getScreenEditorCodeNode(panel, root);
+    if (!isElementVisible(root)) {
+      throw new Error("screen_editor_not_visible");
+    }
+    if (root && root.querySelector) {
+      try {
+        saveNode = root.querySelector(".footer_line .right_block .save_button");
+      } catch (_ignoreScreenSaveButton) {}
+    }
+    if (saveNode && clickNode(saveNode)) {
+      return {
+        applied: true,
+        usedDomButton: true
+      };
+    }
+    if (!panel || !codeNode || !window.CPPScreenContentEditor || typeof window.CPPScreenContentEditor.save !== "function") {
+      throw new Error("apply_unavailable");
+    }
+    window.CPPScreenContentEditor.save(codeNode.value, !!panel.isInHTMLMode);
+    return {
+      applied: true,
+      usedDomButton: false
+    };
+  }
+
+  function normalizeProbeTargetKind(targetKind) {
+    var normalized = String(targetKind || "").trim().toLowerCase();
+    if (normalized === "screen_editor") {
+      return "screen_editor";
+    }
+    return "lua_editor";
+  }
+
+  function describeProbeTarget(targetKind) {
+    if (normalizeProbeTargetKind(targetKind) === "screen_editor") {
+      return describeScreenEditor();
+    }
+    var luaSnapshot = describeLuaEditor();
+    luaSnapshot.surface = "lua_editor";
+    return luaSnapshot;
+  }
+
+  function setCodeForProbeTarget(targetKind, code) {
+    if (normalizeProbeTargetKind(targetKind) === "screen_editor") {
+      return setScreenEditorCode(code);
+    }
+    return setLuaEditorCode(code);
+  }
+
+  function applyChangesForProbeTarget(targetKind) {
+    if (normalizeProbeTargetKind(targetKind) === "screen_editor") {
+      return applyScreenEditorChanges();
+    }
+    return applyLuaEditorChanges();
+  }
+
   var MAX_OUTER_HTML_CHARS = 350000;
 
-  function outerHtmlForSelector(rawSelector) {
+  function outerHtmlForTargetSelector(targetKind, rawSelector) {
+    var normalizedTarget = normalizeProbeTargetKind(targetKind);
     var sel = String(rawSelector || "").trim();
     if (!sel) {
-      sel = "#filters";
+      sel = normalizedTarget === "screen_editor" ? ".screen_content_editor_panel" : "#filters";
     }
-    var root = getLuaEditorRoot();
+    var root = normalizedTarget === "screen_editor" ? getScreenEditorRoot() : getLuaEditorRoot();
     var el = null;
     try {
-      if (root && root.querySelector) {
+      if (root && typeof root.matches === "function" && root.matches(sel)) {
+        el = root;
+      }
+    } catch (_ignoreRootMatch) {}
+    try {
+      if (!el && root && root.querySelector) {
         el = root.querySelector(sel);
       }
     } catch (_badSel) {}
@@ -3135,6 +4082,10 @@
       originalLength: originalLength,
       truncated: truncated
     };
+  }
+
+  function outerHtmlForSelector(rawSelector) {
+    return outerHtmlForTargetSelector("lua_editor", rawSelector);
   }
 
   function trimChatText(value) {
@@ -4225,13 +5176,14 @@
     return String(value);
   }
 
-  function emitMcpResult(commandId, method, success, result, errorMessage) {
+  function emitMcpResult(commandId, method, success, result, errorMessage, targetKind) {
     var payload = {
       commandId: String(commandId || ""),
       method: String(method || ""),
       success: !!success,
       result: success ? serializeProbeValue(result, 0) : null,
-      error: success ? null : String(errorMessage || "unknown_error")
+      error: success ? null : String(errorMessage || "unknown_error"),
+      targetKind: normalizeProbeTargetKind(targetKind)
     };
     var payloadJson = "";
     try {
@@ -4246,7 +5198,7 @@
     sendPacket("lua_mcp_result", payload);
   }
 
-  function emitCommandResultForMethod(commandId, method, success, result, errorMessage) {
+  function emitCommandResultForMethod(commandId, targetKind, method, success, result, errorMessage) {
     if (method === "chat_snapshot") {
       if (success) {
         emitChatSnapshot(commandId, result);
@@ -4255,45 +5207,67 @@
     }
     if (method === "chat_send") {
       emitChatSendResult(commandId, success, result, errorMessage);
-      emitMcpResult(commandId, method, success, result, errorMessage);
+      emitMcpResult(commandId, method, success, result, errorMessage, targetKind);
       return;
     }
     if (method === "chat_join_channel" || method === "chat_select_channel") {
       emitChatChannelResult(commandId, success, result, errorMessage);
-      emitMcpResult(commandId, method, success, result, errorMessage);
+      emitMcpResult(commandId, method, success, result, errorMessage, targetKind);
       return;
     }
-    emitMcpResult(commandId, method, success, result, errorMessage);
+    emitMcpResult(commandId, method, success, result, errorMessage, targetKind);
   }
 
-  function invokeMcpCommand(commandId, method, args) {
+  function invokeMcpCommandForTarget(commandId, targetKind, method, args) {
+    var normalizedTarget = normalizeProbeTargetKind(targetKind);
     var normalizedMethod = String(method || "").trim().toLowerCase();
     var listArgs = Array.isArray(args) ? args : [];
 
     try {
       var result = null;
       if (normalizedMethod === "describe") {
-        result = describeLuaEditor();
+        result = describeProbeTarget(normalizedTarget);
       } else if (normalizedMethod === "chat_snapshot") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
         result = captureChatSnapshot();
       } else if (normalizedMethod === "chat_send") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
         result = sendChatMessage(listArgs[0], listArgs[1]);
       } else if (normalizedMethod === "chat_join_channel") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
         result = createOrJoinChatChannel(listArgs[0]);
       } else if (normalizedMethod === "chat_select_channel") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
         result = selectExistingChatChannel(listArgs[0]);
       } else if (normalizedMethod === "select_slot") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
         result = selectSlotByName(listArgs[0]);
       } else if (normalizedMethod === "select_filter") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
         result = selectFilterByEvent(listArgs[0]);
       } else if (normalizedMethod === "set_code") {
-        result = setLuaEditorCode(listArgs[0]);
+        result = setCodeForProbeTarget(normalizedTarget, listArgs[0]);
       } else if (normalizedMethod === "apply") {
-        result = applyLuaEditorChanges();
+        result = applyChangesForProbeTarget(normalizedTarget);
       } else if (normalizedMethod === "add_filter") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
         result = addFilterByEventName(listArgs[0]);
       } else if (normalizedMethod === "outer_html") {
-        result = outerHtmlForSelector(listArgs[0]);
+        result = outerHtmlForTargetSelector(normalizedTarget, listArgs[0]);
       } else if (normalizedMethod === "raw_eval") {
         result = runRawProbeEval(listArgs[0]);
       } else {
@@ -4302,28 +5276,35 @@
 
       if (isPromiseLike(result)) {
         result.then(function(asyncResult) {
-          emitCommandResultForMethod(commandId, normalizedMethod, true, asyncResult, null);
+          emitCommandResultForMethod(commandId, normalizedTarget, normalizedMethod, true, asyncResult, null);
         }).catch(function(asyncErr) {
           var asyncMessage = String(asyncErr && asyncErr.message ? asyncErr.message : asyncErr);
-          emitCommandResultForMethod(commandId, normalizedMethod, false, null, asyncMessage);
+          emitCommandResultForMethod(commandId, normalizedTarget, normalizedMethod, false, null, asyncMessage);
         });
         return null;
       }
 
-      emitCommandResultForMethod(commandId, normalizedMethod, true, result, null);
+      emitCommandResultForMethod(commandId, normalizedTarget, normalizedMethod, true, result, null);
       return result;
     } catch (err) {
       var message = String(err && err.message ? err.message : err);
-      emitCommandResultForMethod(commandId, normalizedMethod, false, null, message);
+      emitCommandResultForMethod(commandId, normalizedTarget, normalizedMethod, false, null, message);
       throw err;
     }
   }
 
+  function invokeMcpCommand(commandId, method, args) {
+    return invokeMcpCommandForTarget(commandId, "lua_editor", method, args);
+  }
+
   state.describeLuaEditor = describeLuaEditor;
+  state.describeScreenEditor = describeScreenEditor;
   state.selectSlotByName = selectSlotByName;
   state.selectFilterByEvent = selectFilterByEvent;
   state.setLuaEditorCode = setLuaEditorCode;
+  state.setScreenEditorCode = setScreenEditorCode;
   state.applyLuaEditorChanges = applyLuaEditorChanges;
+  state.applyScreenEditorChanges = applyScreenEditorChanges;
   state.addFilterByEventName = addFilterByEventName;
   state.captureChatSnapshot = captureChatSnapshot;
   state.buildPlainTextChatTranscript = buildPlainTextChatTranscript;
@@ -4333,14 +5314,19 @@
   state.createOrJoinChatChannel = createOrJoinChatChannel;
   state.outerHtmlForSelector = outerHtmlForSelector;
   state.runRawProbeEval = runRawProbeEval;
+  state.invokeMcpCommandForTarget = invokeMcpCommandForTarget;
   state.invokeMcpCommand = invokeMcpCommand;
   state.mcp = {
+    invokeForTarget: invokeMcpCommandForTarget,
     invoke: invokeMcpCommand,
     describeLuaEditor: describeLuaEditor,
+    describeScreenEditor: describeScreenEditor,
     selectSlotByName: selectSlotByName,
     selectFilterByEvent: selectFilterByEvent,
     setCode: setLuaEditorCode,
+    setScreenCode: setScreenEditorCode,
     apply: applyLuaEditorChanges,
+    applyScreen: applyScreenEditorChanges,
     addFilter: addFilterByEventName,
     chatSnapshot: captureChatSnapshot,
     chatSend: sendChatMessage,
@@ -5459,11 +6445,103 @@
     ];
   }
 
+  function getLuaEditorEngineBindings() {
+    return [
+      { eventName: "DPUEditorShow", methodName: "showDEM" },
+      { eventName: "DPUEditorInit", methodName: "initDEM" },
+      { eventName: "DPUEditorCancel", methodName: "cancel" }
+    ];
+  }
+
+  function getHudEngine() {
+    try {
+      if (window.engine) {
+        return window.engine;
+      }
+    } catch (_ignoreWindowEngine) {}
+    try {
+      if (typeof engine !== "undefined" && engine) {
+        return engine;
+      }
+    } catch (_ignoreGlobalEngine) {}
+    return null;
+  }
+
+  function rebindLuaEditorEngineHandlers(manager, useWrappedHandlers) {
+    if (!manager) {
+      return false;
+    }
+
+    var engineRef = getHudEngine();
+    if (!engineRef || typeof engineRef.on !== "function" || typeof engineRef.off !== "function") {
+      sendPacket("lua_engine_rebind", {
+        mode: useWrappedHandlers ? "wrapped" : "original",
+        status: "engine_unavailable"
+      });
+      return false;
+    }
+
+    var bindings = getLuaEditorEngineBindings();
+    var results = [];
+    var reboundAny = false;
+
+    for (var i = 0; i < bindings.length; i += 1) {
+      var binding = bindings[i];
+      var currentFn = manager[binding.methodName];
+      var wrappedFn = typeof currentFn === "function" && currentFn.__luaProbeWrapped ? currentFn : null;
+      var originalFn = wrappedFn && typeof wrappedFn.__luaProbeOriginal === "function"
+        ? wrappedFn.__luaProbeOriginal
+        : (typeof currentFn === "function" ? currentFn : null);
+      var fromFn = useWrappedHandlers ? originalFn : wrappedFn;
+      var toFn = useWrappedHandlers ? wrappedFn : originalFn;
+
+      if (typeof fromFn !== "function" || typeof toFn !== "function" || fromFn === toFn) {
+        results.push({
+          eventName: binding.eventName,
+          methodName: binding.methodName,
+          status: "skipped"
+        });
+        continue;
+      }
+
+      try {
+        engineRef.off(binding.eventName, fromFn);
+        engineRef.on(binding.eventName, toFn);
+        reboundAny = true;
+        results.push({
+          eventName: binding.eventName,
+          methodName: binding.methodName,
+          status: "rebound"
+        });
+      } catch (err) {
+        try {
+          engineRef.on(binding.eventName, fromFn);
+        } catch (_ignoreRebindRollback) {}
+        results.push({
+          eventName: binding.eventName,
+          methodName: binding.methodName,
+          status: "error",
+          error: String(err && err.message ? err.message : err)
+        });
+      }
+    }
+
+    manager.__luaProbeEngineBindingsRebound = useWrappedHandlers && reboundAny;
+    sendPacket("lua_engine_rebind", {
+      mode: useWrappedHandlers ? "wrapped" : "original",
+      status: reboundAny ? "ok" : "noop",
+      results: results
+    });
+    return reboundAny;
+  }
+
   function unwrapLuaEditorManager() {
     var manager = window.LUAEditorManager;
     if (!manager) {
       return;
     }
+
+    rebindLuaEditorEngineHandlers(manager, false);
 
     var methodNames = getWrappedMethodNames();
     for (var i = 0; i < methodNames.length; i += 1) {
@@ -5478,6 +6556,11 @@
       delete manager.__luaProbeWrapped;
     } catch (_ignore) {
       manager.__luaProbeWrapped = false;
+    }
+    try {
+      delete manager.__luaProbeEngineBindingsRebound;
+    } catch (_ignoreEngineRebindFlag) {
+      manager.__luaProbeEngineBindingsRebound = false;
     }
   }
 
@@ -5718,9 +6801,222 @@
     tick();
   }
 
+  function parseInitDemJsonArg(raw) {
+    if (typeof raw !== "string" || !raw) {
+      return null;
+    }
+    try {
+      return JSON.parse(raw);
+    } catch (_ignoreParseInitDem) {}
+    return null;
+  }
+
+  function summarizeInitDemRawArg(raw) {
+    if (typeof raw !== "string") {
+      return summarizeArg(raw);
+    }
+    return {
+      type: "string",
+      len: raw.length,
+      hash: hashStringFNV1a(raw),
+      preview: limitText(raw, 160)
+    };
+  }
+
+  function getObjectOwnKeysSafe(obj, maxCount) {
+    try {
+      return Object.getOwnPropertyNames(obj || {}).slice(0, maxCount || 80);
+    } catch (_ignoreOwnKeys) {}
+    return [];
+  }
+
+  function getObjectProtoKeysSafe(obj, maxCount) {
+    try {
+      var proto = Object.getPrototypeOf(obj);
+      return proto ? Object.getOwnPropertyNames(proto).slice(0, maxCount || 80) : [];
+    } catch (_ignoreProtoKeys) {}
+    return [];
+  }
+
+  function collectInterestingObjectFields(obj, maxCount) {
+    var out = {};
+    if (!obj) {
+      return out;
+    }
+    var keys = getObjectOwnKeysSafe(obj, 120);
+    var count = 0;
+    for (var i = 0; i < keys.length; i += 1) {
+      var key = String(keys[i] || "");
+      var lower = key.toLowerCase();
+      if (!(lower.indexOf("id") >= 0 ||
+          lower.indexOf("name") >= 0 ||
+          lower.indexOf("slot") >= 0 ||
+          lower.indexOf("element") >= 0 ||
+          lower.indexOf("uuid") >= 0 ||
+          lower.indexOf("nq") >= 0 ||
+          lower.indexOf("construct") >= 0 ||
+          lower.indexOf("board") >= 0 ||
+          lower.indexOf("item") >= 0 ||
+          lower.indexOf("owner") >= 0 ||
+          lower.indexOf("data") >= 0)) {
+        continue;
+      }
+      try {
+        var value = obj[key];
+        if (value === null || typeof value === "undefined") {
+          out[key] = null;
+        } else if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+          out[key] = limitText(String(value), 160);
+        } else if (Array.isArray(value)) {
+          out[key] = "array:" + value.length;
+        } else if (typeof value === "function") {
+          out[key] = "function";
+        } else if (typeof value === "object") {
+          out[key] = "object";
+        } else {
+          out[key] = limitText(String(value), 160);
+        }
+      } catch (err) {
+        out[key] = "error:" + limitText(String(err && err.message ? err.message : err), 160);
+      }
+      count += 1;
+      if (count >= (maxCount || 20)) {
+        break;
+      }
+    }
+    return out;
+  }
+
+  function summarizeInitDemObject(obj) {
+    return {
+      keys: getObjectOwnKeysSafe(obj, 80),
+      interesting: collectInterestingObjectFields(obj, 20),
+      protoKeys: getObjectProtoKeysSafe(obj, 80)
+    };
+  }
+
+  function summarizeInitDemSlotRow(slot) {
+    if (!slot || typeof slot !== "object") {
+      return null;
+    }
+    var eventCount = 0;
+    try {
+      if (slot.events && typeof slot.events.length === "number") {
+        eventCount = slot.events.length;
+      }
+    } catch (_ignoreSlotEventCount) {}
+    return {
+      slotKey: slot.slotKey,
+      slotElementName: slot.slotElementName || null,
+      eventCount: eventCount
+    };
+  }
+
+  function findInitDemSelfSlot(slotRows) {
+    if (!slotRows || typeof slotRows.length !== "number") {
+      return null;
+    }
+    for (var i = 0; i < slotRows.length; i += 1) {
+      var row = slotRows[i];
+      if (row && String(row.slotKey || "") === "-1") {
+        return row;
+      }
+    }
+    return null;
+  }
+
+  function getLuaEditorTitleForDebug() {
+    try {
+      var root = document.getElementById("dpu_editor");
+      var titleNode = root ? root.querySelector(".editor_header .title, .editor_header .header_bar .title") : null;
+      return titleNode ? String(titleNode.textContent || "").replace(/\s+/g, " ").trim() : "";
+    } catch (_ignoreLuaTitle) {}
+    return "";
+  }
+
+  function buildInitDemReference(parsedData, parsedSlotData) {
+    var manager = window.LUAEditorManager || null;
+    var currentData = manager && manager.currentData ? manager.currentData : null;
+    var currentSlot = currentData && currentData.currentSlot ? currentData.currentSlot : null;
+    var currentFilter = currentData && currentData.currentFilter ? currentData.currentFilter : null;
+    var currentSlotData = currentSlot && currentSlot.slotData ? currentSlot.slotData : null;
+    var selfSlot = findInitDemSelfSlot(parsedSlotData);
+    var slotRows = [];
+    if (parsedSlotData && typeof parsedSlotData.length === "number") {
+      for (var i = 0; i < parsedSlotData.length && i < 16; i += 1) {
+        slotRows.push(summarizeInitDemSlotRow(parsedSlotData[i]));
+      }
+    }
+
+    return {
+      constructId: cfg && typeof cfg.constructId !== "undefined" ? cfg.constructId : null,
+      editorTitle: getLuaEditorTitleForDebug(),
+      currentSlotName: currentSlot && typeof currentSlot.name !== "undefined" ? currentSlot.name : null,
+      currentSlotKey: currentSlot && typeof currentSlot.slotKey !== "undefined" ? currentSlot.slotKey : null,
+      currentSlotElementName: currentSlotData && typeof currentSlotData.slotElementName !== "undefined" ? currentSlotData.slotElementName : null,
+      currentFilterKey: currentFilter && typeof currentFilter.key !== "undefined" ? currentFilter.key : null,
+      currentFilterSlotKey: currentFilter && typeof currentFilter.slotKey !== "undefined" ? currentFilter.slotKey : null,
+      currentFilterSignature: currentFilter && typeof currentFilter.signature !== "undefined" ? currentFilter.signature : null,
+      parsedDataInteresting: collectInterestingObjectFields(parsedData, 20),
+      parsedSelfSlot: summarizeInitDemSlotRow(selfSlot),
+      parsedSlotRows: slotRows,
+      dpuEditorObject: summarizeInitDemObject(window.dpuEditorObject || null)
+    };
+  }
+
+  function emitInitDemObserved(args, hookContext) {
+    var parsedData = parseInitDemJsonArg(args && args.length > 0 ? args[0] : null);
+    var parsedSlotData = parseInitDemJsonArg(args && args.length > 1 ? args[1] : null);
+    var parsedLuaActions = parseInitDemJsonArg(args && args.length > 2 ? args[2] : null);
+    var parsedLuaErrors = parseInitDemJsonArg(args && args.length > 3 ? args[3] : null);
+    var reference = buildInitDemReference(parsedData, parsedSlotData);
+    var beforeContext = hookContext && hookContext.beforeContext ? hookContext.beforeContext : null;
+    var afterContext = getContextSnapshot();
+    var payload = {
+      beforeContext: beforeContext,
+      afterContext: afterContext,
+      argSummary: {
+        data: summarizeInitDemRawArg(args && args.length > 0 ? args[0] : null),
+        slotData: summarizeInitDemRawArg(args && args.length > 1 ? args[1] : null),
+        luaActions: summarizeInitDemRawArg(args && args.length > 2 ? args[2] : null),
+        luaErrors: summarizeInitDemRawArg(args && args.length > 3 ? args[3] : null)
+      },
+      parsedSummary: {
+        data: summarizeInitDemObject(parsedData),
+        slotDataCount: parsedSlotData && typeof parsedSlotData.length === "number" ? parsedSlotData.length : 0,
+        luaActions: summarizeInitDemObject(parsedLuaActions),
+        luaErrors: summarizeArg(parsedLuaErrors)
+      },
+      reference: reference
+    };
+
+    state.lastInitDemReference = cloneIdeSyncObject(reference);
+
+    sendPacket("lua_initdem_observed", payload);
+
+    sendJsonPacketChunked("lua_initdem_payload", {
+      beforeContext: beforeContext,
+      afterContext: afterContext,
+      reference: reference,
+      rawArgs: {
+        data: typeof (args && args.length > 0 ? args[0] : null) === "string" ? args[0] : null,
+        slotData: typeof (args && args.length > 1 ? args[1] : null) === "string" ? args[1] : null,
+        luaActions: typeof (args && args.length > 2 ? args[2] : null) === "string" ? args[2] : null,
+        luaErrors: typeof (args && args.length > 3 ? args[3] : null) === "string" ? args[3] : null
+      }
+    }, 6000);
+  }
+
   function wrapLuaEditorManager() {
     var manager = window.LUAEditorManager;
-    if (!manager || manager.__luaProbeWrapped) {
+    if (!manager) {
+      return false;
+    }
+
+    if (manager.__luaProbeWrapped) {
+      if (!manager.__luaProbeEngineBindingsRebound) {
+        return rebindLuaEditorEngineHandlers(manager, true);
+      }
       return false;
     }
 
@@ -5739,6 +7035,17 @@
     });
 
     var methodNames = getWrappedMethodNames();
+
+    wrapManagerMethodWithHooks(manager, "initDEM", {
+      before: function () {
+        return {
+          beforeContext: getContextSnapshot()
+        };
+      },
+      after: function (args, _result, hookContext) {
+        emitInitDemObserved(args, hookContext);
+      }
+    });
 
     wrapManagerMethodWithHooks(manager, "setCodeLuaEditor", {
       before: function (args) {
@@ -5859,6 +7166,8 @@
       wrapManagerMethod(manager, methodNames[i]);
     }
 
+    rebindLuaEditorEngineHandlers(manager, true);
+
     return true;
   }
 
@@ -5919,6 +7228,8 @@
     state.forceEditorFocusOnNextSwitch = false;
     state.skipNextSetCodeRestore = false;
     state.suppressRestoreUntilInteraction = true;
+    state.lastIdeSyncContextKey = "";
+    state.lastIdeSyncReference = null;
     removeFreshOpenViewportGuard();
     try {
       clearCaretLineHighlight(getLuaCodeMirror());
@@ -5955,6 +7266,7 @@
     tryAttachMenuObserver();
     wrapLuaEditorManager();
     refreshEditorState();
+    ensureScreenEditorFacelift();
     ensureChatPlainTextCopyButton();
   }
 
@@ -6025,6 +7337,10 @@
       clearCaretLineHighlight(getLuaCodeMirror());
     } catch (_ignoreCaret) {}
 
+    state.lastIdeSyncContextKey = "";
+    state.lastIdeSyncReference = null;
+    state.lastInitDemReference = null;
+
     try {
       var manager = window.LUAEditorManager;
       if (manager && manager.currentData) {
@@ -6046,6 +7362,13 @@
     } catch (_ignoreRoot) {}
 
     try {
+      var screenRoot = getScreenEditorRoot();
+      if (screenRoot) {
+        screenRoot.removeAttribute("data-lua-probe-active");
+      }
+    } catch (_ignoreScreenRoot) {}
+
+    try {
       var menuRoot = document.getElementById("main_context_menu");
       if (menuRoot) {
         removeQuickLuaMenuEntries(menuRoot);
@@ -6059,6 +7382,7 @@
       "ModUiExtractor-lua-theme-dots",
       "ModUiExtractor-lua-caret-toggle",
       "ModUiExtractor-lua-ide-sync",
+      "ModUiExtractor-screen-theme-dots",
       "ModUiExtractor-chat-copy-plain",
       quickEditLuaMenuItemId,
       quickInjectProbeMenuItemId

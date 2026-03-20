@@ -6,6 +6,7 @@ import { BridgeEventStore, type CommandEventSnapshot, type ProbeResultSnapshot }
 import { targetKindSchema } from "../contracts/commands.js";
 
 const editorTargetKindSchema = z.enum(["lua_editor", "screen_editor"]);
+type EditorUiKind = z.infer<typeof editorTargetKindSchema>;
 
 const pushCodeOutputSchema = {
   commandId: z.string(),
@@ -200,7 +201,9 @@ type LuaProbeCallFields = {
   rawEvalBody?: string | undefined;
 };
 
-function buildLuaProbeArgs(method: LuaProbeMethod, fields: LuaProbeCallFields): string[] {
+const screenEditorProbeMethods = new Set<LuaProbeMethod>(["describe", "set_code", "apply", "outer_html", "raw_eval"]);
+
+function buildUiProbeArgs(targetKind: EditorUiKind, method: LuaProbeMethod, fields: LuaProbeCallFields): string[] {
   switch (method) {
     case "describe":
     case "chat_snapshot":
@@ -221,7 +224,7 @@ function buildLuaProbeArgs(method: LuaProbeMethod, fields: LuaProbeCallFields): 
     case "add_filter":
       return [fields.addFilterName ?? ""];
     case "outer_html":
-      return [fields.outerHtmlSelector ?? "#filters"];
+      return [fields.outerHtmlSelector ?? (targetKind === "screen_editor" ? "" : "#filters")];
     case "raw_eval":
       return [fields.rawEvalBody ?? ""];
     default: {
@@ -232,11 +235,24 @@ function buildLuaProbeArgs(method: LuaProbeMethod, fields: LuaProbeCallFields): 
   }
 }
 
-const luaUiKindSchema = z.enum(["lua_editor"]).describe("Target UI; extend when a second probe surface shares this envelope");
+function buildLuaProbeArgs(method: LuaProbeMethod, fields: LuaProbeCallFields): string[] {
+  return buildUiProbeArgs("lua_editor", method, fields);
+}
 
-async function enqueueAndWaitLuaProbe(
+const uiKindSchema = z
+  .enum(["lua_editor", "screen_editor"])
+  .describe("Target UI. `lua_editor` supports the full probe API; `screen_editor` currently supports `describe`, `set_code`, `apply`, `outer_html`, `raw_eval`.");
+
+function assertUiProbeMethodSupported(uiKind: EditorUiKind, method: LuaProbeMethod): void {
+  if (uiKind === "screen_editor" && !screenEditorProbeMethods.has(method)) {
+    throw new Error(`ui_method_not_supported_for_${uiKind}:${method}`);
+  }
+}
+
+async function enqueueAndWaitUiProbe(
   commandQueue: BridgeCommandQueue,
   eventStore: BridgeEventStore,
+  targetKind: EditorUiKind,
   playerId: number,
   method: LuaProbeMethod,
   probeArgs: string[],
@@ -244,7 +260,7 @@ async function enqueueAndWaitLuaProbe(
 ): Promise<ProbeResultSnapshot> {
   const result = await commandQueue.enqueue({
     playerId,
-    targetKind: "lua_editor",
+    targetKind,
     action: "probe_call",
     probeMethod: method,
     probeArgs
@@ -255,7 +271,7 @@ async function enqueueAndWaitLuaProbe(
     createdAtUtc: new Date().toISOString(),
     playerId,
     source: {
-      kind: "lua_editor",
+      kind: targetKind,
       boardId: null
     },
     type: "command_enqueued",
@@ -268,6 +284,17 @@ async function enqueueAndWaitLuaProbe(
   });
 
   return eventStore.waitForProbeResult(result.command.commandId, timeoutMs);
+}
+
+async function enqueueAndWaitLuaProbe(
+  commandQueue: BridgeCommandQueue,
+  eventStore: BridgeEventStore,
+  playerId: number,
+  method: LuaProbeMethod,
+  probeArgs: string[],
+  timeoutMs: number
+): Promise<ProbeResultSnapshot> {
+  return enqueueAndWaitUiProbe(commandQueue, eventStore, "lua_editor", playerId, method, probeArgs, timeoutMs);
 }
 
 function formatProbeToolResult(
@@ -826,8 +853,10 @@ function parseChatChannelEventPayload(
 }
 
 function luaEditorSnapshotLooksReady(parsed: Record<string, unknown>, requireVisible: boolean): boolean {
+  if (parsed.visible !== true) {
+    return false;
+  }
   const hasSignal =
-    parsed.visible === true ||
     (typeof parsed.title === "string" && parsed.title.trim().length > 0) ||
     (typeof parsed.selectedSlot === "string" && parsed.selectedSlot.length > 0) ||
     (Array.isArray(parsed.slots) && parsed.slots.length > 0);
@@ -838,6 +867,31 @@ function luaEditorSnapshotLooksReady(parsed: Record<string, unknown>, requireVis
     return false;
   }
   return true;
+}
+
+function screenEditorSnapshotLooksReady(parsed: Record<string, unknown>, requireVisible: boolean): boolean {
+  if (parsed.visible !== true) {
+    return false;
+  }
+  const hasSignal =
+    (typeof parsed.title === "string" && parsed.title.trim().length > 0) ||
+    typeof parsed.codeLength === "number" ||
+    typeof parsed.mode === "string" ||
+    parsed.canApply === true;
+  if (!hasSignal) {
+    return false;
+  }
+  if (requireVisible && parsed.visible !== true) {
+    return false;
+  }
+  return true;
+}
+
+function uiSnapshotLooksReady(uiKind: EditorUiKind, parsed: Record<string, unknown>, requireVisible: boolean): boolean {
+  if (uiKind === "screen_editor") {
+    return screenEditorSnapshotLooksReady(parsed, requireVisible);
+  }
+  return luaEditorSnapshotLooksReady(parsed, requireVisible);
 }
 
 function sleepMs(ms: number): Promise<void> {
@@ -1782,16 +1836,16 @@ export function registerEditorTools(
     {
       title: "Describe UI (generic)",
       description:
-        "Generic UI snapshot hook. Today only uiKind \"lua_editor\" is supported (same as du_lua_describe_editor). Add uiKind values when a second probe shares the bridge envelope.",
+        "Generic UI snapshot hook for `lua_editor` and `screen_editor`. Use `du_lua_*` for Lua-specific helpers; use this generic path for the screen editor probe surface.",
       inputSchema: {
-        uiKind: luaUiKindSchema,
+        uiKind: uiKindSchema,
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         timeoutMs: z.number().int().min(250).max(15000).default(15000).describe("How long to wait for the probe result event")
       },
       outputSchema: luaProbeOutputSchema
     },
-    async ({ playerId, timeoutMs }) => {
-      const probeResult = await enqueueAndWaitLuaProbe(commandQueue, eventStore, playerId, "describe", [], timeoutMs);
+    async ({ uiKind, playerId, timeoutMs }) => {
+      const probeResult = await enqueueAndWaitUiProbe(commandQueue, eventStore, uiKind, playerId, "describe", [], timeoutMs);
       return formatProbeToolResult(probeResult, timeoutMs, "describe");
     }
   );
@@ -1801,9 +1855,9 @@ export function registerEditorTools(
     {
       title: "Invoke UI probe (generic)",
       description:
-        "Generic probe_call wrapper. uiKind \"lua_editor\" only for now; method/args mirror du_lua_probe_call. Use du_lua_* for less verbose agent prompts.",
+        "Generic probe_call wrapper. `lua_editor` supports the full Lua probe API; `screen_editor` currently supports `describe`, `set_code`, `apply`, `outer_html`, `raw_eval`.",
       inputSchema: {
-        uiKind: luaUiKindSchema,
+        uiKind: uiKindSchema,
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         method: z
           .enum([
@@ -1812,6 +1866,7 @@ export function registerEditorTools(
             "select_filter",
             "chat_send",
             "chat_join_channel",
+            "chat_select_channel",
             "set_code",
             "apply",
             "add_filter",
@@ -1833,6 +1888,7 @@ export function registerEditorTools(
       outputSchema: luaProbeOutputSchema
     },
     async ({
+      uiKind,
       playerId,
       method,
       slotName,
@@ -1846,7 +1902,8 @@ export function registerEditorTools(
       rawEvalBody,
       timeoutMs
     }) => {
-      const probeArgs = buildLuaProbeArgs(method, {
+      assertUiProbeMethodSupported(uiKind, method);
+      const probeArgs = buildUiProbeArgs(uiKind, method, {
         slotName,
         filterEvent,
         message,
@@ -1857,7 +1914,7 @@ export function registerEditorTools(
         outerHtmlSelector,
         rawEvalBody
       });
-      const probeResult = await enqueueAndWaitLuaProbe(commandQueue, eventStore, playerId, method, probeArgs, timeoutMs);
+      const probeResult = await enqueueAndWaitUiProbe(commandQueue, eventStore, uiKind, playerId, method, probeArgs, timeoutMs);
       return formatProbeToolResult(probeResult, timeoutMs, method);
     }
   );
@@ -1867,9 +1924,9 @@ export function registerEditorTools(
     {
       title: "Wait for UI readiness (generic)",
       description:
-        "Polls describe until the Lua editor snapshot looks ready. uiKind \"lua_editor\" only; same behavior as du_lua_wait_for_editor.",
+        "Polls `describe` until the chosen UI snapshot looks ready. Works for `lua_editor` and `screen_editor` with target-specific readiness heuristics.",
       inputSchema: {
-        uiKind: luaUiKindSchema,
+        uiKind: uiKindSchema,
         playerId: z.number().int().nonnegative(),
         maxWaitMs: z.number().int().min(500).max(120000).default(30000),
         pollIntervalMs: z.number().int().min(100).max(10000).default(500),
@@ -1878,7 +1935,7 @@ export function registerEditorTools(
       },
       outputSchema: luaWaitEditorOutputSchema
     },
-    async ({ playerId, maxWaitMs, pollIntervalMs, timeoutMs, requireVisible }) => {
+    async ({ uiKind, playerId, maxWaitMs, pollIntervalMs, timeoutMs, requireVisible }) => {
       const started = Date.now();
       let attempts = 0;
       let last: ProbeResultSnapshot = {
@@ -1895,11 +1952,11 @@ export function registerEditorTools(
         attempts += 1;
         const remainingBudget = maxWaitMs - (Date.now() - started);
         const attemptTimeout = Math.min(timeoutMs, Math.max(250, remainingBudget));
-        last = await enqueueAndWaitLuaProbe(commandQueue, eventStore, playerId, "describe", [], attemptTimeout);
+        last = await enqueueAndWaitUiProbe(commandQueue, eventStore, uiKind, playerId, "describe", [], attemptTimeout);
         if (last.found && last.success && last.resultJson) {
           try {
             const parsed = JSON.parse(last.resultJson) as Record<string, unknown>;
-            if (luaEditorSnapshotLooksReady(parsed, requireVisible)) {
+            if (uiSnapshotLooksReady(uiKind, parsed, requireVisible)) {
               const waitedMs = Date.now() - started;
               const structuredContent = {
                 ready: true,
@@ -1963,19 +2020,20 @@ export function registerEditorTools(
     {
       title: "Raw eval in UI probe (generic)",
       description:
-        "uiKind \"lua_editor\" only; same as du_lua_probe_raw (raw_eval in HUD). Trusted debugging only.",
+        "Trusted raw eval in the injected UI probe for `lua_editor` or `screen_editor`.",
       inputSchema: {
-        uiKind: luaUiKindSchema,
+        uiKind: uiKindSchema,
         playerId: z.number().int().nonnegative(),
         functionBody: z.string().min(1),
         timeoutMs: z.number().int().min(250).max(15000).default(15000)
       },
       outputSchema: luaProbeOutputSchema
     },
-    async ({ playerId, functionBody, timeoutMs }) => {
-      const probeResult = await enqueueAndWaitLuaProbe(
+    async ({ uiKind, playerId, functionBody, timeoutMs }) => {
+      const probeResult = await enqueueAndWaitUiProbe(
         commandQueue,
         eventStore,
+        uiKind,
         playerId,
         "raw_eval",
         [functionBody],

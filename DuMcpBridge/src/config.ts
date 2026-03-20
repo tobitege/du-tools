@@ -77,3 +77,40 @@ export function ensureBridgeDirectories(config: BridgeConfig): void {
     mkdirSync(directory, { recursive: true });
   }
 }
+
+export function getLegacyPlayerWorkspaceDir(config: BridgeConfig, playerId: number): string {
+  return join(config.paths.legacyIdeWorkspaceDir, `player-${playerId}`);
+}
+
+export function getLegacyPlayerTargetWorkspaceDir(
+  config: BridgeConfig,
+  playerId: number,
+  targetKind: "lua_editor" | "screen_editor"
+): string {
+  return join(getLegacyPlayerWorkspaceDir(config, playerId), targetKind);
+}
+
+export function getLegacyPlayerSnippetFile(
+  config: BridgeConfig,
+  playerId: number,
+  targetKind: "lua_editor" | "screen_editor"
+): string {
+  const fileName = targetKind === "lua_editor" ? "snippet.lua" : "snippet.txt";
+  return join(getLegacyPlayerTargetWorkspaceDir(config, playerId, targetKind), fileName);
+}
+
+export function getLegacyPlayerSnippetMetaFile(
+  config: BridgeConfig,
+  playerId: number,
+  targetKind: "lua_editor" | "screen_editor"
+): string {
+  return join(getLegacyPlayerTargetWorkspaceDir(config, playerId, targetKind), "snippet.sync.json");
+}
+
+export function getLegacyPlayerIdeImportFile(
+  config: BridgeConfig,
+  playerId: number,
+  targetKind: "lua_editor" | "screen_editor"
+): string {
+  return join(config.paths.legacyPayloadOverridesDir, `ide_import.player-${playerId}.${targetKind}.json`);
+}
