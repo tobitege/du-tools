@@ -116,8 +116,8 @@ This writes `all_scripts_manifest.json` plus `all_script_js_*.js` sections after
 - `payload/lua-editor-probe.modules/`: source modules for Lua probe (manifest-driven)
 - `payload/lua-editor-probe.js`: composed Lua probe payload (generated from modules)
 - `payload/lua-editor-probe.build.json`: fingerprint from `build-lua-probe.ps1` (`contentSha256Short` matches the chat hash); **embedded** in the DLL (LogicalName `lua-editor-probe.build.json`) and mirrored under `lua-editor-probe.modules/` for publishes
-- `tools/build-lua-probe.ps1`: compose `lua-editor-probe.modules` into `payload/lua-editor-probe.js` (injects outer IIFE + `"use strict"`; module sources omit the wrapper so IDEs can lint them)
-- `tools/publish-lua-probe.ps1`: compose + publish probe to runtime override paths (default `DumpDir`: `D:\MyDUserver\tmp\ui-dumps`)
+- `tools/build-lua-probe.ps1`: compose `lua-editor-probe.modules` into `payload/lua-editor-probe.js` (injects outer IIFE + `"use strict"`; module sources omit the wrapper so IDEs can lint them). **Important:** this does **not** copy anything into `tmp/ui-dumps/payload-overrides`.
+- `tools/publish-lua-probe.ps1`: compose + publish probe to runtime override paths (default `DumpDir`: `D:\MyDUserver\tmp\ui-dumps`). Use this for every live probe test after JS/module changes.
 - `tools/reassemble-ui-dump.ps1`: reassemble NDJSON to files
 - `tools/split-html-dump.py`: split `html.html` by direct `<body>` root elements
 
@@ -128,12 +128,19 @@ This writes `all_scripts_manifest.json` plus `all_script_js_*.js` sections after
 - External DU runtime assemblies are resolved from `DUExternalLibDir` (default: `D:\MyDUserver\wincs\all`).
 - Keep Orleans + Microsoft.Extensions dependencies aligned to the DU runtime DLL graph. Mixing additional NuGet Orleans/Extensions package trees on top can reintroduce `MSB3277` assembly conflict warnings.
 - Build from the `ModUiExtractor` folder so `global.json` is respected.
+- The optional server-side chat read path is a hard compile opt-in: only builds that pass `-p:EnableDuChatServerRead=true` include the `server_chat` bridge target.
 
 ## Build
 
 ```powershell
 cd D:\github\du-tobi\ModUiExtractor
 dotnet build -c Release -nologo -v:minimal
+```
+
+Optional server-side chat read path:
+
+```powershell
+dotnet build -c Release -nologo -v:minimal -p:EnableDuChatServerRead=true
 ```
 
 With custom runtime DLL directory:
@@ -170,6 +177,12 @@ Copy-Item `
 Move-Item 'D:\MyDUserver\wincs\all\Mods\ModUIExtractor.dll' 'D:\MyDUserver\wincs\all\Mods\ModUIExtractor.dll.bak' -Force
 Move-Item 'D:\MyDUserver\wincs\all\Mods\ModUIExtractor.dll.new' 'D:\MyDUserver\wincs\all\Mods\ModUIExtractor.dll' -Force
 ```
+
+For the optional `server_chat` read path, the same deploy/restart rule applies: a successful local build alone is not enough; the running server must load the newly built DLL before the new bridge target is available.
+
+Once the updated DLL is loaded, the bridge emits `server_chat_snapshot` events and the MCP tools `du_chat_server_snapshot` / `du_chat_server_mentions` can read subscribed channels independently of the currently visible HUD tab.
+The SQL read path now resolves distinct subscribed channel IDs first so duplicated subscription rows do not duplicate chat messages in the snapshot.
+In the current live follow-up session, that server-side read path kept working while the HUD stayed on `construct_1001502` / `HC_TestCore_L` with `open = false`; from that client state, `chat_select_channel(room_ai_hlp2)` and `chat_join_channel(AI_HLP2)` both timed out on the HUD side.
 
 ## Output
 
@@ -241,10 +254,12 @@ DLL rebuild required for:
 Useful sync commands:
 
 ```powershell
-# Compose modules -> payload/lua-editor-probe.js
+# Compose modules -> payload/lua-editor-probe.js only
+# Does NOT update D:\MyDUserver\tmp\ui-dumps\payload-overrides
 .\tools\build-lua-probe.ps1
 
 # Compose + publish single-file + modules to runtime override directory
+# Required before an in-game reinject if you changed probe JS/modules
 .\tools\publish-lua-probe.ps1
 
 # Source extractor payload -> live override
@@ -283,6 +298,8 @@ This is the exact sequence that reproduces the currently working behavior.
 ### 1) Prepare the active probe override
 
 Recommended (module-first) prep before testing:
+
+Do not stop at `build-lua-probe.ps1`. `build` refreshes the repo bundle, but the game inject path reads from `D:\MyDUserver\tmp\ui-dumps\payload-overrides`. For live tests you must run `publish-lua-probe.ps1` so the override files and build stamp are updated.
 
 ```powershell
 .\tools\publish-lua-probe.ps1
@@ -380,13 +397,24 @@ For `action: "probe_call"`, the Lua runtime probe (`payload/lua-editor-probe.mod
 
 - `command_result` — dispatch / injection acknowledgement
 - `probe_result` — `method`, `success`, `result`, `error`
+- `chat_snapshot` — HUD chat snapshot (`commandId`, `snapshot`)
+- `chat_send_result` — channel-bound send result (`commandId`, `success`, `result`, `error`)
+- `chat_channel_result` — custom channel create/join result (`commandId`, `success`, `result`, `error`)
 
-Supported probe methods: `describe`, `select_slot`, `select_filter`, `set_code`, `apply`, `add_filter`, `outer_html`, `raw_eval`. MCP entry points: `DuMcpBridge/README.md` (`du_lua_probe_call`, `du_lua_add_filter`, `du_lua_outer_html`, `du_lua_probe_raw`, `du_ui_*`).
+Chat timestamp note:
+
+- if chat messages include a `date` field from the in-game chat model, that timestamp is emitted in UTC
+
+Supported probe methods: `describe`, `chat_snapshot`, `chat_send`, `chat_join_channel`, `select_slot`, `select_filter`, `set_code`, `apply`, `add_filter`, `outer_html`, `raw_eval`. MCP entry points: `DuMcpBridge/README.md` (`du_lua_probe_call`, `du_chat_snapshot`, `du_chat_ai_mentions`, `du_chat_send_message`, `du_chat_create_channel`, `du_lua_add_filter`, `du_lua_outer_html`, `du_lua_probe_raw`, `du_ui_*`).
 
 Probe workflow notes (see `DuMcpBridge/README.md` for detail):
 
 - Reliable automation order: **`select_slot` → `select_filter` → `set_code`**. `apply` often closes the full Lua editor window.
 - **`select_filter`** activates an **existing** `.filter.view` row. **`add_filter`** uses **`+ add filter`** when needed, then the new row’s kebab. **`outer_html`** returns truncated `outerHTML`. **`raw_eval`** runs trusted-debug JS with parameter `state` = probe state object.
+- `chat_send` uses the real HUD send path via `chatManager.sendMessageToCPP(channelId, message)`.
+- `chat_join_channel` does not click the HUD modal. It uses `/join <name>` on the chat send path and then selects `room_<lowercase>`.
+- Current runtime note: if the HUD sits on a construct chat tab (`HC_TestCore_L`) with `open = false`, the follow-up select step can still time out even though the server-side `server_chat` snapshot already sees the target room.
+- Current runtime note: `chat_send` now prefers the visible HUD widgets directly when available: it fills `.input_message`, dispatches `input`/`change`, and clicks `.buttons_chat_send_message`. The older `chatManager.sendMessageToCPP(...)` path remains only as fallback when those HUD nodes are unavailable.
 
 ## Local Lua Editor Rig (No Game Client)
 

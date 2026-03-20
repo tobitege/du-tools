@@ -576,6 +576,1046 @@
     };
   }
 
+  function trimChatText(value) {
+    return String(value || "").replace(/\s+/g, " ").trim();
+  }
+
+  function serializeChatClassList(value) {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    var out = [];
+    for (var i = 0; i < value.length && i < 8; i += 1) {
+      var text = trimChatText(value[i]);
+      if (!text) {
+        continue;
+      }
+      out.push(text);
+    }
+    return out;
+  }
+
+  function readDomChatMessages(limit) {
+    return readDomChatMessagesForChannel(limit, null);
+  }
+
+  function getChatRoot() {
+    return document.querySelector(".main_chat");
+  }
+
+  function getChatView() {
+    try {
+      if (window.chatViewManager) {
+        return window.chatViewManager.currentChatView || null;
+      }
+    } catch (_ignoreChatView) {}
+    return null;
+  }
+
+  function getSelectedChatChannelData() {
+    var currentView = getChatView();
+    try {
+      if (currentView && currentView._currentSelectedChannelView) {
+        return currentView._currentSelectedChannelView.channelData || null;
+      }
+    } catch (_ignoreSelectedChatChannel) {}
+    return null;
+  }
+
+  function getSelectedDomChatInfo() {
+    var root = getChatRoot();
+    var currentView = getChatView();
+    var info = {
+      channelId: null,
+      channelName: null
+    };
+    var tabNode = null;
+
+    try {
+      if (currentView && currentView._currentSelectedChannelView && currentView._currentSelectedChannelView.HTMLNodes) {
+        tabNode = currentView._currentSelectedChannelView.HTMLNodes.channelInput || null;
+      }
+    } catch (_ignoreCurrentTab) {}
+
+    if (!tabNode && root && root.querySelector) {
+      tabNode = root.querySelector(".channel_box .channel_btn.active_tab");
+    }
+
+    if (tabNode && typeof tabNode.getAttribute === "function") {
+      var attrChannelId = trimChatText(tabNode.getAttribute("channel-id") || "");
+      if (attrChannelId) {
+        info.channelId = attrChannelId;
+      }
+      var labelNode = tabNode.querySelector ? tabNode.querySelector(".channel_label") : null;
+      var tabChannelName = trimChatText(labelNode ? (labelNode.textContent || "") : "");
+      if (tabChannelName) {
+        info.channelName = tabChannelName;
+      }
+    }
+
+    if (!info.channelName) {
+      try {
+        if (currentView && currentView.HTMLNodes && currentView.HTMLNodes.currentChannelLabel) {
+          info.channelName = trimChatText(currentView.HTMLNodes.currentChannelLabel.textContent || "") || null;
+        }
+      } catch (_ignoreCurrentLabel) {}
+    }
+
+    if (!info.channelName && root && root.querySelector) {
+      var currentChannelLabel = root.querySelector(".current_channel_label");
+      info.channelName = trimChatText(currentChannelLabel ? (currentChannelLabel.textContent || "") : "") || null;
+    }
+
+    return info;
+  }
+
+  function buildChatChannelInfo(channelData, fallbackInfo) {
+    var baseInfo = fallbackInfo || {};
+    var channelId = null;
+    var channelName = null;
+    if (channelData && channelData.channelId != null) {
+      channelId = trimChatText(String(channelData.channelId));
+    }
+    if (channelData && channelData.channelName != null) {
+      channelName = trimChatText(String(channelData.channelName));
+    }
+    if (!channelId && baseInfo.channelId != null) {
+      channelId = trimChatText(String(baseInfo.channelId));
+    }
+    if (!channelName && baseInfo.channelName != null) {
+      channelName = trimChatText(String(baseInfo.channelName));
+    }
+    return {
+      channelId: channelId || null,
+      channelName: channelName || null
+    };
+  }
+
+  function resolveActiveChatChannel() {
+    var selectedChannel = getSelectedChatChannelData();
+    var domInfo = getSelectedDomChatInfo();
+    var info = buildChatChannelInfo(selectedChannel, domInfo);
+    if (selectedChannel) {
+      return {
+        channel: selectedChannel,
+        info: info
+      };
+    }
+    if (info.channelId) {
+      var channelFromManager = getChatChannelDataById(info.channelId);
+      return {
+        channel: channelFromManager,
+        info: buildChatChannelInfo(channelFromManager, info)
+      };
+    }
+    return {
+      channel: null,
+      info: info
+    };
+  }
+
+  function serializeChatMessage(message, channelInfo) {
+    if (!message) {
+      return null;
+    }
+
+    var info = channelInfo || {};
+    var dateValue = null;
+    if (typeof message.date === "number" && isFinite(message.date)) {
+      dateValue = message.date;
+    } else if (typeof message.date === "string" && trimChatText(message.date)) {
+      dateValue = trimChatText(message.date);
+    }
+
+    return {
+      channelId: typeof info.channelId === "string" && info.channelId ? info.channelId : null,
+      channelName: typeof info.channelName === "string" && info.channelName ? info.channelName : null,
+      fromId: typeof message.fromId === "number" && isFinite(message.fromId) ? message.fromId : null,
+      fromName: trimChatText(message.fromName || "") || null,
+      text: trimChatText(message.sendText || ""),
+      fromMe: !!message.fromMe,
+      isAdmin: !!message.isAdmin,
+      isCommunityHelper: !!message.isCommunityHelper,
+      isNotification: !(typeof message.fromId === "number" && message.fromId > 0),
+      date: dateValue,
+      className: serializeChatClassList(message.className)
+    };
+  }
+
+  function readDomChatMessagesForChannel(limit, channelInfo) {
+    var size = typeof limit === "number" && limit > 0 ? limit : 20;
+    var nodes = document.querySelectorAll(".main_chat .chat_wrapper .message_queue li");
+    var start = nodes.length > size ? nodes.length - size : 0;
+    var messages = [];
+    var info = channelInfo || {};
+    var i;
+    for (i = start; i < nodes.length; i += 1) {
+      var node = nodes[i];
+      if (!node || !node.querySelector) {
+        continue;
+      }
+      var nameNode = node.querySelector(".name");
+      var messageNode = node.querySelector(".message");
+      var text = trimChatText(messageNode ? (messageNode.textContent || "") : node.textContent || "");
+      if (!text) {
+        continue;
+      }
+      messages.push({
+        channelId: typeof info.channelId === "string" && info.channelId ? info.channelId : null,
+        channelName: typeof info.channelName === "string" && info.channelName ? info.channelName : null,
+        fromId: null,
+        fromName: trimChatText(nameNode ? (nameNode.textContent || "") : "") || null,
+        text: text,
+        fromMe: !!(nameNode && nameNode.classList && nameNode.classList.contains("user_link")),
+        isAdmin: !!(messageNode && messageNode.classList && messageNode.classList.contains("admin")),
+        isCommunityHelper: !!(messageNode && messageNode.classList && messageNode.classList.contains("community_helper")),
+        isNotification: !(nameNode && trimChatText(nameNode.textContent || "")),
+        date: null,
+        className: []
+      });
+    }
+    return messages;
+  }
+
+  function captureChatSnapshot() {
+    var root = getChatRoot();
+    var wrapper = root && root.querySelector ? root.querySelector(".chat_wrapper") : null;
+    var selectedChannel = null;
+    var currentView = getChatView();
+    var domInfo = getSelectedDomChatInfo();
+    var channelInfo = null;
+    var messages = [];
+    var source = "dom";
+    var limit = 20;
+    selectedChannel = getSelectedChatChannelData();
+    channelInfo = buildChatChannelInfo(selectedChannel, domInfo);
+
+    if (selectedChannel && Array.isArray(selectedChannel.messageList)) {
+      source = "chat_manager";
+      var start = selectedChannel.messageList.length > limit ? selectedChannel.messageList.length - limit : 0;
+      var i;
+      for (i = start; i < selectedChannel.messageList.length; i += 1) {
+        var serialized = serializeChatMessage(selectedChannel.messageList[i], channelInfo);
+        if (!serialized || !serialized.text) {
+          continue;
+        }
+        messages.push(serialized);
+      }
+    } else {
+      messages = readDomChatMessagesForChannel(limit, channelInfo);
+    }
+
+    return {
+      visible: isElementVisible(wrapper || root),
+      open: !!(currentView && currentView.showState),
+      source: source,
+      selectedChannelId: channelInfo.channelId,
+      selectedChannelName: channelInfo.channelName,
+      messageCount: messages.length,
+      messages: messages
+    };
+  }
+
+  function readAllDomChatMessagesForChannel(channelInfo) {
+    var nodes = document.querySelectorAll(".main_chat .chat_wrapper .message_queue li");
+    var messages = [];
+    var info = channelInfo || {};
+    var i;
+    for (i = 0; i < nodes.length; i += 1) {
+      var node = nodes[i];
+      if (!node || !node.querySelector) {
+        continue;
+      }
+      var nameNode = node.querySelector(".name");
+      var messageNode = node.querySelector(".message");
+      var text = trimChatText(messageNode ? (messageNode.textContent || "") : node.textContent || "");
+      if (!text) {
+        continue;
+      }
+      messages.push({
+        channelId: typeof info.channelId === "string" && info.channelId ? info.channelId : null,
+        channelName: typeof info.channelName === "string" && info.channelName ? info.channelName : null,
+        fromId: null,
+        fromName: trimChatText(nameNode ? (nameNode.textContent || "") : "") || null,
+        text: text,
+        fromMe: !!(nameNode && nameNode.classList && nameNode.classList.contains("user_link")),
+        isAdmin: !!(messageNode && messageNode.classList && messageNode.classList.contains("admin")),
+        isCommunityHelper: !!(messageNode && messageNode.classList && messageNode.classList.contains("community_helper")),
+        isNotification: !(nameNode && trimChatText(nameNode.textContent || "")),
+        date: null,
+        className: []
+      });
+    }
+    return messages;
+  }
+
+  function formatChatDateUtc(dateValue) {
+    if (typeof dateValue === "number" && isFinite(dateValue)) {
+      try {
+        return new Date(dateValue).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
+      } catch (_ignoreDateFormat) {}
+    }
+    if (typeof dateValue === "string") {
+      return trimChatText(dateValue);
+    }
+    return "";
+  }
+
+  function formatChatMessagePlainText(message) {
+    if (!message) {
+      return "";
+    }
+    var text = trimChatText(message.text || "");
+    if (!text) {
+      return "";
+    }
+    var parts = [];
+    var dateText = formatChatDateUtc(message.date);
+    var fromName = trimChatText(message.fromName || "");
+    if (dateText) {
+      parts.push("[" + dateText + "]");
+    }
+    if (fromName) {
+      parts.push(fromName + ":");
+    }
+    parts.push(text);
+    return parts.join(" ");
+  }
+
+  function buildPlainTextChatTranscript() {
+    var active = resolveActiveChatChannel();
+    var selectedChannel = active.channel;
+    var channelInfo = buildChatChannelInfo(selectedChannel, active.info);
+    var messages = [];
+    var source = "dom";
+    if (selectedChannel && Array.isArray(selectedChannel.messageList)) {
+      source = "chat_manager";
+      for (var i = 0; i < selectedChannel.messageList.length; i += 1) {
+        var serialized = serializeChatMessage(selectedChannel.messageList[i], channelInfo);
+        if (!serialized || !serialized.text) {
+          continue;
+        }
+        messages.push(serialized);
+      }
+    } else {
+      messages = readAllDomChatMessagesForChannel(channelInfo);
+    }
+
+    var lines = [];
+    var channelLabel = channelInfo.channelName || channelInfo.channelId || "Unknown";
+    if (channelInfo.channelId && channelInfo.channelName && channelInfo.channelId !== channelInfo.channelName) {
+      channelLabel += " [" + channelInfo.channelId + "]";
+    }
+    lines.push("Channel: " + channelLabel);
+    lines.push("");
+
+    for (var j = 0; j < messages.length; j += 1) {
+      var line = formatChatMessagePlainText(messages[j]);
+      if (!line) {
+        continue;
+      }
+      lines.push(line);
+    }
+
+    if (lines.length <= 2) {
+      lines.push("(no messages)");
+    }
+
+    return {
+      text: lines.join("\n"),
+      source: source,
+      channelId: channelInfo.channelId,
+      channelName: channelInfo.channelName,
+      messageCount: messages.length
+    };
+  }
+
+  function copyTextToClipboard(text) {
+    var value = String(text == null ? "" : text);
+    if (!value) {
+      return Promise.reject(new Error("chat_copy_empty"));
+    }
+    try {
+      if (window.navigator &&
+          window.navigator.clipboard &&
+          typeof window.navigator.clipboard.writeText === "function") {
+        return window.navigator.clipboard.writeText(value).then(function() {
+          return true;
+        });
+      }
+    } catch (_ignoreClipboardApi) {}
+
+    try {
+      if (window.clipboardData && typeof window.clipboardData.setData === "function") {
+        if (window.clipboardData.setData("Text", value)) {
+          return Promise.resolve(true);
+        }
+      }
+    } catch (_ignoreLegacyClipboard) {}
+
+    return new Promise(function(resolve, reject) {
+      if (!document.body || typeof document.createElement !== "function") {
+        reject(new Error("chat_copy_no_body"));
+        return;
+      }
+
+      var textarea = document.createElement("textarea");
+      textarea.value = value;
+      textarea.setAttribute("readonly", "readonly");
+      textarea.style.position = "fixed";
+      textarea.style.top = "-1000px";
+      textarea.style.left = "-1000px";
+      textarea.style.opacity = "0";
+      textarea.style.pointerEvents = "none";
+      document.body.appendChild(textarea);
+
+      var copied = false;
+      try {
+        textarea.focus();
+        textarea.select();
+        if (typeof textarea.setSelectionRange === "function") {
+          textarea.setSelectionRange(0, textarea.value.length);
+        }
+        copied = !!(document.execCommand && document.execCommand("copy"));
+      } catch (copyErr) {
+        copied = false;
+      }
+
+      try {
+        if (textarea.parentNode) {
+          textarea.parentNode.removeChild(textarea);
+        }
+      } catch (_ignoreRemoveTextArea) {}
+
+      if (copied) {
+        resolve(true);
+        return;
+      }
+      reject(new Error("chat_copy_exec_failed"));
+    });
+  }
+
+  function flashChatCopyButton(message, background, color, durationMs) {
+    var button = document.getElementById("ModUiExtractor-chat-copy-plain");
+    if (!button) {
+      return;
+    }
+    if (button.__luaProbeRestoreTimer) {
+      try {
+        window.clearTimeout(button.__luaProbeRestoreTimer);
+      } catch (_ignoreRestoreTimer) {}
+    }
+    if (!button.__luaProbeDefaultText) {
+      button.__luaProbeDefaultText = button.textContent || "Copy plain text";
+    }
+    button.textContent = String(message || button.__luaProbeDefaultText);
+    button.style.background = background || "";
+    button.style.color = color || "";
+    button.__luaProbeRestoreTimer = window.setTimeout(function() {
+      button.textContent = button.__luaProbeDefaultText;
+      button.style.background = "";
+      button.style.color = "";
+      button.__luaProbeRestoreTimer = 0;
+    }, typeof durationMs === "number" && durationMs > 0 ? durationMs : 1600);
+  }
+
+  function copyActiveChatPlainText() {
+    var transcript = buildPlainTextChatTranscript();
+    return copyTextToClipboard(transcript.text)
+      .then(function() {
+        flashChatCopyButton("Copied plain text", "#2a6b36", "#ffffff", 1700);
+        return transcript;
+      })
+      .catch(function(error) {
+        flashChatCopyButton("Copy failed", "#8a2424", "#ffffff", 2200);
+        throw error;
+      });
+  }
+
+  function ensureChatPlainTextCopyButton() {
+    var root = getChatRoot();
+    if (!root || !root.querySelector) {
+      return;
+    }
+    var wrapper = root.querySelector(".chat_wrapper");
+    if (!wrapper) {
+      return;
+    }
+
+    try {
+      var computed = window.getComputedStyle ? window.getComputedStyle(wrapper, null) : null;
+      if (!computed || computed.position === "static") {
+        wrapper.style.position = "relative";
+      }
+    } catch (_ignoreChatWrapperPosition) {
+      wrapper.style.position = "relative";
+    }
+
+    var button = document.getElementById("ModUiExtractor-chat-copy-plain");
+    if (!button) {
+      button = document.createElement("button");
+      button.type = "button";
+      button.id = "ModUiExtractor-chat-copy-plain";
+      button.textContent = "Copy plain text";
+      button.__luaProbeDefaultText = button.textContent;
+      button.addEventListener("click", function(event) {
+        if (event && typeof event.preventDefault === "function") {
+          event.preventDefault();
+        }
+        if (event && typeof event.stopPropagation === "function") {
+          event.stopPropagation();
+        }
+        copyActiveChatPlainText();
+      }, true);
+    }
+
+    if (button.parentNode !== wrapper) {
+      wrapper.appendChild(button);
+    }
+
+    var snapshot = captureChatSnapshot();
+    var hasMessages = !!(snapshot && snapshot.messageCount > 0);
+    button.disabled = !hasMessages;
+    button.setAttribute("data-disabled", hasMessages ? "0" : "1");
+    button.title = hasMessages
+      ? "Copy current chat channel as plain text"
+      : "No chat lines to copy";
+    button.setAttribute("aria-label", button.title);
+    button.style.display = isElementVisible(wrapper || root) ? "" : "none";
+  }
+
+  function emitChatSnapshot(commandId, snapshot) {
+    sendPacket("chat_snapshot", {
+      commandId: String(commandId || ""),
+      snapshot: snapshot || {}
+    });
+  }
+
+  function emitChatSendResult(commandId, success, result, errorMessage) {
+    sendPacket("chat_send_result", {
+      commandId: String(commandId || ""),
+      success: !!success,
+      result: success ? serializeProbeValue(result, 0) : null,
+      error: success ? null : String(errorMessage || "unknown_error")
+    });
+  }
+
+  function emitChatChannelResult(commandId, success, result, errorMessage) {
+    sendPacket("chat_channel_result", {
+      commandId: String(commandId || ""),
+      success: !!success,
+      result: success ? serializeProbeValue(result, 0) : null,
+      error: success ? null : String(errorMessage || "unknown_error")
+    });
+  }
+
+  function getChatManagerSafe() {
+    try {
+      if (typeof chatManager !== "undefined" && chatManager) {
+        return chatManager;
+      }
+    } catch (_ignoreChatManagerGlobal) {}
+    try {
+      return window.chatManager || null;
+    } catch (_ignoreChatManager) {}
+    return null;
+  }
+
+  function getChatChannelDataById(channelId) {
+    var normalizedId = trimChatText(channelId || "");
+    if (!normalizedId) {
+      return null;
+    }
+    var manager = getChatManagerSafe();
+    if (!manager || typeof manager.getChannelData !== "function") {
+      return null;
+    }
+    try {
+      return manager.getChannelData(normalizedId) || null;
+    } catch (_ignoreGetChannel) {}
+    return null;
+  }
+
+  function getChatMessageInputNode() {
+    var root = getChatRoot();
+    if (root && root.querySelector) {
+      var input = root.querySelector(".input_message");
+      if (input) {
+        return input;
+      }
+    }
+    return document.querySelector(".main_chat .input_message");
+  }
+
+  function getChatSendButtonNode() {
+    var root = getChatRoot();
+    if (root && root.querySelector) {
+      var button = root.querySelector(".buttons_chat_send_message");
+      if (button) {
+        return button;
+      }
+    }
+    return document.querySelector(".main_chat .buttons_chat_send_message");
+  }
+
+  function setTextInputValue(node, value) {
+    if (!node) {
+      return false;
+    }
+    try {
+      var proto = Object.getPrototypeOf(node);
+      var descriptor = proto ? Object.getOwnPropertyDescriptor(proto, "value") : null;
+      if (descriptor && typeof descriptor.set === "function") {
+        descriptor.set.call(node, String(value == null ? "" : value));
+      } else {
+        node.value = String(value == null ? "" : value);
+      }
+      return true;
+    } catch (_ignoreSetValue) {}
+    try {
+      node.value = String(value == null ? "" : value);
+      return true;
+    } catch (_ignoreDirectValue) {}
+    return false;
+  }
+
+  function dispatchBasicDomEvent(node, type) {
+    if (!node) {
+      return false;
+    }
+    try {
+      var eventObject = document.createEvent("Event");
+      eventObject.initEvent(String(type || ""), true, true);
+      return !!node.dispatchEvent(eventObject);
+    } catch (_ignoreBasicEvent) {}
+    return false;
+  }
+
+  function clickDomNodeCompat(node) {
+    if (!node) {
+      return false;
+    }
+    if (clickNode(node)) {
+      return true;
+    }
+    try {
+      var mouseEvent = document.createEvent("MouseEvents");
+      mouseEvent.initMouseEvent("click", true, true, window, 1, 0, 0, 0, 0, false, false, false, false, 0, null);
+      return !!node.dispatchEvent(mouseEvent);
+    } catch (_ignoreMouseEvent) {}
+    return false;
+  }
+
+  function dispatchMouseSequence(node) {
+    if (!node) {
+      return false;
+    }
+    dispatchMouse("mouseenter", node);
+    dispatchMouse("mouseover", node);
+    dispatchMouse("mousemove", node);
+    dispatchMouse("mousedown", node);
+    dispatchMouse("mouseup", node);
+    return clickDomNodeCompat(node);
+  }
+
+  function pushUniqueNode(nodes, node) {
+    if (!node) {
+      return;
+    }
+    if (nodes.indexOf(node) >= 0) {
+      return;
+    }
+    nodes.push(node);
+  }
+
+  function getChatTabActivationTargets(tab) {
+    var nodes = [];
+    if (!tab) {
+      return nodes;
+    }
+    pushUniqueNode(nodes, tab);
+    if (tab.querySelector) {
+      pushUniqueNode(nodes, tab.querySelector(".channel_label"));
+      pushUniqueNode(nodes, tab.querySelector(".channel_name"));
+      pushUniqueNode(nodes, tab.querySelector(".channel_input"));
+      pushUniqueNode(nodes, tab.querySelector("input"));
+      pushUniqueNode(nodes, tab.querySelector("span"));
+      pushUniqueNode(nodes, tab.querySelector("svg"));
+      pushUniqueNode(nodes, tab.querySelector("use"));
+    }
+    if (tab.children && tab.children.length) {
+      for (var i = 0; i < tab.children.length; i += 1) {
+        pushUniqueNode(nodes, tab.children[i]);
+      }
+    }
+    return nodes;
+  }
+
+  function activateDomChatTab(tab) {
+    var targets = getChatTabActivationTargets(tab);
+    var activated = false;
+    for (var i = 0; i < targets.length; i += 1) {
+      activated = dispatchMouseSequence(targets[i]) || activated;
+    }
+    return activated;
+  }
+
+  function waitForChatChannelAvailableAsync(channelId) {
+    var targetChannelId = trimChatText(channelId || "");
+    return pollUntilAsync(
+      function() {
+        return getChatChannelDataById(targetChannelId) || findDomChatTabByChannelId(targetChannelId);
+      },
+      200,
+      25,
+      function() {
+        return new Error("chat_channel_available_timeout:" + targetChannelId);
+      }
+    );
+  }
+
+  function parseJoinChannelCommand(rawMessage) {
+    var message = String(rawMessage == null ? "" : rawMessage);
+    var match = /^\s*\/join\s+([A-Za-z0-9+_-]{3,10})\s*$/i.exec(message);
+    if (!match) {
+      return null;
+    }
+    var channelName = validateCustomChannelName(match[1]);
+    return {
+      channelName: channelName,
+      expectedChannelId: buildCustomChannelId(channelName)
+    };
+  }
+
+  function submitChatMessageThroughUiAsync(message) {
+    var input = getChatMessageInputNode();
+    var sendButton = getChatSendButtonNode();
+    if (!input || !sendButton || !isElementVisible(input) || !isElementVisible(sendButton)) {
+      return Promise.resolve(false);
+    }
+
+    try {
+      input.focus();
+    } catch (_ignoreChatInputFocus) {}
+
+    if (!setTextInputValue(input, message)) {
+      return Promise.resolve(false);
+    }
+
+    dispatchBasicDomEvent(input, "input");
+    dispatchBasicDomEvent(input, "change");
+
+    if (!clickDomNodeCompat(sendButton)) {
+      return Promise.resolve(false);
+    }
+
+    return new Promise(function(resolve) {
+      var attempts = 0;
+      var maxAttempts = 40;
+      function checkCleared() {
+        if (trimChatText(input.value || "") === "") {
+          resolve(true);
+          return;
+        }
+        attempts += 1;
+        if (attempts >= maxAttempts) {
+          resolve(false);
+          return;
+        }
+        window.setTimeout(checkCleared, 25);
+      }
+      checkCleared();
+    });
+  }
+
+  function buildCustomChannelId(channelName) {
+    return "room_" + String(channelName || "").toLowerCase();
+  }
+
+  function validateCustomChannelName(rawName) {
+    var name = trimChatText(rawName || "");
+    if (!/^[A-Za-z0-9+_-]{3,10}$/.test(name)) {
+      throw new Error("chat_channel_invalid_name");
+    }
+    return name;
+  }
+
+  function findDomChatTabByChannelId(channelId) {
+    var targetChannelId = trimChatText(channelId || "");
+    if (!targetChannelId) {
+      return null;
+    }
+    var tabs = document.querySelectorAll(".main_chat .channel_box .channel_btn");
+    var i;
+    for (i = 0; i < tabs.length; i += 1) {
+      var tab = tabs[i];
+      if (!tab || typeof tab.getAttribute !== "function") {
+        continue;
+      }
+      if (trimChatText(tab.getAttribute("channel-id") || "") === targetChannelId) {
+        return tab;
+      }
+    }
+    return null;
+  }
+
+  function waitForSelectedChatChannelAsync(channelId) {
+    var targetChannelId = trimChatText(channelId || "");
+    return pollUntilAsync(
+      function() {
+        var selected = getSelectedChatChannelData();
+        if (selected && String(selected.channelId || "") === targetChannelId) {
+          return selected;
+        }
+        var domInfo = getSelectedDomChatInfo();
+        if (domInfo.channelId === targetChannelId) {
+          return getChatChannelDataById(targetChannelId) || {
+            channelId: targetChannelId,
+            channelName: domInfo.channelName
+          };
+        }
+        return null;
+      },
+      160,
+      25,
+      function() {
+        return new Error("chat_select_timeout:" + targetChannelId);
+      }
+    );
+  }
+
+  function selectChatChannelById(channelId) {
+    var targetChannelId = trimChatText(channelId || "");
+    if (!targetChannelId) {
+      throw new Error("chat_select_missing_channel");
+    }
+    var active = resolveActiveChatChannel();
+    if (active.info.channelId === targetChannelId) {
+      return Promise.resolve(active.channel || {
+        channelId: active.info.channelId,
+        channelName: active.info.channelName
+      });
+    }
+    var currentView = getChatView();
+    var canUseCurrentView = !!(currentView && typeof currentView.selectChannel === "function");
+    var domTab = findDomChatTabByChannelId(targetChannelId);
+    if (!canUseCurrentView && !domTab) {
+      throw new Error("chat_select_unavailable");
+    }
+    function triggerCurrentViewSelect() {
+      if (!canUseCurrentView) {
+        return false;
+      }
+      try {
+        currentView.selectChannel(targetChannelId);
+        return true;
+      } catch (_ignoreSelectChannel) {}
+      return false;
+    }
+    function triggerDomSelect(tab) {
+      if (!tab) {
+        return false;
+      }
+      return activateDomChatTab(tab);
+    }
+
+    var triggered = false;
+    if (domTab) {
+      triggered = triggerDomSelect(domTab);
+    }
+    if (!triggered && canUseCurrentView) {
+      triggered = triggerCurrentViewSelect();
+    }
+    if (!triggered) {
+      throw new Error("chat_select_click_failed:" + targetChannelId);
+    }
+
+    return waitForSelectedChatChannelAsync(targetChannelId)
+      .catch(function(_firstError) {
+        var refreshedTab = findDomChatTabByChannelId(targetChannelId) || domTab;
+        if (refreshedTab && triggerDomSelect(refreshedTab)) {
+          return waitForSelectedChatChannelAsync(targetChannelId);
+        }
+        throw _firstError;
+      })
+      .catch(function(_secondError) {
+        if (!canUseCurrentView) {
+          throw _secondError;
+        }
+        triggerCurrentViewSelect();
+        return waitForSelectedChatChannelAsync(targetChannelId);
+      });
+  }
+
+  function ensureChatChannelSelected(channelId) {
+    var targetChannelId = trimChatText(channelId || "");
+    if (!targetChannelId) {
+      throw new Error("chat_send_missing_channel");
+    }
+    var active = resolveActiveChatChannel();
+    if (active.info.channelId === targetChannelId) {
+      return Promise.resolve(active.channel || {
+        channelId: active.info.channelId,
+        channelName: active.info.channelName
+      });
+    }
+    var channel = getChatChannelDataById(targetChannelId);
+    if (!channel) {
+      throw new Error("chat_channel_not_found:" + targetChannelId);
+    }
+    return selectChatChannelById(targetChannelId);
+  }
+
+  function selectExistingChatChannel(rawChannelId) {
+    var targetChannelId = trimChatText(rawChannelId || "");
+    if (!targetChannelId) {
+      throw new Error("chat_select_missing_channel");
+    }
+    return ensureChatChannelSelected(targetChannelId).then(function(selectedChannel) {
+      var info = buildChatChannelInfo(selectedChannel, {
+        channelId: targetChannelId,
+        channelName: null
+      });
+      return {
+        requestedChannelName: info.channelName,
+        expectedChannelId: targetChannelId,
+        existed: true,
+        selected: true,
+        channelId: info.channelId,
+        channelName: info.channelName
+      };
+    });
+  }
+
+  function sendChatMessage(rawMessage, rawChannelId) {
+    var message = String(rawMessage == null ? "" : rawMessage);
+    if (!trimChatText(message)) {
+      throw new Error("chat_send_empty_message");
+    }
+
+    var targetChannelId = trimChatText(rawChannelId || "");
+    return Promise.resolve()
+      .then(function() {
+        if (targetChannelId) {
+          return ensureChatChannelSelected(targetChannelId);
+        }
+        var active = resolveActiveChatChannel();
+        if (!active.info.channelId) {
+          throw new Error("chat_send_no_selected_channel");
+        }
+        return active.channel || {
+          channelId: active.info.channelId,
+          channelName: active.info.channelName
+        };
+      })
+      .then(function(selectedChannel) {
+        var resolvedChannelId = trimChatText(selectedChannel && selectedChannel.channelId != null ? String(selectedChannel.channelId) : targetChannelId);
+        if (!resolvedChannelId) {
+          throw new Error("chat_send_no_selected_channel");
+        }
+        var info = buildChatChannelInfo(selectedChannel, {
+          channelId: resolvedChannelId,
+          channelName: null
+        });
+        var joinCommand = parseJoinChannelCommand(message);
+        return submitChatMessageThroughUiAsync(message).then(function(sentViaUi) {
+          if (!sentViaUi) {
+            var manager = getChatManagerSafe();
+            if (!manager || typeof manager.sendMessageToCPP !== "function") {
+              throw new Error("chat_send_unavailable");
+            }
+            manager.sendMessageToCPP(resolvedChannelId, message);
+          }
+          var result = {
+            sent: true,
+            channelId: info.channelId,
+            channelName: info.channelName,
+            message: message,
+            usedExplicitChannel: !!targetChannelId
+          };
+          if (!joinCommand) {
+            return result;
+          }
+          return waitForChatChannelAvailableAsync(joinCommand.expectedChannelId)
+            .then(function() {
+              return selectChatChannelById(joinCommand.expectedChannelId);
+            })
+            .then(function(joinedChannel) {
+              var joinedInfo = buildChatChannelInfo(joinedChannel, {
+                channelId: joinCommand.expectedChannelId,
+                channelName: joinCommand.channelName
+              });
+              result.channelId = joinedInfo.channelId;
+              result.channelName = joinedInfo.channelName;
+              return result;
+            });
+        });
+      });
+  }
+
+  function createOrJoinChatChannel(rawChannelName) {
+    var manager = getChatManagerSafe();
+    if (!manager || typeof manager.getChannelData !== "function") {
+      throw new Error("chat_channel_manager_unavailable");
+    }
+    var channelName = validateCustomChannelName(rawChannelName);
+    var expectedChannelId = buildCustomChannelId(channelName);
+    var existingChannel = getChatChannelDataById(expectedChannelId);
+    if (existingChannel) {
+      return selectChatChannelById(expectedChannelId).then(function(selectedChannel) {
+        var info = buildChatChannelInfo(selectedChannel || existingChannel, {
+          channelId: expectedChannelId,
+          channelName: channelName
+        });
+        return {
+          requestedChannelName: channelName,
+          expectedChannelId: expectedChannelId,
+          existed: true,
+          selected: true,
+          channelId: info.channelId,
+          channelName: info.channelName
+        };
+      });
+    }
+
+    var active = resolveActiveChatChannel();
+    if (!active.info.channelId) {
+      throw new Error("chat_channel_no_selected_channel");
+    }
+
+    return sendChatMessage("/join " + channelName, String(active.info.channelId))
+      .then(function() {
+        return pollUntilAsync(
+          function() {
+            return getChatChannelDataById(expectedChannelId);
+          },
+          120,
+          50,
+          function() {
+            return new Error("chat_channel_join_timeout:" + expectedChannelId);
+          }
+        );
+      })
+      .then(function() {
+        return selectChatChannelById(expectedChannelId);
+      })
+      .then(function(selectedChannel) {
+        var info = buildChatChannelInfo(selectedChannel, {
+          channelId: expectedChannelId,
+          channelName: channelName
+        });
+        return {
+          requestedChannelName: channelName,
+          expectedChannelId: expectedChannelId,
+          existed: false,
+          selected: true,
+          channelId: info.channelId,
+          channelName: info.channelName
+        };
+      });
+  }
+
   function runRawProbeEval(source) {
     var src = String(source || "").trim();
     if (!src) {
@@ -645,6 +1685,26 @@
     sendPacket("lua_mcp_result", payload);
   }
 
+  function emitCommandResultForMethod(commandId, method, success, result, errorMessage) {
+    if (method === "chat_snapshot") {
+      if (success) {
+        emitChatSnapshot(commandId, result);
+      }
+      return;
+    }
+    if (method === "chat_send") {
+      emitChatSendResult(commandId, success, result, errorMessage);
+      emitMcpResult(commandId, method, success, result, errorMessage);
+      return;
+    }
+    if (method === "chat_join_channel" || method === "chat_select_channel") {
+      emitChatChannelResult(commandId, success, result, errorMessage);
+      emitMcpResult(commandId, method, success, result, errorMessage);
+      return;
+    }
+    emitMcpResult(commandId, method, success, result, errorMessage);
+  }
+
   function invokeMcpCommand(commandId, method, args) {
     var normalizedMethod = String(method || "").trim().toLowerCase();
     var listArgs = Array.isArray(args) ? args : [];
@@ -653,6 +1713,14 @@
       var result = null;
       if (normalizedMethod === "describe") {
         result = describeLuaEditor();
+      } else if (normalizedMethod === "chat_snapshot") {
+        result = captureChatSnapshot();
+      } else if (normalizedMethod === "chat_send") {
+        result = sendChatMessage(listArgs[0], listArgs[1]);
+      } else if (normalizedMethod === "chat_join_channel") {
+        result = createOrJoinChatChannel(listArgs[0]);
+      } else if (normalizedMethod === "chat_select_channel") {
+        result = selectExistingChatChannel(listArgs[0]);
       } else if (normalizedMethod === "select_slot") {
         result = selectSlotByName(listArgs[0]);
       } else if (normalizedMethod === "select_filter") {
@@ -673,19 +1741,19 @@
 
       if (isPromiseLike(result)) {
         result.then(function(asyncResult) {
-          emitMcpResult(commandId, normalizedMethod, true, asyncResult, null);
+          emitCommandResultForMethod(commandId, normalizedMethod, true, asyncResult, null);
         }).catch(function(asyncErr) {
           var asyncMessage = String(asyncErr && asyncErr.message ? asyncErr.message : asyncErr);
-          emitMcpResult(commandId, normalizedMethod, false, null, asyncMessage);
+          emitCommandResultForMethod(commandId, normalizedMethod, false, null, asyncMessage);
         });
         return null;
       }
 
-      emitMcpResult(commandId, normalizedMethod, true, result, null);
+      emitCommandResultForMethod(commandId, normalizedMethod, true, result, null);
       return result;
     } catch (err) {
       var message = String(err && err.message ? err.message : err);
-      emitMcpResult(commandId, normalizedMethod, false, null, message);
+      emitCommandResultForMethod(commandId, normalizedMethod, false, null, message);
       throw err;
     }
   }
@@ -696,6 +1764,12 @@
   state.setLuaEditorCode = setLuaEditorCode;
   state.applyLuaEditorChanges = applyLuaEditorChanges;
   state.addFilterByEventName = addFilterByEventName;
+  state.captureChatSnapshot = captureChatSnapshot;
+  state.buildPlainTextChatTranscript = buildPlainTextChatTranscript;
+  state.copyActiveChatPlainText = copyActiveChatPlainText;
+  state.ensureChatPlainTextCopyButton = ensureChatPlainTextCopyButton;
+  state.sendChatMessage = sendChatMessage;
+  state.createOrJoinChatChannel = createOrJoinChatChannel;
   state.outerHtmlForSelector = outerHtmlForSelector;
   state.runRawProbeEval = runRawProbeEval;
   state.invokeMcpCommand = invokeMcpCommand;
@@ -707,6 +1781,9 @@
     setCode: setLuaEditorCode,
     apply: applyLuaEditorChanges,
     addFilter: addFilterByEventName,
+    chatSnapshot: captureChatSnapshot,
+    chatSend: sendChatMessage,
+    chatJoinChannel: createOrJoinChatChannel,
     outerHtml: outerHtmlForSelector,
     rawEval: runRawProbeEval
   };

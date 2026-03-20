@@ -6,7 +6,11 @@ export const bridgeEventTypeSchema = z.enum([
   "runtime_log",
   "editor_state",
   "bridge_status",
-  "probe_result"
+  "probe_result",
+  "chat_snapshot",
+  "chat_send_result",
+  "chat_channel_result",
+  "server_chat_snapshot"
 ]);
 
 export const bridgeEventSchema = z.object({

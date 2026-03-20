@@ -91,6 +91,7 @@
     tryAttachMenuObserver();
     wrapLuaEditorManager();
     refreshEditorState();
+    ensureChatPlainTextCopyButton();
   }
 
   function startObservers() {
@@ -194,6 +195,7 @@
       "ModUiExtractor-lua-theme-dots",
       "ModUiExtractor-lua-caret-toggle",
       "ModUiExtractor-lua-ide-sync",
+      "ModUiExtractor-chat-copy-plain",
       quickEditLuaMenuItemId,
       quickInjectProbeMenuItemId
     ];

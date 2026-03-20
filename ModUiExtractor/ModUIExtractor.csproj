@@ -2,6 +2,8 @@
   <PropertyGroup>
     <Nullable>annotations</Nullable>
     <DUExternalLibDir Condition="'$(DUExternalLibDir)' == ''">D:\MyDUserver\wincs\all</DUExternalLibDir>
+    <EnableDuChatServerRead Condition="'$(EnableDuChatServerRead)' == ''">false</EnableDuChatServerRead>
+    <DefineConstants Condition="'$(EnableDuChatServerRead)' == 'true'">$(DefineConstants);DU_CHAT_SERVER_READ</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

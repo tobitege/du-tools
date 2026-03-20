@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Linq;
+using System.Data.Common;
 using System.Security.Cryptography;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -15,6 +16,9 @@ using NQutils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
+#if DU_CHAT_SERVER_READ
+using NQutils.Sql;
+#endif
 
 public sealed class UiDumpPacketEnvelope
 {
@@ -32,6 +36,13 @@ sealed class LuaMcpResultChunkAssembly
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public int ExpectedTotal { get; set; }
     public Dictionary<int, string> Chunks { get; } = new();
+}
+
+sealed class ServerChatSqlTable
+{
+    public string Schema { get; set; } = "";
+    public string Table { get; set; } = "";
+    public Dictionary<string, string> Columns { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed class MyDuMod : IMod
@@ -70,6 +81,7 @@ public sealed class MyDuMod : IMod
     private const int MaxLuaMcpResultChunkCount = 256;
     private static readonly TimeSpan LuaMcpResultChunkTtl = TimeSpan.FromMinutes(5);
 
+    private IServiceProvider services = null!;
     private IClusterClient orleans = null!;
     private IPub pub = null!;
     private ILogger logger = null!;
@@ -100,6 +112,7 @@ public sealed class MyDuMod : IMod
 
     public Task Initialize(IServiceProvider isp)
     {
+        services = isp;
         orleans = isp.GetRequiredService<IClusterClient>();
         pub = isp.GetRequiredService<IPub>();
         logger = isp.GetRequiredService<ILogger<MyDuMod>>();
@@ -286,6 +299,12 @@ public sealed class MyDuMod : IMod
                 return;
             }
 
+            if (await TryProcessServerChatBridgeCommand(commandId, targetKind, action, payload, playerId.Value, boardId))
+            {
+                MoveMcpBridgeCommandToProcessed(commandPath, commandId);
+                return;
+            }
+
             if (!TryBuildMcpBridgeCommandScript(commandId, targetKind, action, payload, out var injectCode, out var summary, out var status, out var details))
             {
                 await AppendMcpBridgeEvent(
@@ -372,6 +391,482 @@ public sealed class MyDuMod : IMod
         {
             logger.LogDebug(ex, "UIExtractor failed to move processed MCP bridge command {CommandId}", commandId);
         }
+    }
+
+    private async Task<bool> TryProcessServerChatBridgeCommand(
+        string commandId,
+        string targetKind,
+        string action,
+        JObject payload,
+        ulong playerId,
+        string? boardId)
+    {
+        if (!string.Equals(targetKind, "server_chat", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!string.Equals(action, "probe_call", StringComparison.OrdinalIgnoreCase))
+        {
+            await AppendMcpBridgeEvent(
+                "server_chat",
+                "command_result",
+                playerId,
+                new JObject
+                {
+                    ["commandId"] = commandId,
+                    ["status"] = "rejected",
+                    ["reason"] = "unsupported_action",
+                    ["action"] = action
+                },
+                boardId);
+            return true;
+        }
+
+        var probeMethod = payload["probeMethod"]?.Value<string>()?.Trim() ?? "";
+        if (!string.Equals(probeMethod, "snapshot", StringComparison.OrdinalIgnoreCase))
+        {
+            await AppendMcpBridgeEvent(
+                "server_chat",
+                "command_result",
+                playerId,
+                new JObject
+                {
+                    ["commandId"] = commandId,
+                    ["status"] = "rejected",
+                    ["reason"] = "unsupported_probe_method",
+                    ["action"] = action,
+                    ["probeMethod"] = probeMethod
+                },
+                boardId);
+            return true;
+        }
+
+        var resultPayload = await BuildServerChatSnapshotPayload(commandId, playerId, payload);
+        await AppendMcpBridgeEvent("server_chat", "server_chat_snapshot", playerId, resultPayload, boardId);
+
+        var success = resultPayload["success"]?.Value<bool>() ?? false;
+        var error = resultPayload["error"]?.Value<string>();
+        await AppendMcpBridgeEvent(
+            "server_chat",
+            "command_result",
+            playerId,
+            new JObject
+            {
+                ["commandId"] = commandId,
+                ["status"] = success ? "completed" : "rejected",
+                ["action"] = action,
+                ["summary"] = "server_chat snapshot",
+                ["probeMethod"] = probeMethod,
+                ["reason"] = error is null ? JValue.CreateNull() : error
+            },
+            boardId);
+
+        return true;
+    }
+
+    private async Task<JObject> BuildServerChatSnapshotPayload(string commandId, ulong playerId, JObject payload)
+    {
+        var probeArgs = payload["probeArgs"] as JArray;
+        var requestedLimit = probeArgs != null && probeArgs.Count > 0
+            ? probeArgs[0]?.Value<int?>()
+            : null;
+        var limit = ClampServerChatSnapshotLimit(requestedLimit ?? 120);
+
+#if DU_CHAT_SERVER_READ
+        var sql = services.GetService<ISql>();
+        if (sql is null)
+        {
+            return CreateServerChatSnapshotFailure(commandId, "server_chat_sql_service_unavailable");
+        }
+
+        ITransactionnalSqlConnection? transaction = null;
+        try
+        {
+            transaction = await sql.Transaction("uiextractor_server_chat_snapshot");
+            var schema = await ResolveServerChatSchemaAsync(transaction);
+            if (schema is null)
+            {
+                return CreateServerChatSnapshotFailure(commandId, "server_chat_schema_not_found");
+            }
+
+            var query = BuildServerChatSnapshotQuery(schema, playerId, limit);
+            var messages = await transaction.QueryWithResults(
+                async result =>
+                {
+                    var rows = new List<JObject>();
+                    while (await result.Read())
+                    {
+                        var reader = result.GetReader();
+                        var channelType = ReadDbInt32(reader, "channel_type");
+                        var targetId = ReadDbUInt64(reader, "target_id");
+                        var roomName = ReadDbString(reader, "room_name");
+                        var channelName = ReadServerChatChannelName(channelType, roomName);
+                        rows.Add(
+                            new JObject
+                            {
+                                ["channelId"] = BuildServerChatChannelId(channelType, targetId, roomName),
+                                ["channelName"] = channelName is null ? JValue.CreateNull() : channelName,
+                                ["fromId"] = ReadDbUInt64(reader, "from_id"),
+                                ["fromName"] = ReadDbString(reader, "from_name"),
+                                ["text"] = ReadDbString(reader, "message_text") ?? "",
+                                ["fromMe"] = false,
+                                ["isAdmin"] = false,
+                                ["isCommunityHelper"] = false,
+                                ["isNotification"] = false,
+                                ["date"] = ReadDbUtcIsoString(reader, "message_date"),
+                                ["className"] = new JArray()
+                            });
+                    }
+
+                    return rows;
+                },
+                query,
+                Array.Empty<object>());
+
+            try
+            {
+                await transaction.Rollback();
+            }
+            catch
+            {
+            }
+
+            return new JObject
+            {
+                ["commandId"] = commandId,
+                ["success"] = true,
+                ["error"] = JValue.CreateNull(),
+                ["snapshot"] = new JObject
+                {
+                    ["visible"] = true,
+                    ["open"] = true,
+                    ["source"] = "server_chat_optin",
+                    ["selectedChannelId"] = JValue.CreateNull(),
+                    ["selectedChannelName"] = JValue.CreateNull(),
+                    ["messageCount"] = messages.Count,
+                    ["messages"] = new JArray(messages)
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "UIExtractor server_chat snapshot failed for player {PlayerId}", playerId);
+            return CreateServerChatSnapshotFailure(commandId, ex.Message);
+        }
+        finally
+        {
+            if (transaction != null)
+            {
+                transaction.Dispose();
+            }
+        }
+#else
+        return CreateServerChatSnapshotFailure(commandId, "server_chat_opt_in_disabled");
+#endif
+    }
+
+    private static int ClampServerChatSnapshotLimit(int value)
+    {
+        return Math.Max(1, Math.Min(500, value));
+    }
+
+    private static JObject CreateServerChatSnapshotFailure(string commandId, string error)
+    {
+        return new JObject
+        {
+            ["commandId"] = commandId,
+            ["success"] = false,
+            ["error"] = error,
+            ["snapshot"] = new JObject
+            {
+                ["visible"] = true,
+                ["open"] = true,
+                ["source"] = "server_chat_optin",
+                ["selectedChannelId"] = JValue.CreateNull(),
+                ["selectedChannelName"] = JValue.CreateNull(),
+                ["messageCount"] = 0,
+                ["messages"] = new JArray()
+            }
+        };
+    }
+
+#if DU_CHAT_SERVER_READ
+    private async Task<Dictionary<string, ServerChatSqlTable>?> ResolveServerChatSchemaAsync(ISqlHandle sql)
+    {
+        const string query = @"
+SELECT table_schema, table_name, column_name
+FROM information_schema.columns
+WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
+ORDER BY table_schema, table_name, ordinal_position";
+
+        var tables = await sql.QueryWithResults(
+            async result =>
+            {
+                var resolved = new Dictionary<string, ServerChatSqlTable>(StringComparer.OrdinalIgnoreCase);
+                while (await result.Read())
+                {
+                    var reader = result.GetReader();
+                    var schemaName = ReadDbString(reader, "table_schema") ?? "";
+                    var tableName = ReadDbString(reader, "table_name") ?? "";
+                    var columnName = ReadDbString(reader, "column_name") ?? "";
+                    if (schemaName.Length == 0 || tableName.Length == 0 || columnName.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    var key = schemaName + "." + tableName;
+                    ServerChatSqlTable table;
+                    if (!resolved.TryGetValue(key, out table))
+                    {
+                        table = new ServerChatSqlTable
+                        {
+                            Schema = schemaName,
+                            Table = tableName
+                        };
+                        resolved[key] = table;
+                    }
+
+                    table.Columns[NormalizeServerChatSqlName(columnName)] = columnName;
+                }
+
+                return resolved;
+            },
+            query,
+            Array.Empty<object>());
+
+        var subscription = tables.Values.FirstOrDefault(static table =>
+            table.Columns.ContainsKey(NormalizeServerChatSqlName("playerid")) &&
+            table.Columns.ContainsKey(NormalizeServerChatSqlName("channelid")));
+        var channel = tables.Values.FirstOrDefault(static table =>
+            table.Columns.ContainsKey(NormalizeServerChatSqlName("id")) &&
+            table.Columns.ContainsKey(NormalizeServerChatSqlName("channel")) &&
+            table.Columns.ContainsKey(NormalizeServerChatSqlName("roomname")) &&
+            (
+                table.Columns.ContainsKey(NormalizeServerChatSqlName("targetid")) ||
+                table.Columns.ContainsKey(NormalizeServerChatSqlName("othertargetid"))
+            ));
+        var message = tables.Values.FirstOrDefault(static table =>
+            table.Columns.ContainsKey(NormalizeServerChatSqlName("id")) &&
+            table.Columns.ContainsKey(NormalizeServerChatSqlName("channelid")) &&
+            table.Columns.ContainsKey(NormalizeServerChatSqlName("senderid")) &&
+            table.Columns.ContainsKey(NormalizeServerChatSqlName("message")) &&
+            table.Columns.ContainsKey(NormalizeServerChatSqlName("date")));
+        var player = tables.Values.FirstOrDefault(static table =>
+            table.Columns.ContainsKey(NormalizeServerChatSqlName("id")) &&
+            table.Columns.ContainsKey(NormalizeServerChatSqlName("displayname")));
+
+        if (subscription is null || channel is null || message is null || player is null)
+        {
+            return null;
+        }
+
+        return new Dictionary<string, ServerChatSqlTable>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["subscription"] = subscription,
+            ["channel"] = channel,
+            ["message"] = message,
+            ["player"] = player
+        };
+    }
+
+    private static string BuildServerChatSnapshotQuery(
+        Dictionary<string, ServerChatSqlTable> schema,
+        ulong playerId,
+        int limit)
+    {
+        var subscription = schema["subscription"];
+        var channel = schema["channel"];
+        var message = schema["message"];
+        var player = schema["player"];
+
+        return
+            "SELECT " +
+            "c." + QuoteSqlIdentifier(RequireColumn(channel, "channel")) + " AS channel_type, " +
+            "c." + QuoteSqlIdentifier(RequireFirstColumn(channel, "targetid", "othertargetid")) + " AS target_id, " +
+            "c." + QuoteSqlIdentifier(RequireColumn(channel, "roomname")) + " AS room_name, " +
+            "m." + QuoteSqlIdentifier(RequireColumn(message, "senderid")) + " AS from_id, " +
+            "p." + QuoteSqlIdentifier(RequireColumn(player, "displayname")) + " AS from_name, " +
+            "m." + QuoteSqlIdentifier(RequireColumn(message, "message")) + " AS message_text, " +
+            "m." + QuoteSqlIdentifier(RequireColumn(message, "date")) + " AS message_date " +
+            "FROM (" +
+            "SELECT DISTINCT cs." + QuoteSqlIdentifier(RequireColumn(subscription, "channelid")) + " AS channel_id " +
+            "FROM " + QuoteSqlTable(subscription) + " cs " +
+            "WHERE cs." + QuoteSqlIdentifier(RequireColumn(subscription, "playerid")) + " = " + playerId.ToString(System.Globalization.CultureInfo.InvariantCulture) + " " +
+            "UNION " +
+            "SELECT DISTINCT mself." + QuoteSqlIdentifier(RequireColumn(message, "channelid")) + " AS channel_id " +
+            "FROM " + QuoteSqlTable(message) + " mself " +
+            "WHERE mself." + QuoteSqlIdentifier(RequireColumn(message, "senderid")) + " = " + playerId.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+            ") relevant_channels " +
+            "JOIN " + QuoteSqlTable(channel) + " c ON c." + QuoteSqlIdentifier(RequireColumn(channel, "id")) + " = relevant_channels.channel_id " +
+            "JOIN " + QuoteSqlTable(message) + " m ON m." + QuoteSqlIdentifier(RequireColumn(message, "channelid")) + " = c." + QuoteSqlIdentifier(RequireColumn(channel, "id")) + " " +
+            "LEFT JOIN " + QuoteSqlTable(player) + " p ON p." + QuoteSqlIdentifier(RequireColumn(player, "id")) + " = m." + QuoteSqlIdentifier(RequireColumn(message, "senderid")) + " " +
+            "ORDER BY m." + QuoteSqlIdentifier(RequireColumn(message, "date")) + " DESC " +
+            "LIMIT " + limit.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static string RequireColumn(ServerChatSqlTable table, string lowerName)
+    {
+        string actualName;
+        if (!table.Columns.TryGetValue(NormalizeServerChatSqlName(lowerName), out actualName))
+        {
+            throw new InvalidOperationException("Missing column " + lowerName + " on " + table.Schema + "." + table.Table);
+        }
+
+        return actualName;
+    }
+
+    private static string RequireFirstColumn(ServerChatSqlTable table, params string[] lowerNames)
+    {
+        if (lowerNames != null)
+        {
+            foreach (var lowerName in lowerNames)
+            {
+                string actualName;
+                if (table.Columns.TryGetValue(NormalizeServerChatSqlName(lowerName), out actualName))
+                {
+                    return actualName;
+                }
+            }
+        }
+
+        throw new InvalidOperationException("Missing columns " + string.Join(", ", lowerNames ?? Array.Empty<string>()) + " on " + table.Schema + "." + table.Table);
+    }
+
+    private static string QuoteSqlTable(ServerChatSqlTable table)
+    {
+        return QuoteSqlIdentifier(table.Schema) + "." + QuoteSqlIdentifier(table.Table);
+    }
+
+    private static string QuoteSqlIdentifier(string value)
+    {
+        return "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
+    }
+
+    private static string NormalizeServerChatSqlName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "";
+        }
+
+        var builder = new StringBuilder(value.Length);
+        foreach (var ch in value)
+        {
+            if (char.IsLetterOrDigit(ch))
+            {
+                builder.Append(char.ToLowerInvariant(ch));
+            }
+        }
+
+        return builder.ToString();
+    }
+#endif
+
+    private static string? BuildServerChatChannelId(int? channelType, ulong? targetId, string? roomName)
+    {
+        if (channelType == 2 && !string.IsNullOrWhiteSpace(roomName))
+        {
+            return "room_" + roomName.Trim().ToLowerInvariant();
+        }
+
+        if (channelType == 5)
+        {
+            return "room_local";
+        }
+
+        if (targetId.HasValue)
+        {
+            return targetId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        return null;
+    }
+
+    private static string? ReadServerChatChannelName(int? channelType, string? roomName)
+    {
+        if (!string.IsNullOrWhiteSpace(roomName))
+        {
+            return roomName;
+        }
+
+        if (!channelType.HasValue)
+        {
+            return null;
+        }
+
+        switch (channelType.Value)
+        {
+            case 0:
+                return "General";
+            case 1:
+                return "Private";
+            case 2:
+                return "Room";
+            case 3:
+                return "Org";
+            case 4:
+                return "Construct";
+            case 5:
+                return "Local";
+            case 6:
+                return "Help";
+            default:
+                return null;
+        }
+    }
+
+    private static string? ReadDbString(DbDataReader reader, string columnName)
+    {
+        var ordinal = reader.GetOrdinal(columnName);
+        if (reader.IsDBNull(ordinal))
+        {
+            return null;
+        }
+
+        var value = reader.GetValue(ordinal);
+        return value?.ToString();
+    }
+
+    private static int? ReadDbInt32(DbDataReader reader, string columnName)
+    {
+        var ordinal = reader.GetOrdinal(columnName);
+        if (reader.IsDBNull(ordinal))
+        {
+            return null;
+        }
+
+        return Convert.ToInt32(reader.GetValue(ordinal), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static ulong? ReadDbUInt64(DbDataReader reader, string columnName)
+    {
+        var ordinal = reader.GetOrdinal(columnName);
+        if (reader.IsDBNull(ordinal))
+        {
+            return null;
+        }
+
+        return Convert.ToUInt64(reader.GetValue(ordinal), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static string? ReadDbUtcIsoString(DbDataReader reader, string columnName)
+    {
+        var ordinal = reader.GetOrdinal(columnName);
+        if (reader.IsDBNull(ordinal))
+        {
+            return null;
+        }
+
+        var value = reader.GetValue(ordinal);
+        if (value is DateTime dateTime)
+        {
+            return dateTime.Kind == DateTimeKind.Utc
+                ? dateTime.ToString("O")
+                : DateTime.SpecifyKind(dateTime, DateTimeKind.Utc).ToString("O");
+        }
+
+        return value?.ToString();
     }
 
     private bool TryBuildMcpBridgeCommandScript(
@@ -1036,6 +1531,21 @@ public sealed class MyDuMod : IMod
                 {
                     await AppendMcpBridgeEvent("lua_editor", "probe_result", playerId, assembledPayload);
                 }
+            }
+            else if (string.Equals(packetType, "chat_snapshot", StringComparison.OrdinalIgnoreCase))
+            {
+                var packetData = parsedPacket["data"] as JObject ?? new JObject();
+                await AppendMcpBridgeEvent("lua_editor", "chat_snapshot", playerId, packetData);
+            }
+            else if (string.Equals(packetType, "chat_send_result", StringComparison.OrdinalIgnoreCase))
+            {
+                var packetData = parsedPacket["data"] as JObject ?? new JObject();
+                await AppendMcpBridgeEvent("lua_editor", "chat_send_result", playerId, packetData);
+            }
+            else if (string.Equals(packetType, "chat_channel_result", StringComparison.OrdinalIgnoreCase))
+            {
+                var packetData = parsedPacket["data"] as JObject ?? new JObject();
+                await AppendMcpBridgeEvent("lua_editor", "chat_channel_result", playerId, packetData);
             }
         }
 

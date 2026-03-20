@@ -63,11 +63,17 @@ The current implementation supports:
 - runtime log tailing
 - a Lua runtime-probe API for the open Lua editor
 - thin MCP convenience wrappers around that probe (`du_lua_describe_editor`, `du_lua_select_slot`, …)
+- a chat snapshot path from the active HUD chat into bridge events
+- a mention inbox that returns only `@ai` messages (case-insensitive)
+- an explicit opt-in server-side chat snapshot path (`server_chat`) for multi-channel reads without the visible HUD tab restriction
+- channel-bound chat sending through the real HUD send path
+- custom channel create/join through the same `/join <name>` path as the HUD dialog
 
 Current in-game targets:
 
 - `lua_editor`
 - `screen_editor`
+- `server_chat` (opt-in read path; no UI injection)
 
 ## Runtime Layout
 
@@ -224,6 +230,10 @@ The runtime probe attaches its API to:
 Currently supported probe methods:
 
 - `describe`
+- `chat_snapshot`
+- `chat_send`
+- `chat_join_channel`
+- `chat_select_channel`
 - `select_slot`
 - `select_filter`
 - `set_code`
@@ -232,8 +242,8 @@ Currently supported probe methods:
 - `outer_html`
 - `raw_eval` (trusted-debug only: arbitrary JS body with parameter `state`)
 
-The probe emits `lua_mcp_result` packets.
-`ModUiExtractor` converts those packets into bridge events of type `probe_result`.
+The probe emits `lua_mcp_result` packets for editor actions plus `chat_snapshot`, `chat_send_result`, and `chat_channel_result` packets for chat-specific actions.
+`ModUiExtractor` converts those packets into bridge events of type `probe_result`, `chat_snapshot`, `chat_send_result`, and `chat_channel_result`.
 
 This means the final roundtrip is:
 
@@ -244,6 +254,42 @@ MCP tool call
   -> live Lua editor UI action
   -> lua_mcp_result packet
   -> probe_result event
+  -> MCP response
+```
+
+For chat snapshots, the roundtrip is:
+
+```text
+du_chat_snapshot
+  -> bridge command
+  -> injected probe call
+  -> live HUD chat snapshot
+  -> chat_snapshot packet
+  -> chat_snapshot event
+  -> MCP response
+```
+
+For chat sending, the roundtrip is:
+
+```text
+du_chat_send_message
+  -> bridge command
+  -> injected probe call
+  -> live HUD chat send path
+  -> chat_send_result packet
+  -> chat_send_result event
+  -> MCP response
+```
+
+For custom channel create/join, the roundtrip is:
+
+```text
+du_chat_create_channel
+  -> bridge command
+  -> injected probe call
+  -> live HUD "/join <name>" path
+  -> chat_channel_result packet
+  -> chat_channel_result event
   -> MCP response
 ```
 
@@ -288,6 +334,9 @@ Currently relevant event types:
 - `command_enqueued`
 - `command_result`
 - `probe_result`
+- `chat_snapshot`
+- `chat_send_result`
+- `chat_channel_result`
 
 Typical `command_result` payload:
 
@@ -314,6 +363,28 @@ Typical `probe_result` payload:
     "selectedFilter": "onStart"
   },
   "error": null
+}
+```
+
+Typical `chat_snapshot` payload:
+
+```json
+{
+  "commandId": "cmd-456",
+  "snapshot": {
+    "visible": true,
+    "open": false,
+    "source": "chat_manager",
+    "selectedChannelId": "0",
+    "selectedChannelName": "General",
+    "messageCount": 1,
+    "messages": [
+      {
+        "fromName": "tobitege",
+        "text": "Hallo"
+      }
+    ]
+  }
 }
 ```
 
@@ -376,6 +447,9 @@ Inputs:
 - `method`
 - `slotName`
 - `filterEvent`
+- `message`
+- `channelId`
+- `channelName`
 - `code`
 - `addFilterName` (for `add_filter`)
 - `outerHtmlSelector` (for `outer_html`, default `#filters`)
@@ -385,6 +459,9 @@ Inputs:
 Supported methods:
 
 - `describe`
+- `chat_snapshot`
+- `chat_send`
+- `chat_join_channel`
 - `select_slot`
 - `select_filter`
 - `set_code`
@@ -411,6 +488,222 @@ Return fields:
 - `createdAtUtc`
 - `resultJson`
 - `error`
+
+### `du_chat_snapshot`
+
+Purpose:
+
+- queue a read-only chat snapshot against the active HUD chat
+- wait for the matching `chat_snapshot` bridge event
+
+Inputs:
+
+- `playerId`
+- `timeoutMs`
+
+Behavior:
+
+1. `DuMcpBridge` queues `action = probe_call` with `probeMethod = chat_snapshot`
+2. `ModUiExtractor` injects the runtime probe call into the HUD
+3. the probe reads the selected channel plus recent messages from the existing chat UI state
+4. the probe emits a `chat_snapshot` packet
+5. `ModUiExtractor` writes a `chat_snapshot` event
+6. `DuMcpBridge` waits for that event and returns the snapshot
+
+Return fields:
+
+- `found`
+- `commandId`
+- `createdAtUtc`
+- `visible`
+- `open`
+- `source`
+- `selectedChannelId`
+- `selectedChannelName`
+- `messageCount`
+- `snapshotJson`
+- `parseError`
+
+Chat message note:
+
+- if the structured message objects contain a `date` field, that timestamp comes from the in-game chat model in UTC
+
+### `du_chat_ai_mentions`
+
+Purpose:
+
+- read the active HUD chat snapshot
+- return only messages that contain `@ai` case-insensitively
+- optionally route targeted mentions like `@ai:helper` to one specific MCP-side agent
+- ignore messages that already start with a machine-readable AI prefix like `[AI:helper]`
+- keep the original sender information from the HUD snapshot, including messages marked as `fromMe`
+
+Inputs:
+
+- `playerId`
+- `agentId` optional, e.g. `helper`
+- `includeGenericMentions` optional, default `true`
+- `timeoutMs`
+
+Behavior:
+
+1. `DuMcpBridge` queues the same `chat_snapshot` probe call as `du_chat_snapshot`
+2. the probe returns the selected channel plus recent messages
+3. `DuMcpBridge` filters the returned messages to plain `@ai` or, if `agentId` is set, to `@ai:<agentId>`
+4. messages with a leading `[AI:<agentId>]` prefix are ignored to avoid self-loops across multiple MCP-side agents
+
+Return fields:
+
+- `found`
+- `commandId`
+- `createdAtUtc`
+- `agentId`
+- `includeGenericMentions`
+- `source`
+- `selectedChannelId`
+- `selectedChannelName`
+- `count`
+- `messages`
+- `snapshotJson`
+- `parseError`
+
+Chat message note:
+
+- returned messages keep the same `date` semantics as `du_chat_snapshot`
+- if present, `date` is an in-game UTC timestamp
+- recommended multi-agent contract: outgoing AI replies should be prefixed as `[AI:<agentId>]` and incoming targeted requests use `@ai:<agentId>`
+
+### `du_chat_send_message`
+
+Purpose:
+
+- send one chat message through the real HUD chat path
+- use the currently selected channel by default
+- optionally override the channel via explicit `channelId`
+
+Inputs:
+
+- `playerId`
+- `message`
+- `channelId` (optional)
+- `timeoutMs`
+
+Behavior:
+
+1. `DuMcpBridge` queues `action = probe_call` with `probeMethod = chat_send`
+2. the probe resolves the active channel (or uses the explicit `channelId`)
+3. the probe calls `chatManager.sendMessageToCPP(channelId, message)`
+4. the probe emits `chat_send_result`
+5. `DuMcpBridge` waits for that event and returns the structured result
+
+Current runtime detail:
+
+- the probe now prefers the visible HUD input path when available: fill `.input_message`, dispatch `input`/`change`, and click `.buttons_chat_send_message`
+- `chatManager.sendMessageToCPP(channelId, message)` remains the fallback only when that HUD input path is not available
+- live `/help` verification in chat currently lists: `/join channel_name`, `/leave`, `/w player_name`, `/ignore player_name`, `/unignore player_name`, `/emote_name`, `/fav emote_name`, `/unstuck`
+- with probe build `0866edce`, `"/join AI_HLP2"` was re-verified live from `Aphelia` and now activates the existing private channel `room_ai_hlp2` directly
+- current channel switching strategy is now DOM-first: prefer activating the visible chat tab in the HUD, retry that once, and only then fall back to `currentView.selectChannel(...)`
+- live note: emote slash commands such as `/wave` and `/bow` still worked when the chat snapshot reported the chat UI as not visible, so the HUD input/send path can remain usable even without a visibly open chat window
+
+Sender identity note:
+
+- this send path is the real HUD/player chat path
+- messages sent with `du_chat_send_message` therefore appear in-game under the current player identity, not as a synthetic system sender
+- a sender name such as `Aphelia` would require a different non-HUD/system-side path; that is not what this MCP tool uses
+
+Future architecture sketch:
+
+- the current MCP chat tools intentionally stay on the HUD path because they can reuse the live client session, selected channel, and visible chat state
+- if a later requirement is "system sender" behavior similar to `ModUiExtractor.Notify(...)`, that should be a separate send path, not a hidden variation of `du_chat_send_message`
+- the existing `ModUiExtractor` pattern for that is server-side chat delivery via `orleans.GetChatGrain(...).SendMessage(...)`, which targets chat without going through the HUD DOM or the player-controlled client UI
+- that second path would likely trade away HUD-bound affordances such as "send into whatever channel is currently selected in the client" in exchange for a different visible sender identity
+- for agent design this suggests three clearly separated modes:
+  - HUD/player mode: current MCP behavior, same sender as the logged-in player
+  - system mode: later optional server-side sender path, conceptually closer to the existing inject confirmation chat
+  - dedicated AI account mode: later optional real player account per AI, if an AI should have its own persistent in-world identity while still using normal chat/game mechanics
+
+Return fields:
+
+- `found`
+- `commandId`
+- `createdAtUtc`
+- `success`
+- `channelId`
+- `channelName`
+- `message`
+- `usedExplicitChannel`
+- `resultJson`
+- `error`
+- `parseError`
+
+### `du_chat_create_channel`
+
+Purpose:
+
+- create or join a custom chat channel through the same HUD path as the `+` dialog
+- validate the requested channel name on the MCP side before the bridge call
+
+Inputs:
+
+- `playerId`
+- `channelName` (`^[A-Za-z0-9+_-]{3,10}$`)
+- `timeoutMs`
+
+Behavior:
+
+1. `DuMcpBridge` queues `action = probe_call` with `probeMethod = chat_join_channel`
+2. the probe validates the custom name again in the HUD context
+3. if the channel already exists, the probe selects it
+4. otherwise the probe sends `/join <name>` through the active chat channel
+5. the probe waits for `room_<lowercase>` to appear, selects it, and emits `chat_channel_result`
+6. `DuMcpBridge` waits for that event and returns the structured result
+
+Sender identity note:
+
+- channel creation/join also stays on the HUD/player path
+- the `/join <name>` message flow therefore runs as the current player session, not as `Aphelia`
+
+Return fields:
+
+- `found`
+- `commandId`
+- `createdAtUtc`
+- `success`
+- `requestedChannelName`
+- `expectedChannelId`
+- `existed`
+- `selected`
+- `channelId`
+- `channelName`
+- `resultJson`
+- `error`
+- `parseError`
+
+### `du_chat_select_channel`
+
+Purpose:
+
+- select an existing HUD chat channel by channel ID
+- never create or join a channel implicitly
+
+Inputs:
+
+- `playerId`
+- `channelId`
+- `timeoutMs`
+
+Behavior:
+
+1. `DuMcpBridge` queues `action = probe_call` with `probeMethod = chat_select_channel`
+2. the probe checks whether that channel already exists in the active HUD chat state
+3. if present, the probe selects it and emits `chat_channel_result`
+4. if absent, the probe fails instead of sending `/join`
+
+Why this exists:
+
+- responder logic must not use `du_chat_create_channel` for ordinary channel switching
+- otherwise an old or already-left custom channel can be re-joined implicitly
+- `du_chat_select_channel` is the safe path for "switch there and answer"
 
 ### Verified probe results (live session example)
 
@@ -497,6 +790,13 @@ These tools enqueue the same `probe_call` commands as `du_lua_probe_call`. They 
 | `du_lua_apply` | `apply` |
 | `du_lua_get_selection` | one `describe`, structured output: `selectedSlot`, `selectedFilter`, `title`, `canApply`, `visible`, `wrapLines`, `codeLength` |
 | `du_lua_wait_for_editor` | polls `describe` until a readiness heuristic succeeds or `maxWaitMs` is reached; each attempt’s wait is capped so the loop respects the total budget; separate from `du_editor_push_code` retries |
+| `du_chat_snapshot` | queues `chat_snapshot` and returns the selected channel plus recent read-only chat messages |
+| `du_chat_ai_mentions` | same snapshot path, but returns only foreign messages that contain `@ai` |
+| `du_chat_server_snapshot` | opt-in server-side snapshot across player-relevant chat channels; independent of the visible HUD tab |
+| `du_chat_server_mentions` | same server-side path, but returns only `@ai` mentions across player-relevant channels |
+| `du_chat_send_message` | sends one message into the selected or explicitly targeted chat channel |
+| `du_chat_create_channel` | creates or joins a custom channel via `/join <name>` and selects `room_<lowercase>` |
+| `du_chat_select_channel` | selects an already existing HUD channel by `channelId` and never joins/creates |
 
 | `du_ui_describe` | `uiKind` + same as `du_lua_describe_editor` (only `lua_editor` today) |
 | `du_ui_invoke` | `uiKind` + full `du_lua_probe_call`-style `method` and optional args |
@@ -645,7 +945,9 @@ Verified locally:
 
 - `npm run build` in `DuMcpBridge`
 - `dotnet build -c Release -nologo -v:minimal` in `ModUiExtractor`
+- for the optional server-side chat read path: `dotnet build -c Release -nologo -v:minimal -p:EnableDuChatServerRead=true` in `ModUiExtractor`
 - `pwsh -ExecutionPolicy Bypass -File tools/build-lua-probe.ps1`
+- for live probe reinjects after JS/module edits: `pwsh -ExecutionPolicy Bypass -File tools/publish-lua-probe.ps1` because `build-lua-probe.ps1` alone does not update `D:\MyDUserver\tmp\ui-dumps\payload-overrides`
 
 Verified live:
 
@@ -658,6 +960,24 @@ Verified live:
   - `selectedFilter = onStart`
   - the visible slot list
   - the visible filter list
+- `du_chat_snapshot` returning selected channel metadata plus recent chat lines
+- `du_chat_send_message` sending `mcp send verify 2026-03-20 03:26` into `Aphelia` (`channelId = 2`)
+- `du_chat_create_channel("AI_0328")` returning success with `channelId = room_ai_0328`
+- a follow-up `du_chat_snapshot` confirming the selected channel changed to `Ai_0328`
+- `du_chat_server_snapshot` returning `source = server_chat_optin` plus recent messages from `room_ai_hlp2` without depending on the visible HUD tab
+- `du_chat_server_mentions` returning the live `@ai ja, angekommen :)` trigger from `ai_hlp2`
+- `du_chat_server_mentions` with `agentId = helper` ignoring the `[AI:helper] ...` reply and keeping only the real mention
+- responder follow-up fix implemented in code: channel switching is now separated into `du_chat_select_channel` so the responder path does not implicitly re-join deleted custom channels
+- current follow-up verification after a later bridge/server restart still showed `du_chat_server_mentions` live, but the HUD snapshot was back on `construct_1001502` / `HC_TestCore_L` with `open = false`
+- from that HUD state, `du_chat_select_channel("room_ai_hlp2")` and `du_chat_create_channel("AI_HLP2")` both returned `chat_select_timeout:room_ai_hlp2`
+- a direct HUD send of `"/join AI_HLP2"` reported success in `HC_TestCore_L`, but the follow-up HUD snapshot stayed on `HC_TestCore_L`
+- after a later reinject (`[probe 20260320-055146 273be72c]`), the HUD snapshot was cleanly on `Aphelia`; `du_chat_ai_mentions` detected `Hallo @ai in Aphelia` there and `du_chat_send_message` replied in the same visible channel without an explicit `channelId`
+- the HUD channel-switch problem still reproduced from `Aphelia`: `du_chat_select_channel("room_ai_hlp2")`, `du_chat_create_channel("AI_HLP2")`, and direct `"/join AI_HLP2"` all left the follow-up HUD snapshot on `Aphelia`
+- a later direct MCP read verification showed the expected split again: `du_chat_snapshot` / `du_chat_ai_mentions` only saw the currently selected HUD tab `POIN` (`channelId = orga_1`) and therefore returned no `@ai` mention there
+- in the same live state, `du_chat_server_snapshot` / `du_chat_server_mentions` still returned the cross-channel `room_ai_hlp2` history and the `@ai ja, angekommen :)` trigger through `source = server_chat_optin`
+- after extending the server-side SQL to include both subscribed channels and channels the same player has written to, a live retest with `limit = 500` returned `messageCount = 349`
+- that same retest made `du_chat_server_mentions` return 21 `@ai` messages across multiple channel types including `Construct`, `Local`, `Org`, `Private`, and `room_ai_hlp2`
+- an immediate HUD comparison still showed the intended split: `du_chat_snapshot` was on `Aphelia` (`channelId = 2`) and `du_chat_ai_mentions` there returned `count = 0`, while the server-side path kept the broader cross-channel inbox
 
 ## Current Limitations
 
@@ -667,16 +987,17 @@ Verified live:
 - `du_editor_pull_code` returns the last known snapshot, not necessarily the exact live editor state
 - newly added MCP tools require an MCP host reload after rebuild
 - newly added probe modules require the override folder to contain the updated module set
+- HUD channel switching is still state-dependent; in one live session with `open = false` and a selected construct channel (`HC_TestCore_L`), select/join to `room_ai_hlp2` timed out even though `server_chat` could still read that room
+- normal HUD mention reads are intentionally limited to the currently selected client tab; if the visible tab is `POIN` or another unrelated channel, `du_chat_ai_mentions` can correctly return zero while `du_chat_server_mentions` still sees relevant server-side traffic such as `room_ai_hlp2`
 
 ## Recommended Next Steps
 
 The next practical validation steps are:
 
-1. test `select_slot`
-2. test `set_code`
-3. test `apply`
-4. expose the new runtime-probe path through the active MCP host tool inventory
-5. add more runtime-probe methods only after the current contract is stable
+1. wire an actual responder loop on top of `du_chat_ai_mentions` so only `@ai` messages trigger answers
+2. if needed, evolve snapshots into delta polling or push-style chat events
+3. keep new runtime behavior in the probe, not in the TypeScript transport
+4. add more runtime-probe methods only after the current contract is stable
 
 The guiding principle should stay the same:
 

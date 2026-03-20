@@ -30,6 +30,14 @@ export interface ProbeResultSnapshot {
   error: string | null;
 }
 
+export interface CommandEventSnapshot {
+  found: boolean;
+  commandId: string;
+  eventType: string;
+  createdAtUtc: string | null;
+  payloadJson: string | null;
+}
+
 export class BridgeEventStore {
   public constructor(private readonly config: BridgeConfig) {}
 
@@ -80,7 +88,15 @@ export class BridgeEventStore {
       if (typeof playerId === "number" && event.playerId !== playerId) {
         continue;
       }
-      if (event.type !== "runtime_log" && event.type !== "command_result" && event.type !== "bridge_status") {
+      if (
+        event.type !== "runtime_log" &&
+        event.type !== "command_result" &&
+        event.type !== "bridge_status" &&
+        event.type !== "chat_snapshot" &&
+        event.type !== "chat_send_result" &&
+        event.type !== "chat_channel_result" &&
+        event.type !== "server_chat_snapshot"
+      ) {
         continue;
       }
 
@@ -235,12 +251,57 @@ export class BridgeEventStore {
     };
   }
 
+  public async waitForCommandEvent(commandId: string, eventType: string, timeoutMs: number): Promise<CommandEventSnapshot> {
+    const deadline = Date.now() + Math.max(timeoutMs, 250);
+
+    while (Date.now() <= deadline) {
+      const event = await this.findCommandEvent(commandId, eventType);
+      if (event) {
+        return {
+          found: true,
+          commandId,
+          eventType,
+          createdAtUtc: event.createdAtUtc,
+          payloadJson: JSON.stringify(event.payload ?? {}, null, 2)
+        };
+      }
+
+      await delay(250);
+    }
+
+    return {
+      found: false,
+      commandId,
+      eventType,
+      createdAtUtc: null,
+      payloadJson: null
+    };
+  }
+
   private async findProbeResult(commandId: string): Promise<ParsedBridgeEvent | null> {
     const events = await this.listRecentEvents(this.config.maxEventsReturned);
 
     for (let index = events.length - 1; index >= 0; index -= 1) {
       const event = events[index];
       if (event.type !== "probe_result") {
+        continue;
+      }
+
+      const payload = event.payload ?? {};
+      if (payload.commandId === commandId) {
+        return event;
+      }
+    }
+
+    return null;
+  }
+
+  private async findCommandEvent(commandId: string, eventType: string): Promise<ParsedBridgeEvent | null> {
+    const events = await this.listRecentEvents(this.config.maxEventsReturned);
+
+    for (let index = events.length - 1; index >= 0; index -= 1) {
+      const event = events[index];
+      if (event.type !== eventType) {
         continue;
       }
 
