@@ -1,0 +1,11 @@
+{
+  "name": "rs_tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 screenLayoutEditor.test.mjs"
+  },
+  "dependencies": {
+    "wasmoon": "^1.16.0"
+  }
+}

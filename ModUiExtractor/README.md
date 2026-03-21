@@ -235,6 +235,7 @@ Probe override resolution order on each inject:
 - **APPLY / CANCEL** use theme-specific gradients and 3D shadows (`btnApply*`, `btnCancel*` tokens per preset) so they stay distinct from vanilla DU chrome while matching the active theme.
 - The visible `screen_editor` now reuses the same theme token set and theme dots, so both editor UIs stay visually aligned without moving any UI logic into the MCP server.
 - The `screen_editor` content header panel (`sub_title`, wrap/font controls, mode switch block) is now themed as well, so the whole top control area matches the active probe theme instead of keeping the vanilla DU look.
+- The visible `screen_editor` now also gets its own `IDE Sync` button in the top control row; it uses the same chunked packet family as the Lua editor, but exports with `targetKind = screen_editor`.
 
 After each edit:
 
@@ -372,9 +373,10 @@ The successful combination is:
 5. per-snippet memory key restore (`snippet:<len>:<hash>`) plus context fallback,
 6. bounded wait windows to prevent lockups.
 
-## IDE 2-Way Sync (Lua Probe)
+## IDE 2-Way Sync (Lua + Screen Editor)
 
 The Lua probe supports exporting the current script to a local file, automatically opening it in your IDE (e.g. Cursor), and syncing changes back into the game in real-time.
+This now works for both `lua_editor` and `screen_editor`.
 
 1. Inject the Lua probe in-game.
 2. Run the sync script in PowerShell:
@@ -383,18 +385,33 @@ The Lua probe supports exporting the current script to a local file, automatical
    .\tools\sync-ide.ps1 -DumpDir "D:\MyDUserver\tmp\ui-dumps" -IdePath "cursor"
    ```
 
-3. In the game's Lua editor, click the `IDE Sync` button in the top header.
-4. The script will be chunked, written to the server's dump directory, reassembled into `tmp\ui-dumps\ide-workspace\player-<playerId>\lua_editor\snippet.lua`, and opened in your IDE.
-5. Edit `snippet.lua` in your IDE and save.
-6. The sync script watches for file changes and writes them to a player-scoped semaphore file (`ide_import.player-<playerId>.lua_editor.json`).
+3. In the game's open editor, click the `IDE Sync` button in the header.
+4. The script will be chunked, written to the server's dump directory, reassembled into the matching player-scoped workspace file, and opened in your IDE:
+
+   - `tmp\ui-dumps\ide-workspace\player-<playerId>\lua_editor\snippet.lua`
+   - `tmp\ui-dumps\ide-workspace\player-<playerId>\screen_editor\snippet.txt`
+
+5. Edit the exported workspace file in your IDE and save.
+6. The sync script watches for file changes and writes them to the matching player-scoped semaphore file:
+
+   - `ide_import.player-<playerId>.lua_editor.json`
+   - `ide_import.player-<playerId>.screen_editor.json`
+
 7. The C# mod detects the semaphore, injects an IDE import request into the probe, and only treats that request as done after an explicit `ide_import_result` ack from the live editor.
+
+Lua-editor safety note:
+
+- If no Lua filter is actively selected, the Lua-side file transfer path is now blocked intentionally.
+- In that state the `IDE Sync` button refuses export, and IDE-import apply also refuses to write.
+- The intended sequence is: verify current slot + active filter first, then transfer code.
 
 Atomicity / target-isolation notes:
 
-- Export now writes a sidecar file `tmp\ui-dumps\ide-workspace\player-<playerId>\lua_editor\snippet.sync.json` with `targetKind`, `contextKey`, editor reference, and export hashes alongside `snippet.lua`.
+- Export now writes a sidecar file `tmp\ui-dumps\ide-workspace\player-<playerId>\<targetKind>\snippet.sync.json` with `targetKind`, `contextKey`, editor reference, and export hashes alongside the workspace code file.
 - Reassembly writes both the workspace code file and the sidecar atomically through temp-file swap, so external editors do not see partial chunk states.
 - IDE imports now carry `requestId`, `targetKind`, `contextKey`, `reference`, `baseCodeHash32`, and `baseCodeSha256`.
 - The live probe matches imports against the currently open editor before applying. For the Lua editor the current practical anchor is `constructId + slotElementName`, with `editorTitle` as an additional guard.
+- For `screen_editor`, the practical anchor is currently `title + subTitle + mode`; the bridge-side fallback reader now also reads the same player-scoped workspace/import files instead of depending only on `screen_state`.
 - If the player switched to the wrong board or wrong filter, the probe returns a retryable `ide_import_result` and the mod keeps retrying the same request until the correct target is live again.
 - Base hash/version mismatch is no longer blind, but also not a hard stop: the probe reports `applied_stale_base` when it had to write over a changed live base on the same target.
 

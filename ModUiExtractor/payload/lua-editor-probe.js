@@ -265,8 +265,16 @@
     }
   }
 
-  function flashIdeSyncButton(message, background, color, durationMs) {
-    var button = document.getElementById("ModUiExtractor-lua-ide-sync");
+  function getIdeSyncButtonForTarget(targetKind) {
+    var normalizedTargetKind = normalizeIdeImportTargetKind(targetKind);
+    var buttonId = normalizedTargetKind === "screen_editor"
+      ? "ModUiExtractor-screen-ide-sync"
+      : "ModUiExtractor-lua-ide-sync";
+    return document.getElementById(buttonId);
+  }
+
+  function flashIdeSyncButtonForTarget(targetKind, message, background, color, durationMs) {
+    var button = getIdeSyncButtonForTarget(targetKind);
     if (!button) {
       return;
     }
@@ -281,6 +289,10 @@
       button.style.color = oldColor;
       button.textContent = oldText;
     }, durationMs);
+  }
+
+  function flashIdeSyncButton(message, background, color, durationMs) {
+    flashIdeSyncButtonForTarget("lua_editor", message, background, color, durationMs);
   }
 
   function normalizeIdeImportTargetKind(targetKind) {
@@ -406,6 +418,25 @@
       };
     }
 
+    var luaReference = getLuaIdeSyncReference();
+    var hasActiveFilter = !!(
+      luaReference &&
+      (
+        normalizeIdeSyncValue(luaReference.currentFilterKey) ||
+        normalizeIdeSyncValue(luaReference.currentFilterSignature)
+      )
+    );
+    if (!hasActiveFilter) {
+      return {
+        ready: false,
+        targetKind: "lua_editor",
+        status: "lua_editor_no_active_filter",
+        reference: luaReference,
+        contextKey: "",
+        codeHash32: null
+      };
+    }
+
     var luaText = "";
     try {
       luaText = String(codeMirror.getValue() || "");
@@ -419,7 +450,7 @@
       code: luaText,
       codeHash32: hashStringFNV1a(luaText),
       contextKey: getEditorContextKey(codeMirror),
-      reference: getLuaIdeSyncReference()
+      reference: luaReference
     };
   }
 
@@ -483,9 +514,7 @@
   }
 
   function flashIdeImportStatus(targetKind, message, background, color, durationMs) {
-    if (normalizeIdeImportTargetKind(targetKind) === "lua_editor") {
-      flashIdeSyncButton(message, background, color, durationMs);
-    }
+    flashIdeSyncButtonForTarget(targetKind, message, background, color, durationMs);
   }
 
   function emitIdeImportResult(payload) {
@@ -1317,6 +1346,23 @@
       + "padding:0;cursor:pointer;opacity:0.88;}"
       + ".screen_content_editor_panel #ModUiExtractor-screen-theme-dots .lua-theme-dot[data-active=\"1\"]{"
       + "transform:scale(1.1);opacity:1;box-shadow:0 0 0 1px rgba(0,0,0,0.55),0 0 8px rgba(255,255,255,0.35);}"
+      + ".screen_content_editor_panel #ModUiExtractor-screen-ide-sync{"
+      + "font-family:Play,sans-serif;font-size:1.11111111vh;font-weight:900;text-transform:uppercase;"
+      + "display:flex;justify-content:center;align-items:center;text-align:center;overflow:hidden;"
+      + "height:2.31481481vh;min-height:2.31481481vh;max-height:2.31481481vh;padding:0 1.11111111vh;"
+      + "margin-left:0.37037037vh;cursor:pointer;line-height:2.12962963vh;border-radius:0.55555556vh;"
+      + "border:1px solid rgba(250,212,122,0.58);background:linear-gradient(180deg,rgba(64,67,58,0.96) 0%,rgba(37,43,34,0.96) 100%);"
+      + "color:rgb(250,222,145);text-shadow:rgba(20,40,52,0.9) 0px 1px 0px;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.08),inset 0 -1px 0 rgba(0,0,0,0.58),0 0 0 1px rgba(0,0,0,0.28);"
+      + "transition:background-color 0.14s ease,border-color 0.14s ease,color 0.14s ease,box-shadow 0.14s ease,transform 0.05s ease;"
+      + "min-width:8.7962963vh;}"
+      + ".screen_content_editor_panel #ModUiExtractor-screen-ide-sync:hover{"
+      + "border-color:rgba(228,244,252,0.85);color:rgb(245,252,255);"
+      + "background:linear-gradient(180deg,rgba(56,82,99,0.98) 0%,rgba(26,48,61,0.98) 100%);}"
+      + ".screen_content_editor_panel #ModUiExtractor-screen-ide-sync:active{"
+      + "transform:translateY(1px);background:linear-gradient(180deg,rgba(30,48,60,0.98) 0%,rgba(18,32,41,0.98) 100%);}"
+      + ".screen_content_editor_panel #ModUiExtractor-screen-ide-sync:focus{"
+      + "outline:none;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror{"
       + "background-color:var(--lua-probe-surface-deep) !important;color:#f8f8f2 !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror .CodeMirror-gutters{"
@@ -2974,19 +3020,34 @@
     updateCaretLineHighlight();
   }
 
-  function sendIdeSyncPacket() {
-    var codeMirror = getLuaCodeMirror();
-    if (!codeMirror) {
-      return;
+  function sendIdeSyncPacket(targetKind) {
+    var normalizedTargetKind = normalizeIdeImportTargetKind(targetKind);
+    var snapshot = typeof getCurrentIdeImportSnapshot === "function"
+      ? getCurrentIdeImportSnapshot(normalizedTargetKind)
+      : null;
+    if (!snapshot || !snapshot.ready) {
+      var blockedMessage = "Open Editor";
+      if (snapshot && snapshot.status === "lua_editor_no_active_filter") {
+        blockedMessage = "Select Filter";
+      }
+      flashIdeSyncButtonForTarget(
+        normalizedTargetKind,
+        blockedMessage,
+        "#8a2424",
+        "#ffffff",
+        1400);
+      return false;
     }
-    state.lastIdeSyncContextKey = getEditorContextKey(codeMirror);
-    state.lastIdeSyncReference = cloneIdeSyncObject(getLuaIdeSyncReference());
-    var code = typeof codeMirror.getValue === "function" ? String(codeMirror.getValue() || "") : "";
+    if (normalizedTargetKind === "lua_editor") {
+      state.lastIdeSyncContextKey = snapshot.contextKey || "";
+      state.lastIdeSyncReference = cloneIdeSyncObject(snapshot.reference);
+    }
+    var code = typeof snapshot.code === "string" ? snapshot.code : "";
     var chunkSize = 8000;
     var total = Math.ceil(code.length / chunkSize) || 1;
     var syncId = "sync-" + Date.now();
     var codeHash32 = hashStringFNV1a(code);
-    var reference = cloneIdeSyncObject(state.lastIdeSyncReference);
+    var reference = cloneIdeSyncObject(snapshot.reference);
     var exportedAtUtc = null;
     try {
       exportedAtUtc = new Date().toISOString();
@@ -2998,13 +3059,14 @@
         part: i + 1,
         total: total,
         codeChunk: chunk,
-        targetKind: "lua_editor",
-        contextKey: state.lastIdeSyncContextKey || "",
+        targetKind: normalizedTargetKind,
+        contextKey: snapshot.contextKey || "",
         reference: reference,
         codeHash32: codeHash32,
         exportedAtUtc: exportedAtUtc
       });
     }
+    return true;
   }
 
   function ensureIdeSyncButton() {
@@ -3027,7 +3089,34 @@
       syncBtn.textContent = "IDE Sync";
 
       syncBtn.addEventListener("click", function () {
-        sendIdeSyncPacket();
+        sendIdeSyncPacket("lua_editor");
+      }, true);
+    }
+
+    if (syncBtn.parentNode !== wrapper) {
+      wrapper.appendChild(syncBtn);
+    }
+  }
+
+  function ensureScreenIdeSyncButton(root) {
+    if (!root || !root.querySelector) {
+      return;
+    }
+
+    var wrapper = root.querySelector(".content .top_line .font_size_wrapper");
+    if (!wrapper) {
+      return;
+    }
+
+    var syncBtn = document.getElementById("ModUiExtractor-screen-ide-sync");
+    if (!syncBtn) {
+      syncBtn = document.createElement("button");
+      syncBtn.type = "button";
+      syncBtn.id = "ModUiExtractor-screen-ide-sync";
+      syncBtn.textContent = "IDE Sync";
+
+      syncBtn.addEventListener("click", function () {
+        sendIdeSyncPacket("screen_editor");
       }, true);
     }
 
@@ -3192,6 +3281,7 @@
 
     root.setAttribute("data-lua-probe-active", "1");
     ensureScreenThemeSwitcher(root);
+    ensureScreenIdeSyncButton(root);
     applyTheme(state.activeTheme || getDefaultThemeName(), false);
   }
 

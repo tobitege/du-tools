@@ -242,19 +242,34 @@
     updateCaretLineHighlight();
   }
 
-  function sendIdeSyncPacket() {
-    var codeMirror = getLuaCodeMirror();
-    if (!codeMirror) {
-      return;
+  function sendIdeSyncPacket(targetKind) {
+    var normalizedTargetKind = normalizeIdeImportTargetKind(targetKind);
+    var snapshot = typeof getCurrentIdeImportSnapshot === "function"
+      ? getCurrentIdeImportSnapshot(normalizedTargetKind)
+      : null;
+    if (!snapshot || !snapshot.ready) {
+      var blockedMessage = "Open Editor";
+      if (snapshot && snapshot.status === "lua_editor_no_active_filter") {
+        blockedMessage = "Select Filter";
+      }
+      flashIdeSyncButtonForTarget(
+        normalizedTargetKind,
+        blockedMessage,
+        "#8a2424",
+        "#ffffff",
+        1400);
+      return false;
     }
-    state.lastIdeSyncContextKey = getEditorContextKey(codeMirror);
-    state.lastIdeSyncReference = cloneIdeSyncObject(getLuaIdeSyncReference());
-    var code = typeof codeMirror.getValue === "function" ? String(codeMirror.getValue() || "") : "";
+    if (normalizedTargetKind === "lua_editor") {
+      state.lastIdeSyncContextKey = snapshot.contextKey || "";
+      state.lastIdeSyncReference = cloneIdeSyncObject(snapshot.reference);
+    }
+    var code = typeof snapshot.code === "string" ? snapshot.code : "";
     var chunkSize = 8000;
     var total = Math.ceil(code.length / chunkSize) || 1;
     var syncId = "sync-" + Date.now();
     var codeHash32 = hashStringFNV1a(code);
-    var reference = cloneIdeSyncObject(state.lastIdeSyncReference);
+    var reference = cloneIdeSyncObject(snapshot.reference);
     var exportedAtUtc = null;
     try {
       exportedAtUtc = new Date().toISOString();
@@ -266,13 +281,14 @@
         part: i + 1,
         total: total,
         codeChunk: chunk,
-        targetKind: "lua_editor",
-        contextKey: state.lastIdeSyncContextKey || "",
+        targetKind: normalizedTargetKind,
+        contextKey: snapshot.contextKey || "",
         reference: reference,
         codeHash32: codeHash32,
         exportedAtUtc: exportedAtUtc
       });
     }
+    return true;
   }
 
   function ensureIdeSyncButton() {
@@ -295,7 +311,34 @@
       syncBtn.textContent = "IDE Sync";
 
       syncBtn.addEventListener("click", function () {
-        sendIdeSyncPacket();
+        sendIdeSyncPacket("lua_editor");
+      }, true);
+    }
+
+    if (syncBtn.parentNode !== wrapper) {
+      wrapper.appendChild(syncBtn);
+    }
+  }
+
+  function ensureScreenIdeSyncButton(root) {
+    if (!root || !root.querySelector) {
+      return;
+    }
+
+    var wrapper = root.querySelector(".content .top_line .font_size_wrapper");
+    if (!wrapper) {
+      return;
+    }
+
+    var syncBtn = document.getElementById("ModUiExtractor-screen-ide-sync");
+    if (!syncBtn) {
+      syncBtn = document.createElement("button");
+      syncBtn.type = "button";
+      syncBtn.id = "ModUiExtractor-screen-ide-sync";
+      syncBtn.textContent = "IDE Sync";
+
+      syncBtn.addEventListener("click", function () {
+        sendIdeSyncPacket("screen_editor");
       }, true);
     }
 
@@ -460,6 +503,7 @@
 
     root.setAttribute("data-lua-probe-active", "1");
     ensureScreenThemeSwitcher(root);
+    ensureScreenIdeSyncButton(root);
     applyTheme(state.activeTheme || getDefaultThemeName(), false);
   }
 

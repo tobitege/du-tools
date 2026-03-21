@@ -262,8 +262,16 @@
     }
   }
 
-  function flashIdeSyncButton(message, background, color, durationMs) {
-    var button = document.getElementById("ModUiExtractor-lua-ide-sync");
+  function getIdeSyncButtonForTarget(targetKind) {
+    var normalizedTargetKind = normalizeIdeImportTargetKind(targetKind);
+    var buttonId = normalizedTargetKind === "screen_editor"
+      ? "ModUiExtractor-screen-ide-sync"
+      : "ModUiExtractor-lua-ide-sync";
+    return document.getElementById(buttonId);
+  }
+
+  function flashIdeSyncButtonForTarget(targetKind, message, background, color, durationMs) {
+    var button = getIdeSyncButtonForTarget(targetKind);
     if (!button) {
       return;
     }
@@ -278,6 +286,10 @@
       button.style.color = oldColor;
       button.textContent = oldText;
     }, durationMs);
+  }
+
+  function flashIdeSyncButton(message, background, color, durationMs) {
+    flashIdeSyncButtonForTarget("lua_editor", message, background, color, durationMs);
   }
 
   function normalizeIdeImportTargetKind(targetKind) {
@@ -403,6 +415,25 @@
       };
     }
 
+    var luaReference = getLuaIdeSyncReference();
+    var hasActiveFilter = !!(
+      luaReference &&
+      (
+        normalizeIdeSyncValue(luaReference.currentFilterKey) ||
+        normalizeIdeSyncValue(luaReference.currentFilterSignature)
+      )
+    );
+    if (!hasActiveFilter) {
+      return {
+        ready: false,
+        targetKind: "lua_editor",
+        status: "lua_editor_no_active_filter",
+        reference: luaReference,
+        contextKey: "",
+        codeHash32: null
+      };
+    }
+
     var luaText = "";
     try {
       luaText = String(codeMirror.getValue() || "");
@@ -416,7 +447,7 @@
       code: luaText,
       codeHash32: hashStringFNV1a(luaText),
       contextKey: getEditorContextKey(codeMirror),
-      reference: getLuaIdeSyncReference()
+      reference: luaReference
     };
   }
 
@@ -480,9 +511,7 @@
   }
 
   function flashIdeImportStatus(targetKind, message, background, color, durationMs) {
-    if (normalizeIdeImportTargetKind(targetKind) === "lua_editor") {
-      flashIdeSyncButton(message, background, color, durationMs);
-    }
+    flashIdeSyncButtonForTarget(targetKind, message, background, color, durationMs);
   }
 
   function emitIdeImportResult(payload) {

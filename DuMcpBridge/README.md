@@ -227,6 +227,7 @@ When a command targets `screen_editor`, `ModUiExtractor` works against:
 - the optional HTML/Lua mode switch
 - `CPPScreenContentEditor.save(...)` when save is requested
 - the same injected probe surface for `describe`, `set_code`, `apply`, `outer_html`, `raw_eval`
+- the same IDE-sync packet path as the Lua editor, now with `targetKind = screen_editor`
 
 If `waitForEditor: true` is enabled, the mod retries until the editor UI appears or the retry budget is exhausted.
 
@@ -235,9 +236,17 @@ Important scope note:
 - this path assumes the screen editor is already opening or open in the client
 - when the editor is not visible, `describe` returns a safe empty snapshot and `set_code` / `apply` reject with `screen_editor_not_visible`
 - when visible, the injected probe now also gives `screen_editor` the same theme-switcher treatment as the Lua editor and themes the content header panel as well; this remains probe-side UI logic, not MCP-side state
+- when visible, the probe also adds its own `IDE Sync` button to the top control row; export goes to `ide-workspace/player-<playerId>/screen_editor/snippet.txt`, and file edits flow back through `payload-overrides/ide_import.player-<playerId>.screen_editor.json`
 - opening or toggling a screen through gameplay hotkeys such as `Ctrl+L` or `F` is not currently exposed through MCP
 - the generic `du_ui_*` probe envelope now supports `screen_editor` for `describe`, `set_code`, `apply`, `outer_html`, `raw_eval`
 - slot/filter/chat methods remain `lua_editor`-only
+
+For the Lua editor IDE-sync path, the runtime probe now blocks file transfer when no filter is actively selected.
+That means:
+
+- no `IDE Sync` export from the Lua editor when `selectedFilter = null`
+- no IDE import apply into the Lua editor when no filter is active
+- the intended workflow is: first confirm slot + filter, then transfer code
 
 ### Lua runtime probe
 
@@ -925,9 +934,9 @@ Purpose:
 Lookup order:
 
 1. `state/{targetKind}-{playerId}.json`
-2. for `lua_editor`, also `ide-workspace/player-<playerId>/lua_editor/snippet.lua`
-3. for `lua_editor`, also `payload-overrides/ide_import.player-<playerId>.lua_editor.json`
-4. older single-player fallback paths are still read for compatibility
+2. `ide-workspace/player-<playerId>/<targetKind>/snippet.lua|snippet.txt`
+3. `payload-overrides/ide_import.player-<playerId>.<targetKind>.json`
+4. for `lua_editor`, older single-player fallback paths are still read for compatibility
 5. for `screen_editor`, the bridge can also fall back to the persisted screen state snapshot if no queued state exists
 
 Return fields:
