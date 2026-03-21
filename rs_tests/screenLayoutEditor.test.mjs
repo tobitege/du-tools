@@ -255,6 +255,34 @@ test("builds a single-key persistence record and restores it", async () => {
       error("record hash must match serialized document")
     end
 
+    local persistedEnvelope, envelopeError = editor.readPersistedEnvelope(recordDefault.text, 1920, 1080)
+    if not persistedEnvelope then
+      error(envelopeError or "failed to read persisted envelope")
+    end
+    if persistedEnvelope.revision ~= 3 then
+      error("expected persisted envelope revision 3")
+    end
+    if persistedEnvelope.hash ~= recordDefault.hash then
+      error("persisted envelope hash mismatch")
+    end
+    if persistedEnvelope.serializedDocument ~= recordDefault.serializedDocument then
+      error("persisted envelope serialized document mismatch")
+    end
+    if persistedEnvelope.text ~= recordDefault.text then
+      error("persisted envelope text should stay canonical")
+    end
+
+    local recordFromOutput, recordFromOutputError = editor.buildPersistenceRecordFromOutput(recordDefault.text, nil, 1920, 1080)
+    if not recordFromOutput then
+      error(recordFromOutputError or "failed to rebuild persistence record from output")
+    end
+    if recordFromOutput.text ~= recordDefault.text then
+      error("rebuilt record text mismatch")
+    end
+    if recordFromOutput.hash ~= recordDefault.hash then
+      error("rebuilt record hash mismatch")
+    end
+
     local fitsTiny, recordTiny = editor.canPersistDocument(doc, 128)
     if fitsTiny or recordTiny.fits then
       error("expected tiny max screen limit to reject document")
@@ -329,6 +357,201 @@ test("tracks revision and dirty state without font cache in pure logic", async (
     end
     if envelope.revision ~= 1 then
       error("expected envelope revision 1")
+    end
+    return "ok"
+  `);
+  assert.equal(result, "ok");
+});
+
+test("caches font discovery, handles, and text bounds across renders", async () => {
+  const result = await runLua(`
+    local loadFontCalls = 0
+    local availableFontCountCalls = 0
+    local availableFontNameCalls = 0
+    local textBoundsCalls = 0
+    local outputCount = 0
+
+    function loadFont(name, size)
+      loadFontCalls = loadFontCalls + 1
+      if name == "Cacheable" then
+        return string.format("%s@%d", tostring(name), tonumber(size) or 0)
+      end
+      return nil
+    end
+
+    function getAvailableFontCount()
+      availableFontCountCalls = availableFontCountCalls + 1
+      return 1
+    end
+
+    function getAvailableFontName(index)
+      availableFontNameCalls = availableFontNameCalls + 1
+      if index == 0 then
+        return "Cacheable"
+      end
+      return nil
+    end
+
+    function getTextBounds(_font, text)
+      textBoundsCalls = textBoundsCalls + 1
+      return string.len(tostring(text or "")) * 8
+    end
+
+    function setNextFillColor(...) end
+    function setNextStrokeColor(...) end
+    function setNextStrokeWidth(...) end
+    function addBox(...) end
+    function addBoxRounded(...) end
+    function addText(...) end
+    function setBackgroundColor(...) end
+    function createLayer()
+      return 1
+    end
+    function getCursor()
+      return -1, -1
+    end
+    function getCursorPressed()
+      return false
+    end
+    function getCursorDown()
+      return false
+    end
+    function getCursorReleased()
+      return false
+    end
+    function getResolution()
+      return 1280, 840
+    end
+    function setOutput(_value)
+      outputCount = outputCount + 1
+    end
+    function requestAnimationFrame(...) end
+
+    SCREEN_LAYOUT_EDITOR_INITIAL_DOCUMENT = [[
+      {version=1,revision=0,elements={
+        {id="label",type="boxRounded",x=10,y=10,w=200,h=80,textLines={"Hello"},textSize=20,textAlign="center"}
+      }}
+    ]]
+    SCREEN_LAYOUT_EDITOR_STATE = nil
+    SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE = nil
+    SCREEN_LAYOUT_EDITOR_FONT_HANDLE_CACHE = nil
+    SCREEN_LAYOUT_EDITOR_AVAILABLE_FONT_NAMES = nil
+
+    local loader = assert(load(__MODULE_SOURCE, "@ScreenLayoutEditor.lua", "t", _ENV))
+    loader()
+    loader()
+
+    if loadFontCalls ~= 5 then
+      error("expected 5 loadFont calls across two renders, got " .. tostring(loadFontCalls))
+    end
+    if availableFontCountCalls ~= 1 then
+      error("expected available font count lookup once, got " .. tostring(availableFontCountCalls))
+    end
+    if availableFontNameCalls ~= 1 then
+      error("expected available font name lookup once, got " .. tostring(availableFontNameCalls))
+    end
+    if textBoundsCalls ~= 1 then
+      error("expected text bounds lookup once across two renders, got " .. tostring(textBoundsCalls))
+    end
+    if outputCount ~= 0 then
+      error("render without edits must not emit output envelope")
+    end
+    return "ok"
+  `);
+  assert.equal(result, "ok");
+});
+
+test("reloads a cached font handle when addText rejects it", async () => {
+  const result = await runLua(`
+    local loadFontCalls = 0
+    local getTextBoundsCalls = 0
+    local addTextCalls = 0
+    local outputCount = 0
+
+    function loadFont(name, size)
+      loadFontCalls = loadFontCalls + 1
+      if name == "Cacheable" then
+        return string.format("%s@%d#%d", tostring(name), tonumber(size) or 0, loadFontCalls)
+      end
+      return nil
+    end
+
+    function getAvailableFontCount()
+      return 1
+    end
+
+    function getAvailableFontName(index)
+      if index == 0 then
+        return "Cacheable"
+      end
+      return nil
+    end
+
+    function getTextBounds(_font, text)
+      getTextBoundsCalls = getTextBoundsCalls + 1
+      return string.len(tostring(text or "")) * 8
+    end
+
+    function setNextFillColor(...) end
+    function setNextStrokeColor(...) end
+    function setNextStrokeWidth(...) end
+    function addBox(...) end
+    function addBoxRounded(...) end
+    function addText(_layer, font, _text, _x, _y)
+      addTextCalls = addTextCalls + 1
+      if font == "Cacheable@20#5" then
+        error("stale handle")
+      end
+    end
+    function setBackgroundColor(...) end
+    function createLayer()
+      return 1
+    end
+    function getCursor()
+      return -1, -1
+    end
+    function getCursorPressed()
+      return false
+    end
+    function getCursorDown()
+      return false
+    end
+    function getCursorReleased()
+      return false
+    end
+    function getResolution()
+      return 1280, 840
+    end
+    function setOutput(_value)
+      outputCount = outputCount + 1
+    end
+    function requestAnimationFrame(...) end
+
+    SCREEN_LAYOUT_EDITOR_INITIAL_DOCUMENT = [[
+      {version=1,revision=0,elements={
+        {id="label",type="boxRounded",x=10,y=10,w=200,h=80,textLines={"Hello"},textSize=20,textAlign="center"}
+      }}
+    ]]
+    SCREEN_LAYOUT_EDITOR_STATE = nil
+    SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE = nil
+    SCREEN_LAYOUT_EDITOR_FONT_HANDLE_CACHE = nil
+    SCREEN_LAYOUT_EDITOR_AVAILABLE_FONT_NAMES = nil
+
+    local loader = assert(load(__MODULE_SOURCE, "@ScreenLayoutEditor.lua", "t", _ENV))
+    loader()
+    loader()
+
+    if loadFontCalls ~= 6 then
+      error("expected 6 loadFont calls with one retry, got " .. tostring(loadFontCalls))
+    end
+    if getTextBoundsCalls ~= 3 then
+      error("expected 3 text bounds lookups after retry rebuild, got " .. tostring(getTextBoundsCalls))
+    end
+    if addTextCalls ~= 7 then
+      error("expected 7 addText calls across retry + two renders, got " .. tostring(addTextCalls))
+    end
+    if outputCount ~= 0 then
+      error("render without edits must not emit output envelope")
     end
     return "ok"
   `);

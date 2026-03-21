@@ -131,7 +131,7 @@ Important note:
 ### Remaining font tasks
 
 - [~] Replace current fake built-in font catalog with a better-defined font availability model
-- [~] `GetFontMetrics` is currently approximate only
+- [~] `GetFontMetrics` now uses browser-backed canvas measurement when available, but still needs DU-fidelity validation
 - [ ] Decide whether fonts should be represented as handles, objects, or both for wrapper compatibility
 - [ ] Verify font fallback behavior when a requested family is unavailable
 - [ ] Add tests for repeated `LoadFont(name, size)` calls and handle reuse semantics
@@ -143,8 +143,8 @@ Important note:
 
 ### Remaining text-measurement tasks
 
-- [~] Current text bounds are approximate and not DU-faithful
-- [ ] Replace simple `length * size * 0.6` logic with real canvas-based measurement
+- [~] Current text bounds now use browser-backed canvas measurement when available, but are not DU-faithful yet
+- [x] Replace simple `length * size * 0.6` logic with real canvas-based measurement
 - [ ] Verify multiline text behavior
 - [ ] Verify whether text bounds depend on loaded font face metrics beyond nominal size
 - [ ] Verify wrapper compatibility for `Vec2.New(...)`

@@ -81,7 +81,7 @@ public sealed class MyDuMod : IMod
     private const string RuntimeLuaProbePayloadFileName = "lua-editor-probe.override.js";
     private const string RuntimeLuaProbeModulesDirectoryName = "lua-editor-probe.modules";
     private const string RuntimeLuaProbeModulesManifestFileName = "manifest.txt";
-    private const string IdeImportFilePattern = "ide_import*.json";
+    private const string IdeImportFilePattern = "ide_import.player-*.json";
 
     /// <summary>
     /// Outer IIFE for lua-editor-probe module concat. Must match <c>tools/build-lua-probe.ps1</c>
@@ -100,7 +100,6 @@ public sealed class MyDuMod : IMod
     private const int MaxLuaMcpResultChunkCount = 256;
     private static readonly TimeSpan LuaMcpResultChunkTtl = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan IdeImportResultTtl = TimeSpan.FromMinutes(10);
-    private static readonly TimeSpan IdeImportRetryInterval = TimeSpan.FromMilliseconds(1500);
 
     private IServiceProvider services = null!;
     private IClusterClient orleans = null!;
@@ -294,18 +293,19 @@ public sealed class MyDuMod : IMod
         }
 
         IdeImportResultState resultState;
-        if (ideImportResultsByRequestId.TryGetValue(requestId, out resultState) && resultState.Success)
+        if (ideImportResultsByRequestId.TryGetValue(requestId, out resultState))
         {
             watchState.LastObservedWriteUtc = writeTime;
             watchState.LastObservedContent = content;
             watchState.LastAttemptedRequestId = requestId;
+            watchState.LastAttemptAtUtc = resultState.ReceivedAtUtc;
             return;
         }
 
         var shouldAttempt =
             hasPotentialChange ||
             !string.Equals(watchState.LastAttemptedRequestId, requestId, StringComparison.Ordinal) ||
-            (DateTime.UtcNow - watchState.LastAttemptAtUtc) >= IdeImportRetryInterval;
+            watchState.LastAttemptAtUtc == DateTime.MinValue;
 
         if (!shouldAttempt)
         {
@@ -313,13 +313,11 @@ public sealed class MyDuMod : IMod
         }
 
         var serializedPayload = obj.ToString(Newtonsoft.Json.Formatting.None);
-        var escapedCode = Newtonsoft.Json.JsonConvert.SerializeObject(code);
         var injectCode =
             "(function(){" +
             "var payload=" + serializedPayload + ";" +
             "var probe=window.__UI_EXTRACTOR_LUA_PROBE_STATE__;" +
-            "if(probe&&typeof probe.applyIdeImport==='function'){probe.applyIdeImport(payload);return;}" +
-            "if(probe&&payload&&payload.targetKind==='lua_editor'&&typeof probe.applyIdeCode==='function'){probe.applyIdeCode(" + escapedCode + ");}" +
+            "if(probe&&typeof probe.applyIdeImport==='function'){probe.applyIdeImport(payload);}" +
             "})();";
         var modeTag = string.Equals(targetKind, "screen_editor", StringComparison.OrdinalIgnoreCase)
             ? "ide-sync-screen"
@@ -370,15 +368,7 @@ public sealed class MyDuMod : IMod
         requestId = obj["requestId"]?.Value<string>()?.Trim() ?? "";
         if (string.IsNullOrWhiteSpace(requestId))
         {
-            requestId = obj["codeSha256"]?.Value<string>()?.Trim() ?? "";
-        }
-        if (string.IsNullOrWhiteSpace(requestId))
-        {
-            requestId = obj["codeHash32"]?.Value<string>()?.Trim() ?? "";
-        }
-        if (string.IsNullOrWhiteSpace(requestId))
-        {
-            requestId = "legacy-" + Path.GetFileName(importPath);
+            return false;
         }
 
         targetKind = obj["targetKind"]?.Value<string>()?.Trim() ?? "";
@@ -1086,33 +1076,9 @@ ORDER BY table_schema, table_name, ordinal_position";
         {
             if (string.Equals(action, "set_code", StringComparison.OrdinalIgnoreCase))
             {
-                var code = payload["code"]?.Value<string>();
-                if (code is null)
-                {
-                    status = "rejected";
-                    details = "missing_code";
-                    return false;
-                }
-
-                var save = payload["save"]?.Value<bool>() ?? false;
-                var escapedCode = Newtonsoft.Json.JsonConvert.SerializeObject(code);
-                var saveLiteral = save ? "true" : "false";
-                injectCode =
-                    "(function(){" +
-                    "var code=" + escapedCode + ";" +
-                    "var applied=false;" +
-                    "if(window.__UI_EXTRACTOR_LUA_PROBE_STATE__&&typeof window.__UI_EXTRACTOR_LUA_PROBE_STATE__.applyIdeCode==='function'){" +
-                    "window.__UI_EXTRACTOR_LUA_PROBE_STATE__.applyIdeCode(code);" +
-                    "applied=true;" +
-                    "}else if(window.LUAEditorManager&&typeof LUAEditorManager.getLuaEditor==='function'){" +
-                    "var cm=LUAEditorManager.getLuaEditor();" +
-                    "if(cm&&typeof cm.setValue==='function'){cm.setValue(code);applied=true;}" +
-                    "}" +
-                    "if(applied&&" + saveLiteral + "&&window.LUAEditorManager&&typeof LUAEditorManager.apply==='function'){LUAEditorManager.apply();}" +
-                    "})();";
-                summary = save ? "lua_editor set_code + save" : "lua_editor set_code";
-                status = "ok";
-                return true;
+                status = "rejected";
+                details = "inline_set_code_disabled_use_ide_import";
+                return false;
             }
 
             if (string.Equals(action, "save", StringComparison.OrdinalIgnoreCase))
@@ -1134,6 +1100,13 @@ ORDER BY table_schema, table_name, ordinal_position";
                 {
                     status = "rejected";
                     details = "missing_probe_method";
+                    return false;
+                }
+
+                if (string.Equals(probeMethod, "set_code", StringComparison.OrdinalIgnoreCase))
+                {
+                    status = "rejected";
+                    details = "inline_probe_set_code_disabled_use_ide_import";
                     return false;
                 }
 
@@ -1164,60 +1137,9 @@ ORDER BY table_schema, table_name, ordinal_position";
         {
             if (string.Equals(action, "set_code", StringComparison.OrdinalIgnoreCase))
             {
-                var code = payload["code"]?.Value<string>();
-                if (code is null)
-                {
-                    status = "rejected";
-                    details = "missing_code";
-                    return false;
-                }
-
-                var save = payload["save"]?.Value<bool>() ?? false;
-                var isHtmlMode = payload["isHtmlMode"]?.Value<bool?>();
-                var waitForEditor = payload["waitForEditor"]?.Value<bool>() ?? false;
-                var maxAttempts = payload["maxAttempts"]?.Value<int?>() ?? 10;
-                var retryDelayMs = payload["retryDelayMs"]?.Value<int?>() ?? 2000;
-                maxAttempts = Math.Max(1, Math.Min(120, maxAttempts));
-                retryDelayMs = Math.Max(50, Math.Min(10000, retryDelayMs));
-                var escapedCode = Newtonsoft.Json.JsonConvert.SerializeObject(code);
-                var saveLiteral = save ? "true" : "false";
-                var htmlModeLiteral = isHtmlMode.HasValue ? (isHtmlMode.Value ? "true" : "false") : "null";
-                var waitLiteral = waitForEditor ? "true" : "false";
-                injectCode =
-                    "(function(){" +
-                    "var code=" + escapedCode + ";" +
-                    "var modeValue=" + htmlModeLiteral + ";" +
-                    "var waitForEditor=" + waitLiteral + ";" +
-                    "var maxAttempts=" + maxAttempts + ";" +
-                    "var retryDelayMs=" + retryDelayMs + ";" +
-                    "var attempt=0;" +
-                    "var applyToPanel=function(){" +
-                    "var panel=window.screenContentEditorPanel;" +
-                    "if(panel&&panel.textEditor){" +
-                    "if(typeof modeValue==='boolean'&&panel.HTMLNodes&&panel.HTMLNodes.isHTMLModeCheckbox){" +
-                    "panel.HTMLNodes.isHTMLModeCheckbox.checked=modeValue;" +
-                    "if(typeof panel._onSwitchMode==='function'){panel._onSwitchMode();}" +
-                    "}" +
-                    "panel.textEditor.value=code;" +
-                    "if(typeof panel._onCodeChange==='function'){panel._onCodeChange();}" +
-                    "if(" + saveLiteral + "&&window.CPPScreenContentEditor&&typeof CPPScreenContentEditor.save==='function'){" +
-                    "CPPScreenContentEditor.save(panel.textEditor.value,panel.isInHTMLMode);" +
-                    "if(typeof CPPScreenContentEditor.close==='function'){CPPScreenContentEditor.close();}" +
-                    "}" +
-                    "return;" +
-                    "}" +
-                    "attempt+=1;" +
-                    "if(waitForEditor&&attempt<maxAttempts&&typeof window.setTimeout==='function'){" +
-                    "window.setTimeout(applyToPanel,retryDelayMs);" +
-                    "}" +
-                    "};" +
-                    "applyToPanel();" +
-                    "})();";
-                summary = save
-                    ? (waitForEditor ? "screen_editor set_code + save + wait" : "screen_editor set_code + save")
-                    : (waitForEditor ? "screen_editor set_code + wait" : "screen_editor set_code");
-                status = "ok";
-                return true;
+                status = "rejected";
+                details = "inline_set_code_disabled_use_ide_import";
+                return false;
             }
 
             if (string.Equals(action, "save", StringComparison.OrdinalIgnoreCase))
@@ -1228,6 +1150,9 @@ ORDER BY table_schema, table_name, ordinal_position";
                 maxAttempts = Math.Max(1, Math.Min(120, maxAttempts));
                 retryDelayMs = Math.Max(50, Math.Min(10000, retryDelayMs));
                 var waitLiteral = waitForEditor ? "true" : "false";
+                var escapedCommandId = Newtonsoft.Json.JsonConvert.SerializeObject(commandId);
+                var escapedTargetKind = Newtonsoft.Json.JsonConvert.SerializeObject("screen_editor");
+                var escapedProbeMethod = Newtonsoft.Json.JsonConvert.SerializeObject("apply");
                 injectCode =
                     "(function(){" +
                     "var waitForEditor=" + waitLiteral + ";" +
@@ -1235,6 +1160,23 @@ ORDER BY table_schema, table_name, ordinal_position";
                     "var retryDelayMs=" + retryDelayMs + ";" +
                     "var attempt=0;" +
                     "var savePanel=function(){" +
+                    "var probe=window.__UI_EXTRACTOR_LUA_PROBE_STATE__;" +
+                    "var snapshot=null;" +
+                    "try{" +
+                    "if(probe&&probe.mcp&&typeof probe.mcp.describeScreenEditor==='function'){" +
+                    "snapshot=probe.mcp.describeScreenEditor();" +
+                    "}" +
+                    "}catch(_ignoreScreenProbeDescribe){}" +
+                    "if(snapshot&&snapshot.visible===true){" +
+                    "if(probe&&probe.mcp&&typeof probe.mcp.invokeForTarget==='function'){" +
+                    "probe.mcp.invokeForTarget(" + escapedCommandId + "," + escapedTargetKind + "," + escapedProbeMethod + ",[]);" +
+                    "return;" +
+                    "}" +
+                    "if(probe&&typeof probe.invokeMcpCommandForTarget==='function'){" +
+                    "probe.invokeMcpCommandForTarget(" + escapedCommandId + "," + escapedTargetKind + "," + escapedProbeMethod + ",[]);" +
+                    "return;" +
+                    "}" +
+                    "}" +
                     "var panel=window.screenContentEditorPanel;" +
                     "if(panel&&panel.textEditor){" +
                     "if(window.CPPScreenContentEditor&&typeof CPPScreenContentEditor.save==='function'){" +
@@ -1263,6 +1205,13 @@ ORDER BY table_schema, table_name, ordinal_position";
                 {
                     status = "rejected";
                     details = "missing_probe_method";
+                    return false;
+                }
+
+                if (string.Equals(probeMethod, "set_code", StringComparison.OrdinalIgnoreCase))
+                {
+                    status = "rejected";
+                    details = "inline_probe_set_code_disabled_use_ide_import";
                     return false;
                 }
 

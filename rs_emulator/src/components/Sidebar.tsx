@@ -9,6 +9,25 @@ export interface SessionEntry {
   dirty: boolean;
 }
 
+export interface ResolutionPreset {
+  id: string;
+  label: string;
+  width: number;
+  height: number;
+}
+
+export const RESOLUTION_PRESETS: ResolutionPreset[] = [
+  { id: "hd-landscape", label: "HD 16:9", width: 1280, height: 720 },
+  { id: "hd-portrait", label: "HD 9:16", width: 720, height: 1280 },
+  { id: "square", label: "Square 1:1", width: 1024, height: 1024 },
+  { id: "fhd-landscape", label: "Full HD 16:9", width: 1920, height: 1080 },
+  { id: "fhd-portrait", label: "Full HD 9:16", width: 1080, height: 1920 },
+];
+
+export function getResolutionPreset(id: string): ResolutionPreset | undefined {
+  return RESOLUTION_PRESETS.find((preset) => preset.id === id);
+}
+
 interface SidebarProps {
   sessions: SessionEntry[];
   activeSessionId: string | null;
@@ -18,24 +37,41 @@ interface SidebarProps {
   onRenameSession: (id: string, name: string) => void;
   settings: Settings;
   onSettingsChange: (s: Settings) => void;
+  duLuaRootStatus: string;
+  onPickDuLuaRoot: () => void;
+  onClearDuLuaRoot: () => void;
   collapsed: boolean;
   onToggle: () => void;
 }
 
 export interface Settings {
-  resolution: number;
+  resolutionPreset: string;
+  canvasWidth: number;
+  canvasHeight: number;
+  layoutOrientation: "vertical" | "horizontal";
+  horizontalSplit: number;
+  verticalSplit: number;
+  editorFontSize: number;
   showGrid: boolean;
   showFPS: boolean;
   darkBg: boolean;
   autoRun: boolean;
+  duLuaRootName: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  resolution: 1024,
+  resolutionPreset: "hd-landscape",
+  canvasWidth: 1280,
+  canvasHeight: 720,
+  layoutOrientation: "horizontal",
+  horizontalSplit: 0.5,
+  verticalSplit: 0.5,
+  editorFontSize: 14,
   showGrid: false,
   showFPS: true,
   darkBg: true,
   autoRun: false,
+  duLuaRootName: "",
 };
 
 function formatTime(ts: number): string {
@@ -60,6 +96,9 @@ export function Sidebar({
   onRenameSession,
   settings,
   onSettingsChange,
+  duLuaRootStatus,
+  onPickDuLuaRoot,
+  onClearDuLuaRoot,
   collapsed,
   onToggle,
 }: SidebarProps) {
@@ -88,12 +127,14 @@ export function Sidebar({
         <button
           style={{ ...styles.tab, ...(section === "sessions" ? styles.tabActive : {}) }}
           onClick={() => setSection("sessions")}
+          title="Show session history"
         >
           History
         </button>
         <button
           style={{ ...styles.tab, ...(section === "settings" ? styles.tabActive : {}) }}
           onClick={() => setSection("settings")}
+          title="Show emulator settings"
         >
           Settings
         </button>
@@ -101,7 +142,7 @@ export function Sidebar({
 
       {section === "sessions" && (
         <div style={styles.section}>
-          <button onClick={onNewSession} style={styles.newBtn}>
+          <button onClick={onNewSession} style={styles.newBtn} title="Create a new temporary session">
             + New Session
           </button>
           <div style={styles.sessionList}>
@@ -180,13 +221,39 @@ export function Sidebar({
           <label style={styles.settingRow}>
             <span>Resolution</span>
             <select
-              value={settings.resolution}
-              onChange={(e) => onSettingsChange({ ...settings, resolution: Number(e.target.value) })}
+              value={settings.resolutionPreset}
+              onChange={(e) => {
+                const preset = getResolutionPreset(e.target.value);
+                if (!preset) {
+                  return;
+                }
+                onSettingsChange({
+                  ...settings,
+                  resolutionPreset: preset.id,
+                  canvasWidth: preset.width,
+                  canvasHeight: preset.height,
+                });
+              }}
               style={styles.select}
             >
-              {[256, 512, 1024, 2048].map((r) => (
-                <option key={r} value={r}>{r} x {r}</option>
+              {RESOLUTION_PRESETS.map((preset) => (
+                <option key={preset.id} value={preset.id}>{preset.label} - {preset.width} x {preset.height}</option>
               ))}
+            </select>
+          </label>
+          <div style={styles.settingMetaRow}>{settings.canvasWidth} x {settings.canvasHeight}</div>
+          <label style={styles.settingRow}>
+            <span>Canvas / Editor</span>
+            <select
+              value={settings.layoutOrientation}
+              onChange={(e) => onSettingsChange({
+                ...settings,
+                layoutOrientation: e.target.value === "horizontal" ? "horizontal" : "vertical",
+              })}
+              style={styles.select}
+            >
+              <option value="vertical">Vertical</option>
+              <option value="horizontal">Horizontal</option>
             </select>
           </label>
           <label style={styles.settingRow}>
@@ -221,6 +288,20 @@ export function Sidebar({
               onChange={(e) => onSettingsChange({ ...settings, autoRun: e.target.checked })}
             />
           </label>
+          <div style={{ ...styles.settingRow, alignItems: "flex-start" }}>
+            <div style={styles.settingBlock}>
+              <span>DU Lua includes</span>
+              <span style={styles.settingHint}>{duLuaRootStatus}</span>
+            </div>
+            <div style={styles.settingButtons}>
+              <button type="button" style={styles.smallBtn} onClick={onPickDuLuaRoot} title="Pick the Dual Universe Lua folder">
+                Pick Folder
+              </button>
+              <button type="button" style={styles.smallBtnSecondary} onClick={onClearDuLuaRoot} title="Clear the configured Dual Universe Lua folder">
+                Clear
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -289,7 +370,9 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "10px 0",
     background: "none",
     border: "none",
-    borderBottom: "2px solid transparent",
+    borderBottomWidth: 2,
+    borderBottomStyle: "solid",
+    borderBottomColor: "transparent",
     color: "#888",
     cursor: "pointer",
     fontSize: 13,
@@ -400,5 +483,45 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "4px 8px",
     borderRadius: 4,
     fontSize: 12,
+  },
+  settingBlock: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+    maxWidth: 150,
+  },
+  settingHint: {
+    fontSize: 11,
+    color: "#8e8eb0",
+    lineHeight: 1.4,
+  },
+  settingMetaRow: {
+    padding: "2px 0 10px",
+    fontSize: 11,
+    color: "#7f84ab",
+    textAlign: "right" as const,
+  },
+  settingButtons: {
+    display: "flex",
+    gap: 6,
+    flexShrink: 0,
+  },
+  smallBtn: {
+    background: "#2a2a4a",
+    border: "1px solid #4a4a6a",
+    color: "#ddd",
+    padding: "5px 8px",
+    borderRadius: 4,
+    fontSize: 11,
+    cursor: "pointer",
+  },
+  smallBtnSecondary: {
+    background: "#171726",
+    border: "1px solid #34344f",
+    color: "#aaa",
+    padding: "5px 8px",
+    borderRadius: 4,
+    fontSize: 11,
+    cursor: "pointer",
   },
 };

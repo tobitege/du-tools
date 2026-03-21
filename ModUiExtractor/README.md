@@ -51,6 +51,7 @@ This repo now includes:
   - injected entries are left-aligned and styled from native menu template structure,
   - quick `Edit Lua script` now resolves the real top-level `Advanced -> Edit Lua script` path, extracts `helperid` (for example `menu_item_30`), and executes the native bridge action using `CPPMainContextMenu/CPPContextMenu.executeAction(<numeric helper index>)`,
   - bridge-first path now waits for editor open before fallback and only keeps a lightweight `Ctrl + L` fallback,
+- the quick-menu open logic remains probe-internal; MCP opens the currently targeted element code editor through the dedicated native `du_open_editor_native` bridge path,
   - that synthetic `Ctrl + L` fallback is Lua-specific and best-effort only; it is not a generic hotkey/input layer for arbitrary gameplay actions such as `F` / `Use`,
   - emits `lua_quick_menu_edit_lua_result` telemetry steps for debugging.
 - **Breakthrough:** `executeAction` expects a numeric first argument (type conversion fails for string/object signatures). Converting `helperid` (`menu_item_30`) to numeric index (`30`) is the reliable trigger.
@@ -399,6 +400,13 @@ This now works for both `lua_editor` and `screen_editor`.
 
 7. The C# mod detects the semaphore, injects an IDE import request into the probe, and only treats that request as done after an explicit `ide_import_result` ack from the live editor.
 
+MCP transfer contract note:
+
+- MCP-driven editor writes use this same file-based path.
+- `du_editor_push_code` and `du_lua_set_code` now stage `ide_import.player-<playerId>.<targetKind>.json` from a local `sourcePath`.
+- Inline bridge/probe `set_code` write paths are intentionally disabled for editor content.
+- Reusable live board Lua snapshots belong on a tracked repo path such as `live_board/`, not in untracked or temporary folders.
+
 Lua-editor safety note:
 
 - If no Lua filter is actively selected, the Lua-side file transfer path is now blocked intentionally.
@@ -424,7 +432,7 @@ Mode note:
 
 `DuMcpBridge` drops JSON commands under `tmp\ui-dumps\mcp-bridge\commands\`. This mod watches that folder, runs the command in the player HUD client, and appends structured lines to `tmp\ui-dumps\mcp-bridge\events\bridge-events.ndjson`.
 
-For `action: "probe_call"`, the Lua runtime probe (`payload/lua-editor-probe.modules/035-lua-mcp-runtime.js`, loaded via the usual Lua probe injection) now handles both the open Lua editor and the open screen content editor. The mod maps `lua_mcp_result` packets to bridge events:
+For `action: "probe_call"`, the Lua runtime probe (`payload/lua-editor-probe.modules/035-lua-mcp-runtime.js`, loaded via the usual Lua probe injection) now handles both the Lua editor and the screen content editor. The mod maps `lua_mcp_result` packets to bridge events:
 
 - `command_result` — dispatch / injection acknowledgement
 - `probe_result` — `method`, `success`, `result`, `error`
@@ -438,17 +446,17 @@ Chat timestamp note:
 
 Supported probe methods:
 
-- `lua_editor`: `describe`, `chat_snapshot`, `chat_send`, `chat_join_channel`, `chat_select_channel`, `select_slot`, `select_filter`, `set_code`, `apply`, `add_filter`, `outer_html`, `raw_eval`
-- `screen_editor`: `describe`, `set_code`, `apply`, `outer_html`, `raw_eval`
+- `lua_editor`: `describe`, `chat_snapshot`, `chat_send`, `chat_join_channel`, `chat_select_channel`, `select_slot`, `select_filter`, `apply`, `add_filter`, `outer_html`, `raw_eval`
+- `screen_editor`: `describe`, `apply`, `outer_html`, `raw_eval`
 
-For `lua_mcp_result`, the probe now emits `targetKind` so bridge events can keep `lua_editor` and `screen_editor` separated. MCP entry points: `DuMcpBridge/README.md` (`du_lua_probe_call`, `du_chat_snapshot`, `du_chat_ai_mentions`, `du_chat_send_message`, `du_chat_create_channel`, `du_lua_add_filter`, `du_lua_outer_html`, `du_lua_probe_raw`, `du_ui_*`).
+For `lua_mcp_result`, the probe now emits `targetKind` so bridge events can keep `lua_editor` and `screen_editor` separated. MCP entry points: `DuMcpBridge/README.md` (`du_lua_probe_call`, `du_open_editor_native`, `du_chat_snapshot`, `du_chat_ai_mentions`, `du_chat_send_message`, `du_chat_create_channel`, `du_lua_add_filter`, `du_lua_outer_html`, `du_lua_probe_raw`, `du_ui_*`).
 
 Probe workflow notes (see `DuMcpBridge/README.md` for detail):
 
-- Reliable automation order: **`select_slot` → `select_filter` → `set_code`**. `apply` often closes the full Lua editor window.
+- Reliable automation order: **`select_slot` → `select_filter` → file-based IDE import → `apply`**. `apply` often closes the full Lua editor window.
 - **`select_filter`** activates an **existing** `.filter.view` row. **`add_filter`** uses **`+ add filter`** when needed, then the new row’s kebab. **`outer_html`** returns truncated `outerHTML`. **`raw_eval`** runs trusted-debug JS with parameter `state` = probe state object.
 - For `lua_editor`, hidden editor state is treated as stale cache. The probe only reports live content while the editor is visible; hidden snapshots are zeroed and editor-mutating methods reject with `lua_editor_not_visible`.
-- For `screen_editor`, hidden editor state is treated as stale cache. The probe only reports live content while the editor is visible; hidden snapshots are zeroed and `set_code` / `apply` reject with `screen_editor_not_visible`.
+- For `screen_editor`, hidden editor state is treated as stale cache. The probe only reports live content while the editor is visible; hidden snapshots are zeroed and `apply` rejects with `screen_editor_not_visible`.
 - `chat_send` uses the real HUD send path via `chatManager.sendMessageToCPP(channelId, message)`.
 - `chat_join_channel` does not click the HUD modal. It uses `/join <name>` on the chat send path and then selects `room_<lowercase>`.
 - Current runtime note: if the HUD sits on a construct chat tab (`HC_TestCore_L`) with `open = false`, the follow-up select step can still time out even though the server-side `server_chat` snapshot already sees the target room.

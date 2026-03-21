@@ -1,6 +1,7 @@
 import type { DrawCommand, ScreenConfig } from "./types";
 import { RSShape, defaultLayerStyle, DEFAULT_SCREEN } from "./types";
 import type { LayerStyle, FontEntry, ImageEntry } from "./types";
+import { measureFontMetrics, measureTextBounds } from "./textMetrics";
 
 export class DrawBuffer {
   commands: DrawCommand[] = [];
@@ -28,18 +29,26 @@ export class DrawBuffer {
   requestAnimFrames = 0;
   onAssetsChanged: (() => void) | null = null;
 
-  reset() {
+  resetFrame() {
     this.commands = [];
     this.layerStyles.clear();
     this.nextOverrides.clear();
     this.layerTransforms.clear();
-    this.fonts = [];
-    this.nextFontId = 1;
-    this.nextLayerId = 1;
     this.renderCost = 0;
     this.output = "";
     this.logs = [];
     this.requestAnimFrames = 0;
+  }
+
+  resetRuntimeState() {
+    this.resetFrame();
+    this.fonts = [];
+    this.images = [];
+    this.nextFontId = 1;
+    this.nextImageId = 1;
+    this.nextLayerId = 1;
+    this.time = 0;
+    this.deltaTime = 0;
   }
 
   private push(cmd: DrawCommand) {
@@ -47,6 +56,42 @@ export class DrawBuffer {
     // cost each draw call as 1 unit (simplified)
     const shapeOps = ["AddBezier","AddBox","AddBoxRounded","AddCircle","AddLine","AddQuad","AddTriangle","AddText","AddImage","AddImageSub"];
     if (shapeOps.includes(cmd.op)) this.renderCost += 1;
+  }
+
+  private cloneStyle(style: LayerStyle): LayerStyle {
+    return {
+      fillColor: [...style.fillColor] as LayerStyle["fillColor"],
+      strokeColor: [...style.strokeColor] as LayerStyle["strokeColor"],
+      strokeWidth: style.strokeWidth,
+      shadow: {
+        radius: style.shadow.radius,
+        color: [...style.shadow.color] as LayerStyle["shadow"]["color"],
+      },
+      rotation: style.rotation,
+      textAlign: { ...style.textAlign },
+    };
+  }
+
+  private getResolvedStyle(layer: number, shape: number): LayerStyle {
+    const base = this.getLayerShapeStyle(layer, shape);
+    const next = this.nextOverrides.get(layer);
+
+    if (!next) {
+      return this.cloneStyle(base);
+    }
+
+    return this.cloneStyle({
+      fillColor: next.fillColor ?? base.fillColor,
+      strokeColor: next.strokeColor ?? base.strokeColor,
+      strokeWidth: next.strokeWidth ?? base.strokeWidth,
+      shadow: next.shadow ?? base.shadow,
+      rotation: next.rotation ?? base.rotation,
+      textAlign: next.textAlign ?? base.textAlign,
+    });
+  }
+
+  private consumeNextOverride(layer: number): void {
+    this.nextOverrides.delete(layer);
   }
 
   // --- layer style helpers ---
@@ -76,34 +121,44 @@ export class DrawBuffer {
   }
 
   AddBezier(layer: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) {
-    this.push({ op: "AddBezier", layer, x1, y1, x2, y2, x3, y3 });
+    this.push({ op: "AddBezier", layer, style: this.getResolvedStyle(layer, RSShape.Bezier), x1, y1, x2, y2, x3, y3 });
+    this.consumeNextOverride(layer);
   }
   AddBox(layer: number, x: number, y: number, w: number, h: number) {
-    this.push({ op: "AddBox", layer, x, y, w, h });
+    this.push({ op: "AddBox", layer, style: this.getResolvedStyle(layer, RSShape.Box), x, y, w, h });
+    this.consumeNextOverride(layer);
   }
   AddBoxRounded(layer: number, x: number, y: number, w: number, h: number, radius: number) {
-    this.push({ op: "AddBoxRounded", layer, x, y, w, h, radius });
+    this.push({ op: "AddBoxRounded", layer, style: this.getResolvedStyle(layer, RSShape.BoxRounded), x, y, w, h, radius });
+    this.consumeNextOverride(layer);
   }
   AddCircle(layer: number, x: number, y: number, radius: number) {
-    this.push({ op: "AddCircle", layer, x, y, radius });
+    this.push({ op: "AddCircle", layer, style: this.getResolvedStyle(layer, RSShape.Circle), x, y, radius });
+    this.consumeNextOverride(layer);
   }
   AddLine(layer: number, x1: number, y1: number, x2: number, y2: number) {
-    this.push({ op: "AddLine", layer, x1, y1, x2, y2 });
+    this.push({ op: "AddLine", layer, style: this.getResolvedStyle(layer, RSShape.Line), x1, y1, x2, y2 });
+    this.consumeNextOverride(layer);
   }
   AddQuad(layer: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, x4: number, y4: number) {
-    this.push({ op: "AddQuad", layer, x1, y1, x2, y2, x3, y3, x4, y4 });
+    this.push({ op: "AddQuad", layer, style: this.getResolvedStyle(layer, RSShape.Polygon), x1, y1, x2, y2, x3, y3, x4, y4 });
+    this.consumeNextOverride(layer);
   }
   AddTriangle(layer: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) {
-    this.push({ op: "AddTriangle", layer, x1, y1, x2, y2, x3, y3 });
+    this.push({ op: "AddTriangle", layer, style: this.getResolvedStyle(layer, RSShape.Polygon), x1, y1, x2, y2, x3, y3 });
+    this.consumeNextOverride(layer);
   }
   AddText(layer: number, fontId: number, text: string, x: number, y: number) {
-    this.push({ op: "AddText", layer, fontId, text, x, y });
+    this.push({ op: "AddText", layer, style: this.getResolvedStyle(layer, RSShape.Text), fontId, text, x, y });
+    this.consumeNextOverride(layer);
   }
   AddImage(layer: number, imageId: number, x: number, y: number, w: number, h: number) {
-    this.push({ op: "AddImage", layer, imageId, x, y, w, h });
+    this.push({ op: "AddImage", layer, style: this.getResolvedStyle(layer, RSShape.Image), imageId, x, y, w, h });
+    this.consumeNextOverride(layer);
   }
   AddImageSub(layer: number, imageId: number, x: number, y: number, w: number, h: number, subX: number, subY: number, subW: number, subH: number) {
-    this.push({ op: "AddImageSub", layer, imageId, x, y, w, h, subX, subY, subW, subH });
+    this.push({ op: "AddImageSub", layer, style: this.getResolvedStyle(layer, RSShape.Image), imageId, x, y, w, h, subX, subY, subW, subH });
+    this.consumeNextOverride(layer);
   }
 
   // --- style setters ---
@@ -219,8 +274,14 @@ export class DrawBuffer {
   GetFontMetrics(fontId: number): [number, number] {
     const f = this.fonts.find(f => f.id === fontId);
     if (!f) return [0, 0];
-    // approximate: ascender ~ size, descender ~ size * 0.3
-    return [f.size, f.size * 0.3];
+    const metrics = measureFontMetrics(f.name, f.size);
+    return [metrics.ascent, metrics.descent];
+  }
+  GetTextBounds(fontId: number, text: string): [number, number] {
+    const f = this.fonts.find(font => font.id === fontId);
+    if (!f) return [0, 0];
+    const metrics = measureTextBounds(f.name, f.size, text ?? "");
+    return [metrics.width, metrics.height];
   }
   GetAvailableFontCount(): number {
     return 5; // pretend we have some system fonts

@@ -377,3 +377,129 @@
     }
   }
 
+  function waitForLuaEditorOpen(timeoutMs, pollIntervalMs) {
+    var timeout = Math.max(250, Math.min(15000, parseInt(timeoutMs, 10) || 6000));
+    var poll = Math.max(25, Math.min(1000, parseInt(pollIntervalMs, 10) || 100));
+    var startedAt = Date.now();
+
+    return new Promise(function (resolve) {
+      function finish(opened, reason) {
+        var snapshot = null;
+        try {
+          snapshot = typeof describeLuaEditor === "function" ? describeLuaEditor() : null;
+        } catch (_ignoreDescribe) {
+          snapshot = null;
+        }
+
+        resolve({
+          opened: !!opened,
+          reason: reason || "",
+          waitedMs: Date.now() - startedAt,
+          visible: !!(snapshot && snapshot.visible),
+          title: snapshot && snapshot.title ? String(snapshot.title) : "",
+          selectedSlot: snapshot && snapshot.selectedSlot ? String(snapshot.selectedSlot) : "",
+          selectedFilter: snapshot && snapshot.selectedFilter ? String(snapshot.selectedFilter) : ""
+        });
+      }
+
+      function pollOnce() {
+        if (isEditorVisible()) {
+          finish(true, "opened");
+          return;
+        }
+        if (Date.now() - startedAt >= timeout) {
+          finish(false, "timeout");
+          return;
+        }
+        window.setTimeout(pollOnce, poll);
+      }
+
+      pollOnce();
+    });
+  }
+
+  function hasUsableMenuRoot(menuRoot) {
+    if (!menuRoot || !menuRoot.querySelectorAll) {
+      return false;
+    }
+
+    try {
+      var menuEntries = menuRoot.querySelectorAll("li[helperid], li.menu, li.menu_checked, li.dev_menu, li.warning, li.info");
+      if (menuEntries && menuEntries.length > 0) {
+        return true;
+      }
+    } catch (_ignoreMenuEntries) {}
+
+    try {
+      if ((menuRoot.children && menuRoot.children.length > 0) || String(menuRoot.innerHTML || "").trim() !== "") {
+        return true;
+      }
+    } catch (_ignoreHtml) {}
+
+    return false;
+  }
+
+  function openLuaEditorFromMcp(options) {
+    var settings = options && typeof options === "object" ? options : {};
+    var timeoutMs = settings.timeoutMs;
+    var pollIntervalMs = settings.pollIntervalMs;
+    var allowShortcutFallback = settings.allowShortcutFallback !== false;
+    var menuRoot = null;
+
+    if (isEditorVisible()) {
+      return Promise.resolve({
+        opened: true,
+        reason: "already_visible",
+        waitedMs: 0,
+        visible: true,
+        title: "",
+        selectedSlot: "",
+        selectedFilter: "",
+        usedMenuRoot: false,
+        usedShortcutFallback: false
+      });
+    }
+
+    try {
+      menuRoot = document.getElementById("main_context_menu");
+    } catch (_ignoreMenuLookup) {
+      menuRoot = null;
+    }
+
+    if (hasUsableMenuRoot(menuRoot)) {
+      triggerEditLuaFromQuickMenu(menuRoot);
+      return waitForLuaEditorOpen(timeoutMs, pollIntervalMs).then(function (result) {
+        result.usedMenuRoot = true;
+        result.usedShortcutFallback = false;
+        return result;
+      });
+    }
+
+    if (!allowShortcutFallback) {
+      return Promise.resolve({
+        opened: false,
+        reason: menuRoot ? "menu_root_not_usable" : "no_menu_root",
+        waitedMs: 0,
+        visible: false,
+        title: "",
+        selectedSlot: "",
+        selectedFilter: "",
+        usedMenuRoot: false,
+        usedShortcutFallback: false
+      });
+    }
+
+    var shortcutTriggered = triggerCtrlLShortcut();
+    return waitForLuaEditorOpen(timeoutMs, pollIntervalMs).then(function (result) {
+      result.usedMenuRoot = false;
+      result.usedShortcutFallback = true;
+      result.shortcutTriggered = !!shortcutTriggered;
+      if (!result.opened && result.reason === "timeout" && !shortcutTriggered) {
+        result.reason = "shortcut_not_triggered";
+      }
+      return result;
+    });
+  }
+
+  state.openLuaEditorFromMcp = openLuaEditorFromMcp;
+

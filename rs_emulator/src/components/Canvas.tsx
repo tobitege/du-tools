@@ -17,7 +17,8 @@ interface CanvasProps {
 export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
   ({ width, height, showGrid, darkBg, showFps }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [stats, setStats] = useState({ drawCalls: 0, ms: 0 });
+    const lastRenderAtRef = useRef<number | null>(null);
+    const [stats, setStats] = useState({ drawCalls: 0, textCalls: 0, ms: 0, fps: 0 });
 
     useImperativeHandle(ref, () => ({
       render(buffer: DrawBuffer, opts?: { showGrid?: boolean }) {
@@ -25,14 +26,22 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
 
         const t0 = performance.now();
         renderBuffer(canvasRef.current, buffer);
-        const elapsed = performance.now() - t0;
+        const t1 = performance.now();
+        const elapsed = t1 - t0;
+        const frameDelta = lastRenderAtRef.current === null ? 0 : t1 - lastRenderAtRef.current;
+        lastRenderAtRef.current = t1;
 
         const drawGrid = opts?.showGrid ?? showGrid;
         if (drawGrid) {
           drawGridOverlay(canvasRef.current);
         }
 
-        setStats({ drawCalls: buffer.commands.length, ms: elapsed });
+        setStats({
+          drawCalls: buffer.commands.length,
+          textCalls: buffer.commands.filter((command) => command.op === "AddText").length,
+          ms: elapsed,
+          fps: frameDelta > 0 ? 1000 / frameDelta : 0,
+        });
       },
       getCanvas() {
         return canvasRef.current;
@@ -42,11 +51,17 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
     return (
       <div
         style={{
+          width: "100%",
+          height: "100%",
           padding: 16,
           background: darkBg ? "#0a0a14" : "#c8c8c8",
           borderRadius: 8,
-          display: "inline-flex",
+          boxSizing: "border-box",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           position: "relative",
+          overflow: "hidden",
         }}
       >
         <canvas
@@ -55,6 +70,8 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
           height={height}
           style={{
             display: "block",
+            width: "auto",
+            height: "auto",
             maxWidth: "100%",
             maxHeight: "100%",
             imageRendering: "pixelated",
@@ -78,9 +95,10 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
               lineHeight: 1.5,
             }}
           >
-            <div>{Math.max(1, Math.round(1000 / Math.max(stats.ms, 0.1)))} fps</div>
+            <div>{stats.fps > 0 ? Math.round(stats.fps) : "-"} fps</div>
             <div>{stats.ms.toFixed(1)} ms</div>
             <div>{stats.drawCalls} draw calls</div>
+            <div>{stats.textCalls} text calls</div>
           </div>
         )}
       </div>

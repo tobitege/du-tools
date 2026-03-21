@@ -9,10 +9,8 @@ export interface BridgePaths {
   eventsDir: string;
   stateDir: string;
   processedCommandsDir: string;
-  legacyPayloadOverridesDir: string;
-  legacyIdeImportFile: string;
-  legacyIdeWorkspaceDir: string;
-  legacySnippetFile: string;
+  payloadOverridesDir: string;
+  ideWorkspaceDir: string;
 }
 
 export interface BridgeConfig {
@@ -46,10 +44,8 @@ export function loadConfig(): BridgeConfig {
     eventsDir: join(mcpBridgeRoot, "events"),
     stateDir: join(mcpBridgeRoot, "state"),
     processedCommandsDir: join(mcpBridgeRoot, "state", "processed-commands"),
-    legacyPayloadOverridesDir: join(dumpRoot, "payload-overrides"),
-    legacyIdeImportFile: join(dumpRoot, "payload-overrides", "ide_import.json"),
-    legacyIdeWorkspaceDir: join(dumpRoot, "ide-workspace"),
-    legacySnippetFile: join(dumpRoot, "ide-workspace", "snippet.lua")
+    payloadOverridesDir: join(dumpRoot, "payload-overrides"),
+    ideWorkspaceDir: join(dumpRoot, "ide-workspace")
   };
 
   return {
@@ -69,8 +65,8 @@ export function ensureBridgeDirectories(config: BridgeConfig): void {
     config.paths.eventsDir,
     config.paths.stateDir,
     config.paths.processedCommandsDir,
-    config.paths.legacyPayloadOverridesDir,
-    config.paths.legacyIdeWorkspaceDir
+    config.paths.payloadOverridesDir,
+    config.paths.ideWorkspaceDir
   ];
 
   for (const directory of directories) {
@@ -78,39 +74,39 @@ export function ensureBridgeDirectories(config: BridgeConfig): void {
   }
 }
 
-export function getLegacyPlayerWorkspaceDir(config: BridgeConfig, playerId: number): string {
-  return join(config.paths.legacyIdeWorkspaceDir, `player-${playerId}`);
+export function getPlayerWorkspaceDir(config: BridgeConfig, playerId: number): string {
+  return join(config.paths.ideWorkspaceDir, `player-${playerId}`);
 }
 
-export function getLegacyPlayerTargetWorkspaceDir(
+export function getPlayerTargetWorkspaceDir(
   config: BridgeConfig,
   playerId: number,
   targetKind: "lua_editor" | "screen_editor"
 ): string {
-  return join(getLegacyPlayerWorkspaceDir(config, playerId), targetKind);
+  return join(getPlayerWorkspaceDir(config, playerId), targetKind);
 }
 
-export function getLegacyPlayerSnippetFile(
+export function getPlayerSnippetFile(
   config: BridgeConfig,
   playerId: number,
   targetKind: "lua_editor" | "screen_editor"
 ): string {
   const fileName = targetKind === "lua_editor" ? "snippet.lua" : "snippet.txt";
-  return join(getLegacyPlayerTargetWorkspaceDir(config, playerId, targetKind), fileName);
+  return join(getPlayerTargetWorkspaceDir(config, playerId, targetKind), fileName);
 }
 
-export function getLegacyPlayerSnippetMetaFile(
+export function getPlayerSnippetMetaFile(
   config: BridgeConfig,
   playerId: number,
   targetKind: "lua_editor" | "screen_editor"
 ): string {
-  return join(getLegacyPlayerTargetWorkspaceDir(config, playerId, targetKind), "snippet.sync.json");
+  return join(getPlayerTargetWorkspaceDir(config, playerId, targetKind), "snippet.sync.json");
 }
 
-export function getLegacyPlayerIdeImportFile(
+export function getPlayerIdeImportFile(
   config: BridgeConfig,
   playerId: number,
   targetKind: "lua_editor" | "screen_editor"
 ): string {
-  return join(config.paths.legacyPayloadOverridesDir, `ide_import.player-${playerId}.${targetKind}.json`);
+  return join(config.paths.payloadOverridesDir, `ide_import.player-${playerId}.${targetKind}.json`);
 }

@@ -1,13 +1,19 @@
 import { promises as fs } from "node:fs";
 import { dirname, extname, join } from "node:path";
 
-export async function atomicWriteJson(filePath: string, data: unknown): Promise<void> {
+async function atomicWriteText(filePath: string, content: string): Promise<void> {
   await fs.mkdir(dirname(filePath), { recursive: true });
   const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-  const json = `${JSON.stringify(data, null, 2)}\n`;
-  await fs.writeFile(tempPath, json, "utf8");
+  await fs.writeFile(tempPath, content, "utf8");
   await fs.rename(tempPath, filePath);
 }
+
+export async function atomicWriteJson(filePath: string, data: unknown): Promise<void> {
+  const json = `${JSON.stringify(data, null, 2)}\n`;
+  await atomicWriteText(filePath, json);
+}
+
+export { atomicWriteText };
 
 export async function appendNdjson(filePath: string, record: unknown): Promise<void> {
   await fs.mkdir(dirname(filePath), { recursive: true });

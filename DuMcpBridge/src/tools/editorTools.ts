@@ -8,7 +8,23 @@ import { targetKindSchema } from "../contracts/commands.js";
 const editorTargetKindSchema = z.enum(["lua_editor", "screen_editor"]);
 type EditorUiKind = z.infer<typeof editorTargetKindSchema>;
 
-const pushCodeOutputSchema = {
+const stagedImportOutputSchema = {
+  requestId: z.string(),
+  status: z.literal("staged"),
+  targetKind: editorTargetKindSchema,
+  playerId: z.number().int().nonnegative(),
+  sourcePath: z.string(),
+  workspacePath: z.string(),
+  metadataPath: z.string(),
+  importPath: z.string(),
+  codeCharLength: z.number().int().nonnegative(),
+  codeUtf8Bytes: z.number().int().nonnegative(),
+  codeHash32: z.string(),
+  codeSha256: z.string(),
+  hasContextMetadata: z.boolean()
+};
+
+const queuedCommandOutputSchema = {
   commandId: z.string(),
   status: z.literal("queued"),
   targetKind: editorTargetKindSchema,
@@ -181,9 +197,11 @@ type LuaProbeMethod =
   | "chat_send"
   | "chat_join_channel"
   | "chat_select_channel"
+  | "list_filters"
   | "select_slot"
+  | "select_context"
   | "select_filter"
-  | "set_code"
+  | "select_filter_index"
   | "apply"
   | "add_filter"
   | "outer_html"
@@ -192,21 +210,23 @@ type LuaProbeMethod =
 type LuaProbeCallFields = {
   slotName?: string | undefined;
   filterEvent?: string | undefined;
+  filterIndex?: string | undefined;
+  contextPauseMs?: string | undefined;
   message?: string | undefined;
   channelId?: string | undefined;
   channelName?: string | undefined;
-  code?: string | undefined;
   addFilterName?: string | undefined;
   outerHtmlSelector?: string | undefined;
   rawEvalBody?: string | undefined;
 };
 
-const screenEditorProbeMethods = new Set<LuaProbeMethod>(["describe", "set_code", "apply", "outer_html", "raw_eval"]);
+const screenEditorProbeMethods = new Set<LuaProbeMethod>(["describe", "apply", "outer_html", "raw_eval"]);
 
 function buildUiProbeArgs(targetKind: EditorUiKind, method: LuaProbeMethod, fields: LuaProbeCallFields): string[] {
   switch (method) {
     case "describe":
     case "chat_snapshot":
+    case "list_filters":
     case "apply":
       return [];
     case "chat_send":
@@ -217,10 +237,12 @@ function buildUiProbeArgs(targetKind: EditorUiKind, method: LuaProbeMethod, fiel
       return [fields.channelId ?? fields.channelName ?? ""];
     case "select_slot":
       return [fields.slotName ?? ""];
+    case "select_context":
+      return [fields.slotName ?? "", fields.filterEvent ?? "", fields.contextPauseMs ?? ""];
     case "select_filter":
       return [fields.filterEvent ?? ""];
-    case "set_code":
-      return [fields.code ?? ""];
+    case "select_filter_index":
+      return [fields.filterIndex ?? ""];
     case "add_filter":
       return [fields.addFilterName ?? ""];
     case "outer_html":
@@ -241,7 +263,7 @@ function buildLuaProbeArgs(method: LuaProbeMethod, fields: LuaProbeCallFields): 
 
 const uiKindSchema = z
   .enum(["lua_editor", "screen_editor"])
-  .describe("Target UI. `lua_editor` supports the full probe API; `screen_editor` currently supports `describe`, `set_code`, `apply`, `outer_html`, `raw_eval`.");
+  .describe("Target UI. `lua_editor` supports the public Lua probe API; `screen_editor` currently supports `describe`, `apply`, `outer_html`, `raw_eval`.");
 
 function assertUiProbeMethodSupported(uiKind: EditorUiKind, method: LuaProbeMethod): void {
   if (uiKind === "screen_editor" && !screenEditorProbeMethods.has(method)) {
@@ -908,73 +930,66 @@ export function registerEditorTools(
   server.registerTool(
     "du_editor_push_code",
     {
-      title: "Queue Editor Code Push",
-      description: "Queues code for the active Dual Universe Lua or screen editor.",
+      title: "Stage Editor IDE Import",
+      description: "Stages editor content through the file-based IDE import contract from a local source file.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         targetKind: editorTargetKindSchema.default("lua_editor").describe("Target editor kind"),
-        code: z.string().min(1).describe("Code to inject into the active editor"),
-        save: z.boolean().default(false).describe("Whether the bridge should try to save immediately"),
-        boardId: z.string().nullable().optional().describe("Optional board identifier for future board-scoped routing"),
-        isHtmlMode: z.boolean().optional().describe("For screen editor targets: whether the editor should switch to HTML mode"),
-        waitForEditor: z.boolean().default(false).describe("When true, the client retries for a while until the editor UI becomes available"),
-        maxAttempts: z.number().int().positive().default(10).describe("Maximum retry attempts when waitForEditor is enabled"),
-        retryDelayMs: z.number().int().positive().default(2000).describe("Delay between retry attempts in milliseconds when waitForEditor is enabled")
+        sourcePath: z.string().min(1).describe("Absolute path of the local source file to stage into IDE Sync")
       },
-      outputSchema: pushCodeOutputSchema
+      outputSchema: stagedImportOutputSchema
     },
-    async ({ playerId, targetKind, code, save, boardId, isHtmlMode, waitForEditor, maxAttempts, retryDelayMs }) => {
-      const result = await commandQueue.enqueue({
+    async ({ playerId, targetKind, sourcePath }) => {
+      const result = await commandQueue.stageIdeImportFromFile({
         playerId,
         targetKind,
-        action: "set_code",
-        boardId,
-        code,
-        save,
-        language: targetKind === "screen_editor" && isHtmlMode ? "html" : "lua",
-        isHtmlMode,
-        waitForEditor,
-        maxAttempts,
-        retryDelayMs
+        sourcePath
       });
 
       await eventStore.appendSystemEvent({
-        eventId: `evt-${result.command.commandId}`,
+        eventId: `evt-${result.requestId}`,
         createdAtUtc: new Date().toISOString(),
         playerId,
         source: {
           kind: targetKind,
-          boardId: boardId ?? null
+          boardId: null
         },
-        type: "command_enqueued",
+        type: "ide_import_staged",
         payload: {
-          commandId: result.command.commandId,
-          action: "set_code",
-          saveRequested: save,
-          queuePath: result.path,
-          waitForEditor,
-          maxAttempts: waitForEditor ? maxAttempts : null,
-          retryDelayMs: waitForEditor ? retryDelayMs : null
+          requestId: result.requestId,
+          sourcePath: result.sourcePath,
+          workspacePath: result.workspacePath,
+          metadataPath: result.metadataPath,
+          importPath: result.importPath,
+          codeCharLength: result.codeCharLength,
+          codeUtf8Bytes: result.codeUtf8Bytes,
+          codeHash32: result.codeHash32,
+          codeSha256: result.codeSha256,
+          hasContextMetadata: result.hasContextMetadata
         }
       });
 
       const structuredContent = {
-        commandId: result.command.commandId,
-        status: "queued" as const,
+        requestId: result.requestId,
+        status: "staged" as const,
         targetKind,
         playerId,
-        queuePath: result.path,
-        saveRequested: save,
-        waitForEditor,
-        maxAttempts: waitForEditor ? maxAttempts : null,
-        retryDelayMs: waitForEditor ? retryDelayMs : null
+        sourcePath: result.sourcePath,
+        workspacePath: result.workspacePath,
+        metadataPath: result.metadataPath,
+        importPath: result.importPath,
+        codeCharLength: result.codeCharLength,
+        codeUtf8Bytes: result.codeUtf8Bytes,
+        codeHash32: result.codeHash32,
+        codeSha256: result.codeSha256,
+        hasContextMetadata: result.hasContextMetadata
       };
 
       return {
         content: [
           {
             type: "text",
-            text: `Queued ${targetKind} set_code for player ${playerId}: ${result.command.commandId}`
+            text: `Staged ${targetKind} IDE import for player ${playerId}: ${result.requestId}`
           }
         ],
         structuredContent
@@ -986,18 +1001,20 @@ export function registerEditorTools(
     "du_lua_probe_call",
     {
       title: "Call Lua Runtime Probe",
-      description: "Calls the in-game Lua editor probe API and waits briefly for the structured result.",
+      description: "Calls the in-game Lua editor probe API and waits briefly for the structured result. For the same `playerId`, run Lua-editor UI mutations and follow-up reads strictly sequentially; do not parallelize them.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         method: z
           .enum([
             "describe",
+            "list_filters",
             "select_slot",
+            "select_context",
             "select_filter",
+            "select_filter_index",
             "chat_send",
             "chat_join_channel",
             "chat_select_channel",
-            "set_code",
             "apply",
             "add_filter",
             "outer_html",
@@ -1006,10 +1023,11 @@ export function registerEditorTools(
           .describe("Lua probe method to invoke"),
         slotName: z.string().optional().describe("Slot name for select_slot"),
         filterEvent: z.string().optional().describe("Filter event name for select_filter"),
+        filterIndex: z.string().optional().describe("DOM filter index for select_filter_index"),
+        contextPauseMs: z.string().optional().describe("Pause in milliseconds after slot confirmation for select_context"),
         message: z.string().optional().describe("Chat message for chat_send"),
         channelId: z.string().optional().describe("Optional channel ID for chat_send"),
         channelName: z.string().optional().describe("Custom channel name for chat_join_channel or channel ID for chat_select_channel"),
-        code: z.string().optional().describe("Code for set_code"),
         addFilterName: z.string().optional().describe("Handler name for add_filter (e.g. onUpdate); must exist in the slot kebab menu for this device"),
         outerHtmlSelector: z
           .string()
@@ -1025,14 +1043,15 @@ export function registerEditorTools(
       },
       outputSchema: luaProbeOutputSchema
     },
-    async ({ playerId, method, slotName, filterEvent, message, channelId, channelName, code, addFilterName, outerHtmlSelector, rawEvalBody, timeoutMs }) => {
+    async ({ playerId, method, slotName, filterEvent, filterIndex, contextPauseMs, message, channelId, channelName, addFilterName, outerHtmlSelector, rawEvalBody, timeoutMs }) => {
       const probeArgs = buildLuaProbeArgs(method, {
         slotName,
         filterEvent,
+        filterIndex,
+        contextPauseMs,
         message,
         channelId,
         channelName,
-        code,
         addFilterName,
         outerHtmlSelector,
         rawEvalBody
@@ -1068,10 +1087,27 @@ export function registerEditorTools(
   );
 
   server.registerTool(
+    "du_lua_list_filters",
+    {
+      title: "List Lua Editor Filters (probe)",
+      description: "Returns the current Lua editor snapshot plus `filterDetails` with DOM indices, arguments, signatures, and visibility flags.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Target player ID"),
+        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the probe result event")
+      },
+      outputSchema: luaProbeOutputSchema
+    },
+    async ({ playerId, timeoutMs }) => {
+      const probeResult = await enqueueAndWaitLuaProbe(commandQueue, eventStore, playerId, "list_filters", [], timeoutMs);
+      return formatProbeToolResult(probeResult, timeoutMs, "list_filters");
+    }
+  );
+
+  server.registerTool(
     "du_lua_select_slot",
     {
       title: "Select Lua Editor Slot (probe)",
-      description: "Thin wrapper: probe select_slot with the given slot name (exact match as in the probe / UI).",
+      description: "Thin wrapper: probe select_slot with the given slot name (exact match as in the probe / UI). For the same `playerId`, call the next Lua-editor tool only after this call finished.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         slotName: z.string().min(1).describe("Slot name to select"),
@@ -1086,10 +1122,36 @@ export function registerEditorTools(
   );
 
   server.registerTool(
+    "du_lua_select_context",
+    {
+      title: "Select Lua Editor Slot + Filter (probe)",
+      description: "Selects the live Lua-editor slot, confirms it, waits at least `settleMs`, then selects the visible filter by real name/signature such as `onStart` or `onTimer(UPD)`. Preferred high-level path. For the same `playerId`, do not parallelize it with extra reads/writes.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Target player ID"),
+        slotName: z.string().min(1).describe("Slot name to select first"),
+        filterName: z.string().min(1).describe("Visible filter name/signature to select after the slot settled, e.g. `onStart` or `onTimer(UPD)`"),
+        settleMs: z.number().int().min(1000).max(15000).default(1000).describe("Minimum wait after slot confirmation before filter resolution")
+      },
+      outputSchema: luaProbeOutputSchema
+    },
+    async ({ playerId, slotName, filterName, settleMs }) => {
+      const probeResult = await enqueueAndWaitLuaProbe(
+        commandQueue,
+        eventStore,
+        playerId,
+        "select_context",
+        [slotName, filterName, String(settleMs)],
+        Math.max(5000, settleMs + 5000)
+      );
+      return formatProbeToolResult(probeResult, Math.max(5000, settleMs + 5000), "select_context");
+    }
+  );
+
+  server.registerTool(
     "du_lua_select_filter",
     {
       title: "Select Lua Editor Filter (probe)",
-      description: "Thin wrapper: probe select_filter. filterName is the filter event string as shown in the probe snapshot (same as du_lua_probe_call filterEvent).",
+      description: "Thin wrapper: probe select_filter. Accepts `onStart`, `onTimer(UPD)`, etc. Ambiguous matches fail instead of clicking a random row. For the same `playerId`, use sequential calls only.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         filterName: z.string().min(1).describe("Filter event name to select"),
@@ -1100,6 +1162,24 @@ export function registerEditorTools(
     async ({ playerId, filterName, timeoutMs }) => {
       const probeResult = await enqueueAndWaitLuaProbe(commandQueue, eventStore, playerId, "select_filter", [filterName], timeoutMs);
       return formatProbeToolResult(probeResult, timeoutMs, "select_filter");
+    }
+  );
+
+  server.registerTool(
+    "du_lua_select_filter_index",
+    {
+      title: "Select Lua Editor Filter By Index (probe)",
+      description: "Thin wrapper: probe select_filter_index using the DOM index from `du_lua_list_filters`. Debug/fallback path when filter labels are ambiguous. For the same `playerId`, use sequential calls only.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Target player ID"),
+        filterIndex: z.number().int().nonnegative().describe("Filter DOM index from `du_lua_list_filters`"),
+        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the probe result event")
+      },
+      outputSchema: luaProbeOutputSchema
+    },
+    async ({ playerId, filterIndex, timeoutMs }) => {
+      const probeResult = await enqueueAndWaitLuaProbe(commandQueue, eventStore, playerId, "select_filter_index", [String(filterIndex)], timeoutMs);
+      return formatProbeToolResult(probeResult, timeoutMs, "select_filter_index");
     }
   );
 
@@ -1180,18 +1260,69 @@ export function registerEditorTools(
   server.registerTool(
     "du_lua_set_code",
     {
-      title: "Set Lua Editor Code (probe)",
-      description: "Thin wrapper: probe set_code. Replaces the entire editor buffer in the live Lua editor (same as du_lua_probe_call method set_code).",
+      title: "Stage Lua IDE Import",
+      description: "Stages Lua editor content through the file-based IDE import contract from a local source file. Call this only after slot/filter selection is already confirmed; for the same `playerId`, do not run it in parallel with other Lua-editor tools.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
-        code: z.string().describe("Full editor contents to apply"),
-        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the probe result event")
+        sourcePath: z.string().min(1).describe("Absolute path of the local Lua source file to stage into IDE Sync")
       },
-      outputSchema: luaProbeOutputSchema
+      outputSchema: stagedImportOutputSchema
     },
-    async ({ playerId, code, timeoutMs }) => {
-      const probeResult = await enqueueAndWaitLuaProbe(commandQueue, eventStore, playerId, "set_code", [code], timeoutMs);
-      return formatProbeToolResult(probeResult, timeoutMs, "set_code");
+    async ({ playerId, sourcePath }) => {
+      const result = await commandQueue.stageIdeImportFromFile({
+        playerId,
+        targetKind: "lua_editor",
+        sourcePath
+      });
+
+      await eventStore.appendSystemEvent({
+        eventId: `evt-${result.requestId}`,
+        createdAtUtc: new Date().toISOString(),
+        playerId,
+        source: {
+          kind: "lua_editor",
+          boardId: null
+        },
+        type: "ide_import_staged",
+        payload: {
+          requestId: result.requestId,
+          sourcePath: result.sourcePath,
+          workspacePath: result.workspacePath,
+          metadataPath: result.metadataPath,
+          importPath: result.importPath,
+          codeCharLength: result.codeCharLength,
+          codeUtf8Bytes: result.codeUtf8Bytes,
+          codeHash32: result.codeHash32,
+          codeSha256: result.codeSha256,
+          hasContextMetadata: result.hasContextMetadata
+        }
+      });
+
+      const structuredContent = {
+        requestId: result.requestId,
+        status: "staged" as const,
+        targetKind: result.targetKind,
+        playerId,
+        sourcePath: result.sourcePath,
+        workspacePath: result.workspacePath,
+        metadataPath: result.metadataPath,
+        importPath: result.importPath,
+        codeCharLength: result.codeCharLength,
+        codeUtf8Bytes: result.codeUtf8Bytes,
+        codeHash32: result.codeHash32,
+        codeSha256: result.codeSha256,
+        hasContextMetadata: result.hasContextMetadata
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Staged lua_editor IDE import for player ${playerId}: ${result.requestId}`
+          }
+        ],
+        structuredContent
+      };
     }
   );
 
@@ -1199,7 +1330,7 @@ export function registerEditorTools(
     "du_lua_apply",
     {
       title: "Apply Lua Editor (probe)",
-      description: "Thin wrapper: probe apply — invokes LUAEditorManager.apply() in the open editor (same as du_lua_probe_call method apply).",
+      description: "Thin wrapper: probe apply — invokes LUAEditorManager.apply() in the open editor (same as du_lua_probe_call method apply). Often closes the editor. For the same `playerId`, do not run it in parallel with any other Lua-editor tool.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the probe result event")
@@ -1216,7 +1347,7 @@ export function registerEditorTools(
     "du_lua_get_selection",
     {
       title: "Lua Editor Selection Summary (probe)",
-      description: "Runs describe and returns only selection-oriented fields (slot, filter, title, apply affordance, visibility, etc.).",
+      description: "Runs describe and returns only selection-oriented fields (slot, filter, title, apply affordance, visibility, etc.). Use this as a follow-up read after prior Lua-editor calls completed; do not run it in parallel with slot/filter-changing calls for the same `playerId`.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the probe result event")
@@ -1855,19 +1986,21 @@ export function registerEditorTools(
     {
       title: "Invoke UI probe (generic)",
       description:
-        "Generic probe_call wrapper. `lua_editor` supports the full Lua probe API; `screen_editor` currently supports `describe`, `set_code`, `apply`, `outer_html`, `raw_eval`.",
+        "Generic probe_call wrapper. `lua_editor` supports the public Lua probe API; `screen_editor` currently supports `describe`, `apply`, `outer_html`, `raw_eval`. For the same `playerId`, do not parallelize Lua-editor UI calls with each other.",
       inputSchema: {
         uiKind: uiKindSchema,
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         method: z
           .enum([
             "describe",
+            "list_filters",
             "select_slot",
+            "select_context",
             "select_filter",
+            "select_filter_index",
             "chat_send",
             "chat_join_channel",
             "chat_select_channel",
-            "set_code",
             "apply",
             "add_filter",
             "outer_html",
@@ -1876,10 +2009,11 @@ export function registerEditorTools(
           .describe("Probe method name"),
         slotName: z.string().optional(),
         filterEvent: z.string().optional(),
+        filterIndex: z.string().optional(),
+        contextPauseMs: z.string().optional(),
         message: z.string().optional(),
         channelId: z.string().optional(),
         channelName: z.string().optional(),
-        code: z.string().optional(),
         addFilterName: z.string().optional(),
         outerHtmlSelector: z.string().optional(),
         rawEvalBody: z.string().optional(),
@@ -1893,10 +2027,11 @@ export function registerEditorTools(
       method,
       slotName,
       filterEvent,
+      filterIndex,
+      contextPauseMs,
       message,
       channelId,
       channelName,
-      code,
       addFilterName,
       outerHtmlSelector,
       rawEvalBody,
@@ -1906,10 +2041,11 @@ export function registerEditorTools(
       const probeArgs = buildUiProbeArgs(uiKind, method, {
         slotName,
         filterEvent,
+        filterIndex,
+        contextPauseMs,
         message,
         channelId,
         channelName,
-        code,
         addFilterName,
         outerHtmlSelector,
         rawEvalBody
@@ -2086,7 +2222,7 @@ export function registerEditorTools(
         maxAttempts: z.number().int().positive().default(10).describe("Maximum retry attempts when waitForEditor is enabled"),
         retryDelayMs: z.number().int().positive().default(2000).describe("Delay between retry attempts in milliseconds when waitForEditor is enabled")
       },
-      outputSchema: pushCodeOutputSchema
+      outputSchema: queuedCommandOutputSchema
     },
     async ({ playerId, targetKind, boardId, waitForEditor, maxAttempts, retryDelayMs }) => {
       const result = await commandQueue.enqueue({

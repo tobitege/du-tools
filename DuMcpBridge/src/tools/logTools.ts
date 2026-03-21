@@ -110,7 +110,7 @@ export function registerLogTools(server: McpServer, eventStore: BridgeEventStore
     "du_list_active_sessions",
     {
       title: "List Active Sessions",
-      description: "Lists players seen in the bridge event stream or legacy IDE sync files.",
+      description: "Lists players seen in the bridge event stream or current IDE sync files.",
       inputSchema: {
         limit: z.number().int().min(1).max(100).default(20).describe("Maximum number of sessions to return")
       },

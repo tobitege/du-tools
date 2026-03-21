@@ -1,31 +1,12 @@
 import { DrawBuffer } from "./drawBuffer";
-import { RSShape, RSAlignHor, RSAlignVer } from "./types";
-import type { RGBA, LayerStyle } from "./types";
+import { RSAlignHor, RSAlignVer } from "./types";
+import type { DrawCommand, RGBA, LayerStyle } from "./types";
+import { getFontString, measureFontMetrics } from "./textMetrics";
+
+type RenderableCommand = Extract<DrawCommand, { style: LayerStyle }>;
 
 function rgbaStr(c: RGBA): string {
   return `rgba(${Math.round(c[0]*255)},${Math.round(c[1]*255)},${Math.round(c[2]*255)},${c[3]})`;
-}
-
-function resolveStyle(buffer: DrawBuffer, layer: number, shape: RSShape): LayerStyle {
-  const layerMap = buffer.layerStyles.get(layer);
-  const defaults = layerMap?.[shape] ?? layerMap?.[RSShape.Box] ?? {
-    fillColor: [1,1,1,1] as RGBA,
-    strokeColor: [0,0,0,1] as RGBA,
-    strokeWidth: 0,
-    shadow: { radius: 0, color: [0,0,0,0.5] as RGBA },
-    rotation: 0,
-    textAlign: { hor: RSAlignHor.Left, ver: RSAlignVer.Baseline },
-  };
-  const next = buffer.nextOverrides.get(layer);
-  if (!next) return defaults;
-  return {
-    fillColor: next.fillColor ?? defaults.fillColor,
-    strokeColor: next.strokeColor ?? defaults.strokeColor,
-    strokeWidth: next.strokeWidth ?? defaults.strokeWidth,
-    shadow: next.shadow ?? defaults.shadow,
-    rotation: next.rotation ?? defaults.rotation,
-    textAlign: next.textAlign ?? defaults.textAlign,
-  };
 }
 
 function applyLayerTransform(ctx: CanvasRenderingContext2D, buffer: DrawBuffer, layer: number) {
@@ -65,6 +46,26 @@ function verToBaseline(ver: number): CanvasTextBaseline {
   return "alphabetic";
 }
 
+function resolveTextY(fontName: string, fontSize: number, ver: number, y: number): number {
+  const metrics = measureFontMetrics(fontName, fontSize);
+
+  if (ver === RSAlignVer.Top) {
+    return y + metrics.ascent;
+  }
+  if (ver === RSAlignVer.Middle) {
+    return y + (metrics.ascent - metrics.descent) / 2;
+  }
+  if (ver === RSAlignVer.Bottom || ver === RSAlignVer.Descender) {
+    return y - metrics.descent;
+  }
+
+  return y;
+}
+
+function isRenderableCommand(command: DrawCommand): command is RenderableCommand {
+  return command.op.startsWith("Add");
+}
+
 export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -78,20 +79,10 @@ export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
   ctx.fillStyle = rgbaStr(bg);
   ctx.fillRect(0, 0, w, h);
 
-  // consume next overrides after each shape
-  const shapeOps = new Set(["AddBezier","AddBox","AddBoxRounded","AddCircle","AddLine","AddQuad","AddTriangle","AddText","AddImage","AddImageSub"]);
-
   for (const cmd of buffer.commands) {
-    // determine shape type for style resolution
-    let shape: RSShape = RSShape.Box;
-    if (cmd.op === "AddBezier") shape = RSShape.Bezier;
-    else if (cmd.op === "AddBox") shape = RSShape.Box;
-    else if (cmd.op === "AddBoxRounded") shape = RSShape.BoxRounded;
-    else if (cmd.op === "AddCircle") shape = RSShape.Circle;
-    else if (cmd.op === "AddLine") shape = RSShape.Line;
-    else if (cmd.op === "AddText") shape = RSShape.Text;
-    else if (cmd.op === "AddImage" || cmd.op === "AddImageSub") shape = RSShape.Image;
-    else if (cmd.op === "AddQuad" || cmd.op === "AddTriangle") shape = RSShape.Polygon;
+    if (!isRenderableCommand(cmd)) {
+      continue;
+    }
 
     if ("layer" in cmd) {
       const layer = (cmd as any).layer as number;
@@ -108,7 +99,7 @@ export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
         ctx.clip();
       }
 
-      const style = resolveStyle(buffer, layer, shape);
+      const style = cmd.style;
       const rot = style.rotation;
 
       switch (cmd.op) {
@@ -213,11 +204,18 @@ export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
           ctx.save();
           applyStyle(ctx, style, false);
           const font = buffer.fonts.find(f => f.id === cmd.fontId);
-          const fontStr = font ? `${font.size}px "${font.name}"` : "16px sans-serif";
+          const fontName = font?.name ?? "sans-serif";
+          const fontSize = font?.size ?? 16;
+          const fontStr = getFontString(fontName, fontSize);
           ctx.font = fontStr;
           ctx.textAlign = alignToCanvas(style.textAlign.hor, style.textAlign.ver);
-          ctx.textBaseline = verToBaseline(style.textAlign.ver);
-          ctx.fillText(cmd.text, cmd.x, cmd.y);
+          ctx.textBaseline = verToBaseline(RSAlignVer.Baseline);
+          ctx.lineJoin = "round";
+          ctx.lineWidth = Math.max(1, fontSize * 0.16);
+          ctx.strokeStyle = "rgba(0, 0, 0, 0.72)";
+          const textY = resolveTextY(fontName, fontSize, style.textAlign.ver, cmd.y);
+          ctx.strokeText(cmd.text, cmd.x, textY);
+          ctx.fillText(cmd.text, cmd.x, textY);
           ctx.restore();
           break;
         }
@@ -247,11 +245,6 @@ export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
       }
 
       ctx.restore();
-
-      // consume next override after drawing a shape
-      if (shapeOps.has(cmd.op)) {
-        buffer.nextOverrides.delete((cmd as any).layer);
-      }
     }
   }
 }

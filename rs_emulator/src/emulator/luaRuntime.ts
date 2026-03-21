@@ -10,6 +10,8 @@ export interface LuaExecResult {
   requestAnimFrames: number;
 }
 
+export type LuaModuleResolver = (moduleName: string, fromModule?: string | null) => Promise<string | null>;
+
 let factoryPromise: Promise<LuaFactory> | null = null;
 
 async function getFactory(): Promise<LuaFactory> {
@@ -17,6 +19,23 @@ async function getFactory(): Promise<LuaFactory> {
     factoryPromise = Promise.resolve(new LuaFactory());
   }
   return factoryPromise;
+}
+
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
+function encodeLuaString(value: string): number[] {
+  return Array.from(textEncoder.encode(value));
+}
+
+function decodeLuaString(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (!Array.isArray(value)) {
+    return "";
+  }
+  return textDecoder.decode(Uint8Array.from(value.filter((item): item is number => typeof item === "number")));
 }
 
 async function installRuntime(lua: LuaEngine, buffer: DrawBuffer): Promise<void> {
@@ -43,8 +62,8 @@ async function installRuntime(lua: LuaEngine, buffer: DrawBuffer): Promise<void>
   lua.global.set("addTriangle", (layer: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) => {
     buffer.AddTriangle(layer, x1, y1, x2, y2, x3, y3);
   });
-  lua.global.set("addText", (layer: number, fontId: number, text: string, x: number, y: number) => {
-    buffer.AddText(layer, fontId, text, x, y);
+  lua.global.set("__rsAddText", (layer: number, fontId: number, textBytes: unknown, x: number, y: number) => {
+    buffer.AddText(layer, fontId, decodeLuaString(textBytes), x, y);
   });
   lua.global.set("addImage", (layer: number, imageId: number, x: number, y: number, w: number, h: number) => {
     buffer.AddImage(layer, imageId, x, y, w, h);
@@ -110,37 +129,35 @@ async function installRuntime(lua: LuaEngine, buffer: DrawBuffer): Promise<void>
     buffer.SetLayerTranslation(layer, tx, ty);
   });
 
-  lua.global.set("getCursor", (): [number, number] => buffer.GetCursor());
+  lua.global.set("__rsGetCursor", (): [number, number] => buffer.GetCursor());
   lua.global.set("getCursorDown", () => buffer.GetCursorDown());
   lua.global.set("getCursorPressed", () => buffer.GetCursorPressed());
   lua.global.set("getCursorReleased", () => buffer.GetCursorReleased());
   lua.global.set("getDeltaTime", () => buffer.GetDeltaTime());
   lua.global.set("getTime", () => buffer.GetTime());
-  lua.global.set("getInput", () => buffer.GetInput());
-  lua.global.set("getLocale", () => buffer.GetLocale());
+  lua.global.set("__rsGetInput", () => encodeLuaString(buffer.GetInput()));
+  lua.global.set("__rsGetLocale", () => encodeLuaString(buffer.GetLocale()));
   lua.global.set("getRenderCost", () => buffer.GetRenderCost());
   lua.global.set("getRenderCostMax", () => buffer.GetRenderCostMax());
-  lua.global.set("getResolution", (): [number, number] => buffer.GetResolution());
-  lua.global.set("getTextBounds", (fontId: number, text: string): [number, number] => {
-    const fontSize = buffer.GetFontSize(fontId);
-    const width = (text ?? "").length * fontSize * 0.6;
-    return [width, fontSize];
+  lua.global.set("__rsGetResolution", (): [number, number] => buffer.GetResolution());
+  lua.global.set("__rsGetTextBounds", (fontId: number, textBytes: unknown): [number, number] => {
+    return buffer.GetTextBounds(fontId, decodeLuaString(textBytes));
   });
 
-  lua.global.set("loadFont", (name: string, size: number) => buffer.LoadFont(name, size));
+  lua.global.set("__rsLoadFont", (nameBytes: unknown, size: number) => buffer.LoadFont(decodeLuaString(nameBytes), size));
   lua.global.set("getFontSize", (fontId: number) => buffer.GetFontSize(fontId));
   lua.global.set("setFontSize", (fontId: number, size: number) => buffer.SetFontSize(fontId, size));
-  lua.global.set("getFontMetrics", (fontId: number): [number, number] => buffer.GetFontMetrics(fontId));
+  lua.global.set("__rsGetFontMetrics", (fontId: number): [number, number] => buffer.GetFontMetrics(fontId));
   lua.global.set("getAvailableFontCount", () => buffer.GetAvailableFontCount());
-  lua.global.set("getAvailableFontName", (index: number) => buffer.GetAvailableFontName(index));
+  lua.global.set("__rsGetAvailableFontName", (index: number) => encodeLuaString(buffer.GetAvailableFontName(index)));
 
-  lua.global.set("loadImage", (url: string) => buffer.LoadImage(url));
+  lua.global.set("__rsLoadImage", (urlBytes: unknown) => buffer.LoadImage(decodeLuaString(urlBytes)));
   lua.global.set("isImageLoaded", (imageId: number) => buffer.IsImageLoaded(imageId));
-  lua.global.set("getImageSize", (imageId: number): [number, number] => buffer.GetImageSize(imageId));
+  lua.global.set("__rsGetImageSize", (imageId: number): [number, number] => buffer.GetImageSize(imageId));
 
   lua.global.set("setBackgroundColor", (r: number, g: number, b: number) => buffer.SetBackgroundColor(r, g, b));
-  lua.global.set("setOutput", (output: string) => buffer.SetOutput(output));
-  lua.global.set("logMessage", (message: string) => buffer.Log(message));
+  lua.global.set("__rsSetOutput", (outputBytes: unknown) => buffer.SetOutput(decodeLuaString(outputBytes)));
+  lua.global.set("__rsLogMessage", (messageBytes: unknown) => buffer.Log(decodeLuaString(messageBytes)));
   lua.global.set("requestAnimationFrame", (frames: number) => buffer.RequestAnimationFrame(frames));
   lua.global.set("__rsRenderScriptSource", RENDER_SCRIPT_SOURCE);
 
@@ -159,6 +176,99 @@ async function installRuntime(lua: LuaEngine, buffer: DrawBuffer): Promise<void>
 
     package.loaded["native/Vec2"] = nil
     Vec2 = require("native/Vec2")
+
+    local function unpackPair(value)
+      return value[1], value[2]
+    end
+
+    local function stringToBytes(value)
+      local out = {}
+      local text = tostring(value or "")
+      for index = 1, #text do
+        out[index] = string.byte(text, index)
+      end
+      return out
+    end
+
+    local function bytesToString(bytes)
+      if bytes == nil then
+        return ""
+      end
+
+      local out = {}
+      local index = 1
+      while bytes[index] ~= nil do
+        out[index] = string.char(bytes[index])
+        index = index + 1
+      end
+      return table.concat(out)
+    end
+
+    function addText(layer, font, text, x, y)
+      return __rsAddText(layer, font, stringToBytes(text), x, y)
+    end
+
+    function getCursor()
+      return unpackPair(__rsGetCursor())
+    end
+
+    function getResolution()
+      return unpackPair(__rsGetResolution())
+    end
+
+    function getTextBounds(font, text)
+      return unpackPair(__rsGetTextBounds(font, stringToBytes(text)))
+    end
+
+    function getFontMetrics(font)
+      return unpackPair(__rsGetFontMetrics(font))
+    end
+
+    function getInput()
+      return bytesToString(__rsGetInput())
+    end
+
+    function getLocale()
+      return bytesToString(__rsGetLocale())
+    end
+
+    function loadFont(name, size)
+      return __rsLoadFont(stringToBytes(name), size)
+    end
+
+    function getAvailableFontName(index)
+      return bytesToString(__rsGetAvailableFontName(index))
+    end
+
+    function loadImage(url)
+      return __rsLoadImage(stringToBytes(url))
+    end
+
+    function getImageSize(image)
+      return unpackPair(__rsGetImageSize(image))
+    end
+
+    function setOutput(output)
+      return __rsSetOutput(stringToBytes(output))
+    end
+
+    function logMessage(message)
+      return __rsLogMessage(stringToBytes(message))
+    end
+
+    function include(name)
+      local source = __rsIncludedSources and __rsIncludedSources[name]
+      if not source then
+        error("include not found: " .. tostring(name), 2)
+      end
+
+      local chunk, err = load(source, "@" .. tostring(name) .. ".lua", "t", _ENV)
+      if not chunk then
+        error(err, 2)
+      end
+
+      return chunk()
+    end
 
     local function createLoadedFont(id)
       local font = { __id = id }
@@ -239,10 +349,106 @@ async function installRuntime(lua: LuaEngine, buffer: DrawBuffer): Promise<void>
     }
     RSAlignHor = { Left = 0, Center = 1, Right = 2 }
     RSAlignVer = { Top = 0, Middle = 1, Bottom = 2, Baseline = 3 }
+
+    Shape_Bezier = RSShape.Bezier
+    Shape_Box = RSShape.Box
+    Shape_BoxRounded = RSShape.BoxRounded
+    Shape_Circle = RSShape.Circle
+    Shape_Image = RSShape.Image
+    Shape_Line = RSShape.Line
+    Shape_Polygon = RSShape.Polygon
+    Shape_Text = RSShape.Text
+
+    AlignH_Left = RSAlignHor.Left
+    AlignH_Center = RSAlignHor.Center
+    AlignH_Right = RSAlignHor.Right
+
+    AlignV_Top = RSAlignVer.Top
+    AlignV_Middle = RSAlignVer.Middle
+    AlignV_Bottom = RSAlignVer.Bottom
+    AlignV_Baseline = RSAlignVer.Baseline
+    AlignV_Descender = RSAlignVer.Descender
   `);
 }
 
-export function createLuaEnvironment(buffer: DrawBuffer) {
+function collectRequiredModules(code: string): string[] {
+  const modules = new Set<string>();
+  const patterns = [
+    /require\s*\(\s*["']([^"']+)["']\s*\)/g,
+    /require\s+["']([^"']+)["']/g,
+    /pcall\s*\(\s*require\s*,\s*["']([^"']+)["']\s*\)/g,
+    /include\s*\(\s*["']([^"']+)["']\s*\)/g,
+    /include\s+["']([^"']+)["']/g,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of code.matchAll(pattern)) {
+      const moduleName = match[1]?.trim();
+      if (!moduleName || moduleName === "RenderScript" || moduleName === "native/Vec2") {
+        continue;
+      }
+      modules.add(moduleName);
+    }
+  }
+
+  return [...modules];
+}
+
+async function collectExternalModules(code: string, resolveModule: LuaModuleResolver): Promise<Map<string, string>> {
+  const loaded = new Map<string, string>();
+  const pending = collectRequiredModules(code).map((moduleName) => ({ moduleName, fromModule: null as string | null }));
+
+  while (pending.length > 0) {
+    const next = pending.shift();
+    const moduleName = next?.moduleName;
+    if (!moduleName || loaded.has(moduleName)) {
+      continue;
+    }
+
+    const source = await resolveModule(moduleName, next?.fromModule ?? null);
+    if (!source) {
+      continue;
+    }
+
+    loaded.set(moduleName, source);
+    for (const nested of collectRequiredModules(source)) {
+      if (!loaded.has(nested)) {
+        pending.push({ moduleName: nested, fromModule: moduleName });
+      }
+    }
+  }
+
+  return loaded;
+}
+
+async function preloadExternalModules(lua: LuaEngine, modules: Map<string, string>): Promise<void> {
+  const entries = [...modules.entries()]
+    .map(([name, source]) => `[${JSON.stringify(name)}] = ${JSON.stringify(source)}`)
+    .join(",\n");
+
+  await lua.doString(`
+    do
+      local sources = {
+        ${entries}
+      }
+
+      __rsIncludedSources = sources
+
+      for name, source in pairs(sources) do
+        package.loaded[name] = nil
+        package.preload[name] = function()
+          local chunk, err = load(source, "@" .. name .. ".lua", "t", _ENV)
+          if not chunk then
+            error(err)
+          end
+          return chunk()
+        end
+      end
+    end
+  `);
+}
+
+export function createLuaEnvironment(buffer: DrawBuffer, resolveModule?: LuaModuleResolver) {
   let enginePromise: Promise<LuaEngine> | null = null;
 
   async function getEngine(): Promise<LuaEngine> {
@@ -258,9 +464,13 @@ export function createLuaEnvironment(buffer: DrawBuffer) {
   }
 
   async function execute(code: string): Promise<LuaExecResult> {
-    buffer.reset();
+    buffer.resetFrame();
     const lua = await getEngine();
     try {
+      if (resolveModule) {
+        const externalModules = await collectExternalModules(code, resolveModule);
+        await preloadExternalModules(lua, externalModules);
+      }
       await lua.doString('package.loaded["RenderScript"] = nil');
       await lua.doString(code);
       return {

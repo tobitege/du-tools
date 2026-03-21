@@ -693,6 +693,22 @@ function ScreenLayoutEditor.parseOutputEnvelope(text, screenWidth, screenHeight)
     }, nil
 end
 
+function ScreenLayoutEditor.readPersistedEnvelope(text, screenWidth, screenHeight)
+    local envelope, parseError = ScreenLayoutEditor.parseOutputEnvelope(text, screenWidth, screenHeight)
+    if not envelope then
+        return nil, parseError
+    end
+    return {
+        kind = ScreenLayoutEditor.OUTPUT_KIND,
+        version = ScreenLayoutEditor.SCHEMA_VERSION,
+        revision = envelope.revision,
+        hash = envelope.hash,
+        serializedDocument = envelope.serializedDocument,
+        document = envelope.document,
+        text = ScreenLayoutEditor.serializeOutputEnvelope(envelope.document, envelope.serializedDocument, envelope.hash)
+    }, nil
+end
+
 function ScreenLayoutEditor.resolveMaxScreenCodeChars(value)
     local numeric = math.floor(numberOrNil(value) or ScreenLayoutEditor.DEFAULT_MAX_SCREEN_CODE_CHARS)
     if numeric <= 0 then
@@ -718,6 +734,18 @@ function ScreenLayoutEditor.buildPersistenceRecord(document, maxScreenCodeChars)
         maxLength = maxLength,
         fits = #text <= maxLength
     }
+end
+
+function ScreenLayoutEditor.buildPersistenceRecordFromOutput(text, maxScreenCodeChars, screenWidth, screenHeight)
+    local envelope, parseError = ScreenLayoutEditor.readPersistedEnvelope(text, screenWidth, screenHeight)
+    if not envelope then
+        return nil, parseError
+    end
+    local record = ScreenLayoutEditor.buildPersistenceRecord(envelope.document, maxScreenCodeChars)
+    if record.revision ~= envelope.revision or record.hash ~= envelope.hash then
+        return nil, "output_mismatch"
+    end
+    return record, nil
 end
 
 function ScreenLayoutEditor.canPersistDocument(document, maxScreenCodeChars)
@@ -992,29 +1020,191 @@ function ScreenLayoutEditor.getOutputEnvelope(state)
     return state.lastOutputEnvelope or ""
 end
 
-local function getFont(size)
-    local preferred = { "Play", "Rajdhani", "Orbitron", "Roboto" }
-    for index = 1, #preferred do
-        local ok, loaded = pcall(loadFont, preferred[index], size)
-        if ok and loaded then
-            return loaded
-        end
+SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE = type(SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE) == "table" and SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE or {}
+SCREEN_LAYOUT_EDITOR_FONT_HANDLE_CACHE = type(SCREEN_LAYOUT_EDITOR_FONT_HANDLE_CACHE) == "table" and SCREEN_LAYOUT_EDITOR_FONT_HANDLE_CACHE or {}
+SCREEN_LAYOUT_EDITOR_AVAILABLE_FONT_NAMES = type(SCREEN_LAYOUT_EDITOR_AVAILABLE_FONT_NAMES) == "table" and SCREEN_LAYOUT_EDITOR_AVAILABLE_FONT_NAMES or nil
+
+local function getAvailableFontNames()
+    if type(SCREEN_LAYOUT_EDITOR_AVAILABLE_FONT_NAMES) == "table" then
+        return SCREEN_LAYOUT_EDITOR_AVAILABLE_FONT_NAMES
     end
 
+    local discovered = {}
     local okCount, count = pcall(getAvailableFontCount)
     if okCount and type(count) == "number" and count > 0 then
         for fontIndex = 0, count - 1 do
             local okName, fontName = pcall(getAvailableFontName, fontIndex)
-            if okName and fontName then
-                local okLoad, loaded = pcall(loadFont, fontName, size)
-                if okLoad and loaded then
-                    return loaded
-                end
+            if okName and type(fontName) == "string" and fontName ~= "" then
+                discovered[#discovered + 1] = fontName
             end
         end
     end
 
+    SCREEN_LAYOUT_EDITOR_AVAILABLE_FONT_NAMES = discovered
+    return SCREEN_LAYOUT_EDITOR_AVAILABLE_FONT_NAMES
+end
+
+local function getFont(size, frameFontCache)
+    local fontSize = math.max(1, math.floor(numberOrNil(size) or 24))
+    if type(frameFontCache) == "table" then
+        local frameCached = frameFontCache[fontSize]
+        if frameCached ~= nil then
+            return frameCached ~= false and frameCached or nil
+        end
+    end
+
+    local cachedHandle = SCREEN_LAYOUT_EDITOR_FONT_HANDLE_CACHE[fontSize]
+    if cachedHandle ~= nil then
+        if type(frameFontCache) == "table" then
+            frameFontCache[fontSize] = cachedHandle
+        end
+        return cachedHandle ~= false and cachedHandle or nil
+    end
+
+    local cachedName = SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE[fontSize]
+    if type(cachedName) == "string" and cachedName ~= "" then
+        local ok, loaded = pcall(loadFont, cachedName, fontSize)
+        if ok and loaded then
+            SCREEN_LAYOUT_EDITOR_FONT_HANDLE_CACHE[fontSize] = loaded
+            if type(frameFontCache) == "table" then
+                frameFontCache[fontSize] = loaded
+            end
+            return loaded
+        end
+        SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE[fontSize] = nil
+        SCREEN_LAYOUT_EDITOR_FONT_HANDLE_CACHE[fontSize] = nil
+    elseif cachedName == false then
+        SCREEN_LAYOUT_EDITOR_FONT_HANDLE_CACHE[fontSize] = false
+        if type(frameFontCache) == "table" then
+            frameFontCache[fontSize] = false
+        end
+        return nil
+    end
+
+    local preferred = { "Play", "Rajdhani", "Orbitron", "Roboto" }
+    for index = 1, #preferred do
+        local ok, loaded = pcall(loadFont, preferred[index], fontSize)
+        if ok and loaded then
+            SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE[fontSize] = preferred[index]
+            SCREEN_LAYOUT_EDITOR_FONT_HANDLE_CACHE[fontSize] = loaded
+            if type(frameFontCache) == "table" then
+                frameFontCache[fontSize] = loaded
+            end
+            return loaded
+        end
+    end
+
+    local availableFontNames = getAvailableFontNames()
+    for index = 1, #availableFontNames do
+        local fontName = availableFontNames[index]
+        if fontName ~= preferred[1]
+            and fontName ~= preferred[2]
+            and fontName ~= preferred[3]
+            and fontName ~= preferred[4] then
+            local okLoad, loaded = pcall(loadFont, fontName, fontSize)
+            if okLoad and loaded then
+                SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE[fontSize] = fontName
+                SCREEN_LAYOUT_EDITOR_FONT_HANDLE_CACHE[fontSize] = loaded
+                if type(frameFontCache) == "table" then
+                    frameFontCache[fontSize] = loaded
+                end
+                return loaded
+            end
+        end
+    end
+
+    SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE[fontSize] = false
+    SCREEN_LAYOUT_EDITOR_FONT_HANDLE_CACHE[fontSize] = false
+    if type(frameFontCache) == "table" then
+        frameFontCache[fontSize] = false
+    end
     return nil
+end
+
+local function getLineWidth(font, text)
+    local okBounds, width = pcall(getTextBounds, font, text)
+    if okBounds and type(width) == "number" then
+        return width
+    end
+    return 0
+end
+
+local function isTextLayoutCacheValid(cached, lines, fontSize, lineGap, fontName)
+    if type(cached) ~= "table" then
+        return false
+    end
+    if cached.fontSize ~= fontSize or cached.lineGap ~= lineGap or cached.fontName ~= fontName then
+        return false
+    end
+
+    local cachedLines = cached.lines
+    if type(cachedLines) ~= "table" or #cachedLines ~= #lines then
+        return false
+    end
+
+    for index = 1, #lines do
+        if cachedLines[index] ~= tostring(lines[index] or "") then
+            return false
+        end
+    end
+
+    return true
+end
+
+local function getElementTextLayout(element, font, fontSize, lineGap)
+    local lines = element.textLines
+    local fontName = SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE[fontSize]
+    local cached = element._textLayoutCache
+    if isTextLayoutCacheValid(cached, lines, fontSize, lineGap, fontName) then
+        return cached
+    end
+
+    local cachedLines = {}
+    local widths = {}
+    for index = 1, #lines do
+        local text = tostring(lines[index] or "")
+        cachedLines[index] = text
+        widths[index] = getLineWidth(font, text)
+    end
+
+    local layout = {
+        lines = cachedLines,
+        widths = widths,
+        totalHeight = (#cachedLines * fontSize) + ((#cachedLines - 1) * lineGap),
+        fontSize = fontSize,
+        lineGap = lineGap,
+        fontName = fontName
+    }
+    element._textLayoutCache = layout
+    return layout
+end
+
+local function addTextWithFontRetry(layer, element, font, fontSize, lineGap, text, textX, baselineY, frameFontCache)
+    local okAdd = pcall(addText, layer, font, text, textX, baselineY)
+    if okAdd then
+        return true
+    end
+
+    SCREEN_LAYOUT_EDITOR_FONT_HANDLE_CACHE[fontSize] = nil
+    if type(frameFontCache) == "table" then
+        frameFontCache[fontSize] = nil
+    end
+    if type(element) == "table" then
+        element._textLayoutCache = nil
+    end
+
+    local retryFont = getFont(fontSize, frameFontCache)
+    if not retryFont then
+        return false
+    end
+
+    local retryTextX = textX
+    if type(element) == "table" and element.textAlign == "center" then
+        local retryWidth = getLineWidth(retryFont, text)
+        retryTextX = element.x + (element.w - retryWidth) * 0.5
+    end
+
+    return pcall(addText, layer, retryFont, text, retryTextX, baselineY)
 end
 
 local function drawRoundedElement(layer, element)
@@ -1030,37 +1220,34 @@ local function drawRoundedElement(layer, element)
     end
 end
 
-local function drawElementText(layer, element)
+local function drawElementText(layer, element, frameFontCache)
     local lines = element.textLines
     if not lines or #lines <= 0 then
         return
     end
 
     local fontSize = element.textSize or 24
-    local font = getFont(fontSize)
+    local font = getFont(fontSize, frameFontCache)
     if not font then
         return
     end
 
     local color = element.textColor or { 1.0, 1.0, 1.0, 1.0 }
     local lineGap = element.lineGap or math.max(4, math.floor(fontSize * 0.15))
-    local totalHeight = (#lines * fontSize) + ((#lines - 1) * lineGap)
+    local layout = getElementTextLayout(element, font, fontSize, lineGap)
+    local totalHeight = layout.totalHeight
     local startY = element.y + math.max(10, (element.h - totalHeight) * 0.5)
 
     for index = 1, #lines do
-        local text = tostring(lines[index] or "")
-        local textWidth = 0
-        local okBounds, width = pcall(getTextBounds, font, text)
-        if okBounds and type(width) == "number" then
-            textWidth = width
-        end
+        local text = layout.lines[index] or tostring(lines[index] or "")
+        local textWidth = layout.widths[index] or 0
         local textX = element.x + 14
         if element.textAlign == "center" then
             textX = element.x + (element.w - textWidth) * 0.5
         end
         local baselineY = startY + ((index - 1) * (fontSize + lineGap)) + (fontSize * 0.82)
         setNextFillColor(layer, color[1], color[2], color[3], color[4])
-        addText(layer, font, text, textX, baselineY)
+        addTextWithFontRetry(layer, element, font, fontSize, lineGap, text, textX, baselineY, frameFontCache)
     end
 end
 
@@ -1092,8 +1279,8 @@ local function drawSelectionOverlay(state, layer, element)
     end
 end
 
-local function drawHud(state, layer, screenHeight)
-    local font = getFont(math.max(18, math.floor(screenHeight / 42)))
+local function drawHud(state, layer, screenHeight, frameFontCache)
+    local font = getFont(math.max(18, math.floor(screenHeight / 42)), frameFontCache)
     if not font then
         return
     end
@@ -1116,9 +1303,9 @@ local function drawHud(state, layer, screenHeight)
 
     local modeText = "Click to select, drag inside to move, drag corner handles to resize"
     setNextFillColor(layer, 1.0, 0.68, 0.22, 1.0)
-    addText(layer, font, modeText, 44, screenHeight - 42)
+    addTextWithFontRetry(layer, nil, font, math.max(18, math.floor(screenHeight / 42)), 0, modeText, 44, screenHeight - 42, frameFontCache)
     setNextFillColor(layer, 0.72, 0.96, 1.0, 1.0)
-    addText(layer, font, selectedText, 44, screenHeight - 16)
+    addTextWithFontRetry(layer, nil, font, math.max(18, math.floor(screenHeight / 42)), 0, selectedText, 44, screenHeight - 16, frameFontCache)
 end
 
 local function getInitialDocumentText()
@@ -1146,42 +1333,52 @@ end
 
 local function runRenderScript()
     local state = getState()
+    local frameFontCache = {}
     local cursorX, cursorY = getCursor()
+    local cursorPressed = getCursorPressed()
+    local cursorDown = getCursorDown()
+    local cursorReleased = getCursorReleased()
     ScreenLayoutEditor.applyPointerFrame(state, {
         cursorX = cursorX,
         cursorY = cursorY,
-        pressed = getCursorPressed(),
-        down = getCursorDown(),
-        released = getCursorReleased()
+        pressed = cursorPressed,
+        down = cursorDown,
+        released = cursorReleased
     })
 
     local _, screenHeight = getResolution()
     setBackgroundColor(0.06, 0.06, 0.07)
 
-    local contentLayer = createLayer()
-    local overlayLayer = createLayer()
+    local layer = createLayer()
 
     for index = 1, #state.document.elements do
         local element = state.document.elements[index]
-        drawRoundedElement(contentLayer, element)
-        drawElementText(contentLayer, element)
+        drawRoundedElement(layer, element)
+        -- Diagnostic switch: keep font/text code in the file, but disable all
+        -- text rendering for now so the live screen can rule out font-related OOMs.
+        -- drawElementText(layer, element, frameFontCache)
     end
 
     if state.document.selectedId then
         local selected = ScreenLayoutEditor.findElement(state.document, state.document.selectedId)
         if selected then
-            drawSelectionOverlay(state, overlayLayer, selected)
+            drawSelectionOverlay(state, layer, selected)
         end
     end
 
-    drawHud(state, overlayLayer, screenHeight)
+    -- Diagnostic switch: disable HUD text rendering for the same font isolation run.
+    -- drawHud(state, layer, screenHeight, frameFontCache)
 
     local envelope = ScreenLayoutEditor.getOutputEnvelope(state)
     if envelope ~= "" then
         pcall(setOutput, envelope)
     end
 
-    requestAnimationFrame(1)
+    local nextFrameDelay = 6
+    if state.operation or cursorPressed or cursorDown or cursorReleased then
+        nextFrameDelay = 1
+    end
+    requestAnimationFrame(nextFrameDelay)
 end
 
 if type(getResolution) == "function"

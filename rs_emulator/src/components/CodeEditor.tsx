@@ -6,6 +6,7 @@ interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
   onRun: () => void;
+  fontSize: number;
 }
 
 // RenderScript API completions
@@ -96,7 +97,7 @@ const RS_SNIPPETS = [
   },
 ];
 
-export function CodeEditor({ value, onChange, onRun }: CodeEditorProps) {
+export function CodeEditor({ value, onChange, onRun, fontSize }: CodeEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
 
   const handleMount: OnMount = useCallback(
@@ -223,9 +224,9 @@ export function CodeEditor({ value, onChange, onRun }: CodeEditorProps) {
       theme="vs-dark"
       value={value}
       onChange={(v) => onChange(v ?? "")}
-      onMount={handleMount}
-      options={{
-        fontSize: 14,
+        onMount={handleMount}
+        options={{
+        fontSize,
         fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
         minimap: { enabled: false },
         scrollBeyondLastLine: false,

@@ -1,12 +1,9 @@
 import * as z from "zod/v4";
 
 export const targetKindSchema = z.enum(["lua_editor", "screen_editor", "server_chat"]);
-export const commandActionSchema = z.enum(["set_code", "save", "probe_call"]);
+export const commandActionSchema = z.enum(["save", "probe_call"]);
 export const commandPayloadSchema = z.object({
-  code: z.string().optional(),
-  language: z.enum(["lua", "html"]).optional(),
   save: z.boolean().optional(),
-  isHtmlMode: z.boolean().optional(),
   waitForEditor: z.boolean().optional(),
   maxAttempts: z.number().int().positive().optional(),
   retryDelayMs: z.number().int().positive().optional(),

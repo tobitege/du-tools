@@ -1,8 +1,8 @@
 import { readdir } from "node:fs/promises";
 import {
   type BridgeConfig,
-  getLegacyPlayerIdeImportFile,
-  getLegacyPlayerSnippetFile
+  getPlayerIdeImportFile,
+  getPlayerSnippetFile
 } from "../config.js";
 import { bridgeEventSchema, type BridgeEvent } from "../contracts/events.js";
 import { appendNdjson, readJsonFileIfExists, readNdjsonRecords, readTextFileIfExists, statFileIfExists } from "./fileBus.js";
@@ -139,7 +139,7 @@ export class BridgeEventStore {
     }
 
     try {
-      const importFiles = await readdir(this.config.paths.legacyPayloadOverridesDir, { withFileTypes: true });
+      const importFiles = await readdir(this.config.paths.payloadOverridesDir, { withFileTypes: true });
       for (const entry of importFiles) {
         if (!entry.isFile()) {
           continue;
@@ -171,24 +171,7 @@ export class BridgeEventStore {
         });
       }
     } catch {
-      // Ignore optional legacy workspace scan errors.
-    }
-
-    const legacyImport = await readJsonFileIfExists<{ playerId?: number }>(this.config.paths.legacyIdeImportFile);
-    if (typeof legacyImport?.playerId === "number") {
-      const existing = sessions.get(legacyImport.playerId);
-      if (existing) {
-        if (!existing.sources.includes("lua_editor")) {
-          existing.sources.push("lua_editor");
-        }
-        sessions.set(legacyImport.playerId, existing);
-      } else {
-        sessions.set(legacyImport.playerId, {
-          playerId: legacyImport.playerId,
-          lastActivityUtc: null,
-          sources: ["lua_editor"]
-        });
-      }
+      // Ignore optional IDE-sync workspace scan errors.
     }
 
     return [...sessions.values()]
@@ -197,37 +180,22 @@ export class BridgeEventStore {
   }
 
   public async readActiveCode(targetKind: "lua_editor" | "screen_editor", playerId: number): Promise<ActiveCodeSnapshot> {
-    const queuedStatePath = `${this.config.paths.stateDir}/${targetKind}-${playerId}.json`;
-    const queuedState = await readJsonFileIfExists<{ code?: string }>(queuedStatePath);
-    if (typeof queuedState?.code === "string") {
-      const stats = await statFileIfExists(queuedStatePath);
-      return {
-        found: true,
-        targetKind,
-        playerId,
-        code: queuedState.code,
-        source: "queued_state",
-        path: queuedStatePath,
-        lastModifiedUtc: stats?.mtimeUtc ?? null
-      };
-    }
-
-    const playerSnippetPath = getLegacyPlayerSnippetFile(this.config, playerId, targetKind);
+    const playerSnippetPath = getPlayerSnippetFile(this.config, playerId, targetKind);
     const snippetText = await readTextFileIfExists(playerSnippetPath);
-    if (snippetText) {
+    if (snippetText !== null) {
       const stats = await statFileIfExists(playerSnippetPath);
       return {
         found: true,
         targetKind,
         playerId,
         code: snippetText,
-        source: "legacy_snippet",
+        source: "workspace_snippet",
         path: playerSnippetPath,
         lastModifiedUtc: stats?.mtimeUtc ?? null
       };
     }
 
-    const playerImportPath = getLegacyPlayerIdeImportFile(this.config, playerId, targetKind);
+    const playerImportPath = getPlayerIdeImportFile(this.config, playerId, targetKind);
     const importJson = await readJsonFileIfExists<{ code?: string; playerId?: number }>(playerImportPath);
     if (typeof importJson?.code === "string" && (typeof importJson.playerId !== "number" || importJson.playerId === playerId)) {
       const stats = await statFileIfExists(playerImportPath);
@@ -236,57 +204,10 @@ export class BridgeEventStore {
         targetKind,
         playerId,
         code: importJson.code,
-        source: "legacy_ide_import",
+        source: "ide_import",
         path: playerImportPath,
         lastModifiedUtc: stats?.mtimeUtc ?? null
       };
-    }
-
-    if (targetKind === "lua_editor") {
-      const legacySnippetText = await readTextFileIfExists(this.config.paths.legacySnippetFile);
-      if (legacySnippetText) {
-        const stats = await statFileIfExists(this.config.paths.legacySnippetFile);
-        return {
-          found: true,
-          targetKind,
-          playerId,
-          code: legacySnippetText,
-          source: "legacy_snippet",
-          path: this.config.paths.legacySnippetFile,
-          lastModifiedUtc: stats?.mtimeUtc ?? null
-        };
-      }
-
-      const legacyImportJson = await readJsonFileIfExists<{ code?: string; playerId?: number }>(this.config.paths.legacyIdeImportFile);
-      if (typeof legacyImportJson?.code === "string" && (typeof legacyImportJson.playerId !== "number" || legacyImportJson.playerId === playerId)) {
-        const stats = await statFileIfExists(this.config.paths.legacyIdeImportFile);
-        return {
-          found: true,
-          targetKind,
-          playerId,
-          code: legacyImportJson.code,
-          source: "legacy_ide_import",
-          path: this.config.paths.legacyIdeImportFile,
-          lastModifiedUtc: stats?.mtimeUtc ?? null
-        };
-      }
-    }
-
-    if (targetKind === "screen_editor") {
-      const screenStatePath = `${this.config.paths.stateDir}/screen_editor-${playerId}.json`;
-      const screenState = await readJsonFileIfExists<{ code?: string }>(screenStatePath);
-      if (typeof screenState?.code === "string") {
-        const stats = await statFileIfExists(screenStatePath);
-        return {
-          found: true,
-          targetKind,
-          playerId,
-          code: screenState.code,
-          source: "screen_state",
-          path: screenStatePath,
-          lastModifiedUtc: stats?.mtimeUtc ?? null
-        };
-      }
     }
 
     return {

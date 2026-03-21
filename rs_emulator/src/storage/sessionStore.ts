@@ -18,12 +18,18 @@ interface SaveSessionResult {
   mode: "file-handle" | "download";
 }
 
+export interface SessionSourceResult {
+  fileName: string;
+  content: string;
+}
+
 const DB_NAME = "rs-emulator";
 const DB_VERSION = 1;
 const META_STORE = "session-meta";
 const CONTENT_STORE = "session-content";
 const HANDLE_STORE = "session-handles";
 const TEMP_DIR = "rs-sessions";
+const DU_LUA_ROOT_HANDLE_KEY = "du-lua-root-handle";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -185,7 +191,7 @@ export async function getSession(id: string): Promise<SessionEntry | null> {
   return entry;
 }
 
-export async function createSession(options?: { name?: string; initialContent?: string }): Promise<SessionEntry> {
+export async function createSession(options?: { name?: string; linkedFileName?: string | null; initialContent?: string }): Promise<SessionEntry> {
   const id = nextId();
   const updatedAt = Date.now();
   const session: SessionEntry = {
@@ -193,7 +199,7 @@ export async function createSession(options?: { name?: string; initialContent?: 
     name: options?.name?.trim() || "Untitled",
     updatedAt,
     tempPath: defaultTempPath(id),
-    linkedFileName: null,
+    linkedFileName: options?.linkedFileName?.trim() || null,
     lastSavedAt: null,
     dirty: false,
   };
@@ -279,6 +285,27 @@ async function setLinkedHandle(id: string, handle: FileSystemFileHandle): Promis
   });
 }
 
+export async function getDuLuaRootHandle(): Promise<FileSystemDirectoryHandle | null> {
+  return withStore(HANDLE_STORE, "readonly", async (store) => {
+    const handle = await requestToPromise(store.get(DU_LUA_ROOT_HANDLE_KEY)) as FileSystemDirectoryHandle | undefined;
+    return handle ?? null;
+  });
+}
+
+export async function setDuLuaRootHandle(handle: FileSystemDirectoryHandle): Promise<void> {
+  await withStore(HANDLE_STORE, "readwrite", async (store) => {
+    store.put(handle, DU_LUA_ROOT_HANDLE_KEY);
+    return undefined;
+  });
+}
+
+export async function clearDuLuaRootHandle(): Promise<void> {
+  await withStore(HANDLE_STORE, "readwrite", async (store) => {
+    store.delete(DU_LUA_ROOT_HANDLE_KEY);
+    return undefined;
+  });
+}
+
 function supportsFilePicker(): boolean {
   return typeof window !== "undefined" && "showSaveFilePicker" in window;
 }
@@ -289,6 +316,24 @@ async function ensureWritableHandle(handle: FileSystemFileHandle): Promise<boole
     requestPermission?: (descriptor?: { mode?: "read" | "readwrite" }) => Promise<PermissionState>;
   };
   const descriptor = { mode: "readwrite" as const };
+  if (permissionAware.queryPermission) {
+    const current = await permissionAware.queryPermission(descriptor);
+    if (current === "granted") {
+      return true;
+    }
+  }
+  if (permissionAware.requestPermission) {
+    return (await permissionAware.requestPermission(descriptor)) === "granted";
+  }
+  return true;
+}
+
+async function ensureReadableHandle(handle: FileSystemFileHandle): Promise<boolean> {
+  const permissionAware = handle as FileSystemFileHandle & {
+    queryPermission?: (descriptor?: { mode?: "read" | "readwrite" }) => Promise<PermissionState>;
+    requestPermission?: (descriptor?: { mode?: "read" | "readwrite" }) => Promise<PermissionState>;
+  };
+  const descriptor = { mode: "read" as const };
   if (permissionAware.queryPermission) {
     const current = await permissionAware.queryPermission(descriptor);
     if (current === "granted") {
@@ -361,4 +406,22 @@ export async function saveSessionToLocal(id: string, content: string, suggestedN
     dirty: false,
   });
   return { fileName: fallbackName, mode: "download" };
+}
+
+export async function readSessionFromLinkedFile(id: string): Promise<SessionSourceResult | null> {
+  const handle = await getLinkedHandle(id);
+  if (!handle) {
+    return null;
+  }
+
+  const readable = await ensureReadableHandle(handle);
+  if (!readable) {
+    throw new Error("Read permission was not granted");
+  }
+
+  const file = await handle.getFile();
+  return {
+    fileName: file.name,
+    content: await file.text(),
+  };
 }

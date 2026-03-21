@@ -143,33 +143,236 @@
     return fallback;
   }
 
-  function findFilterNodeByEvent(filterEvent) {
-    var expected = normalizeProbeText(filterEvent);
-    var filters = getFilterNodes(true);
-    var fallback = null;
-
-    for (var i = 0; i < filters.length; i += 1) {
-      var filterNode = filters[i];
-      var currentName = normalizeProbeText(getFilterEventName(filterNode));
-      if (!currentName) {
-        continue;
-      }
-      if (currentName === expected) {
-        return filterNode;
-      }
-      if (fallback === null && (currentName.indexOf(expected) >= 0 || expected.indexOf(currentName) >= 0)) {
-        fallback = filterNode;
-      }
-    }
-
-    return fallback;
-  }
-
   function normalizeEventKey(name) {
     var s = String(name || "").trim().toLowerCase();
     s = s.replace(/\s+/g, "");
     s = s.replace(/\([^)]*\)/g, "");
     return s;
+  }
+
+  function getFilterArgumentValues(filterNode) {
+    var args = [];
+    if (!filterNode || !filterNode.querySelectorAll) {
+      return args;
+    }
+
+    try {
+      var inputs = filterNode.querySelectorAll(".actionInputs input");
+      for (var i = 0; i < inputs.length; i += 1) {
+        var input = inputs[i];
+        if (!input) {
+          continue;
+        }
+        var rawValue = "";
+        if (typeof input.value !== "undefined") {
+          rawValue = input.value;
+        } else if (typeof input.getAttribute === "function") {
+          rawValue = input.getAttribute("value") || "";
+        }
+        var normalized = normalizeProbeText(rawValue);
+        if (normalized) {
+          args.push(normalized);
+        }
+      }
+    } catch (_ignoreFilterArgs) {}
+
+    return args;
+  }
+
+  function buildFilterDisplaySignature(eventName, args) {
+    var safeEventName = String(eventName || "").trim();
+    var safeArgs = args || [];
+    var parts = [];
+    for (var i = 0; i < safeArgs.length; i += 1) {
+      parts.push(String(safeArgs[i] || "").trim());
+    }
+    return safeEventName + "(" + parts.join(", ") + ")";
+  }
+
+  function parseFilterDescriptor(filterEvent) {
+    var raw = String(filterEvent || "").trim();
+    var eventName = raw;
+    var args = [];
+    var hasArgs = false;
+    var match = raw.match(/^([^()]+)\((.*)\)$/);
+    if (match) {
+      hasArgs = true;
+      eventName = String(match[1] || "").trim();
+      var rawArgs = String(match[2] || "").trim();
+      if (rawArgs) {
+        var parts = rawArgs.split(",");
+        for (var i = 0; i < parts.length; i += 1) {
+          var normalized = normalizeProbeText(parts[i]);
+          if (normalized) {
+            args.push(normalized);
+          }
+        }
+      }
+    }
+
+    var eventKey = normalizeEventKey(eventName);
+    return {
+      raw: raw,
+      eventName: eventName,
+      eventKey: eventKey,
+      args: args,
+      hasArgs: hasArgs,
+      signatureKey: eventKey + "|" + args.join("|")
+    };
+  }
+
+  function getFilterInfo(filterNode, index) {
+    var eventName = String(getFilterEventName(filterNode) || "").trim();
+    var args = getFilterArgumentValues(filterNode);
+    var eventKey = normalizeEventKey(eventName);
+    return {
+      node: filterNode,
+      index: index,
+      eventName: eventName,
+      eventKey: eventKey,
+      args: args,
+      signatureKey: eventKey + "|" + args.join("|"),
+      displaySignature: buildFilterDisplaySignature(eventName, args),
+      visible: isElementVisible(filterNode),
+      selected: isSelectedNode(filterNode),
+      className: filterNode && filterNode.className ? String(filterNode.className) : ""
+    };
+  }
+
+  function getAllFilterInfos() {
+    var filterNodes = getFilterNodes(false);
+    var infos = [];
+    for (var i = 0; i < filterNodes.length; i += 1) {
+      infos.push(getFilterInfo(filterNodes[i], i));
+    }
+    return infos;
+  }
+
+  function findFilterMatches(filterEvent) {
+    var expected = parseFilterDescriptor(filterEvent);
+    var allInfos = getAllFilterInfos();
+    var infos = [];
+    for (var i = 0; i < allInfos.length; i += 1) {
+      if (allInfos[i].visible) {
+        infos.push(allInfos[i]);
+      }
+    }
+    if (infos.length <= 0) {
+      infos = allInfos;
+    }
+    var matches = [];
+
+    for (var i = 0; i < infos.length; i += 1) {
+      var info = infos[i];
+      if (!info.eventKey || info.eventKey !== expected.eventKey) {
+        continue;
+      }
+      if (expected.hasArgs && info.signatureKey !== expected.signatureKey) {
+        continue;
+      }
+      matches.push(info);
+    }
+
+    return {
+      expected: expected,
+      matches: matches
+    };
+  }
+
+  function getSelectedVisibleFilterInfo() {
+    var infos = getAllFilterInfos();
+    for (var i = 0; i < infos.length; i += 1) {
+      if (infos[i].visible && infos[i].selected) {
+        return infos[i];
+      }
+    }
+    return null;
+  }
+
+  function waitMsAsync(waitMs) {
+    return new Promise(function(resolve) {
+      window.setTimeout(resolve, Math.max(0, waitMs));
+    });
+  }
+
+  function selectLuaEditorContext(slotName, filterEvent, minPauseMs) {
+    ensureLuaEditorVisible();
+    var rawSlotName = String(slotName || "").trim();
+    var rawFilterEvent = String(filterEvent || "").trim();
+    if (!rawSlotName) {
+      throw new Error("slot_name_required");
+    }
+    if (!rawFilterEvent) {
+      throw new Error("filter_name_required");
+    }
+
+    var expectedSlot = normalizeProbeText(rawSlotName);
+    var requiredPauseMs = Math.max(1000, parseInt(String(minPauseMs || ""), 10) || 1000);
+    var expectedFilter = parseFilterDescriptor(rawFilterEvent);
+
+    return pollUntilAsync(
+      function() {
+        var snapshot = describeLuaEditor();
+        if (normalizeProbeText(snapshot.selectedSlot) === expectedSlot) {
+          return snapshot;
+        }
+        var slotNode = findSlotNodeByName(rawSlotName);
+        if (!slotNode) {
+          throw new Error("slot_not_found:" + rawSlotName);
+        }
+        if (!clickNode(slotNode)) {
+          throw new Error("slot_click_failed:" + rawSlotName);
+        }
+        return null;
+      },
+      200,
+      25,
+      function() {
+        return new Error("slot_select_not_observed:" + rawSlotName);
+      }
+    ).then(function() {
+      return waitMsAsync(requiredPauseMs);
+    }).then(function() {
+      return pollUntilAsync(
+        function() {
+          var resolved = findFilterMatches(rawFilterEvent);
+          if (resolved.matches.length > 1) {
+            throw new Error("filter_ambiguous:" + rawFilterEvent + ":" + resolved.matches.length);
+          }
+          if (resolved.matches.length <= 0) {
+            return null;
+          }
+          return resolved.matches[0];
+        },
+        240,
+        25,
+        function() {
+          return new Error("filter_not_found:" + rawFilterEvent);
+        }
+      );
+    }).then(function(filterInfo) {
+      var selectedInfo = getSelectedVisibleFilterInfo();
+      if (selectedInfo && selectedInfo.signatureKey === filterInfo.signatureKey) {
+        return describeLuaEditor();
+      }
+      if (!clickNode(filterInfo.node)) {
+        throw new Error("filter_click_failed:" + rawFilterEvent);
+      }
+      return pollUntilAsync(
+        function() {
+          var currentSelected = getSelectedVisibleFilterInfo();
+          if (currentSelected && currentSelected.signatureKey === expectedFilter.signatureKey) {
+            return describeLuaEditor();
+          }
+          return null;
+        },
+        200,
+        25,
+        function() {
+          return new Error("filter_select_not_observed:" + rawFilterEvent);
+        }
+      );
+    });
   }
 
   function filterRowHasChosenEvent(filterNode) {
@@ -500,6 +703,23 @@
       }
     }
 
+    try {
+      var manager = window.LUAEditorManager || null;
+      var currentData = manager && manager.currentData ? manager.currentData : null;
+      var currentSlot = currentData && currentData.currentSlot ? currentData.currentSlot : null;
+      var currentFilter = currentData && currentData.currentFilter ? currentData.currentFilter : null;
+      if (currentSlot && typeof currentSlot.name !== "undefined" && currentSlot.name !== null) {
+        selectedSlot = String(currentSlot.name);
+      }
+      if (currentFilter) {
+        if (typeof currentFilter.signature !== "undefined" && currentFilter.signature !== null && String(currentFilter.signature)) {
+          selectedFilter = String(currentFilter.signature);
+        } else if (typeof currentFilter.name !== "undefined" && currentFilter.name !== null && String(currentFilter.name)) {
+          selectedFilter = String(currentFilter.name);
+        }
+      }
+    } catch (_ignoreManagerSelection) {}
+
     return {
       visible: true,
       title: titleNode ? String(titleNode.textContent || "").trim() : "",
@@ -511,6 +731,27 @@
       slots: slots,
       filters: filters
     };
+  }
+
+  function listLuaEditorFilters() {
+    ensureLuaEditorVisible();
+    var snapshot = describeLuaEditor();
+    var infos = getAllFilterInfos();
+    var details = [];
+    for (var i = 0; i < infos.length; i += 1) {
+      var info = infos[i];
+      details.push({
+        index: info.index,
+        event: info.eventName,
+        args: info.args,
+        signature: info.displaySignature,
+        selected: info.selected,
+        visible: info.visible,
+        className: info.className
+      });
+    }
+    snapshot.filterDetails = details;
+    return snapshot;
   }
 
   function selectSlotByName(slotName) {
@@ -527,12 +768,39 @@
 
   function selectFilterByEvent(filterEvent) {
     ensureLuaEditorVisible();
-    var filterNode = findFilterNodeByEvent(filterEvent);
-    if (!filterNode) {
+    var resolved = findFilterMatches(filterEvent);
+    if (resolved.matches.length <= 0) {
       throw new Error("filter_not_found:" + filterEvent);
     }
-    if (!clickNode(filterNode)) {
+    if (resolved.matches.length > 1) {
+      throw new Error("filter_ambiguous:" + filterEvent + ":" + resolved.matches.length);
+    }
+    var filterInfo = resolved.matches[0];
+    if (!clickNode(filterInfo.node)) {
       throw new Error("filter_click_failed:" + filterEvent);
+    }
+    return describeLuaEditor();
+  }
+
+  function selectFilterByIndex(filterIndex) {
+    ensureLuaEditorVisible();
+    var wantedIndex = parseInt(String(filterIndex || ""), 10);
+    if (!isFinite(wantedIndex)) {
+      throw new Error("filter_index_invalid:" + filterIndex);
+    }
+    var infos = getAllFilterInfos();
+    var filterInfo = null;
+    for (var i = 0; i < infos.length; i += 1) {
+      if (infos[i].index === wantedIndex) {
+        filterInfo = infos[i];
+        break;
+      }
+    }
+    if (!filterInfo) {
+      throw new Error("filter_index_not_found:" + wantedIndex);
+    }
+    if (!clickNode(filterInfo.node)) {
+      throw new Error("filter_index_click_failed:" + wantedIndex);
     }
     return describeLuaEditor();
   }
@@ -2060,6 +2328,21 @@
           throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
         }
         result = selectFilterByEvent(listArgs[0]);
+      } else if (normalizedMethod === "select_context") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
+        result = selectLuaEditorContext(listArgs[0], listArgs[1], listArgs[2]);
+      } else if (normalizedMethod === "select_filter_index") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
+        result = selectFilterByIndex(listArgs[0]);
+      } else if (normalizedMethod === "list_filters") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
+        result = listLuaEditorFilters();
       } else if (normalizedMethod === "set_code") {
         result = setCodeForProbeTarget(normalizedTarget, listArgs[0]);
       } else if (normalizedMethod === "apply") {
@@ -2104,6 +2387,9 @@
   state.describeScreenEditor = describeScreenEditor;
   state.selectSlotByName = selectSlotByName;
   state.selectFilterByEvent = selectFilterByEvent;
+  state.selectLuaEditorContext = selectLuaEditorContext;
+  state.selectFilterByIndex = selectFilterByIndex;
+  state.listLuaEditorFilters = listLuaEditorFilters;
   state.setLuaEditorCode = setLuaEditorCode;
   state.setScreenEditorCode = setScreenEditorCode;
   state.applyLuaEditorChanges = applyLuaEditorChanges;
@@ -2126,6 +2412,9 @@
     describeScreenEditor: describeScreenEditor,
     selectSlotByName: selectSlotByName,
     selectFilterByEvent: selectFilterByEvent,
+    selectContext: selectLuaEditorContext,
+    selectFilterByIndex: selectFilterByIndex,
+    listFilters: listLuaEditorFilters,
     setCode: setLuaEditorCode,
     setScreenCode: setScreenEditorCode,
     apply: applyLuaEditorChanges,

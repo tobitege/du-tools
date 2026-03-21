@@ -22,6 +22,7 @@ export const RSAlignVer = {
   Middle: 1,
   Bottom: 2,
   Baseline: 3,
+  Descender: 4,
 } as const;
 export type RSAlignVer = (typeof RSAlignVer)[keyof typeof RSAlignVer];
 
@@ -48,16 +49,16 @@ export function defaultLayerStyle(): LayerStyle {
 }
 
 export type DrawCommand =
-  | { op: "AddBezier"; layer: number; x1: number; y1: number; x2: number; y2: number; x3: number; y3: number }
-  | { op: "AddBox"; layer: number; x: number; y: number; w: number; h: number }
-  | { op: "AddBoxRounded"; layer: number; x: number; y: number; w: number; h: number; radius: number }
-  | { op: "AddCircle"; layer: number; x: number; y: number; radius: number }
-  | { op: "AddLine"; layer: number; x1: number; y1: number; x2: number; y2: number }
-  | { op: "AddQuad"; layer: number; x1: number; y1: number; x2: number; y2: number; x3: number; y3: number; x4: number; y4: number }
-  | { op: "AddTriangle"; layer: number; x1: number; y1: number; x2: number; y2: number; x3: number; y3: number }
-  | { op: "AddText"; layer: number; fontId: number; text: string; x: number; y: number }
-  | { op: "AddImage"; layer: number; imageId: number; x: number; y: number; w: number; h: number }
-  | { op: "AddImageSub"; layer: number; imageId: number; x: number; y: number; w: number; h: number; subX: number; subY: number; subW: number; subH: number }
+  | { op: "AddBezier"; layer: number; style: LayerStyle; x1: number; y1: number; x2: number; y2: number; x3: number; y3: number }
+  | { op: "AddBox"; layer: number; style: LayerStyle; x: number; y: number; w: number; h: number }
+  | { op: "AddBoxRounded"; layer: number; style: LayerStyle; x: number; y: number; w: number; h: number; radius: number }
+  | { op: "AddCircle"; layer: number; style: LayerStyle; x: number; y: number; radius: number }
+  | { op: "AddLine"; layer: number; style: LayerStyle; x1: number; y1: number; x2: number; y2: number }
+  | { op: "AddQuad"; layer: number; style: LayerStyle; x1: number; y1: number; x2: number; y2: number; x3: number; y3: number; x4: number; y4: number }
+  | { op: "AddTriangle"; layer: number; style: LayerStyle; x1: number; y1: number; x2: number; y2: number; x3: number; y3: number }
+  | { op: "AddText"; layer: number; style: LayerStyle; fontId: number; text: string; x: number; y: number }
+  | { op: "AddImage"; layer: number; style: LayerStyle; imageId: number; x: number; y: number; w: number; h: number }
+  | { op: "AddImageSub"; layer: number; style: LayerStyle; imageId: number; x: number; y: number; w: number; h: number; subX: number; subY: number; subW: number; subH: number }
   | { op: "SetDefaultFillColor"; layer: number; shape: number; color: RGBA }
   | { op: "SetDefaultStrokeColor"; layer: number; shape: number; color: RGBA }
   | { op: "SetDefaultStrokeWidth"; layer: number; shape: number; width: number }

@@ -33,7 +33,7 @@ Bei Timeouts/Fehlern: Probe-Override validieren, Editor im Client offen, bridge-
 ### 1.1 Laufende Komponenten
 
 | Komponente | Erwartung |
-|------------|-----------|
+| ------------ | ----------- |
 | **Dual Universe Server + Client** | Spieler eingeloggt, ggf. Lua-Editor-Kontext verfügbar |
 | **Mod `ModUIExtractor`** | Aktuelle DLL im Mods-Ordner des Servers (siehe `ModUiExtractor/README.md` → Deploy) |
 | **DuMcpBridge** | MCP-Server gestartet (z. B. `DuMcpBridge/run-mcp.cmd` oder Eintrag in Cursor/Codex) |
@@ -203,7 +203,7 @@ Heute nur **`uiKind: lua_editor`** (gleiche Bus-Semantik wie `du_lua_*`):
 
 - `DuMcpBridge/README.md` — Tool-/Resource-Liste, Verträge
 - `ModUiExtractor/README.md` — Mod, Override, Hot-Reload, Build-Stamp
-- `devlogs/2026-03-19/tool_roadmap.md` — Feature-Stand Roadmap
+- `live_board/README.md` — Fester Repo-Ablageort und getrackte Live-Board-Snapshots
 
 ---
 
