@@ -400,6 +400,18 @@ function triggerDownload(fileName: string, content: string): void {
   URL.revokeObjectURL(url);
 }
 
+async function readSessionFromProjectSource(sourceRef: string): Promise<SessionSourceResult | null> {
+  try {
+    const response = await fetch(`/__du_lua/source?ref=${encodeURIComponent(sourceRef)}`);
+    if (!response.ok) {
+      return null;
+    }
+    return await response.json() as SessionSourceResult;
+  } catch {
+    return null;
+  }
+}
+
 export async function saveSessionToLocal(id: string, content: string, suggestedName: string): Promise<SaveSessionResult | null> {
   const meta = await getSession(id);
   if (!meta) {
@@ -451,9 +463,14 @@ export async function saveSessionToLocal(id: string, content: string, suggestedN
 }
 
 export async function readSessionFromLinkedFile(id: string): Promise<SessionSourceResult | null> {
+  const meta = await getSession(id);
+  if (!meta) {
+    return null;
+  }
+
   const handle = await getLinkedHandle(id);
   if (!handle) {
-    return null;
+    return meta.linkedFileName ? readSessionFromProjectSource(meta.linkedFileName) : null;
   }
 
   const readable = await ensureReadableHandle(handle);

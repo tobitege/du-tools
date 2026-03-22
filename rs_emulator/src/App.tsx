@@ -239,7 +239,6 @@ export default function App() {
   const prevResolutionRef = useRef({ width: DEFAULT_SETTINGS.canvasWidth, height: DEFAULT_SETTINGS.canvasHeight });
   const skipInitialAutoRunRef = useRef(true);
   const splitterDragRef = useRef(false);
-  const initializedRef = useRef(false);
   const duLuaRootHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
   const sessionsRef = useRef<SessionEntry[]>([]);
   const activeSessionIdRef = useRef("");
@@ -913,19 +912,20 @@ export default function App() {
   }, [result, settings.showGrid]);
 
   useEffect(() => {
-    if (initializedRef.current) {
-      return;
-    }
-    initializedRef.current = true;
-
     let cancelled = false;
     const initialize = async () => {
       const duLuaServerStatus = await readDuLuaServerStatus();
+      if (cancelled) {
+        return;
+      }
       if (duLuaServerStatus?.configured) {
         setDuLuaServerRootPath(duLuaServerStatus.rootPath);
       }
 
       const duLuaRootHandle = await getDuLuaRootHandle();
+      if (cancelled) {
+        return;
+      }
       if (duLuaRootHandle) {
         duLuaRootHandleRef.current = duLuaRootHandle;
         setSettings((current) => {
@@ -966,16 +966,26 @@ export default function App() {
     void initialize();
     return () => {
       cancelled = true;
-      initializedRef.current = false;
-      stopAnimation();
+      executionTokenRef.current += 1;
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = 0;
+      }
+      if (animTimerRef.current) {
+        clearTimeout(animTimerRef.current);
+        animTimerRef.current = 0;
+      }
       if (persistTimerRef.current) {
         clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = 0;
       }
       if (autoRunTimerRef.current) {
         clearTimeout(autoRunTimerRef.current);
+        autoRunTimerRef.current = 0;
       }
       if (statusTimerRef.current) {
         clearTimeout(statusTimerRef.current);
+        statusTimerRef.current = 0;
       }
     };
   }, []);

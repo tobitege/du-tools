@@ -73,4 +73,18 @@ describe("DU_LUA_ROOT resolution", () => {
     expect(resolved?.rootIndex).toBe(1);
     expect(resolved?.absolutePath).toBe(path.join(secondRoot, "RenderScript.lua"));
   });
+
+  it("resolves example files by basename for project-backed reloads", async () => {
+    const projectRoot = await makeTempDir();
+    const exampleDir = path.join(projectRoot, "examples");
+
+    await fs.mkdir(exampleDir, { recursive: true });
+    await fs.writeFile(path.join(exampleDir, "Locura-Atom.lua"), "-- atom example", "utf8");
+
+    const resolved = await resolveSourceReference(projectRoot, [], "Locura-Atom.lua");
+
+    expect(resolved).not.toBeNull();
+    expect(resolved?.kind).toBe("project");
+    expect(resolved?.relativePath).toBe("examples/Locura-Atom.lua");
+  });
 });

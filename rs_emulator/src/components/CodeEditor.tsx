@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useMemo } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 
@@ -100,13 +100,21 @@ const RS_SNIPPETS = [
 
 export function CodeEditor({ value, onChange, onRun, fontSize, theme }: CodeEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const editorOptions = useMemo(() => ({
+    fontSize,
+    fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+    minimap: { enabled: false },
+    scrollBeyondLastLine: false,
+    wordWrap: "on" as const,
+    tabSize: 2,
+    automaticLayout: true,
+    suggest: { showKeywords: true },
+    padding: { top: 12 },
+  }), [fontSize]);
 
   useEffect(() => {
-    editorRef.current?.updateOptions({
-      fontSize,
-      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-    });
-  }, [fontSize]);
+    editorRef.current?.updateOptions(editorOptions);
+  }, [editorOptions]);
 
   const handleMount: OnMount = useCallback(
     (editor, monaco) => {
@@ -232,18 +240,8 @@ export function CodeEditor({ value, onChange, onRun, fontSize, theme }: CodeEdit
       theme={theme}
       value={value}
       onChange={(v) => onChange(v ?? "")}
-        onMount={handleMount}
-        options={{
-        fontSize,
-        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-        minimap: { enabled: false },
-        scrollBeyondLastLine: false,
-        wordWrap: "on",
-        tabSize: 2,
-        automaticLayout: true,
-        suggest: { showKeywords: true },
-        padding: { top: 12 },
-      }}
+      onMount={handleMount}
+      options={editorOptions}
     />
   );
 }

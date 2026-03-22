@@ -292,6 +292,23 @@ function duLuaPlugin(duLuaRoots: string[]): Plugin {
       return;
     }
 
+    if (url.pathname === `${route}/source`) {
+      const sourceRef = url.searchParams.get("ref")?.trim() ?? "";
+      const resolvedSource = await resolveSourceReference(projectRoot, duLuaRoots, sourceRef);
+      if (!resolvedSource) {
+        res.statusCode = 404;
+        res.end(`Source not found: ${sourceRef}`);
+        return;
+      }
+
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({
+        fileName: path.basename(resolvedSource.absolutePath),
+        content: await fs.readFile(resolvedSource.absolutePath, "utf8"),
+      }));
+      return;
+    }
+
     if (url.pathname !== `${route}/module`) {
       next();
       return;
@@ -350,6 +367,12 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [tailwindcss(), react(), duLuaPlugin(duLuaRoots)],
+    resolve: {
+      alias: {
+        module: path.resolve(projectRoot, "src/shims/browser-module.ts"),
+        url: path.resolve(projectRoot, "src/shims/browser-url.ts"),
+      },
+    },
     test: {
       environment: "node",
       setupFiles: "./test/setup.ts",
