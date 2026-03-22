@@ -8,6 +8,7 @@ interface SidebarProps {
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
   onOpenFile: () => void;
+  onOpenGitHubImport: () => void;
   onImportFiles: (files: FileList | File[]) => void;
   onDeleteSession: (id: string) => void;
   onRenameSession: (id: string, name: string) => void;
@@ -64,6 +65,17 @@ function FileIcon() {
   );
 }
 
+function GitHubIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 1.5A10.5 10.5 0 0 0 8.68 22c.52.1.7-.23.7-.5v-1.77c-2.87.62-3.47-1.22-3.47-1.22-.47-1.18-1.13-1.49-1.13-1.49-.92-.63.07-.62.07-.62 1.03.07 1.56 1.04 1.56 1.04.9 1.56 2.4 1.1 2.98.84.09-.66.35-1.11.63-1.37-2.29-.26-4.7-1.14-4.7-5.06 0-1.12.4-2.04 1.04-2.76-.11-.26-.45-1.33.1-2.77 0 0 .86-.28 2.82 1.05a9.8 9.8 0 0 1 5.12 0c1.96-1.33 2.81-1.05 2.81-1.05.56 1.44.22 2.51.12 2.77.65.72 1.04 1.64 1.04 2.76 0 3.94-2.42 4.79-4.73 5.05.37.32.7.94.7 1.89v2.8c0 .28.19.61.71.5A10.5 10.5 0 0 0 12 1.5Z"
+      />
+    </svg>
+  );
+}
+
 function classNames(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(" ");
 }
@@ -87,6 +99,7 @@ export function Sidebar({
   onSelectSession,
   onNewSession,
   onOpenFile,
+  onOpenGitHubImport,
   onImportFiles,
   onDeleteSession,
   onRenameSession,
@@ -109,10 +122,13 @@ export function Sidebar({
   const activeTheme = getThemeOption(settings.themeId);
   const sidebarDropStyle = sidebarDropActive
     ? {
-        background: "color-mix(in srgb, var(--color-primary) 12%, transparent)",
-        boxShadow: "inset 0 0 0 2px color-mix(in srgb, var(--color-primary) 38%, transparent)",
+        background: "linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 18%, var(--color-base-100) 82%) 0%, color-mix(in srgb, var(--color-primary) 12%, var(--color-base-200) 88%) 100%)",
+        boxShadow: "inset 0 0 0 2px color-mix(in srgb, var(--color-primary) 42%, transparent), 0 16px 28px color-mix(in srgb, var(--color-primary) 16%, transparent)",
       }
-    : undefined;
+    : {
+        background: "linear-gradient(180deg, color-mix(in srgb, var(--color-base-100) 94%, white 6%) 0%, color-mix(in srgb, var(--color-base-200) 90%, black 10%) 100%)",
+        boxShadow: "0 12px 24px color-mix(in srgb, black 14%, transparent), inset 0 0 0 1px color-mix(in srgb, white 8%, transparent)",
+      };
 
   const hasFileDrag = (event: ReactDragEvent<HTMLElement>) => event.dataTransfer.types.includes("Files");
 
@@ -212,7 +228,7 @@ export function Sidebar({
       </div>
 
       {section === "sessions" && (
-        <div className="flex-1 overflow-auto px-3 py-4">
+        <div className="flex min-h-0 flex-1 flex-col px-3 py-4">
           <div className="mb-5 flex flex-col gap-2.5">
             <button type="button" onClick={onNewSession} className="btn btn-outline btn-md w-full justify-start px-4 normal-case" title="Create a new temporary session">
               + New Session
@@ -221,35 +237,13 @@ export function Sidebar({
               <FileIcon />
               <span>Open File</span>
             </button>
+            <button type="button" onClick={onOpenGitHubImport} className="btn btn-outline btn-md w-full justify-start gap-2 px-4 normal-case" title="Paste a GitHub URL to import a Lua file as a new session">
+              <GitHubIcon />
+              <span>GitHub URL</span>
+            </button>
           </div>
           <div
-            className="flex min-h-[140px] flex-col gap-3 rounded-2xl"
-            style={sidebarDropStyle}
-            onDragOver={(event) => {
-              if (!hasFileDrag(event)) {
-                return;
-              }
-              event.preventDefault();
-              event.dataTransfer.dropEffect = "copy";
-              setSidebarDropActive(true);
-            }}
-            onDragLeave={(event) => {
-              if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                return;
-              }
-              setSidebarDropActive(false);
-            }}
-            onDrop={(event) => {
-              if (!hasFileDrag(event)) {
-                return;
-              }
-              event.preventDefault();
-              setSidebarDropActive(false);
-              const files = event.dataTransfer.files;
-              if (files && files.length > 0) {
-                onImportFiles(files);
-              }
-            }}
+            className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto rounded-2xl pr-0.5"
           >
             {sessions.map((s) => (
               <div
@@ -420,6 +414,51 @@ export function Sidebar({
             {sessions.length === 0 && (
               <div className="py-8 text-center text-sm italic text-base-content/50">No sessions yet</div>
             )}
+          </div>
+          <div className="mt-4 shrink-0">
+            <div
+              className="group flex min-h-[92px] w-full cursor-pointer items-center gap-3 rounded-[0.8rem] border border-dashed border-base-300/90 px-4 py-3 text-left transition-[border-color,background-color,box-shadow,transform] duration-200 ease-out hover:border-primary/45 hover:bg-base-100/70"
+              style={sidebarDropStyle}
+              onClick={onOpenFile}
+              onDragOver={(event) => {
+                if (!hasFileDrag(event)) {
+                  return;
+                }
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "copy";
+                setSidebarDropActive(true);
+              }}
+              onDragLeave={(event) => {
+                if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                  return;
+                }
+                setSidebarDropActive(false);
+              }}
+              onDrop={(event) => {
+                if (!hasFileDrag(event)) {
+                  return;
+                }
+                event.preventDefault();
+                setSidebarDropActive(false);
+                const files = event.dataTransfer.files;
+                if (files && files.length > 0) {
+                  onImportFiles(files);
+                }
+              }}
+            >
+              <div
+                className={classNames(
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-base-300 bg-base-100/88 text-base-content/72 transition-colors duration-200",
+                  sidebarDropActive && "border-primary/45 text-primary"
+                )}
+              >
+                <FileIcon />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[0.98rem] font-semibold leading-[1.2] text-base-content">Drop Lua Files</div>
+                <div className="mt-1 text-[0.9rem] leading-5 text-base-content/62">Drop one or more files here, or click to open the picker.</div>
+              </div>
+            </div>
           </div>
         </div>
       )}

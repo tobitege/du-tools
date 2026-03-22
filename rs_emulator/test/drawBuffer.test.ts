@@ -45,7 +45,7 @@ describe("drawBuffer style snapshotting", () => {
   });
 
   it("normalizes allowed Novaquark asset URLs and reuses their handles", () => {
-    const buffer = new DrawBuffer();
+    const buffer = new DrawBuffer({ imageLoadingEnabled: true });
 
     const firstId = buffer.LoadImage("assets.prod.novaquark.com/4745/example.jpg");
     const secondId = buffer.LoadImage("assets.prod.novaquark.com/4745/example.jpg");
@@ -57,8 +57,8 @@ describe("drawBuffer style snapshotting", () => {
   });
 
   it("accepts data image URLs and reuses their handles", () => {
-    const buffer = new DrawBuffer();
-    const dataUrl = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+    const buffer = new DrawBuffer({ imageLoadingEnabled: true });
+    const dataUrl = "data:image/png;base64,iVBORw0KGgo=";
 
     const firstId = buffer.LoadImage(dataUrl);
     const secondId = buffer.LoadImage(dataUrl);
@@ -70,12 +70,31 @@ describe("drawBuffer style snapshotting", () => {
   });
 
   it("rejects image URLs outside the allowed Novaquark asset host", () => {
-    const buffer = new DrawBuffer();
+    const buffer = new DrawBuffer({ imageLoadingEnabled: true });
 
     expect(buffer.LoadImage("https://assets.prod.novaquark.com/4745/example.jpg")).toBe(0);
     expect(buffer.LoadImage("cdn.example.com/example.jpg")).toBe(0);
     expect(buffer.LoadImage("assets.prod.novaquark.com.evil.com/example.jpg")).toBe(0);
     expect(buffer.LoadImage("data:text/plain;base64,SGVsbG8=")).toBe(0);
+    expect(buffer.LoadImage("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==")).toBe(0);
+    expect(buffer.LoadImage("assets.prod.novaquark.com/4745/example.gif")).toBe(0);
+    expect(buffer.LoadImage("assets.prod.novaquark.com/../secret.jpg")).toBe(0);
+    expect(buffer.LoadImage("\\\\server\\share\\example.jpg")).toBe(0);
+    expect(buffer.LoadImage("C:\\temp\\example.jpg")).toBe(0);
     expect(buffer.images).toHaveLength(0);
+  });
+
+  it("returns a shared disabled-image placeholder when image loading is off", () => {
+    const buffer = new DrawBuffer();
+
+    const firstId = buffer.LoadImage("assets.prod.novaquark.com/4745/example.jpg");
+    const secondId = buffer.LoadImage("data:image/png;base64,iVBORw0KGgo=");
+
+    expect(firstId).toBe(1);
+    expect(secondId).toBe(firstId);
+    expect(buffer.images).toHaveLength(1);
+    expect(buffer.images[0]?.url).toBe("/images-disabled.svg");
+    expect(buffer.images[0]?.placeholderText).toBe("Images disabled");
+    expect(buffer.GetImageSize(firstId)).toEqual([256, 96]);
   });
 });

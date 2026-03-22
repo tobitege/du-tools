@@ -25,6 +25,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
     const shellRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const lastRenderAtRef = useRef<number | null>(null);
+    const resizeFrameRef = useRef<number>(0);
     const [shellSize, setShellSize] = useState({ width: 0, height: 0 });
     const [stats, setStats] = useState({ drawCalls: 0, textCalls: 0, frameMs: 0, fps: 0 });
     const normalizedRotation = normalizeRotation(rotationDegrees);
@@ -39,6 +40,8 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
       rotatedWidth,
       rotatedHeight
     );
+    // Keep the toolbar pinned to the pane corner, but choose the slimmer
+    // orientation if that overlaps the rendered stage less.
     const stageOffsetLeft = CANVAS_SHELL_PADDING + Math.max(0, (contentWidth - stageSize.width) / 2);
     const stageOffsetTop = CANVAS_SHELL_PADDING + Math.max(0, (contentHeight - stageSize.height) / 2);
     const toolbarOrientation = getRotationToolbarOrientation({
@@ -57,9 +60,24 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
       }
 
       const updateShellSize = (nextWidth: number, nextHeight: number) => {
-        setShellSize({
-          width: Math.max(0, nextWidth),
-          height: Math.max(0, nextHeight),
+        // ResizeObserver can emit tiny fractional changes in quick bursts.
+        // Round and coalesce them so we only re-render for real size changes.
+        const width = Math.max(0, Math.round(nextWidth));
+        const height = Math.max(0, Math.round(nextHeight));
+
+        if (resizeFrameRef.current) {
+          cancelAnimationFrame(resizeFrameRef.current);
+        }
+
+        resizeFrameRef.current = requestAnimationFrame(() => {
+          resizeFrameRef.current = 0;
+          setShellSize((current) => {
+            if (current.width === width && current.height === height) {
+              return current;
+            }
+
+            return { width, height };
+          });
         });
       };
 
@@ -79,11 +97,23 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
           updateShellSize(entry.contentRect.width, entry.contentRect.height);
         });
         observer.observe(shell);
-        return () => observer.disconnect();
+        return () => {
+          observer.disconnect();
+          if (resizeFrameRef.current) {
+            cancelAnimationFrame(resizeFrameRef.current);
+            resizeFrameRef.current = 0;
+          }
+        };
       }
 
       window.addEventListener("resize", measure);
-      return () => window.removeEventListener("resize", measure);
+      return () => {
+        window.removeEventListener("resize", measure);
+        if (resizeFrameRef.current) {
+          cancelAnimationFrame(resizeFrameRef.current);
+          resizeFrameRef.current = 0;
+        }
+      };
     }, []);
 
     useImperativeHandle(ref, () => ({
@@ -299,6 +329,7 @@ function fitRectWithin(boundsWidth: number, boundsHeight: number, contentWidth: 
 }
 
 function getRotationToolbarOrientation(stageRect: { left: number; top: number; right: number; bottom: number }): ToolbarOrientation {
+  // The toolbar stays in the top-left corner of the pane; only the shape flips.
   const horizontal = { left: 8, top: 8, width: 184, height: 48 };
   const vertical = { left: 8, top: 8, width: 60, height: 150 };
 

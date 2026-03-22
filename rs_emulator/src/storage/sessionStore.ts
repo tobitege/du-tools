@@ -1,4 +1,5 @@
 import { reindexSessions, sortSessionsByOrder } from "../sessionOrdering";
+import { MAX_IMPORTED_FILE_SIZE_BYTES, sanitizeLuaFileStem, sanitizeSessionName, validateImportedSessionText } from "../security/inputGuards";
 
 export interface SessionEntry {
   id: string;
@@ -7,6 +8,7 @@ export interface SessionEntry {
   sortIndex?: number;
   tempPath: string;
   linkedFileName: string | null;
+  remoteSourceUrl: string | null;
   lastSavedAt: number | null;
   dirty: boolean;
 }
@@ -172,8 +174,12 @@ async function deleteFallbackContent(id: string): Promise<void> {
 function normalizeSession(meta: SessionEntry): SessionEntry {
   return {
     ...meta,
+    name: sanitizeSessionName(meta.name ?? ""),
     sortIndex: typeof meta.sortIndex === "number" ? meta.sortIndex : undefined,
     linkedFileName: meta.linkedFileName ?? null,
+    remoteSourceUrl: typeof meta.remoteSourceUrl === "string" && meta.remoteSourceUrl.trim()
+      ? meta.remoteSourceUrl.trim()
+      : null,
     lastSavedAt: meta.lastSavedAt ?? null,
     dirty: Boolean(meta.dirty),
   };
@@ -186,8 +192,18 @@ export async function listSessions(): Promise<SessionEntry[]> {
     const reindexed = reindexSessions(normalized);
 
     for (const entry of reindexed) {
-      const current = normalized.find((item) => item.id === entry.id);
-      if (!current || current.sortIndex !== entry.sortIndex) {
+      const current = result.find((item) => item.id === entry.id);
+      const normalizedCurrent = current ? normalizeSession(current) : null;
+      if (
+        !current
+        || !normalizedCurrent
+        || current.name !== entry.name
+        || current.linkedFileName !== entry.linkedFileName
+        || current.remoteSourceUrl !== entry.remoteSourceUrl
+        || current.lastSavedAt !== entry.lastSavedAt
+        || Boolean(current.dirty) !== entry.dirty
+        || normalizedCurrent.sortIndex !== entry.sortIndex
+      ) {
         store.put(entry);
       }
     }
@@ -205,7 +221,7 @@ export async function getSession(id: string): Promise<SessionEntry | null> {
   return entry;
 }
 
-export async function createSession(options?: { name?: string; linkedFileName?: string | null; initialContent?: string }): Promise<SessionEntry> {
+export async function createSession(options?: { name?: string; linkedFileName?: string | null; remoteSourceUrl?: string | null; initialContent?: string }): Promise<SessionEntry> {
   const id = nextId();
   const updatedAt = Date.now();
   const existing = await listSessions();
@@ -214,11 +230,12 @@ export async function createSession(options?: { name?: string; linkedFileName?: 
     : 0;
   const session: SessionEntry = {
     id,
-    name: options?.name?.trim() || "Untitled",
+    name: sanitizeSessionName(options?.name ?? ""),
     updatedAt,
     sortIndex: topSortIndex,
     tempPath: defaultTempPath(id),
     linkedFileName: options?.linkedFileName?.trim() || null,
+    remoteSourceUrl: options?.remoteSourceUrl?.trim() || null,
     lastSavedAt: null,
     dirty: false,
   };
@@ -244,7 +261,7 @@ export async function updateSessionMeta(id: string, patch: Partial<SessionEntry>
 }
 
 export async function renameSession(id: string, name: string): Promise<SessionEntry | null> {
-  return updateSessionMeta(id, { name: name.trim() || "Untitled" });
+  return updateSessionMeta(id, { name: sanitizeSessionName(name) });
 }
 
 export async function readSessionContent(id: string): Promise<string> {
@@ -418,13 +435,48 @@ async function readSessionFromProjectSource(sourceRef: string): Promise<SessionS
   }
 }
 
+export async function readRemoteSessionSource(url: string, fallbackFileName = "remote.lua"): Promise<SessionSourceResult> {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      cache: "no-store",
+      credentials: "omit",
+    });
+  } catch {
+    throw new Error("remote source could not be reached");
+  }
+
+  if (!response.ok) {
+    throw new Error(`remote source returned ${response.status}`);
+  }
+
+  const contentLengthHeader = response.headers.get("content-length");
+  if (contentLengthHeader) {
+    const contentLength = Number.parseInt(contentLengthHeader, 10);
+    if (Number.isFinite(contentLength) && contentLength > MAX_IMPORTED_FILE_SIZE_BYTES) {
+      throw new Error("file is too large");
+    }
+  }
+
+  const content = await response.text();
+  const validation = validateImportedSessionText(content);
+  if (!validation.ok) {
+    throw new Error(validation.reason);
+  }
+
+  return {
+    fileName: fallbackFileName,
+    content,
+  };
+}
+
 export async function saveSessionToLocal(id: string, content: string, suggestedName: string): Promise<SaveSessionResult | null> {
   const meta = await getSession(id);
   if (!meta) {
     return null;
   }
 
-  const sanitized = suggestedName.trim().replace(/[^A-Za-z0-9._-]+/g, "_") || "render-script";
+  const sanitized = sanitizeLuaFileStem(suggestedName);
   let handle = await getLinkedHandle(id);
 
   if (!handle && supportsFilePicker()) {
@@ -440,6 +492,8 @@ export async function saveSessionToLocal(id: string, content: string, suggestedN
         types: [{ description: "Lua files", accept: { "text/plain": [".lua"] } }],
       }) ?? null;
     } catch (error: unknown) {
+      // User-cancelled save dialogs are expected and should not surface as
+      // "Save failed" toasts in the app.
       if (isAbortError(error)) {
         return null;
       }
@@ -483,6 +537,9 @@ export async function readSessionFromLinkedFile(id: string): Promise<SessionSour
 
   const handle = await getLinkedHandle(id);
   if (!handle) {
+    if (meta.remoteSourceUrl) {
+      return readRemoteSessionSource(meta.remoteSourceUrl, meta.linkedFileName ?? "remote.lua");
+    }
     return meta.linkedFileName ? readSessionFromProjectSource(meta.linkedFileName) : null;
   }
 

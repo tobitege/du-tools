@@ -2,58 +2,16 @@ import type { DrawCommand, ScreenConfig } from "./types";
 import { RSShape, defaultLayerStyle, DEFAULT_SCREEN } from "./types";
 import type { LayerStyle, FontEntry, ImageEntry } from "./types";
 import { measureFontMetrics, measureTextBounds } from "./textMetrics";
+import { normalizeImageSource } from "../security/inputGuards";
 
-const NOVAQUARK_ASSET_HOST = "assets.prod.novaquark.com";
+const DEFAULT_DISABLED_IMAGE_URL = "/images-disabled.svg";
+const DISABLED_IMAGE_TEXT = "Images disabled";
+const DISABLED_IMAGE_WIDTH = 256;
+const DISABLED_IMAGE_HEIGHT = 96;
 
-function normalizeDataImageUrl(url: string): string | null {
-  const trimmed = url.trim();
-  if (!trimmed.toLowerCase().startsWith("data:image/")) {
-    return null;
-  }
-
-  const commaIndex = trimmed.indexOf(",");
-  if (commaIndex <= "data:image/".length) {
-    return null;
-  }
-
-  return trimmed;
-}
-
-function normalizeNovaquarkAssetUrl(url: string): string | null {
-  const trimmed = url.trim();
-  if (!trimmed.startsWith(NOVAQUARK_ASSET_HOST)) {
-    return null;
-  }
-
-  const nextChar = trimmed[NOVAQUARK_ASSET_HOST.length];
-  if (nextChar && nextChar !== "/" && nextChar !== "?" && nextChar !== "#") {
-    return null;
-  }
-
-  let parsed: URL;
-  try {
-    parsed = new URL(`https://${trimmed}`);
-  } catch {
-    return null;
-  }
-
-  if (parsed.protocol !== "https:" || parsed.hostname !== NOVAQUARK_ASSET_HOST) {
-    return null;
-  }
-
-  if (parsed.username || parsed.password) {
-    return null;
-  }
-
-  if (!parsed.pathname || parsed.pathname === "/") {
-    return null;
-  }
-
-  return parsed.toString();
-}
-
-function normalizeImageUrl(url: string): string | null {
-  return normalizeDataImageUrl(url) ?? normalizeNovaquarkAssetUrl(url);
+export interface DrawBufferOptions {
+  imageLoadingEnabled?: boolean;
+  disabledImageUrl?: string;
 }
 
 export class DrawBuffer {
@@ -81,6 +39,13 @@ export class DrawBuffer {
   logs: string[] = [];
   requestAnimFrames = 0;
   onAssetsChanged: (() => void) | null = null;
+  readonly imageLoadingEnabled: boolean;
+  readonly disabledImageUrl: string;
+
+  constructor(options?: DrawBufferOptions) {
+    this.imageLoadingEnabled = options?.imageLoadingEnabled ?? false;
+    this.disabledImageUrl = options?.disabledImageUrl ?? DEFAULT_DISABLED_IMAGE_URL;
+  }
 
   resetFrame() {
     this.commands = [];
@@ -345,8 +310,46 @@ export class DrawBuffer {
     return names[index] ?? "";
   }
 
+  private createDisabledImagePlaceholder(): number {
+    const existing = this.images.find((image) => image.placeholderText === DISABLED_IMAGE_TEXT);
+    if (existing) {
+      return existing.id;
+    }
+
+    const id = this.nextImageId++;
+    const entry: ImageEntry = {
+      id,
+      url: this.disabledImageUrl,
+      loaded: false,
+      element: null,
+      width: DISABLED_IMAGE_WIDTH,
+      height: DISABLED_IMAGE_HEIGHT,
+      placeholderText: DISABLED_IMAGE_TEXT,
+    };
+    this.images.push(entry);
+
+    const img = new Image();
+    img.onload = () => {
+      entry.loaded = true;
+      entry.element = img;
+      entry.width = img.naturalWidth || DISABLED_IMAGE_WIDTH;
+      entry.height = img.naturalHeight || DISABLED_IMAGE_HEIGHT;
+      this.onAssetsChanged?.();
+    };
+    img.onerror = () => {
+      this.onAssetsChanged?.();
+    };
+    img.src = this.disabledImageUrl;
+
+    return id;
+  }
+
   LoadImage(url: string): number {
-    const normalizedUrl = normalizeImageUrl(url);
+    if (!this.imageLoadingEnabled) {
+      return this.createDisabledImagePlaceholder();
+    }
+
+    const normalizedUrl = normalizeImageSource(url);
     if (!normalizedUrl) {
       return 0;
     }

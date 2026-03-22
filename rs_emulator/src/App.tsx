@@ -1,16 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { CodeEditor } from "./components/CodeEditor";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent as ReactDragEvent, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { CodeEditor, type CodeEditorHandle } from "./components/CodeEditor";
 import { Canvas, type CanvasHandle } from "./components/Canvas";
 import { Sidebar } from "./components/Sidebar";
 import { DEFAULT_SETTINGS, getResolutionPreset, getThemeOption, RESOLUTION_PRESETS, THEME_OPTIONS, type SessionEntry, type Settings } from "./components/sidebarConfig";
+import { runtimeFlags } from "./config/runtimeFlags";
 import { DrawBuffer, createLuaEnvironment, type LuaExecResult } from "./emulator";
 import { getFrameDeltaSeconds, getRuntimeTimeSeconds } from "./emulator/frameTiming";
 import { moveSessionInOrder, sortSessionsByOrder, type SessionDropPlacement } from "./sessionOrdering";
+import { sessionNameFromFileName, validateGitHubLuaUrl, validateImportedSessionFile } from "./security/inputGuards";
 import {
   createSession,
   deleteSession,
   getDuLuaRootHandle,
   listSessions,
+  readRemoteSessionSource,
   readSessionFromLinkedFile,
   readSessionContent,
   renameSession,
@@ -30,6 +33,42 @@ function clamp(value: number, low: number, high: number): number {
 
 function classNames(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(" ");
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function extractLuaErrorLine(errorMessage: string | undefined, chunkLabel: string | null | undefined): number | null {
+  if (!errorMessage) {
+    return null;
+  }
+
+  const firstLine = errorMessage.split(/\r?\n/, 1)[0] ?? errorMessage;
+  const normalizedLabel = chunkLabel?.replace(/^@/, "").trim();
+
+  if (normalizedLabel) {
+    const labelMatch = firstLine.match(new RegExp(`${escapeRegExp(normalizedLabel)}:(\\d+):`));
+    const lineNumber = labelMatch?.[1] ? Number.parseInt(labelMatch[1], 10) : Number.NaN;
+    if (Number.isInteger(lineNumber) && lineNumber > 0) {
+      return lineNumber;
+    }
+  }
+
+  const genericMatch = firstLine.match(/:(\d+):/);
+  const genericLineNumber = genericMatch?.[1] ? Number.parseInt(genericMatch[1], 10) : Number.NaN;
+  return Number.isInteger(genericLineNumber) && genericLineNumber > 0 ? genericLineNumber : null;
+}
+
+function GitHubIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 1.5A10.5 10.5 0 0 0 8.68 22c.52.1.7-.23.7-.5v-1.77c-2.87.62-3.47-1.22-3.47-1.22-.47-1.18-1.13-1.49-1.13-1.49-.92-.63.07-.62.07-.62 1.03.07 1.56 1.04 1.56 1.04.9 1.56 2.4 1.1 2.98.84.09-.66.35-1.11.63-1.37-2.29-.26-4.7-1.14-4.7-5.06 0-1.12.4-2.04 1.04-2.76-.11-.26-.45-1.33.1-2.77 0 0 .86-.28 2.82 1.05a9.8 9.8 0 0 1 5.12 0c1.96-1.33 2.81-1.05 2.81-1.05.56 1.44.22 2.51.12 2.77.65.72 1.04 1.64 1.04 2.76 0 3.94-2.42 4.79-4.73 5.05.37.32.7.94.7 1.89v2.8c0 .28.19.61.71.5A10.5 10.5 0 0 0 12 1.5Z"
+      />
+    </svg>
+  );
 }
 
 function rotateCanvasBy(current: CanvasRotation, delta: 90 | -90): CanvasRotation {
@@ -205,16 +244,6 @@ function makeUntitledName(sessions: SessionEntry[]): string {
   return `Untitled ${index}`;
 }
 
-function sessionNameFromFileName(fileName: string): string {
-  const trimmed = fileName.trim();
-  if (!trimmed) {
-    return "Untitled";
-  }
-
-  const withoutExtension = trimmed.replace(/\.[^.\\/]+$/, "");
-  return withoutExtension || trimmed;
-}
-
 function hasGeneratedUntitledName(name: string): boolean {
   return /^Untitled(?: \d+)?$/.test(name.trim());
 }
@@ -231,10 +260,12 @@ function sortSessions(entries: SessionEntry[]): SessionEntry[] {
 }
 
 export default function App() {
-  const bufferRef = useRef(new DrawBuffer());
+  const bufferRef = useRef(new DrawBuffer({ imageLoadingEnabled: runtimeFlags.imageLoadingEnabled }));
   const canvasRef = useRef<CanvasHandle>(null);
+  const codeEditorRef = useRef<CodeEditorHandle>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const githubUrlInputRef = useRef<HTMLInputElement>(null);
   const animFrameRef = useRef<number>(0);
   const animTimerRef = useRef<number>(0);
   const statusTimerRef = useRef<number>(0);
@@ -278,7 +309,7 @@ export default function App() {
     return readLuaModuleFromRoot(root, moduleName);
   }, []);
 
-  const envRef = useRef(createLuaEnvironment(bufferRef.current, resolveLuaModule));
+  const envRef = useRef(createLuaEnvironment(bufferRef.current, resolveLuaModule, runtimeFlags));
 
   const [sessions, setSessions] = useState<SessionEntry[]>([]);
   const [activeSessionId, setActiveSessionId] = useState("");
@@ -295,6 +326,9 @@ export default function App() {
   const [duLuaServerRootPath, setDuLuaServerRootPath] = useState<string | null>(null);
   const [splitterDragging, setSplitterDragging] = useState(false);
   const [editorDropActive, setEditorDropActive] = useState(false);
+  const [githubImportOpen, setGithubImportOpen] = useState(false);
+  const [githubImporting, setGithubImporting] = useState(false);
+  const [githubUrlInput, setGithubUrlInput] = useState("");
   const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false);
   const [reloading, setReloading] = useState(false);
   const [canvasRotation, setCanvasRotation] = useState<CanvasRotation>(0);
@@ -303,8 +337,13 @@ export default function App() {
     () => sessions.find((session) => session.id === activeSessionId),
     [sessions, activeSessionId]
   );
+  const activeChunkLabel = activeSession?.linkedFileName ?? activeSession?.tempPath ?? "session.lua";
   const activeTheme = getThemeOption(settings.themeId) ?? THEME_OPTIONS[0];
   const editorTheme = settings.darkEditor ? "vs-dark" : "vs";
+  const activeErrorLine = useMemo(
+    () => result && !result.success ? extractLuaErrorLine(result.error, activeChunkLabel) : null,
+    [activeChunkLabel, result]
+  );
 
   sessionsRef.current = sessions;
   activeSessionIdRef.current = activeSessionId;
@@ -366,7 +405,7 @@ export default function App() {
     executionTokenRef.current += 1;
     resolvedModulePathsRef.current = {};
     bufferRef.current.resetRuntimeState();
-    envRef.current = createLuaEnvironment(bufferRef.current, resolveLuaModule);
+    envRef.current = createLuaEnvironment(bufferRef.current, resolveLuaModule, runtimeFlags);
     setRunning(false);
   }, [clearAutoRunTimer, resolveLuaModule]);
 
@@ -457,9 +496,10 @@ export default function App() {
     buffer.screen.height = settings.canvasHeight;
     buffer.time = 0;
     buffer.deltaTime = 0;
+    const executionLabel = activeChunkLabel;
 
     try {
-      const firstResult = await envRef.current.execute(codeToRun);
+      const firstResult = await envRef.current.execute(codeToRun, { chunkLabel: executionLabel });
       if (executionTokenRef.current !== executionToken) {
         return;
       }
@@ -486,7 +526,7 @@ export default function App() {
           buffer.screen.width = settings.canvasWidth;
           buffer.screen.height = settings.canvasHeight;
 
-          const frameResult = await envRef.current.execute(codeToRun);
+          const frameResult = await envRef.current.execute(codeToRun, { chunkLabel: executionLabel });
           if (executionTokenRef.current !== executionToken) {
             return;
           }
@@ -526,7 +566,7 @@ export default function App() {
         setRunning(false);
       }
     }
-  }, [settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus]);
+  }, [activeChunkLabel, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus]);
 
   const runCurrentCode = useCallback((nextCode?: string) => {
     stopAnimation();
@@ -585,6 +625,29 @@ export default function App() {
       return;
     }
 
+    const acceptedFiles: Array<{ file: File; safeFileName: string; sessionName: string }> = [];
+    const rejectedReasons: string[] = [];
+
+    for (const file of files) {
+      const validation = validateImportedSessionFile(file);
+      if (!validation.ok) {
+        rejectedReasons.push(`${file.name || "(unnamed file)"}: ${validation.reason}`);
+        continue;
+      }
+
+      acceptedFiles.push({
+        file,
+        safeFileName: validation.value.safeFileName,
+        sessionName: validation.value.sessionName,
+      });
+    }
+
+    if (acceptedFiles.length === 0) {
+      const reason = rejectedReasons[0] ?? "no importable files";
+      showStatus(`Import blocked: ${reason.slice(0, 140)}`);
+      return;
+    }
+
     try {
       await flushActiveSession();
       stopAnimation();
@@ -595,16 +658,18 @@ export default function App() {
       bufferRef.current.screen.height = settings.canvasHeight;
       canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
 
-      const loadedFiles = await Promise.all(files.map(async (file) => ({
+      const loadedFiles = await Promise.all(acceptedFiles.map(async ({ file, safeFileName, sessionName }) => ({
         file,
+        safeFileName,
+        sessionName,
         text: await file.text(),
       })));
 
       let lastCreatedId = "";
-      for (const { file, text } of loadedFiles) {
+      for (const { safeFileName, sessionName, text } of loadedFiles) {
         const created = await createSession({
-          name: sessionNameFromFileName(file.name),
-          linkedFileName: file.name,
+          name: sessionName,
+          linkedFileName: safeFileName,
           initialContent: text,
         });
         lastCreatedId = created.id;
@@ -622,10 +687,14 @@ export default function App() {
       bufferRef.current.screen.height = settings.canvasHeight;
       canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
 
+      const skippedLabel = rejectedReasons.length > 0
+        ? ` Skipped ${rejectedReasons.length} blocked file${rejectedReasons.length === 1 ? "" : "s"}.`
+        : "";
+
       if (loadedFiles.length === 1) {
-        showStatus(`Imported new session: ${loadedFiles[0]?.file.name}`);
+        showStatus(`Imported new session: ${loadedFiles[0]?.safeFileName}.${skippedLabel}`.trim());
       } else {
-        showStatus(`Imported ${loadedFiles.length} files into new sessions`);
+        showStatus(`Imported ${loadedFiles.length} files into new sessions.${skippedLabel}`.trim());
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
@@ -676,6 +745,64 @@ export default function App() {
       void importFilesIntoSessions(files);
     }
   }, [importFilesIntoSessions]);
+
+  const closeGitHubImport = useCallback(() => {
+    setGithubImportOpen(false);
+    setGithubUrlInput("");
+  }, []);
+
+  const importGitHubSession = useCallback(async (rawUrl: string) => {
+    const validation = validateGitHubLuaUrl(rawUrl);
+    if (!validation.ok) {
+      showStatus(`Import blocked: ${validation.reason}`);
+      return;
+    }
+
+    setGithubImporting(true);
+
+    try {
+      const { safeFileName, sessionName, remoteSourceUrl } = validation.value;
+      const source = await readRemoteSessionSource(remoteSourceUrl, safeFileName);
+
+      await flushActiveSession();
+      stopAnimation();
+      resetRuntime();
+      setResult(null);
+      setEditorDropActive(false);
+      bufferRef.current.screen.width = settings.canvasWidth;
+      bufferRef.current.screen.height = settings.canvasHeight;
+      canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+
+      const created = await createSession({
+        name: sessionName,
+        linkedFileName: safeFileName,
+        remoteSourceUrl,
+        initialContent: source.content,
+      });
+
+      await refreshSessions();
+      const loadedCode = await loadSessionIntoEditor(created.id);
+      if (loadedCode === null) {
+        return;
+      }
+
+      bufferRef.current.screen.width = settings.canvasWidth;
+      bufferRef.current.screen.height = settings.canvasHeight;
+      canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+      closeGitHubImport();
+      showStatus(`Imported GitHub script: ${safeFileName}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      showStatus(`Import failed: ${message.slice(0, 140)}`);
+    } finally {
+      setGithubImporting(false);
+    }
+  }, [closeGitHubImport, flushActiveSession, loadSessionIntoEditor, refreshSessions, resetRuntime, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus, stopAnimation]);
+
+  const handleGitHubUrlSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void importGitHubSession(githubUrlInput);
+  }, [githubUrlInput, importGitHubSession]);
 
   const handleSplitterPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     splitterDragRef.current = true;
@@ -1064,10 +1191,12 @@ export default function App() {
   }, []);
 
   const currentFileLabel = fileLabel(activeSession);
-  const primaryFileLabel = activeSession?.name || "RenderScript.lua";
+  const primaryFileLabel = activeSession?.name || "untitled";
   const showSecondaryFileLabel = Boolean(activeSession && currentFileLabel !== primaryFileLabel);
-  const reloadSourceLabel = activeSession?.linkedFileName ?? "the source file";
-  const canReload = Boolean(activeSession?.linkedFileName);
+  const reloadSourceLabel = activeSession?.remoteSourceUrl
+    ? `${activeSession.linkedFileName ?? "the current script"} on GitHub`
+    : activeSession?.linkedFileName ?? "the source file";
+  const canReload = Boolean(activeSession?.linkedFileName || activeSession?.remoteSourceUrl);
   const canRunToggle = !saving && !loadingSession && !!activeSession;
   const isHorizontalLayout = settings.layoutOrientation === "horizontal";
   const activeSplit = isHorizontalLayout ? settings.horizontalSplit : settings.verticalSplit;
@@ -1125,6 +1254,20 @@ export default function App() {
     };
   }, [settings.showGrid]);
 
+  useEffect(() => {
+    if (githubImportOpen) {
+      githubUrlInputRef.current?.focus();
+    }
+  }, [githubImportOpen]);
+
+  useEffect(() => {
+    codeEditorRef.current?.highlightErrorLine(activeErrorLine);
+  }, [activeErrorLine]);
+
+  useEffect(() => {
+    codeEditorRef.current?.highlightErrorLine(null);
+  }, [activeSessionId, code]);
+
   return (
     <div className="rs-theme-root flex h-screen w-screen overflow-hidden bg-base-300 text-base-content" data-theme={activeTheme.id}>
       <Sidebar
@@ -1133,6 +1276,7 @@ export default function App() {
         onSelectSession={(id) => { void handleSelectSession(id); }}
         onNewSession={() => { void handleNewSession(); }}
         onOpenFile={handleImportFilePick}
+        onOpenGitHubImport={() => setGithubImportOpen(true)}
         onImportFiles={(files) => { void importFilesIntoSessions(files); }}
         onDeleteSession={(id) => { void handleDeleteSession(id); }}
         onRenameSession={(id, name) => { void handleRenameSession(id, name); }}
@@ -1304,20 +1448,33 @@ export default function App() {
                 onChange={handleImportFileChange}
                 className="hidden"
               />
-              <CodeEditor value={code} onChange={setCode} onRun={handleRun} fontSize={settings.editorFontSize} theme={editorTheme} />
+              <CodeEditor ref={codeEditorRef} value={code} onChange={setCode} onRun={handleRun} fontSize={settings.editorFontSize} theme={editorTheme} />
               {showEmptyEditorDropzone ? (
                 <div className={editorDropzoneOverlayClassName}>
-                  <div className="pointer-events-auto flex w-[min(420px,78%)] flex-col items-center gap-2 rounded-2xl border border-primary/30 bg-base-100/90 px-7 py-6 text-center shadow-2xl">
-                    <div className="text-xl font-bold text-base-content">Drop Lua files here</div>
-                    <div className="max-w-80 text-sm leading-6 text-base-content/65">Each imported file creates a new session named after the file.</div>
-                    <button
-                      type="button"
-                      onClick={handleImportFilePick}
-                      className="btn btn-primary btn-sm mt-2"
-                      title="Choose one or more Lua files to import as new sessions"
-                    >
-                      Choose Files
-                    </button>
+                  <div className="pointer-events-auto flex w-[min(480px,82%)] flex-col items-center gap-3 rounded-2xl border border-primary/30 bg-base-100/90 px-7 py-6 text-center shadow-2xl">
+                    <div className="text-xl font-bold text-base-content">Drop one or more Lua files here</div>
+                    <div className="max-w-96 text-sm leading-6 text-base-content/65">
+                      Each imported file creates a new session named after the file. You can also paste a GitHub blob or raw URL to a single `.lua` file.
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleImportFilePick}
+                        className="btn btn-primary btn-sm"
+                        title="Choose one or more Lua files to import as new sessions"
+                      >
+                        Choose Files
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setGithubImportOpen(true)}
+                        className="btn btn-outline btn-sm gap-2"
+                        title="Paste a GitHub URL to a Lua file"
+                      >
+                        <GitHubIcon className="h-4 w-4" />
+                        <span>GitHub</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : null}
@@ -1326,7 +1483,7 @@ export default function App() {
         </div>
 
         {result && !result.success ? (
-          <div className="border-t border-error/30 bg-error/15 px-4 py-2 font-mono text-sm text-error">{result.error}</div>
+          <div className="whitespace-pre-wrap border-t border-error/30 bg-error/15 px-4 py-2 font-mono text-sm text-error">{result.error}</div>
         ) : null}
 
         {result && result.logs.length > 0 ? (
@@ -1337,6 +1494,59 @@ export default function App() {
           </div>
         ) : null}
       </div>
+
+      {githubImportOpen ? (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-lg">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-base-200 text-base-content">
+                <GitHubIcon className="h-5 w-5" />
+              </span>
+              <div>
+                <div className="text-lg font-bold text-base-content">Import from GitHub</div>
+                <div className="text-sm text-base-content/65">Paste a GitHub blob or raw URL to a single `.lua` file.</div>
+              </div>
+            </div>
+            <form className="mt-5 flex flex-col gap-3" onSubmit={handleGitHubUrlSubmit}>
+              <label className="input input-bordered flex h-auto items-center gap-2 px-3 py-2">
+                <GitHubIcon className="h-4 w-4 shrink-0 text-base-content/60" />
+                <input
+                  ref={githubUrlInputRef}
+                  type="url"
+                  value={githubUrlInput}
+                  onChange={(event) => setGithubUrlInput(event.target.value)}
+                  placeholder="https://github.com/user/repo/blob/main/screen.lua"
+                  className="w-full bg-transparent text-sm outline-none"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  disabled={githubImporting}
+                />
+              </label>
+              <div className="text-xs leading-5 text-base-content/55">
+                Supported: `github.com/.../blob/.../*.lua` and `raw.githubusercontent.com/.../*.lua`
+              </div>
+              <div className="modal-action mt-1">
+                <button
+                  type="button"
+                  onClick={closeGitHubImport}
+                  className="btn btn-ghost"
+                  disabled={githubImporting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={githubImporting || githubUrlInput.trim().length === 0}
+                >
+                  {githubImporting ? "Loading..." : "Load URL"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
 
       {reloadConfirmOpen ? (
         <div className="modal modal-open">

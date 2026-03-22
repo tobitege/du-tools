@@ -66,6 +66,53 @@ describe("lua runtime example integration", () => {
     expect(buffer.commands.some((command) => command.op === "AddText" && command.text === "loaded")).toBe(true);
   });
 
+  it("ignores require/include statements that only appear inside comments or strings", async () => {
+    const requestedModules: string[] = [];
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, async (moduleName) => {
+      requestedModules.push(moduleName);
+      if (moduleName === "real_module") {
+        return "return { value = 'loaded' }";
+      }
+      return null;
+    });
+
+    const result = await env.execute(`
+      -- require("commented_line")
+      --[[ include("commented_block") ]]
+      local ignoredA = "require('string_literal')"
+      local ignoredB = [[include("long_string_literal")]]
+      local module = require("real_module")
+      setOutput(module.value)
+    `);
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("loaded");
+    expect(requestedModules).toEqual(["real_module"]);
+  });
+
+  it("accepts a UTF-8 BOM before a first-line Lua comment", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer);
+
+    const result = await env.execute("\uFEFF-- constants for svg file\nlocal value = 7\nsetOutput(tostring(value))");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("7");
+  });
+
+  it("reports runtime errors with the provided chunk label and line number", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer);
+
+    const result = await env.execute("local value = {}\nreturn value.missing.field", {
+      chunkLabel: "github-script.lua",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("github-script.lua:2:");
+  });
+
   it("loads RenderScript dynamically through the module resolver", async () => {
     const buffer = new DrawBuffer();
     const env = createLuaEnvironment(buffer, async (moduleName) => {
@@ -73,7 +120,7 @@ describe("lua runtime example integration", () => {
         return renderScriptFixture;
       }
       return null;
-    });
+    }, { imageLoadingEnabled: false, luaHostIoEnabled: true });
 
     const result = await env.execute(`
       local RenderScript = require("RenderScript")
@@ -306,7 +353,7 @@ describe("lua runtime example integration", () => {
   });
 
   it("renders Locura-Trees with embedded base64 image layers", async () => {
-    const buffer = new DrawBuffer();
+    const buffer = new DrawBuffer({ imageLoadingEnabled: true });
     const env = createLuaEnvironment(buffer);
 
     const result = await env.execute(locuraTreesSource);
@@ -330,7 +377,7 @@ describe("lua runtime example integration", () => {
   });
 
   it("exposes loadImage for allowed Novaquark asset URLs", async () => {
-    const buffer = new DrawBuffer();
+    const buffer = new DrawBuffer({ imageLoadingEnabled: true });
     const env = createLuaEnvironment(buffer);
 
     const result = await env.execute(`
@@ -343,22 +390,22 @@ describe("lua runtime example integration", () => {
     expect(buffer.images[0]?.url).toBe("https://assets.prod.novaquark.com/4745/example.jpg");
   });
 
-  it("exposes loadImage for allowed data image URLs", async () => {
-    const buffer = new DrawBuffer();
+  it("exposes loadImage for allowed PNG data image URLs", async () => {
+    const buffer = new DrawBuffer({ imageLoadingEnabled: true });
     const env = createLuaEnvironment(buffer);
 
     const result = await env.execute(`
-      local image = loadImage("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==")
+      local image = loadImage("data:image/png;base64,iVBORw0KGgo=")
       setOutput(tostring(image))
     `);
 
     expect(result.success).toBe(true);
     expect(result.output).toBe("1");
-    expect(buffer.images[0]?.url).toBe("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==");
+    expect(buffer.images[0]?.url).toBe("data:image/png;base64,iVBORw0KGgo=");
   });
 
   it("rejects loadImage calls for disallowed image URLs", async () => {
-    const buffer = new DrawBuffer();
+    const buffer = new DrawBuffer({ imageLoadingEnabled: true });
     const env = createLuaEnvironment(buffer);
 
     const result = await env.execute(`
@@ -369,5 +416,97 @@ describe("lua runtime example integration", () => {
     expect(result.success).toBe(true);
     expect(result.output).toBe("0");
     expect(buffer.images).toHaveLength(0);
+  });
+
+  it("rejects loadImage calls for non-png/jpeg image formats", async () => {
+    const buffer = new DrawBuffer({ imageLoadingEnabled: true });
+    const env = createLuaEnvironment(buffer);
+
+    const result = await env.execute(`
+      local a = loadImage("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==")
+      local b = loadImage("assets.prod.novaquark.com/4745/example.gif")
+      setOutput(table.concat({ tostring(a), tostring(b) }, ","))
+    `);
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("0,0");
+    expect(buffer.images).toHaveLength(0);
+  });
+
+  it("rejects loadImage calls for traversal and local-path payloads", async () => {
+    const buffer = new DrawBuffer({ imageLoadingEnabled: true });
+    const env = createLuaEnvironment(buffer);
+
+    const result = await env.execute(`
+      local a = loadImage("assets.prod.novaquark.com/../secret.jpg")
+      local b = loadImage("\\\\server\\\\share\\\\secret.png")
+      local c = loadImage("C:\\\\temp\\\\secret.png")
+      setOutput(table.concat({ tostring(a), tostring(b), tostring(c) }, ","))
+    `);
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("0,0,0");
+    expect(buffer.images).toHaveLength(0);
+  });
+
+  it("returns a shared placeholder image when image loading is disabled", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer);
+
+    const result = await env.execute(`
+      local a = loadImage("assets.prod.novaquark.com/4745/example.jpg")
+      local b = loadImage("data:image/png;base64,iVBORw0KGgo=")
+      local w, h = getImageSize(a)
+      setOutput(table.concat({ tostring(a), tostring(b), tostring(w), tostring(h) }, ","))
+    `);
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("1,1,256,96");
+    expect(buffer.images[0]?.url).toBe("/images-disabled.svg");
+  });
+
+  it("blocks Lua host I/O by default while keeping require available", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, async (moduleName) => {
+      if (moduleName === "rslib") {
+        return rslibFixture;
+      }
+      return null;
+    });
+
+    const result = await env.execute(`
+      local okRequire, moduleValue = pcall(require, "rslib")
+      local okIo, ioError = pcall(function()
+        return io.open("test.txt", "r")
+      end)
+      setOutput(table.concat({
+        tostring(okRequire),
+        tostring(type(moduleValue)),
+        tostring(okIo),
+        tostring(ioError),
+      }, "|"))
+    `);
+
+    expect(result.success).toBe(true);
+    expect(result.output).toContain("true|table|false|");
+    expect(result.output).toContain("Lua host I/O is disabled");
+  });
+
+  it("allows Lua host I/O only when explicitly enabled", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, undefined, {
+      imageLoadingEnabled: false,
+      luaHostIoEnabled: true,
+    });
+
+    const result = await env.execute(`
+      local okIo, ioValue = pcall(function()
+        return io
+      end)
+      setOutput(table.concat({ tostring(okIo), tostring(type(ioValue)) }, "|"))
+    `);
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|table");
   });
 });

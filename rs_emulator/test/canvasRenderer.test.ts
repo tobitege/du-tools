@@ -128,4 +128,24 @@ describe("canvasRenderer text rendering", () => {
     expect(context.drawImage).toHaveBeenNthCalledWith(1, backgroundImage, 0, 0, 10, 10);
     expect(context.drawImage).toHaveBeenNthCalledWith(2, foregroundImage, 0, 0, 10, 10);
   });
+
+  it("renders a placeholder panel for disabled images before the asset has loaded", () => {
+    const buffer = new DrawBuffer();
+    const layer = buffer.CreateLayer();
+    const imageId = buffer.LoadImage("assets.prod.novaquark.com/4745/example.jpg");
+
+    buffer.AddImage(layer, imageId, 10, 20, 160, 60);
+
+    const context = createMockContext();
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn(() => context),
+    } as unknown as HTMLCanvasElement;
+
+    renderBuffer(canvas, buffer);
+
+    expect(context.fillRect).toHaveBeenCalledWith(10, 20, 160, 60);
+    expect(context.fillText).toHaveBeenCalledWith("Images disabled", 90, 50);
+  });
 });

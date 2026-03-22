@@ -5,6 +5,7 @@ export interface SessionEntry {
   sortIndex?: number;
   tempPath: string;
   linkedFileName: string | null;
+  remoteSourceUrl: string | null;
   dirty: boolean;
 }
 

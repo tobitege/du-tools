@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect, useMemo } from "react";
+import { forwardRef, useRef, useCallback, useEffect, useImperativeHandle, useMemo } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 
@@ -8,6 +8,10 @@ interface CodeEditorProps {
   onRun: () => void;
   fontSize: number;
   theme: "vs" | "vs-dark";
+}
+
+export interface CodeEditorHandle {
+  highlightErrorLine: (lineNumber: number | null) => void;
 }
 
 // RenderScript API completions
@@ -98,8 +102,11 @@ const RS_SNIPPETS = [
   },
 ];
 
-export function CodeEditor({ value, onChange, onRun, fontSize, theme }: CodeEditorProps) {
+export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function CodeEditor({ value, onChange, onRun, fontSize, theme }, ref) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<typeof import("monaco-editor") | null>(null);
+  const decorationIdsRef = useRef<string[]>([]);
+  const clearHighlightTimerRef = useRef<number>(0);
   const editorOptions = useMemo(() => ({
     fontSize,
     fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
@@ -116,9 +123,75 @@ export function CodeEditor({ value, onChange, onRun, fontSize, theme }: CodeEdit
     editorRef.current?.updateOptions(editorOptions);
   }, [editorOptions]);
 
+  const clearHighlightedLine = useCallback(() => {
+    const editorInstance = editorRef.current;
+    if (!editorInstance) {
+      return;
+    }
+
+    decorationIdsRef.current = editorInstance.deltaDecorations(decorationIdsRef.current, []);
+
+    if (clearHighlightTimerRef.current) {
+      window.clearTimeout(clearHighlightTimerRef.current);
+      clearHighlightTimerRef.current = 0;
+    }
+  }, []);
+
+  useEffect(() => () => {
+    if (clearHighlightTimerRef.current) {
+      window.clearTimeout(clearHighlightTimerRef.current);
+    }
+  }, []);
+
+  useImperativeHandle(ref, () => ({
+    highlightErrorLine(lineNumber) {
+      const editorInstance = editorRef.current;
+      const monaco = monacoRef.current;
+      const model = editorInstance?.getModel();
+
+      if (!editorInstance || !model || !monaco) {
+        return;
+      }
+
+      const maxLineNumber = model.getLineCount();
+      const safeLineNumber = lineNumber && lineNumber > 0 && lineNumber <= maxLineNumber ? lineNumber : null;
+
+      if (!safeLineNumber) {
+        clearHighlightedLine();
+        return;
+      }
+
+      decorationIdsRef.current = editorInstance.deltaDecorations(decorationIdsRef.current, [{
+        range: new monaco.Range(safeLineNumber, 1, safeLineNumber, 1),
+        options: {
+          isWholeLine: true,
+          className: "rs-editor-error-line",
+          linesDecorationsClassName: "rs-editor-error-line-gutter",
+        },
+      }]);
+
+      if (clearHighlightTimerRef.current) {
+        window.clearTimeout(clearHighlightTimerRef.current);
+      }
+      clearHighlightTimerRef.current = window.setTimeout(() => {
+        clearHighlightedLine();
+      }, 4000);
+
+      editorInstance.setPosition({ lineNumber: safeLineNumber, column: 1 });
+      const visible = editorInstance.getVisibleRanges().some((range) => (
+        safeLineNumber >= range.startLineNumber && safeLineNumber <= range.endLineNumber
+      ));
+
+      if (!visible) {
+        editorInstance.revealLineInCenter(safeLineNumber);
+      }
+    },
+  }), [clearHighlightedLine]);
+
   const handleMount: OnMount = useCallback(
     (editor, monaco) => {
       editorRef.current = editor;
+      monacoRef.current = monaco;
 
       // Register Lua language if not already
       monaco.languages.register({ id: "lua" });
@@ -244,4 +317,4 @@ export function CodeEditor({ value, onChange, onRun, fontSize, theme }: CodeEdit
       options={editorOptions}
     />
   );
-}
+});

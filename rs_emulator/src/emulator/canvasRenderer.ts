@@ -66,6 +66,23 @@ function isRenderableCommand(command: DrawCommand): command is RenderableCommand
   return command.op.startsWith("Add");
 }
 
+function drawImagePlaceholder(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, w: number, h: number) {
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,1)";
+  ctx.fillRect(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+  ctx.strokeStyle = "rgba(255,0,0,1)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.rect(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+  ctx.stroke();
+  ctx.fillStyle = "rgba(255,0,0,1)";
+  ctx.font = "bold 18px monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + w / 2, y + h / 2);
+  ctx.restore();
+}
+
 export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -245,6 +262,8 @@ export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
               Math.round(cmd.h)
             );
             ctx.restore();
+          } else if (imgEntry?.placeholderText) {
+            drawImagePlaceholder(ctx, imgEntry.placeholderText, cmd.x, cmd.y, cmd.w, cmd.h);
           }
           break;
         }
@@ -265,6 +284,8 @@ export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
               Math.round(cmd.h)
             );
             ctx.restore();
+          } else if (imgEntry?.placeholderText) {
+            drawImagePlaceholder(ctx, imgEntry.placeholderText, cmd.x, cmd.y, cmd.w, cmd.h);
           }
           break;
         }

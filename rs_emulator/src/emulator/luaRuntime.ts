@@ -1,5 +1,6 @@
 import { LuaFactory, type LuaEngine } from "wasmoon";
 import { DrawBuffer } from "./drawBuffer";
+import type { RuntimeFlags } from "../config/runtimeFlags";
 
 export interface LuaExecResult {
   success: boolean;
@@ -11,7 +12,14 @@ export interface LuaExecResult {
 
 export type LuaModuleResolver = (moduleName: string, fromModule?: string | null) => Promise<string | null>;
 
+export interface LuaExecuteOptions {
+  chunkLabel?: string;
+}
+
+const LUA_HOST_IO_DISABLED_ERROR = "Lua host I/O is disabled. Enable VITE_RS_ENABLE_LUA_HOST_IO=true to allow it.";
+
 let factoryPromise: Promise<LuaFactory> | null = null;
+const UTF8_BOM = "\uFEFF";
 
 async function getFactory(): Promise<LuaFactory> {
   if (!factoryPromise) {
@@ -37,7 +45,71 @@ function decodeLuaString(value: unknown): string {
   return textDecoder.decode(Uint8Array.from(value.filter((item): item is number => typeof item === "number")));
 }
 
-async function installRuntime(lua: LuaEngine, buffer: DrawBuffer): Promise<void> {
+function normalizeLuaSource(code: string): string {
+  return code.startsWith(UTF8_BOM) ? code.slice(UTF8_BOM.length) : code;
+}
+
+function stripControlChars(value: string): string {
+  let result = "";
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index] ?? "";
+    const code = char.charCodeAt(0);
+    if ((code >= 0 && code <= 31) || code === 127) {
+      result += " ";
+      continue;
+    }
+    result += char;
+  }
+
+  return result;
+}
+
+function normalizeChunkLabel(label?: string): string {
+  const trimmed = stripControlChars(label?.trim() ?? "");
+  if (!trimmed) {
+    return "@session.lua";
+  }
+  return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
+}
+
+function hasSourceLocation(message: string): boolean {
+  return /:\d+(?::\d+)?/.test(message);
+}
+
+function extractRelevantStackLocation(stack: string): string | null {
+  const lines = stack.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  for (const line of lines) {
+    if (!line.includes(":")) {
+      continue;
+    }
+    if (line === "Error" || line.startsWith("TypeError:") || line.startsWith("ReferenceError:")) {
+      continue;
+    }
+    return line;
+  }
+  return null;
+}
+
+function formatExecutionError(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return String(error);
+  }
+
+  const message = error.message || String(error);
+  if (hasSourceLocation(message)) {
+    return message;
+  }
+
+  const stackLocation = error.stack ? extractRelevantStackLocation(error.stack) : null;
+  if (!stackLocation) {
+    return message;
+  }
+
+  return `${message}\n${stackLocation}`;
+}
+
+async function installRuntime(lua: LuaEngine, buffer: DrawBuffer, runtimeFlags?: RuntimeFlags): Promise<void> {
   lua.global.set("createLayer", () => buffer.CreateLayer());
 
   lua.global.set("addBezier", (layer: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) => {
@@ -385,26 +457,308 @@ async function installRuntime(lua: LuaEngine, buffer: DrawBuffer): Promise<void>
     AlignV_Baseline = RSAlignVer.Baseline
     AlignV_Descender = RSAlignVer.Descender
   `);
+
+  if (!runtimeFlags?.luaHostIoEnabled) {
+    await lua.doString(`
+      do
+        local disabledMessage = ${JSON.stringify(LUA_HOST_IO_DISABLED_ERROR)}
+
+        local function disabled()
+          error(disabledMessage, 2)
+        end
+
+        local function safeRequire(name)
+          local loaded = package.loaded[name]
+          if loaded ~= nil then
+            return loaded
+          end
+
+          local loader = package.preload[name]
+          if type(loader) ~= "function" then
+            error("module not found: " .. tostring(name), 2)
+          end
+
+          local result = loader(name)
+          if result == nil then
+            result = true
+          end
+          package.loaded[name] = result
+          return result
+        end
+
+        local disabledTable = setmetatable({}, {
+          __index = function()
+            return disabled
+          end,
+          __newindex = function()
+            error(disabledMessage, 2)
+          end,
+        })
+
+        require = safeRequire
+        io = disabledTable
+        os = disabledTable
+        debug = disabledTable
+        dofile = disabled
+        loadfile = disabled
+
+        if type(package) == "table" then
+          package.path = ""
+          package.cpath = ""
+          package.loadlib = disabled
+          package.searchpath = disabled
+        end
+      end
+    `);
+  }
+}
+
+function getLongBracketEqualsCount(code: string, startIndex: number): number | null {
+  if (code[startIndex] !== "[") {
+    return null;
+  }
+
+  let cursor = startIndex + 1;
+  while (code[cursor] === "=") {
+    cursor += 1;
+  }
+
+  if (code[cursor] !== "[") {
+    return null;
+  }
+
+  return cursor - startIndex - 1;
+}
+
+function consumeLongBracketLiteral(code: string, startIndex: number, equalsCount: number): number {
+  const closingFence = `]${"=".repeat(equalsCount)}]`;
+  let cursor = startIndex + equalsCount + 2;
+
+  while (cursor < code.length) {
+    if (code.startsWith(closingFence, cursor)) {
+      return cursor + closingFence.length;
+    }
+    cursor += 1;
+  }
+
+  return code.length;
+}
+
+function consumeLuaQuotedString(code: string, startIndex: number): number {
+  const quote = code[startIndex];
+  let cursor = startIndex + 1;
+
+  while (cursor < code.length) {
+    if (code[cursor] === "\\") {
+      cursor += 2;
+      continue;
+    }
+    if (code[cursor] === quote) {
+      return cursor + 1;
+    }
+    cursor += 1;
+  }
+
+  return code.length;
+}
+
+function skipLuaTrivia(code: string, startIndex: number): number {
+  let cursor = startIndex;
+
+  while (cursor < code.length) {
+    const current = code[cursor];
+    const next = code[cursor + 1];
+
+    if (/\s/.test(current ?? "")) {
+      cursor += 1;
+      continue;
+    }
+
+    if (current === "-" && next === "-") {
+      const longCommentEquals = getLongBracketEqualsCount(code, cursor + 2);
+      if (longCommentEquals !== null) {
+        cursor = consumeLongBracketLiteral(code, cursor + 2, longCommentEquals);
+        continue;
+      }
+
+      cursor += 2;
+      while (cursor < code.length && code[cursor] !== "\n" && code[cursor] !== "\r") {
+        cursor += 1;
+      }
+      continue;
+    }
+
+    break;
+  }
+
+  return cursor;
+}
+
+function readLuaIdentifier(code: string, startIndex: number): { value: string; endIndex: number } | null {
+  const first = code[startIndex];
+  if (!first || !/[A-Za-z_]/.test(first)) {
+    return null;
+  }
+
+  let endIndex = startIndex + 1;
+  while (endIndex < code.length && /\w/.test(code[endIndex] ?? "")) {
+    endIndex += 1;
+  }
+
+  return {
+    value: code.slice(startIndex, endIndex),
+    endIndex,
+  };
+}
+
+function readLuaShortString(code: string, startIndex: number): { value: string; endIndex: number } | null {
+  const quote = code[startIndex];
+  if (quote !== "\"" && quote !== "'") {
+    return null;
+  }
+
+  let value = "";
+  let cursor = startIndex + 1;
+
+  while (cursor < code.length) {
+    const current = code[cursor];
+    if (current === "\\") {
+      const next = code[cursor + 1];
+      if (next === undefined) {
+        return null;
+      }
+      value += next;
+      cursor += 2;
+      continue;
+    }
+    if (current === quote) {
+      return { value, endIndex: cursor + 1 };
+    }
+    value += current;
+    cursor += 1;
+  }
+
+  return null;
+}
+
+function tryCollectDirectModuleCall(code: string, startIndex: number): { moduleName: string; endIndex: number } | null {
+  let cursor = skipLuaTrivia(code, startIndex);
+
+  if (code[cursor] === "(") {
+    cursor = skipLuaTrivia(code, cursor + 1);
+    const moduleName = readLuaShortString(code, cursor);
+    if (!moduleName) {
+      return null;
+    }
+    cursor = skipLuaTrivia(code, moduleName.endIndex);
+    if (code[cursor] !== ")") {
+      return null;
+    }
+    return {
+      moduleName: moduleName.value.trim(),
+      endIndex: cursor + 1,
+    };
+  }
+
+  const moduleName = readLuaShortString(code, cursor);
+  if (!moduleName) {
+    return null;
+  }
+
+  return {
+    moduleName: moduleName.value.trim(),
+    endIndex: moduleName.endIndex,
+  };
+}
+
+function tryCollectPcallRequire(code: string, startIndex: number): { moduleName: string; endIndex: number } | null {
+  let cursor = skipLuaTrivia(code, startIndex);
+  if (code[cursor] !== "(") {
+    return null;
+  }
+
+  cursor = skipLuaTrivia(code, cursor + 1);
+  const callee = readLuaIdentifier(code, cursor);
+  if (!callee || callee.value !== "require") {
+    return null;
+  }
+
+  cursor = skipLuaTrivia(code, callee.endIndex);
+  if (code[cursor] !== ",") {
+    return null;
+  }
+
+  cursor = skipLuaTrivia(code, cursor + 1);
+  const moduleName = readLuaShortString(code, cursor);
+  if (!moduleName) {
+    return null;
+  }
+
+  cursor = skipLuaTrivia(code, moduleName.endIndex);
+  if (code[cursor] !== ")") {
+    return null;
+  }
+
+  return {
+    moduleName: moduleName.value.trim(),
+    endIndex: cursor + 1,
+  };
 }
 
 function collectRequiredModules(code: string): string[] {
+  const normalizedCode = normalizeLuaSource(code);
   const modules = new Set<string>();
-  const patterns = [
-    /require\s*\(\s*["']([^"']+)["']\s*\)/g,
-    /require\s+["']([^"']+)["']/g,
-    /pcall\s*\(\s*require\s*,\s*["']([^"']+)["']\s*\)/g,
-    /include\s*\(\s*["']([^"']+)["']\s*\)/g,
-    /include\s+["']([^"']+)["']/g,
-  ];
+  let cursor = 0;
 
-  for (const pattern of patterns) {
-    for (const match of code.matchAll(pattern)) {
-      const moduleName = match[1]?.trim();
-      if (!moduleName || moduleName === "native/Vec2") {
-        continue;
-      }
-      modules.add(moduleName);
+  while (cursor < normalizedCode.length) {
+    const current = normalizedCode[cursor];
+    const next = normalizedCode[cursor + 1];
+
+    if (current === "-" && next === "-") {
+      const longCommentEquals = getLongBracketEqualsCount(normalizedCode, cursor + 2);
+      cursor = longCommentEquals !== null
+        ? consumeLongBracketLiteral(normalizedCode, cursor + 2, longCommentEquals)
+        : (() => {
+            let nextCursor = cursor + 2;
+            while (nextCursor < normalizedCode.length && normalizedCode[nextCursor] !== "\n" && normalizedCode[nextCursor] !== "\r") {
+              nextCursor += 1;
+            }
+            return nextCursor;
+          })();
+      continue;
     }
+
+    if (current === "\"" || current === "'") {
+      cursor = consumeLuaQuotedString(normalizedCode, cursor);
+      continue;
+    }
+
+    const longStringEquals = getLongBracketEqualsCount(normalizedCode, cursor);
+    if (longStringEquals !== null) {
+      cursor = consumeLongBracketLiteral(normalizedCode, cursor, longStringEquals);
+      continue;
+    }
+
+    const identifier = readLuaIdentifier(normalizedCode, cursor);
+    if (!identifier) {
+      cursor += 1;
+      continue;
+    }
+
+    let collected: { moduleName: string; endIndex: number } | null = null;
+    if (identifier.value === "require" || identifier.value === "include") {
+      collected = tryCollectDirectModuleCall(normalizedCode, identifier.endIndex);
+    } else if (identifier.value === "pcall") {
+      collected = tryCollectPcallRequire(normalizedCode, identifier.endIndex);
+    }
+
+    if (collected && collected.moduleName && collected.moduleName !== "native/Vec2") {
+      modules.add(collected.moduleName);
+      cursor = collected.endIndex;
+      continue;
+    }
+
+    cursor = identifier.endIndex;
   }
 
   return [...modules];
@@ -468,7 +822,7 @@ async function preloadExternalModules(lua: LuaEngine, modules: Map<string, strin
   `);
 }
 
-export function createLuaEnvironment(buffer: DrawBuffer, resolveModule?: LuaModuleResolver) {
+export function createLuaEnvironment(buffer: DrawBuffer, resolveModule?: LuaModuleResolver, runtimeFlags?: RuntimeFlags) {
   let enginePromise: Promise<LuaEngine> | null = null;
 
   async function getEngine(): Promise<LuaEngine> {
@@ -476,23 +830,35 @@ export function createLuaEnvironment(buffer: DrawBuffer, resolveModule?: LuaModu
       enginePromise = (async () => {
         const factory = await getFactory();
         const engine = await factory.createEngine();
-        await installRuntime(engine, buffer);
+        await installRuntime(engine, buffer, runtimeFlags);
         return engine;
       })();
     }
     return enginePromise;
   }
 
-  async function execute(code: string): Promise<LuaExecResult> {
+  async function execute(code: string, options?: LuaExecuteOptions): Promise<LuaExecResult> {
+    const normalizedCode = normalizeLuaSource(code);
+    const chunkLabel = normalizeChunkLabel(options?.chunkLabel);
     buffer.resetFrame();
     const lua = await getEngine();
     try {
       if (resolveModule) {
-        const externalModules = await collectExternalModules(code, resolveModule);
+        const externalModules = await collectExternalModules(normalizedCode, resolveModule);
         await preloadExternalModules(lua, externalModules);
       }
       await lua.doString('package.loaded["RenderScript"] = nil');
-      await lua.doString(code);
+      lua.global.set("__rsUserCode", normalizedCode);
+      lua.global.set("__rsUserChunkName", chunkLabel);
+      await lua.doString(`
+        do
+          local chunk, err = load(__rsUserCode, __rsUserChunkName, "t", _ENV)
+          if not chunk then
+            error(err, 0)
+          end
+          return chunk()
+        end
+      `);
       return {
         success: true,
         logs: [...buffer.logs],
@@ -502,7 +868,7 @@ export function createLuaEnvironment(buffer: DrawBuffer, resolveModule?: LuaModu
     } catch (error: unknown) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: formatExecutionError(error),
         logs: [...buffer.logs],
         output: buffer.output,
         requestAnimFrames: buffer.requestAnimFrames,

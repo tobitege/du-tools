@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="96" viewBox="0 0 256 96" role="img" aria-labelledby="title desc">
+  <title id="title">Images disabled</title>
+  <desc id="desc">Black placeholder panel with red Images disabled text.</desc>
+  <rect width="256" height="96" fill="#000000" />
+  <rect x="2" y="2" width="252" height="92" fill="none" stroke="#ff0000" stroke-width="4" />
+  <text x="128" y="52" fill="#ff0000" font-family="monospace" font-size="20" font-weight="700" text-anchor="middle">Images disabled</text>
+</svg>

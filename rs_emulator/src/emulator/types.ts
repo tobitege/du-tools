@@ -91,6 +91,7 @@ export interface ImageEntry {
   element: HTMLImageElement | null;
   width: number;
   height: number;
+  placeholderText?: string;
 }
 
 export interface ScreenConfig {
