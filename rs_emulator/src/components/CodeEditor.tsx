@@ -7,6 +7,7 @@ interface CodeEditorProps {
   onChange: (value: string) => void;
   onRun: () => void;
   fontSize: number;
+  theme: "vs" | "vs-dark";
 }
 
 // RenderScript API completions
@@ -97,7 +98,7 @@ const RS_SNIPPETS = [
   },
 ];
 
-export function CodeEditor({ value, onChange, onRun, fontSize }: CodeEditorProps) {
+export function CodeEditor({ value, onChange, onRun, fontSize, theme }: CodeEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
 
   const handleMount: OnMount = useCallback(
@@ -221,7 +222,7 @@ export function CodeEditor({ value, onChange, onRun, fontSize }: CodeEditorProps
     <Editor
       height="100%"
       language="lua"
-      theme="vs-dark"
+      theme={theme}
       value={value}
       onChange={(v) => onChange(v ?? "")}
         onMount={handleMount}

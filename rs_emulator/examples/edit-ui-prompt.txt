@@ -1,0 +1,75 @@
+﻿Arbeite im Repo `D:\github\du-tobi`, Fokus `rs_emulator`.
+
+Wenn du UI-Änderungen machst, prüfe zuerst diese Dateien:
+
+1. `rs_emulator/src/App.tsx`
+   - Hauptlayout von Canvas + Editor
+   - Toolbar über dem Editor
+   - Run/Stop-Button, Statusmeldungen, Canvas-Overlay
+   - Import-/Drop-Logik
+   - Session-Wechsel, Delete-Verhalten, Auto-run-Verhalten
+   - Viele Styles liegen direkt unten in `styles` innerhalb der Datei
+
+2. `rs_emulator/src/components/Sidebar.tsx`
+   - Sidebar-History und Settings
+   - Session-Cards
+   - Drag-and-drop für Session-Reihenfolge
+   - Drop-Zone im freien Bereich der Session-Liste
+   - Sidebar-spezifische Styles liegen ebenfalls direkt in der Datei
+
+3. `rs_emulator/src/components/sidebarConfig.ts`
+   - `DEFAULT_SETTINGS`
+   - `RESOLUTION_PRESETS`
+   - `Settings` / `SessionEntry` Typen
+   - Diese Datei existiert extra, damit Fast Refresh nicht meckert; `Sidebar.tsx` soll möglichst nur die Komponente exportieren
+
+4. `rs_emulator/src/storage/sessionStore.ts`
+   - Persistenz der Sessions in IndexedDB / OPFS
+   - manuelle Session-Reihenfolge über `sortIndex`
+   - Session-Metadaten und Speichern/Löschen
+
+5. `rs_emulator/src/sessionOrdering.ts`
+   - Hilfslogik für manuelle Session-Reihenfolge
+   - Sortierung, Reindexing, Drag-and-drop-Reihenfolge
+
+6. `rs_emulator/src/emulator/drawBuffer.ts`
+   - Canvas-/Render-Zustand
+   - Reset-Verhalten für Canvas, Hintergrundfarbe, Runtime-State
+
+Zusätzliche UI-relevante Dateien:
+- `rs_emulator/src/components/Canvas.tsx`
+- `rs_emulator/src/components/CodeEditor.tsx`
+
+Wichtige aktuelle Konventionen / Stolperstellen:
+- Viele UI-Styles sind Inline-Styles in `App.tsx` und `Sidebar.tsx`, nicht in separaten CSS-Dateien
+- `Sidebar.tsx` nicht wieder mit Utility-Exports wie `DEFAULT_SETTINGS` vermischen; dafür `sidebarConfig.ts` verwenden
+- Bei React-Styles keine Mischung aus `border` und `borderColor` in konkurrierenden Style-Objekten
+- Session-Reihenfolge ist manuell per Drag-and-drop und persistent; nicht wieder auf reine `updatedAt`-Sortierung zurückfallen
+- Datei-Drop gibt es sowohl im Editor als auch im freien Sidebar-History-Bereich
+- Beim Session-Wechsel / Datei-Drop / Löschen aktiver Session wird Canvas gezielt zurückgesetzt
+- Auto-run hatte Race-Probleme; in `App.tsx` gibt es dafür inzwischen einen Run-/Execution-Token. Nicht versehentlich entfernen
+
+Wenn du Toolbar/UI änderst, schau besonders in `rs_emulator/src/App.tsx` nach:
+- `editorHeader`
+- `editorActions`
+- `iconBtn`
+- `runBtn`
+- Canvas-Status-Toast im `canvasContainer`
+
+Wenn du Sidebar/UI änderst, schau besonders in `rs_emulator/src/components/Sidebar.tsx` nach:
+- `sessionList`
+- `sessionItem`
+- `sessionActive`
+- Drag/Drop-Handler der Session-Cards
+- freier Listenbereich für Datei-Drops
+
+Nach Änderungen immer mindestens ausführen:
+- `cd D:\github\du-tobi\rs_emulator`
+- `npm run build`
+
+Wenn Logik betroffen ist zusätzlich:
+- `npm test`
+
+Bitte bei Änderungen zuerst die vorhandenen Muster in den genannten Dateien lesen und dann minimal-invasiv anpassen, statt neue Parallelstrukturen einzuführen.
+---
+Task: 

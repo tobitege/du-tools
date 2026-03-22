@@ -10,12 +10,12 @@ interface CanvasProps {
   width: number;
   height: number;
   showGrid: boolean;
-  darkBg: boolean;
   showFps: boolean;
+  themeMode: "light" | "dark";
 }
 
 export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
-  ({ width, height, showGrid, darkBg, showFps }, ref) => {
+  ({ width, height, showGrid, showFps, themeMode }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const lastRenderAtRef = useRef<number | null>(null);
     const [stats, setStats] = useState({ drawCalls: 0, textCalls: 0, ms: 0, fps: 0 });
@@ -54,7 +54,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
           width: "100%",
           height: "100%",
           padding: 16,
-          background: darkBg ? "#0a0a14" : "#c8c8c8",
+          background: "var(--color-base-200)",
           borderRadius: 8,
           boxSizing: "border-box",
           display: "flex",
@@ -82,14 +82,14 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
         {showFps && (
           <div
             style={{
-              position: "absolute",
-              top: 20,
-              right: 20,
-              background: "rgba(0,0,0,0.75)",
-              color: "#0f0",
-              padding: "3px 8px",
-              borderRadius: 4,
-              fontSize: 11,
+            position: "absolute",
+            top: 20,
+            right: 20,
+            background: themeMode === "dark" ? "rgba(8, 11, 18, 0.78)" : "rgba(255, 255, 255, 0.84)",
+            color: themeMode === "dark" ? "var(--color-success)" : "var(--color-neutral)",
+            padding: "3px 8px",
+            borderRadius: 4,
+            fontSize: 11,
               fontFamily: "monospace",
               pointerEvents: "none",
               lineHeight: 1.5,

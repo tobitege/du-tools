@@ -32,4 +32,36 @@ describe("drawBuffer style snapshotting", () => {
     expect(boxes[0]?.style.fillColor).toEqual([1, 0, 0, 1]);
     expect(boxes[1]?.style.fillColor).toEqual([1, 1, 1, 1]);
   });
+
+  it("resets the background color to the default on runtime reset", () => {
+    const buffer = new DrawBuffer();
+
+    buffer.SetBackgroundColor(0.2, 0.4, 0.6);
+    expect(buffer.screen.backgroundColor).toEqual([0.2, 0.4, 0.6, 1]);
+
+    buffer.resetRuntimeState();
+
+    expect(buffer.screen.backgroundColor).toEqual([0, 0, 0, 1]);
+  });
+
+  it("normalizes allowed Novaquark asset URLs and reuses their handles", () => {
+    const buffer = new DrawBuffer();
+
+    const firstId = buffer.LoadImage("assets.prod.novaquark.com/4745/example.jpg");
+    const secondId = buffer.LoadImage("assets.prod.novaquark.com/4745/example.jpg");
+
+    expect(firstId).toBe(1);
+    expect(secondId).toBe(firstId);
+    expect(buffer.images).toHaveLength(1);
+    expect(buffer.images[0]?.url).toBe("https://assets.prod.novaquark.com/4745/example.jpg");
+  });
+
+  it("rejects image URLs outside the allowed Novaquark asset host", () => {
+    const buffer = new DrawBuffer();
+
+    expect(buffer.LoadImage("https://assets.prod.novaquark.com/4745/example.jpg")).toBe(0);
+    expect(buffer.LoadImage("cdn.example.com/example.jpg")).toBe(0);
+    expect(buffer.LoadImage("assets.prod.novaquark.com.evil.com/example.jpg")).toBe(0);
+    expect(buffer.images).toHaveLength(0);
+  });
 });

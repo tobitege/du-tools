@@ -1,78 +1,54 @@
-import { useState } from "react";
-
-export interface SessionEntry {
-  id: string;
-  name: string;
-  updatedAt: number;
-  tempPath: string;
-  linkedFileName: string | null;
-  dirty: boolean;
-}
-
-export interface ResolutionPreset {
-  id: string;
-  label: string;
-  width: number;
-  height: number;
-}
-
-export const RESOLUTION_PRESETS: ResolutionPreset[] = [
-  { id: "hd-landscape", label: "HD 16:9", width: 1280, height: 720 },
-  { id: "hd-portrait", label: "HD 9:16", width: 720, height: 1280 },
-  { id: "square", label: "Square 1:1", width: 1024, height: 1024 },
-  { id: "fhd-landscape", label: "Full HD 16:9", width: 1920, height: 1080 },
-  { id: "fhd-portrait", label: "Full HD 9:16", width: 1080, height: 1920 },
-];
-
-export function getResolutionPreset(id: string): ResolutionPreset | undefined {
-  return RESOLUTION_PRESETS.find((preset) => preset.id === id);
-}
+import { useEffect, useRef, useState, type DragEvent as ReactDragEvent } from "react";
+import { getResolutionPreset, getThemeOption, RESOLUTION_PRESETS, THEME_OPTIONS, type SessionEntry, type Settings } from "./sidebarConfig";
+import type { SessionDropPlacement } from "../sessionOrdering";
 
 interface SidebarProps {
   sessions: SessionEntry[];
   activeSessionId: string | null;
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
+  onImportFiles: (files: FileList | File[]) => void;
   onDeleteSession: (id: string) => void;
   onRenameSession: (id: string, name: string) => void;
+  onReorderSessions: (draggedId: string, targetId: string, placement: SessionDropPlacement) => void;
   settings: Settings;
   onSettingsChange: (s: Settings) => void;
   duLuaRootStatus: string;
   onPickDuLuaRoot: () => void;
-  onClearDuLuaRoot: () => void;
   collapsed: boolean;
   onToggle: () => void;
 }
 
-export interface Settings {
-  resolutionPreset: string;
-  canvasWidth: number;
-  canvasHeight: number;
-  layoutOrientation: "vertical" | "horizontal";
-  horizontalSplit: number;
-  verticalSplit: number;
-  editorFontSize: number;
-  showGrid: boolean;
-  showFPS: boolean;
-  darkBg: boolean;
-  autoRun: boolean;
-  duLuaRootName: string;
+function SidebarToggleIcon({ collapsed }: { collapsed: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="1.5" y="2" width="13" height="12" rx="2" stroke="currentColor" fill="none" strokeWidth="1.25" />
+      <path d="M5.5 2.75V13.25" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+      <path
+        d={collapsed ? "M9.5 5.25L11.75 8L9.5 10.75" : "M10.75 5.25L8.5 8L10.75 10.75"}
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
 }
 
-export const DEFAULT_SETTINGS: Settings = {
-  resolutionPreset: "hd-landscape",
-  canvasWidth: 1280,
-  canvasHeight: 720,
-  layoutOrientation: "horizontal",
-  horizontalSplit: 0.5,
-  verticalSplit: 0.5,
-  editorFontSize: 14,
-  showGrid: false,
-  showFPS: true,
-  darkBg: true,
-  autoRun: false,
-  duLuaRootName: "",
-};
+function KebabIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="8" cy="3.25" r="1.2" fill="currentColor" />
+      <circle cx="8" cy="8" r="1.2" fill="currentColor" />
+      <circle cx="8" cy="12.75" r="1.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function classNames(...values: Array<string | false | null | undefined>): string {
+  return values.filter(Boolean).join(" ");
+}
 
 function formatTime(ts: number): string {
   const d = new Date(ts);
@@ -92,47 +68,123 @@ export function Sidebar({
   activeSessionId,
   onSelectSession,
   onNewSession,
+  onImportFiles,
   onDeleteSession,
   onRenameSession,
+  onReorderSessions,
   settings,
   onSettingsChange,
   duLuaRootStatus,
   onPickDuLuaRoot,
-  onClearDuLuaRoot,
   collapsed,
   onToggle,
 }: SidebarProps) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [section, setSection] = useState<"sessions" | "settings">("sessions");
+  const [draggingSessionId, setDraggingSessionId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string; placement: SessionDropPlacement } | null>(null);
+  const [sidebarDropActive, setSidebarDropActive] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const openMenuRef = useRef<HTMLDivElement | null>(null);
+  const activeTheme = getThemeOption(settings.themeId);
+  const sidebarDropStyle = sidebarDropActive
+    ? {
+        background: "color-mix(in srgb, var(--color-primary) 12%, transparent)",
+        boxShadow: "inset 0 0 0 2px color-mix(in srgb, var(--color-primary) 38%, transparent)",
+      }
+    : undefined;
+
+  const hasFileDrag = (event: ReactDragEvent<HTMLElement>) => event.dataTransfer.types.includes("Files");
+
+  const clearDragState = () => {
+    setDraggingSessionId(null);
+    setDropTarget(null);
+  };
+
+  useEffect(() => {
+    if (!openMenuId) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (openMenuRef.current?.contains(event.target as Node)) {
+        return;
+      }
+      setOpenMenuId(null);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenMenuId(null);
+      }
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openMenuId]);
+
+  const updateDropTarget = (event: ReactDragEvent<HTMLDivElement>, sessionId: string) => {
+    if (!draggingSessionId || draggingSessionId === sessionId) {
+      setDropTarget(null);
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    setDropTarget({
+      id: sessionId,
+      placement: event.clientY >= midpoint ? "after" : "before",
+    });
+  };
 
   if (collapsed) {
     return (
-      <div style={styles.collapsed}>
-        <button onClick={onToggle} style={styles.expandBtn} title="Expand sidebar">
-          {"\u2630"}
+      <div className="flex h-full w-10 min-w-10 justify-center border-r border-base-300 bg-base-200 pt-3">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="btn btn-ghost btn-sm btn-square"
+          title="Expand sidebar"
+          aria-label="Expand sidebar"
+        >
+          <SidebarToggleIcon collapsed />
         </button>
       </div>
     );
   }
 
   return (
-    <div style={styles.sidebar}>
-      <div style={styles.header}>
-        <span style={styles.logo}>{"\u25A0"} RS Emulator</span>
-        <button onClick={onToggle} style={styles.collapseBtn} title="Collapse">{"\u2715"}</button>
+    <div className="flex h-full min-w-[280px] w-[280px] flex-col border-r border-base-300 bg-base-200 text-base-content">
+      <div className="flex items-center border-b border-base-300 px-6 py-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={onToggle}
+            className="btn btn-ghost btn-sm btn-square"
+            title="Collapse sidebar"
+            aria-label="Collapse sidebar"
+          >
+            <SidebarToggleIcon collapsed={false} />
+          </button>
+          <span className="min-w-0 truncate text-[1.05rem] font-semibold tracking-wide text-base-content">RS Emulator</span>
+        </div>
       </div>
 
-      <div style={styles.tabs}>
+      <div className="tabs tabs-border bg-base-200 px-5 pt-4">
         <button
-          style={{ ...styles.tab, ...(section === "sessions" ? styles.tabActive : {}) }}
+          className={classNames("tab flex-1 text-sm", section === "sessions" && "tab-active")}
           onClick={() => setSection("sessions")}
           title="Show session history"
         >
           History
         </button>
         <button
-          style={{ ...styles.tab, ...(section === "settings" ? styles.tabActive : {}) }}
+          className={classNames("tab flex-1 text-sm", section === "settings" && "tab-active")}
           onClick={() => setSection("settings")}
           title="Show emulator settings"
         >
@@ -141,85 +193,216 @@ export function Sidebar({
       </div>
 
       {section === "sessions" && (
-        <div style={styles.section}>
-          <button onClick={onNewSession} style={styles.newBtn} title="Create a new temporary session">
+        <div className="flex-1 overflow-auto px-3 py-4">
+          <button type="button" onClick={onNewSession} className="btn btn-outline btn-md mb-5 w-full justify-start px-4 normal-case" title="Create a new temporary session">
             + New Session
           </button>
-          <div style={styles.sessionList}>
+          <div
+            className="flex min-h-[140px] flex-col gap-3 rounded-2xl"
+            style={sidebarDropStyle}
+            onDragOver={(event) => {
+              if (!hasFileDrag(event)) {
+                return;
+              }
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "copy";
+              setSidebarDropActive(true);
+            }}
+            onDragLeave={(event) => {
+              if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                return;
+              }
+              setSidebarDropActive(false);
+            }}
+            onDrop={(event) => {
+              if (!hasFileDrag(event)) {
+                return;
+              }
+              event.preventDefault();
+              setSidebarDropActive(false);
+              const files = event.dataTransfer.files;
+              if (files && files.length > 0) {
+                onImportFiles(files);
+              }
+            }}
+          >
             {sessions.map((s) => (
               <div
                 key={s.id}
+                className={classNames(
+                  "group relative w-full self-stretch cursor-pointer overflow-hidden rounded-[0.8rem] border border-base-300 bg-base-100 transition-[border-color,opacity] duration-300 ease-out hover:border-primary/35",
+                  s.id === activeSessionId && "border-primary bg-base-100 ring-2 ring-primary/20",
+                  draggingSessionId === s.id && "opacity-60"
+                )}
                 style={{
-                  ...styles.sessionItem,
-                  ...(s.id === activeSessionId ? styles.sessionActive : {}),
+                  background: s.id === activeSessionId
+                    ? "linear-gradient(180deg, color-mix(in srgb, var(--color-base-100) 95%, var(--color-primary) 5%) 0%, color-mix(in srgb, var(--color-base-100) 98%, black 2%) 100%)"
+                    : "linear-gradient(180deg, color-mix(in srgb, var(--color-base-100) 97%, white 3%) 0%, color-mix(in srgb, var(--color-base-100) 98%, black 2%) 100%)",
+                  boxShadow: dropTarget?.id === s.id
+                    ? dropTarget.placement === "before"
+                      ? "inset 0 2px 0 var(--color-primary), 0 18px 34px color-mix(in srgb, var(--color-primary) 20%, transparent), inset 0 1px 0 color-mix(in srgb, white 12%, transparent)"
+                      : "inset 0 -2px 0 var(--color-primary), 0 18px 34px color-mix(in srgb, var(--color-primary) 20%, transparent), inset 0 1px 0 color-mix(in srgb, white 12%, transparent)"
+                    : s.id === activeSessionId
+                      ? "0 16px 32px color-mix(in srgb, black 22%, transparent), 0 0 0 1px color-mix(in srgb, var(--color-primary) 26%, transparent), inset 0 1px 0 color-mix(in srgb, white 18%, transparent)"
+                      : "0 12px 24px color-mix(in srgb, black 18%, transparent), inset 0 1px 0 color-mix(in srgb, white 10%, transparent)",
+                  borderColor: dropTarget?.id === s.id ? "var(--color-primary)" : undefined,
                 }}
-                onClick={() => onSelectSession(s.id)}
+                draggable={renamingId !== s.id}
+                onDragStart={(event) => {
+                  setDraggingSessionId(s.id);
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("text/plain", s.id);
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  updateDropTarget(event, s.id);
+                }}
+                onDragLeave={(event) => {
+                  if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                    return;
+                  }
+                  if (dropTarget?.id === s.id) {
+                    setDropTarget(null);
+                  }
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const draggedId = draggingSessionId ?? event.dataTransfer.getData("text/plain");
+                  if (!draggedId || draggedId === s.id) {
+                    clearDragState();
+                    return;
+                  }
+                  const placement = dropTarget?.id === s.id ? dropTarget.placement : "before";
+                  onReorderSessions(draggedId, s.id, placement);
+                  clearDragState();
+                }}
+                onDragEnd={clearDragState}
+                onClick={() => {
+                  setOpenMenuId(null);
+                  onSelectSession(s.id);
+                }}
               >
                 {renamingId === s.id ? (
-                  <input
-                    autoFocus
-                    value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
+                  <div className="p-3">
+                    <input
+                      autoFocus
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          onRenameSession(s.id, renameValue);
+                          setRenamingId(null);
+                        }
+                        if (e.key === "Escape") setRenamingId(null);
+                      }}
+                      onBlur={() => {
                         onRenameSession(s.id, renameValue);
                         setRenamingId(null);
-                      }
-                      if (e.key === "Escape") setRenamingId(null);
-                    }}
-                    onBlur={() => {
-                      onRenameSession(s.id, renameValue);
-                      setRenamingId(null);
-                    }}
-                    style={styles.renameInput}
-                    onClick={(e) => e.stopPropagation()}
-                  />
+                      }}
+                      className="input input-bordered input-sm w-full"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
                 ) : (
                   <>
-                    <div style={styles.sessionName}>
-                      {s.name}
-                      {s.dirty ? <span style={styles.dirtyDot}> *</span> : null}
-                    </div>
-                    <div style={styles.sessionMeta}>{sessionLocationLabel(s)}</div>
-                    <div style={styles.sessionTime}>{formatTime(s.updatedAt)}</div>
-                    <div style={styles.sessionActions}>
-                      <button
-                        style={styles.actionBtn}
-                        title="Rename"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRenamingId(s.id);
-                          setRenameValue(s.name);
-                        }}
-                      >
-                        {"\u270E"}
-                      </button>
-                      <button
-                        style={{ ...styles.actionBtn, color: "#f44" }}
-                        title="Delete"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteSession(s.id);
-                        }}
-                      >
-                        {"\u2715"}
-                      </button>
+                    <div className="relative z-10 flex flex-col gap-1.5 px-3.5 py-2.5">
+                      <div className="flex items-start gap-2">
+                        <div className="min-w-0 flex-1 break-words text-[1.02rem] font-semibold leading-[1.2] text-base-content">
+                          {s.name}
+                          {s.dirty ? <span className="text-warning"> *</span> : null}
+                        </div>
+                        <div
+                          ref={openMenuId === s.id ? openMenuRef : null}
+                          className="relative shrink-0 -mr-1.5"
+                          onClick={(event) => event.stopPropagation()}
+                          onMouseLeave={() => {
+                            if (openMenuId === s.id) {
+                              setOpenMenuId(null);
+                            }
+                          }}
+                          onBlur={(event) => {
+                            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                              setOpenMenuId(null);
+                            }
+                          }}
+                        >
+                          {openMenuId === s.id ? (
+                            <div
+                              className="flex items-center gap-0.5 rounded-full border border-base-300 bg-base-100/96 p-0.5 shadow-[0_12px_24px_color-mix(in_srgb,var(--color-base-content)_16%,transparent)] backdrop-blur"
+                              role="menu"
+                              aria-label={`Actions for ${s.name}`}
+                            >
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-xs btn-square"
+                                role="menuitem"
+                                title="Rename"
+                                aria-label="Rename"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setOpenMenuId(null);
+                                  setRenamingId(s.id);
+                                  setRenameValue(s.name);
+                                }}
+                              >
+                                {"\u270E"}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-xs btn-square text-error"
+                                role="menuitem"
+                                title="Delete"
+                                aria-label="Delete"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setOpenMenuId(null);
+                                  onDeleteSession(s.id);
+                                }}
+                              >
+                                {"\u2715"}
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className={classNames(
+                                "btn btn-ghost btn-xs btn-square transition-opacity duration-150 ease-out",
+                                "opacity-0 pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
+                              )}
+                              title="Session actions"
+                              aria-label="Session actions"
+                              aria-haspopup="menu"
+                              aria-expanded={false}
+                              onPointerDown={(event) => event.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(s.id);
+                              }}
+                            >
+                              <KebabIcon />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="truncate text-[0.92rem] leading-[1.2] text-base-content/62">{sessionLocationLabel(s)}</div>
+                      <div className="text-[0.88rem] leading-[1.15] text-base-content/46">{formatTime(s.updatedAt)}</div>
                     </div>
                   </>
                 )}
               </div>
             ))}
             {sessions.length === 0 && (
-              <div style={styles.empty}>No sessions yet</div>
+              <div className="py-8 text-center text-sm italic text-base-content/50">No sessions yet</div>
             )}
           </div>
         </div>
       )}
 
       {section === "settings" && (
-        <div style={styles.section}>
-          <label style={styles.settingRow}>
-            <span>Resolution</span>
+        <div className="flex-1 overflow-auto px-5 py-4">
+          <label className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-base-300 py-3">
+            <span className="min-w-0 flex-[0_1_auto]">Resolution</span>
             <select
               value={settings.resolutionPreset}
               onChange={(e) => {
@@ -234,15 +417,30 @@ export function Sidebar({
                   canvasHeight: preset.height,
                 });
               }}
-              style={styles.select}
+              className="select select-bordered select-sm min-w-0 max-w-full flex-[1_1_11.5rem]"
             >
               {RESOLUTION_PRESETS.map((preset) => (
                 <option key={preset.id} value={preset.id}>{preset.label} - {preset.width} x {preset.height}</option>
               ))}
             </select>
           </label>
-          <div style={styles.settingMetaRow}>{settings.canvasWidth} x {settings.canvasHeight}</div>
-          <label style={styles.settingRow}>
+          <div className="py-1 pb-3.5 text-right text-xs text-base-content/55">{settings.canvasWidth} x {settings.canvasHeight}</div>
+          <label className="flex items-center justify-between gap-4 border-b border-base-300 py-3">
+            <span>Theme</span>
+            <select
+              value={settings.themeId}
+              onChange={(e) => onSettingsChange({ ...settings, themeId: e.target.value })}
+              className="select select-bordered select-sm w-40"
+            >
+              {THEME_OPTIONS.map((theme) => (
+                <option key={theme.id} value={theme.id}>{theme.label}</option>
+              ))}
+            </select>
+          </label>
+          <div className="py-1 pb-3.5 text-right text-xs text-base-content/55">
+            {activeTheme ? `${activeTheme.label} (${activeTheme.mode})` : settings.themeId}
+          </div>
+          <label className="flex items-center justify-between gap-4 border-b border-base-300 py-3">
             <span>Canvas / Editor</span>
             <select
               value={settings.layoutOrientation}
@@ -250,55 +448,56 @@ export function Sidebar({
                 ...settings,
                 layoutOrientation: e.target.value === "horizontal" ? "horizontal" : "vertical",
               })}
-              style={styles.select}
+              className="select select-bordered select-sm w-40"
             >
               <option value="vertical">Vertical</option>
               <option value="horizontal">Horizontal</option>
             </select>
           </label>
-          <label style={styles.settingRow}>
+          <label className="flex items-center justify-between gap-4 border-b border-base-300 py-3">
             <span>Show Grid</span>
             <input
               type="checkbox"
               checked={settings.showGrid}
               onChange={(e) => onSettingsChange({ ...settings, showGrid: e.target.checked })}
+              className="toggle toggle-sm"
             />
           </label>
-          <label style={styles.settingRow}>
+          <label className="flex items-center justify-between gap-4 border-b border-base-300 py-3">
             <span>Show FPS</span>
             <input
               type="checkbox"
               checked={settings.showFPS}
               onChange={(e) => onSettingsChange({ ...settings, showFPS: e.target.checked })}
+              className="toggle toggle-sm"
             />
           </label>
-          <label style={styles.settingRow}>
-            <span>Dark Background</span>
+          <label className="flex items-center justify-between gap-4 border-b border-base-300 py-3">
+            <span>Dark Editor</span>
             <input
               type="checkbox"
-              checked={settings.darkBg}
-              onChange={(e) => onSettingsChange({ ...settings, darkBg: e.target.checked })}
+              checked={settings.darkEditor}
+              onChange={(e) => onSettingsChange({ ...settings, darkEditor: e.target.checked })}
+              className="toggle toggle-sm"
             />
           </label>
-          <label style={styles.settingRow}>
+          <label className="flex items-center justify-between gap-4 border-b border-base-300 py-3">
             <span>Auto-run on change</span>
             <input
               type="checkbox"
               checked={settings.autoRun}
               onChange={(e) => onSettingsChange({ ...settings, autoRun: e.target.checked })}
+              className="toggle toggle-sm"
             />
           </label>
-          <div style={{ ...styles.settingRow, alignItems: "flex-start" }}>
-            <div style={styles.settingBlock}>
+          <div className="flex flex-wrap items-start gap-x-4 gap-y-3 border-b border-base-300 py-3">
+            <div className="flex min-w-0 flex-[1_1_100%] flex-col gap-1">
               <span>DU Lua includes</span>
-              <span style={styles.settingHint}>{duLuaRootStatus}</span>
+              <span className="text-xs leading-5 text-base-content/60 [overflow-wrap:anywhere]">{duLuaRootStatus}</span>
             </div>
-            <div style={styles.settingButtons}>
-              <button type="button" style={styles.smallBtn} onClick={onPickDuLuaRoot} title="Pick the Dual Universe Lua folder">
+            <div className="flex w-full flex-wrap justify-end gap-1.5">
+              <button type="button" className="btn btn-outline btn-xs" onClick={onPickDuLuaRoot} title="Pick the Dual Universe Lua folder">
                 Pick Folder
-              </button>
-              <button type="button" style={styles.smallBtnSecondary} onClick={onClearDuLuaRoot} title="Clear the configured Dual Universe Lua folder">
-                Clear
               </button>
             </div>
           </div>
@@ -307,221 +506,3 @@ export function Sidebar({
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  sidebar: {
-    width: 280,
-    minWidth: 280,
-    height: "100%",
-    background: "#1a1a2e",
-    borderRight: "1px solid #2a2a4a",
-    display: "flex",
-    flexDirection: "column",
-    color: "#ccc",
-    fontFamily: "system-ui, sans-serif",
-    fontSize: 13,
-  },
-  collapsed: {
-    width: 40,
-    minWidth: 40,
-    height: "100%",
-    background: "#1a1a2e",
-    borderRight: "1px solid #2a2a4a",
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "center",
-    paddingTop: 12,
-  },
-  expandBtn: {
-    background: "none",
-    border: "none",
-    color: "#aaa",
-    fontSize: 20,
-    cursor: "pointer",
-    padding: 4,
-  },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "12px 16px",
-    borderBottom: "1px solid #2a2a4a",
-  },
-  logo: {
-    fontWeight: 700,
-    fontSize: 15,
-    color: "#e0e0ff",
-    letterSpacing: 0.5,
-  },
-  collapseBtn: {
-    background: "none",
-    border: "none",
-    color: "#888",
-    fontSize: 16,
-    cursor: "pointer",
-    padding: 4,
-  },
-  tabs: {
-    display: "flex",
-    borderBottom: "1px solid #2a2a4a",
-  },
-  tab: {
-    flex: 1,
-    padding: "10px 0",
-    background: "none",
-    border: "none",
-    borderBottomWidth: 2,
-    borderBottomStyle: "solid",
-    borderBottomColor: "transparent",
-    color: "#888",
-    cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 500,
-  },
-  tabActive: {
-    color: "#e0e0ff",
-    borderBottomColor: "#6c6cf0",
-  },
-  section: {
-    flex: 1,
-    overflow: "auto",
-    padding: 12,
-  },
-  newBtn: {
-    width: "100%",
-    padding: "8px 12px",
-    background: "#2a2a4a",
-    border: "1px dashed #4a4a6a",
-    color: "#aaa",
-    borderRadius: 6,
-    cursor: "pointer",
-    fontSize: 13,
-    marginBottom: 12,
-  },
-  sessionList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 4,
-  },
-  sessionItem: {
-    padding: "8px 10px",
-    borderRadius: 6,
-    cursor: "pointer",
-    display: "flex",
-    flexDirection: "column",
-    gap: 2,
-    position: "relative",
-    transition: "background 0.15s",
-  },
-  sessionActive: {
-    background: "#2a2a5a",
-  },
-  sessionName: {
-    fontWeight: 500,
-    color: "#ddd",
-    fontSize: 13,
-  },
-  dirtyDot: {
-    color: "#f6c15c",
-  },
-  sessionMeta: {
-    fontSize: 11,
-    color: "#8e8eb0",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap" as const,
-    maxWidth: 220,
-  },
-  sessionTime: {
-    fontSize: 11,
-    color: "#777",
-  },
-  sessionActions: {
-    position: "absolute",
-    right: 8,
-    top: 8,
-    display: "flex",
-    gap: 4,
-    opacity: 1,
-  },
-  actionBtn: {
-    background: "none",
-    border: "none",
-    color: "#888",
-    cursor: "pointer",
-    fontSize: 14,
-    padding: "2px 4px",
-  },
-  renameInput: {
-    background: "#111",
-    border: "1px solid #6c6cf0",
-    color: "#fff",
-    padding: "4px 8px",
-    borderRadius: 4,
-    fontSize: 13,
-    width: "100%",
-    boxSizing: "border-box",
-  },
-  empty: {
-    color: "#555",
-    textAlign: "center" as const,
-    padding: "20px 0",
-    fontStyle: "italic",
-  },
-  settingRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "8px 0",
-    borderBottom: "1px solid #2a2a3a",
-    cursor: "pointer",
-  },
-  select: {
-    background: "#111",
-    border: "1px solid #3a3a5a",
-    color: "#ccc",
-    padding: "4px 8px",
-    borderRadius: 4,
-    fontSize: 12,
-  },
-  settingBlock: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 4,
-    maxWidth: 150,
-  },
-  settingHint: {
-    fontSize: 11,
-    color: "#8e8eb0",
-    lineHeight: 1.4,
-  },
-  settingMetaRow: {
-    padding: "2px 0 10px",
-    fontSize: 11,
-    color: "#7f84ab",
-    textAlign: "right" as const,
-  },
-  settingButtons: {
-    display: "flex",
-    gap: 6,
-    flexShrink: 0,
-  },
-  smallBtn: {
-    background: "#2a2a4a",
-    border: "1px solid #4a4a6a",
-    color: "#ddd",
-    padding: "5px 8px",
-    borderRadius: 4,
-    fontSize: 11,
-    cursor: "pointer",
-  },
-  smallBtnSecondary: {
-    background: "#171726",
-    border: "1px solid #34344f",
-    color: "#aaa",
-    padding: "5px 8px",
-    borderRadius: 4,
-    fontSize: 11,
-    cursor: "pointer",
-  },
-};

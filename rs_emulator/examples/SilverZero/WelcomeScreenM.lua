@@ -6,7 +6,7 @@ local layout = SZ.layoutForScreen(resolutionX, resolutionY, 231, 156, 0.055)
 local now = SZ.time()
 
 SZ.animLoop(1)
-setBackgroundColor(0.42, 0.30, 0.30)
+setBackgroundColor(0.31, 0.03, 0.03) -- #5008 (approximate)
 
 local titleFont = SZ.font("Georgia", SZ.scaleFontSize(26, layout))
 local subtitleFont = SZ.font("Georgia", SZ.scaleFontSize(24, layout))
@@ -22,131 +22,102 @@ local function circuitNode(layer, x, y, r, color, alpha)
 end
 
 local function drawBackground(layer)
-  setNextFillColor(layer, 0.67, 0.53, 0.53, 1)
+  -- Background base color (circuit-color-A)
+  setNextFillColor(layer, 0.31, 0.03, 0.03, 0.53) -- #5008 (approximate)
   addBox(layer, 0, 0, layout.screenW, layout.screenH)
 
-  setNextFillColor(layer, 0.28, 0.16, 0.16, 0.32)
-  addQuad(layer,
-    SZ.toScreenX(layout, 0), SZ.toScreenY(layout, 82),
-    SZ.toScreenX(layout, 36), SZ.toScreenY(layout, 58),
-    SZ.toScreenX(layout, 88), SZ.toScreenY(layout, 108),
-    SZ.toScreenX(layout, 0), SZ.toScreenY(layout, 134)
-  )
-  setNextFillColor(layer, 0.34, 0.20, 0.20, 0.18)
-  addQuad(layer,
-    SZ.toScreenX(layout, 146), SZ.toScreenY(layout, 24),
-    SZ.toScreenX(layout, 231), SZ.toScreenY(layout, 0),
-    SZ.toScreenX(layout, 231), SZ.toScreenY(layout, 74),
-    SZ.toScreenX(layout, 178), SZ.toScreenY(layout, 108)
-  )
+  -- Circuit lines (circuit-color-C: #f008)
+  local function circuitLine(x1, y1, x2, y2, hasNode, nodeAtStart)
+    SZ.line(layer, layout, x1, y1, x2, y2, { 1, 0, 0, 0.55 }, 0.8)
 
-  local function trace(x1, y1, x2, y2, x3, y3, nodeX, nodeY)
-    setNextStrokeColor(layer, 0.93, 0.24, 0.22, 0.9)
-    setNextStrokeWidth(layer, 1)
-    addLine(layer, SZ.toScreenX(layout, x1), SZ.toScreenY(layout, y1), SZ.toScreenX(layout, x2), SZ.toScreenY(layout, y2))
-    addLine(layer, SZ.toScreenX(layout, x2), SZ.toScreenY(layout, y2), SZ.toScreenX(layout, x3), SZ.toScreenY(layout, y3))
-    circuitNode(layer, nodeX, nodeY, 1.3, { 0.93, 0.24, 0.22 }, 0.95)
+    if hasNode then
+      local nx, ny = x2, y2
+      if nodeAtStart then nx, ny = x1, y1 end
+
+      -- Draw "solder point" (Lötstelle)
+      -- Outer glow
+      setNextFillColor(layer, 1, 0, 0, 0.3)
+      addCircle(layer, SZ.toScreenX(layout, nx), SZ.toScreenY(layout, ny), SZ.toScreenW(layout, 1.6))
+      -- Inner point
+      setNextFillColor(layer, 1, 0.5, 0.5, 0.95)
+      addCircle(layer, SZ.toScreenX(layout, nx), SZ.toScreenY(layout, ny), SZ.toScreenW(layout, 0.7))
+    end
   end
 
+  -- Authentic PCB-style layout (High density)
+
+  -- Left Bus Cluster
+  for i = 0, 12 do
+    local x = 10 + i * 4
+    local yStart = 5 + (i % 3) * 10
+    circuitLine(x, yStart, x, yStart + 140, false)
+    if i % 4 == 0 then
+      circuitLine(x, yStart + 20, x + 15, yStart + 35, true)
+    end
+  end
+
+  -- Right Bus Cluster
+  for i = 0, 12 do
+    local x = 220 - i * 4
+    local yStart = 10 + (i % 4) * 8
+    circuitLine(x, yStart, x, yStart + 130, false)
+    if i % 5 == 1 then
+      circuitLine(x, yStart + 80, x - 20, yStart + 100, true)
+    end
+  end
+
+  -- Horizontal Interconnects
   for i = 0, 8 do
-    local startX = -6 + i * 19
-    local startY = 12 + (i % 3) * 10
-    local elbowX = startX + 18
-    local elbowY = startY + 16
-    local endX = elbowX + 30
-    trace(startX, startY, elbowX, elbowY, endX, elbowY, endX, elbowY)
+    local y = 20 + i * 15
+    circuitLine(40, y, 190, y, false)
+    if i % 2 == 0 then
+      circuitLine(60, y, 60, y + 10, true)
+      circuitLine(170, y, 170, y - 10, true)
+    end
   end
 
-  for i = 0, 8 do
-    local startX = 118 + i * 14
-    local startY = 0
-    local elbowX = startX
-    local elbowY = 20 + (i % 4) * 10
-    local endX = elbowX - 18
-    trace(startX, startY, elbowX, elbowY, endX, elbowY, endX, elbowY)
-  end
-
-  for i = 0, 9 do
-    local startX = 231 - i * 12
-    local startY = 104 + (i % 3) * 8
-    local elbowX = startX - 20
-    local elbowY = startY
-    local endX = elbowX - 12
-    local endY = elbowY + 12
-    setNextStrokeColor(layer, 0.93, 0.24, 0.22, 0.88)
-    setNextStrokeWidth(layer, 1)
-    addLine(layer, SZ.toScreenX(layout, startX), SZ.toScreenY(layout, startY), SZ.toScreenX(layout, elbowX), SZ.toScreenY(layout, elbowY))
-    addLine(layer, SZ.toScreenX(layout, elbowX), SZ.toScreenY(layout, elbowY), SZ.toScreenX(layout, endX), SZ.toScreenY(layout, endY))
-    circuitNode(layer, startX, startY, 1.25, { 0.93, 0.24, 0.22 }, 0.95)
-  end
-
-  for i = 0, 7 do
-    local startX = 0
-    local startY = 128 - i * 14
-    local elbowX = 16 + (i % 2) * 8
-    local elbowY = startY
-    local endX = elbowX + 18
-    local endY = elbowY - 12
-    setNextStrokeColor(layer, 0.93, 0.24, 0.22, 0.88)
-    setNextStrokeWidth(layer, 1)
-    addLine(layer, SZ.toScreenX(layout, startX), SZ.toScreenY(layout, startY), SZ.toScreenX(layout, elbowX), SZ.toScreenY(layout, elbowY))
-    addLine(layer, SZ.toScreenX(layout, elbowX), SZ.toScreenY(layout, elbowY), SZ.toScreenX(layout, endX), SZ.toScreenY(layout, endY))
-    circuitNode(layer, startX + 1, startY, 1.25, { 0.93, 0.24, 0.22 }, 0.95)
-  end
-
-  for i = 0, 13 do
-    circuitNode(layer, 14 + i * 16, 18 + (i % 5) * 18, 1.2, { 0.55, 0.04, 0.04 }, 0.95)
-    circuitNode(layer, 8 + i * 17, 144 - (i % 4) * 17, 1.1, { 0.55, 0.04, 0.04 }, 0.95)
-  end
-
-  for i = 0, 7 do
-    local x = 10 + i * 28
-    setNextStrokeColor(layer, 0.93, 0.24, 0.22, 0.72)
-    setNextStrokeWidth(layer, 1)
-    addLine(layer, SZ.toScreenX(layout, x), SZ.toScreenY(layout, 24), SZ.toScreenX(layout, x + 12), SZ.toScreenY(layout, 24))
-    addLine(layer, SZ.toScreenX(layout, x + 12), SZ.toScreenY(layout, 24), SZ.toScreenX(layout, x + 20), SZ.toScreenY(layout, 36))
-    addLine(layer, SZ.toScreenX(layout, x + 20), SZ.toScreenY(layout, 36), SZ.toScreenX(layout, x + 40), SZ.toScreenY(layout, 36))
-    circuitNode(layer, x + 40, 36, 1.15, { 0.93, 0.24, 0.22 }, 0.9)
-  end
-
+  -- Diagonal PCB Traces
   for i = 0, 6 do
-    local x = 126 + i * 14
-    setNextStrokeColor(layer, 0.93, 0.24, 0.22, 0.74)
-    setNextStrokeWidth(layer, 1)
-    addLine(layer, SZ.toScreenX(layout, x), SZ.toScreenY(layout, 0), SZ.toScreenX(layout, x), SZ.toScreenY(layout, 18))
-    addLine(layer, SZ.toScreenX(layout, x), SZ.toScreenY(layout, 18), SZ.toScreenX(layout, x + 14), SZ.toScreenY(layout, 18))
-    circuitNode(layer, x + 14, 18, 1.15, { 0.93, 0.24, 0.22 }, 0.9)
+    local x = 50 + i * 20
+    circuitLine(x, 10, x + 30, 40, true, true)
+    circuitLine(x + 30, 40, x + 30, 60, true)
+
+    circuitLine(230 - x, 140, 200 - x, 110, true, true)
+    circuitLine(200 - x, 110, 200 - x, 90, true)
   end
 
-  for i = 0, 6 do
-    local y = 120 + i * 12
-    setNextStrokeColor(layer, 0.93, 0.24, 0.22, 0.74)
-    setNextStrokeWidth(layer, 1)
-    addLine(layer, SZ.toScreenX(layout, 0), SZ.toScreenY(layout, y), SZ.toScreenX(layout, 16), SZ.toScreenY(layout, y))
-    addLine(layer, SZ.toScreenX(layout, 16), SZ.toScreenY(layout, y), SZ.toScreenX(layout, 28), SZ.toScreenY(layout, y - 10))
-    circuitNode(layer, 0.8, y, 1.15, { 0.93, 0.24, 0.22 }, 0.9)
-  end
-
-  for i = 0, 5 do
-    local y = 112 + i * 14
-    setNextStrokeColor(layer, 0.93, 0.24, 0.22, 0.74)
-    setNextStrokeWidth(layer, 1)
-    addLine(layer, SZ.toScreenX(layout, 211), SZ.toScreenY(layout, y), SZ.toScreenX(layout, 231), SZ.toScreenY(layout, y))
-    addLine(layer, SZ.toScreenX(layout, 211), SZ.toScreenY(layout, y), SZ.toScreenX(layout, 199), SZ.toScreenY(layout, y - 10))
-    circuitNode(layer, 231, y, 1.15, { 0.93, 0.24, 0.22 }, 0.9)
+  -- Scattered solder points for density
+  for i = 0, 40 do
+    local rx = 2 + (i * 53) % 227
+    local ry = 2 + (i * 37) % 152
+    setNextFillColor(layer, 1, 0.2, 0.2, 0.4)
+    addCircle(layer, SZ.toScreenX(layout, rx), SZ.toScreenY(layout, ry), SZ.toScreenW(layout, 0.5))
   end
 end
 
 local function drawPanel(layer)
-  setNextFillColor(layer, 0.12, 0.06, 0.06, 0.95)
-  setNextStrokeColor(layer, 1, 0.05, 0.05, 0.96)
-  setNextStrokeWidth(layer, 1.4)
-  addBoxRounded(layer, SZ.toScreenX(layout, 20), SZ.toScreenY(layout, 18), SZ.toScreenW(layout, 191), SZ.toScreenH(layout, 118), SZ.toScreenW(layout, 2))
+  SZ.box(layer, layout, {
+    x = 20,
+    y = 18,
+    w = 191,
+    h = 118,
+  }, {
+    radius = 2,
+    fillColor = { 0.12, 0.06, 0.06, 0.95 },
+    strokeColor = { 1, 0.05, 0.05, 0.96 },
+    strokeWidth = 1.4,
+  })
 
-  setNextFillColor(layer, 0.15, 0.10, 0.10, 0.82)
-  setNextStrokeColor(layer, 0.16, 0.04, 0.04, 0.8)
-  setNextStrokeWidth(layer, 0.7)
-  addBox(layer, SZ.toScreenX(layout, 22), SZ.toScreenY(layout, 20), SZ.toScreenW(layout, 187), SZ.toScreenH(layout, 114))
+  SZ.box(layer, layout, {
+    x = 22,
+    y = 20,
+    w = 187,
+    h = 114,
+  }, {
+    fillColor = { 0.15, 0.10, 0.10, 0.82 },
+    strokeColor = { 0.16, 0.04, 0.04, 0.8 },
+    strokeWidth = 0.7,
+  })
 
   setNextFillColor(layer, 0.05, 0.02, 0.02, 0.42)
   addQuad(layer,
@@ -162,105 +133,129 @@ local function drawPanel(layer)
     SZ.toScreenX(layout, 130), SZ.toScreenY(layout, 104)
   )
 
-  setNextStrokeColor(layer, 1, 1, 1, 0.95)
-  setNextStrokeWidth(layer, 1.2)
-  addLine(layer, SZ.toScreenX(layout, 24), SZ.toScreenY(layout, 20), SZ.toScreenX(layout, 52), SZ.toScreenY(layout, 20))
-  addLine(layer, SZ.toScreenX(layout, 20), SZ.toScreenY(layout, 24), SZ.toScreenX(layout, 20), SZ.toScreenY(layout, 32))
-  addLine(layer, SZ.toScreenX(layout, 179), SZ.toScreenY(layout, 20), SZ.toScreenX(layout, 207), SZ.toScreenY(layout, 20))
-  addLine(layer, SZ.toScreenX(layout, 211), SZ.toScreenY(layout, 24), SZ.toScreenX(layout, 211), SZ.toScreenY(layout, 32))
-  addLine(layer, SZ.toScreenX(layout, 24), SZ.toScreenY(layout, 136), SZ.toScreenX(layout, 52), SZ.toScreenY(layout, 136))
-  addLine(layer, SZ.toScreenX(layout, 20), SZ.toScreenY(layout, 122), SZ.toScreenX(layout, 20), SZ.toScreenY(layout, 130))
-  addLine(layer, SZ.toScreenX(layout, 179), SZ.toScreenY(layout, 136), SZ.toScreenX(layout, 207), SZ.toScreenY(layout, 136))
-  addLine(layer, SZ.toScreenX(layout, 211), SZ.toScreenY(layout, 122), SZ.toScreenX(layout, 211), SZ.toScreenY(layout, 130))
+  SZ.line(layer, layout, 24, 20, 52, 20, { 1, 1, 1, 0.95 }, 1.2)
+  SZ.line(layer, layout, 20, 24, 20, 32, { 1, 1, 1, 0.95 }, 1.2)
+  SZ.line(layer, layout, 179, 20, 207, 20, { 1, 1, 1, 0.95 }, 1.2)
+  SZ.line(layer, layout, 211, 24, 211, 32, { 1, 1, 1, 0.95 }, 1.2)
+  SZ.line(layer, layout, 24, 136, 52, 136, { 1, 1, 1, 0.95 }, 1.2)
+  SZ.line(layer, layout, 20, 122, 20, 130, { 1, 1, 1, 0.95 }, 1.2)
+  SZ.line(layer, layout, 179, 136, 207, 136, { 1, 1, 1, 0.95 }, 1.2)
+  SZ.line(layer, layout, 211, 122, 211, 130, { 1, 1, 1, 0.95 }, 1.2)
 
   for i = 0, 7 do
     local x = 54 + i * 20
-    setNextStrokeColor(layer, 0.30, 0.03, 0.03, 0.55)
-    setNextStrokeWidth(layer, 0.9)
-    addLine(layer, SZ.toScreenX(layout, x), SZ.toScreenY(layout, 20), SZ.toScreenX(layout, x + 18), SZ.toScreenY(layout, 46))
-    addLine(layer, SZ.toScreenX(layout, x - 6), SZ.toScreenY(layout, 136), SZ.toScreenX(layout, x + 12), SZ.toScreenY(layout, 110))
+    SZ.line(layer, layout, x, 20, x + 18, 46, { 0.30, 0.03, 0.03, 0.55 }, 0.9)
+    SZ.line(layer, layout, x - 6, 136, x + 12, 110, { 0.30, 0.03, 0.03, 0.55 }, 0.9)
   end
 end
 
 local function drawLogo(layer)
-  local cx = SZ.toScreenX(layout, 56)
-  local cy = SZ.toScreenY(layout, 78)
-  local outer = SZ.toScreenW(layout, 18)
-  local mid = SZ.toScreenW(layout, 13)
-  local inner = SZ.toScreenW(layout, 5.5)
+  local cx, cy = 56, 78
+  local bs = 6
+  local sw = 0.6 -- dünne Outline-Strichstärke
 
-  setNextFillColor(layer, 0, 0, 0, 0)
-  setNextStrokeColor(layer, 1, 1, 1, 0.98)
-  setNextStrokeWidth(layer, 1.5)
-  addCircle(layer, cx, cy, outer)
+  local r_out = bs * 4.4     -- Außenradius der Brackets
+  local r_in  = bs * 3.4     -- Innenradius der Brackets
+  local bHalf = 18           -- Halbe Winkelbreite eines Brackets
 
-  setNextStrokeColor(layer, 1, 0.08, 0.08, 0.98)
-  setNextStrokeWidth(layer, 1.4)
-  addCircle(layer, cx, cy, mid)
+  -- Hilfsfunktion: Punkt auf Kreis
+  local function pt(angle, radius)
+    local rad = math.rad(angle)
+    return cx + math.cos(rad) * radius, cy + math.sin(rad) * radius
+  end
 
-  setNextStrokeColor(layer, 1, 1, 1, 0.98)
-  setNextStrokeWidth(layer, 1.1)
-  addLine(layer, cx - outer * 0.9, cy - outer * 0.35, cx - outer * 0.45, cy - outer * 0.7)
-  addLine(layer, cx + outer * 0.9, cy + outer * 0.35, cx + outer * 0.45, cy + outer * 0.7)
-  addLine(layer, cx - outer * 0.9, cy + outer * 0.35, cx - outer * 0.45, cy + outer * 0.7)
-  addLine(layer, cx + outer * 0.9, cy - outer * 0.35, cx + outer * 0.45, cy - outer * 0.7)
+  -- Hilfsfunktion: Quad zeichnen mit Outline
+  local function outlinedQuad(x1,y1, x2,y2, x3,y3, x4,y4, fill)
+    setNextFillColor(layer, fill[1], fill[2], fill[3], fill[4] or 1)
+    addQuad(
+      layer,
+      SZ.toScreenX(layout, x1), SZ.toScreenY(layout, y1),
+      SZ.toScreenX(layout, x2), SZ.toScreenY(layout, y2),
+      SZ.toScreenX(layout, x3), SZ.toScreenY(layout, y3),
+      SZ.toScreenX(layout, x4), SZ.toScreenY(layout, y4)
+    )
+    SZ.line(layer, layout, x1, y1, x2, y2, { 1, 1, 1, 0.9 }, sw)
+    SZ.line(layer, layout, x2, y2, x3, y3, { 1, 1, 1, 0.9 }, sw)
+    SZ.line(layer, layout, x3, y3, x4, y4, { 1, 1, 1, 0.9 }, sw)
+    SZ.line(layer, layout, x4, y4, x1, y1, { 1, 1, 1, 0.9 }, sw)
+  end
 
-  setNextStrokeColor(layer, 1, 0.08, 0.08, 0.98)
-  setNextStrokeWidth(layer, 1.3)
-  addCircle(layer, cx, cy, inner)
+  -- 1. Die 6 Brackets an den Ecken (alternierend Weiß/Rot)
+  for i = 0, 5 do
+    local angle = i * 60
+    local fill = (i % 2 == 0) and {1, 1, 1} or {1, 0.08, 0.08}
+    local x1,y1 = pt(angle - bHalf, r_in)
+    local x2,y2 = pt(angle - bHalf, r_out)
+    local x3,y3 = pt(angle + bHalf, r_out)
+    local x4,y4 = pt(angle + bHalf, r_in)
+    outlinedQuad(x1,y1, x2,y2, x3,y3, x4,y4, fill)
+  end
+
+
+  -- 3. Roter Ring
+  SZ.hexRing(layer, layout, cx, cy, bs * 3.0, bs * 0.4, {1, 0.08, 0.08})
+
+  -- 4. Innerer weißer Ring
+  SZ.hexRing(layer, layout, cx, cy, bs * 2.4, bs * 0.6, {1, 1, 1})
+
+  -- 5. Roter Kern (nur Umriss)
+  SZ.hexagonOutline(layer, layout, cx, cy, bs * 1.2, {1, 0.08, 0.08}, 1.2)
 end
 
 local function drawHelix(layer)
   local centerX = 180
   local centerY = 78
-  local rows = 14
-  local spacing = 8.2
-  local amp = 6.4
+  local rows = 15 -- Matching HTML child count
+  local spacing = 5.2 -- Tighter spacing for helix look
+  local amp = 10 -- 10vw width in HTML
+  local speed = 3.14 -- Speed of rotation
 
-  SZ.withClip(layer, layout, { x = 153, y = 30, w = 44, h = 96 }, function()
+  SZ.withClip(layer, layout, { x = 153, y = 20, w = 54, h = 116 }, function()
     for i = 0, rows - 1 do
-      local phase = now * 3.1 + i * 0.42
-      local swing = math.sin(phase)
-      local depth = (math.cos(phase) + 1) * 0.5
+      local delay = -i * 0.15 -- Matching animation-delay: -0.15s
+      local phase = (now + delay) * speed
+
+      local xOffset = math.sin(phase) * amp
+      local depth = math.cos(phase) -- For z-order and size
+
       local y = centerY - (rows - 1) * spacing * 0.5 + i * spacing
-      local leftX = centerX - swing * amp
-      local rightX = centerX + swing * amp
-      local leftFront = math.cos(phase) >= 0
-      local frontAlpha = 0.92
-      local backAlpha = 0.38
-      local frontRadius = 2.35 + depth * 0.4
-      local backRadius = 1.95 - depth * 0.2
 
-      setNextStrokeColor(layer, 0.82, 0.82, 0.82, 0.14 + depth * 0.14)
-      setNextStrokeWidth(layer, 0.7)
-      addLine(layer, SZ.toScreenX(layout, leftX), SZ.toScreenY(layout, y), SZ.toScreenX(layout, rightX), SZ.toScreenY(layout, y))
+      local colorA = { 0.33, 0.33, 0.33 } -- #555
+      local colorB = { 0.66, 0.66, 0.66 } -- #aaa
 
-      if leftFront then
-        circuitNode(layer, rightX, y, backRadius, { 0.40, 0.40, 0.40 }, backAlpha)
-        circuitNode(layer, leftX, y, frontRadius, { 0.82, 0.82, 0.82 }, frontAlpha)
+      -- Draw "beads" of the helix
+      local function drawBead(x, y, color, isFront)
+        local r = 2.0 * (isFront and 1.2 or 0.8)
+        local alpha = isFront and 0.9 or 0.4
+        circuitNode(layer, x, y, r, color, alpha)
+      end
+
+      if depth > 0 then
+        -- colorB is behind colorA
+        drawBead(centerX + xOffset, y, colorB, false)
+        drawBead(centerX - xOffset, y, colorA, true)
       else
-        circuitNode(layer, leftX, y, backRadius, { 0.40, 0.40, 0.40 }, backAlpha)
-        circuitNode(layer, rightX, y, frontRadius, { 0.82, 0.82, 0.82 }, frontAlpha)
+        -- colorA is behind colorB
+        drawBead(centerX - xOffset, y, colorA, false)
+        drawBead(centerX + xOffset, y, colorB, true)
       end
     end
   end)
 end
 
 local function drawText(layer)
-  local x = 118
-  local y1 = 101
-  local y2 = 118
-  local shadowDx = -0.05
-  local shadowDy = 0.16
+  local x = 115 -- Adjusted to be more central
+  local y = 110 -- Adjusted for flex-end alignment intent
 
   setNextTextAlign(layer, AlignH_Center, AlignV_Middle)
-  setNextFillColor(layer, 0, 0, 0, 0.18)
-  addText(layer, titleFont, "Welcome", SZ.toScreenX(layout, x + shadowDx), SZ.toScreenY(layout, y1 + shadowDy))
-  addText(layer, subtitleFont, "SilverZero!", SZ.toScreenX(layout, x + shadowDx), SZ.toScreenY(layout, y2 + shadowDy))
 
+  -- Combined text block to match <div class="message">Welcome <br> SilverZero!</div>
   setNextFillColor(layer, 1, 1, 1, 0.98)
-  addText(layer, titleFont, "Welcome", SZ.toScreenX(layout, x), SZ.toScreenY(layout, y1))
-  addText(layer, subtitleFont, "SilverZero!", SZ.toScreenX(layout, x), SZ.toScreenY(layout, y2))
+
+  -- Draw "Welcome" and "SilverZero!" closer together
+  local lineSpacing = 15
+  addText(layer, titleFont, "Welcome", SZ.toScreenX(layout, x), SZ.toScreenY(layout, y - lineSpacing))
+  addText(layer, subtitleFont, "SilverZero!", SZ.toScreenX(layout, x), SZ.toScreenY(layout, y))
 
   setNextFillColor(layer, 1, 1, 1, 0.3)
   addText(layer, metaFont, "BOOT SEQUENCE ACTIVE", SZ.toScreenX(layout, 116), SZ.toScreenY(layout, 88))

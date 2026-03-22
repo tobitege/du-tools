@@ -33,8 +33,8 @@ At the moment, `rs_emulator` can:
 - remember separate splitter positions for horizontal and vertical layouts in saved settings
 - show an import dropzone over empty editor sessions so one or more `.lua` files can be dropped directly into new sessions
 - save a session to a real local `.lua` file via the browser save dialog when supported
-- reload the current session from its bundled example source or linked local file with a confirmation modal
-- resolve bundled example-local `require(...)` and `include(...)` calls relative to the active example script path
+- reload the current session from its linked local file with a confirmation modal
+- resolve bare `require(...)` / `include(...)` names against the current source file directory first when that source path is known
 
 ## What It Is Not Yet
 
@@ -50,7 +50,7 @@ Not everything is fully faithful yet:
 
 ## Requirements
 
-### Runtime
+### Lua Runtime
 
 - a modern desktop browser
 - JavaScript enabled
@@ -82,13 +82,15 @@ npm run dev
 Optional DU include setup for vanilla modules like `require("rslib")`:
 
 1. copy `.env.example` to `.env.local`
-2. set `DU_LUA_ROOT` to the Dual Universe `Game/data/lua` folder
+2. set `DU_LUA_ROOT` to one or more Lua include folders
 
 Example:
 
 ```text
-DU_LUA_ROOT=D:/MyDualUniverse/Game/data/lua
+DU_LUA_ROOT=D:/MyDualUniverse/Game/data/lua;./examples/du-mocks
 ```
+
+Use `;` as the separator when you want more than one root. Relative entries are resolved from the `rs_emulator` project folder, and the first matching module wins.
 
 This is resolved by the Vite dev/preview server, so it works without browser file-picker APIs.
 
@@ -149,7 +151,6 @@ If the browser does not support this path, the app falls back to downloading a `
 
 The Reload button in the editor header reloads the active session from its source after a custom confirmation dialog.
 
-- bundled example sessions reload from the current repo example source
 - file-backed sessions reload from their linked local file
 - dirty sessions show a warning before content is replaced
 - browser-native prompts are not used
@@ -201,7 +202,7 @@ Reasons:
 - `H` / `V` switches between horizontal and vertical workspace layouts
 - `R` resets layout orientation, splitter positions, and editor font size to defaults
 - Save writes the current session to a local file when file-handle support exists, or falls back to download
-- Reload replaces the current editor content from the session's bundled example source or linked file after confirmation
+- Reload replaces the current editor content from the linked file after confirmation
 - Run starts the current script, Stop ends the current animation loop
 
 ### Settings
@@ -287,7 +288,7 @@ The runtime also preloads compatibility modules so scripts can use:
 - `require("native/Vec2")`
 - `require("rslib")` and similar DU helper modules when the include folder is configured in Settings
 
-For bundled example scripts under `examples/`, local helper modules are also resolved relative to the calling script path. This path-based lookup is used for both `require(...)` and `include(...)`, so example scripts can load neighboring helpers such as `SilverZeroRsLib.lua` without opening that helper as a separate session.
+When the current source file path is known, bare `require(...)` and `include(...)` names are resolved against that source file's directory before falling back to the DU include root. This keeps neighboring helpers such as `SilverZeroRsLib.lua` loadable without bundling `.lua` files into the app.
 
 ### Render Buffer
 
@@ -334,7 +335,7 @@ rs_emulator/
 
 ## Example Script
 
-The current built-in example lives in:
+Standalone example files live in:
 
 - `examples/example1.lua`
 
@@ -345,7 +346,48 @@ Wrapper-oriented example:
 
 `examples/fonts.lua` is based on a Dual Universe programming-board pattern that generates a screen RenderScript payload for linked screen output.
 
-It is imported into the app as raw text and used to bootstrap the first session.
+These example files can be loaded into sessions when needed, but `.lua` example files are not bundled into the production app.
+
+### SilverZero Example Helpers
+
+The SilverZero example ports under `examples/SilverZero/` share a local helper module:
+
+- `examples/SilverZero/SilverZeroRsLib.lua`
+
+This helper library is meant for reusable RenderScript-side drawing primitives and layout helpers that are shared across multiple SilverZero example screens.
+
+Current shared helpers include:
+
+- screen/layout conversion helpers such as `layoutForScreen`, `toScreenX`, `toScreenY`, `toScreenW`, `toScreenH`
+- text/layout helpers such as `text`, `badge`, `row`, `withClip`
+- generic drawing helpers such as `line`, `box`, and `scaleColor`
+- SilverZero-specific composition helpers such as `panel`, `frame`, and the hexagon/logo primitives
+
+`line(...)` exists partly to make the RenderScript next-style rule harder to misuse:
+
+- `setNextStrokeColor(...)`
+- `setNextStrokeWidth(...)`
+
+These only affect the next single draw call, so repeated line sequences should use a helper that reapplies stroke state before every `addLine(...)`.
+
+`namedSymbolRow(...)` is a shared higher-level helper for strips like the `OreExplorerM.lua` planet row.
+
+Each entry is declarative and can provide:
+
+- `name`
+- `shape`
+- `size`
+- optional `color`, `metaText`, `selected`, `selectedScale`, `selectedMinSize`
+
+The helper currently supports symbol scaling modes:
+
+- `linear`
+- `log`
+- `auto`
+
+`auto` starts with 1:1-style linear scaling from the smallest declared entry and switches to logarithmic scaling when the size spread becomes large enough to make linear scaling visually awkward.
+
+The current `OreExplorerM.lua` planet strip uses this helper with named entries and size-scaled circle symbols instead of hard-coded per-planet draw logic.
 
 ## Known Limitations
 
@@ -395,6 +437,8 @@ This covers example/runtime tests plus TypeScript compilation and production bun
 - fixed animation timing reset issues
 - improved image persistence across reruns
 - added direct `RenderScript.lua` wrapper compatibility for `require("RenderScript")`
+- added a shared SilverZero helper library workflow for reusable RenderScript drawing/layout helpers under `examples/SilverZero/SilverZeroRsLib.lua`
+- added shared SilverZero helpers for generic lines, boxes, scaled colors, and named size-scaled symbol rows
 
 ### Next likely steps
 

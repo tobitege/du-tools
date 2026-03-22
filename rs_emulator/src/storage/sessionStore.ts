@@ -1,7 +1,10 @@
+import { reindexSessions, sortSessionsByOrder } from "../sessionOrdering";
+
 export interface SessionEntry {
   id: string;
   name: string;
   updatedAt: number;
+  sortIndex?: number;
   tempPath: string;
   linkedFileName: string | null;
   lastSavedAt: number | null;
@@ -169,6 +172,7 @@ async function deleteFallbackContent(id: string): Promise<void> {
 function normalizeSession(meta: SessionEntry): SessionEntry {
   return {
     ...meta,
+    sortIndex: typeof meta.sortIndex === "number" ? meta.sortIndex : undefined,
     linkedFileName: meta.linkedFileName ?? null,
     lastSavedAt: meta.lastSavedAt ?? null,
     dirty: Boolean(meta.dirty),
@@ -176,9 +180,19 @@ function normalizeSession(meta: SessionEntry): SessionEntry {
 }
 
 export async function listSessions(): Promise<SessionEntry[]> {
-  const entries = await withStore(META_STORE, "readonly", async (store) => {
+  const entries = await withStore(META_STORE, "readwrite", async (store) => {
     const result = await requestToPromise(store.getAll()) as SessionEntry[];
-    return result.map(normalizeSession).sort((a, b) => b.updatedAt - a.updatedAt);
+    const normalized = result.map(normalizeSession);
+    const reindexed = reindexSessions(normalized);
+
+    for (const entry of reindexed) {
+      const current = normalized.find((item) => item.id === entry.id);
+      if (!current || current.sortIndex !== entry.sortIndex) {
+        store.put(entry);
+      }
+    }
+
+    return reindexed;
   });
   return entries;
 }
@@ -194,10 +208,15 @@ export async function getSession(id: string): Promise<SessionEntry | null> {
 export async function createSession(options?: { name?: string; linkedFileName?: string | null; initialContent?: string }): Promise<SessionEntry> {
   const id = nextId();
   const updatedAt = Date.now();
+  const existing = await listSessions();
+  const topSortIndex = existing.length > 0
+    ? Math.min(...existing.map((session) => session.sortIndex ?? 0)) - 1
+    : 0;
   const session: SessionEntry = {
     id,
     name: options?.name?.trim() || "Untitled",
     updatedAt,
+    sortIndex: topSortIndex,
     tempPath: defaultTempPath(id),
     linkedFileName: options?.linkedFileName?.trim() || null,
     lastSavedAt: null,
@@ -271,6 +290,36 @@ export async function deleteSession(id: string): Promise<void> {
   await transactionDone(tx);
 }
 
+export async function saveSessionOrder(orderedIds: string[]): Promise<SessionEntry[]> {
+  return withStore(META_STORE, "readwrite", async (store) => {
+    const current = sortSessionsByOrder((await requestToPromise(store.getAll()) as SessionEntry[]).map(normalizeSession));
+    const byId = new Map(current.map((entry) => [entry.id, entry]));
+    const ordered: SessionEntry[] = [];
+
+    for (const id of orderedIds) {
+      const entry = byId.get(id);
+      if (!entry) {
+        continue;
+      }
+      ordered.push(entry);
+      byId.delete(id);
+    }
+
+    ordered.push(...current.filter((entry) => byId.has(entry.id)));
+
+    const reindexed = ordered.map((entry, index) => ({
+      ...entry,
+      sortIndex: index,
+    }));
+
+    for (const entry of reindexed) {
+      store.put(entry);
+    }
+
+    return reindexed;
+  });
+}
+
 async function getLinkedHandle(id: string): Promise<FileSystemFileHandle | null> {
   return withStore(HANDLE_STORE, "readonly", async (store) => {
     const handle = await requestToPromise(store.get(id)) as FileSystemFileHandle | undefined;
@@ -295,13 +344,6 @@ export async function getDuLuaRootHandle(): Promise<FileSystemDirectoryHandle | 
 export async function setDuLuaRootHandle(handle: FileSystemDirectoryHandle): Promise<void> {
   await withStore(HANDLE_STORE, "readwrite", async (store) => {
     store.put(handle, DU_LUA_ROOT_HANDLE_KEY);
-    return undefined;
-  });
-}
-
-export async function clearDuLuaRootHandle(): Promise<void> {
-  await withStore(HANDLE_STORE, "readwrite", async (store) => {
-    store.delete(DU_LUA_ROOT_HANDLE_KEY);
     return undefined;
   });
 }

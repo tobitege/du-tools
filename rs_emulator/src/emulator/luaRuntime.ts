@@ -1,6 +1,5 @@
 import { LuaFactory, type LuaEngine } from "wasmoon";
 import { DrawBuffer } from "./drawBuffer";
-import RENDER_SCRIPT_SOURCE from "../../RenderScript.lua?raw";
 
 export interface LuaExecResult {
   success: boolean;
@@ -159,8 +158,6 @@ async function installRuntime(lua: LuaEngine, buffer: DrawBuffer): Promise<void>
   lua.global.set("__rsSetOutput", (outputBytes: unknown) => buffer.SetOutput(decodeLuaString(outputBytes)));
   lua.global.set("__rsLogMessage", (messageBytes: unknown) => buffer.Log(decodeLuaString(messageBytes)));
   lua.global.set("requestAnimationFrame", (frames: number) => buffer.RequestAnimationFrame(frames));
-  lua.global.set("__rsRenderScriptSource", RENDER_SCRIPT_SOURCE);
-
   await lua.doString(`
     package.preload["native/Vec2"] = function()
       local Vec2 = {}
@@ -285,19 +282,38 @@ async function installRuntime(lua: LuaEngine, buffer: DrawBuffer): Promise<void>
       return font
     end
 
-    package.preload["RenderScript"] = function()
-      local chunk, err = load(__rsRenderScriptSource, "@RenderScript.lua", "t", _ENV)
-      if not chunk then
-        error(err)
+    function __rsWrapRenderScriptModule(module)
+      if type(module) ~= "table" then
+        return module
       end
 
-      local module = chunk()
+      if type(module.Instance) ~= "function" and type(module.new) == "function" then
+        module.Instance = function(...)
+          return module:new(nil, ...)
+        end
+      end
+
+      if type(module.Instance) ~= "function" then
+        return module
+      end
+
       local rawInstance = module.Instance
 
-      function module.Instance()
-        local instance = rawInstance()
+      function module.Instance(...)
+        local instance = rawInstance(...)
         if instance.__rsCompatWrapped then
           return instance
+        end
+
+        for key, value in pairs(module) do
+          if type(key) == "string" and type(value) == "function" then
+            local compatKey = key:gsub("^%l", string.upper)
+            if compatKey ~= key and instance[compatKey] == nil and type(instance[key]) == "function" then
+              instance[compatKey] = function(...)
+                return instance[key](instance, ...)
+              end
+            end
+          end
         end
 
         local rawLoadFont = instance.LoadFont
@@ -384,7 +400,7 @@ function collectRequiredModules(code: string): string[] {
   for (const pattern of patterns) {
     for (const match of code.matchAll(pattern)) {
       const moduleName = match[1]?.trim();
-      if (!moduleName || moduleName === "RenderScript" || moduleName === "native/Vec2") {
+      if (!moduleName || moduleName === "native/Vec2") {
         continue;
       }
       modules.add(moduleName);
@@ -441,7 +457,11 @@ async function preloadExternalModules(lua: LuaEngine, modules: Map<string, strin
           if not chunk then
             error(err)
           end
-          return chunk()
+          local module = chunk()
+          if name == "RenderScript" then
+            return __rsWrapRenderScriptModule(module)
+          end
+          return module
         end
       end
     end

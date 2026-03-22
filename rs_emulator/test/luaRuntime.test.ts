@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import example1Source from "../examples/example1.lua?raw";
 import rslibFixture from "./fixtures/rslib.lua?raw";
+import renderScriptFixture from "../examples/du-mocks/RenderScript.lua?raw";
 import simpleSignSSource from "../examples/SilverZero/SimpleSignS.lua?raw";
 import simpleSignXSSource from "../examples/SilverZero/SimpleSignXS.lua?raw";
 import welcomeScreenMSource from "../examples/SilverZero/WelcomeScreenM.lua?raw";
@@ -62,6 +63,35 @@ describe("lua runtime example integration", () => {
 
     expect(result.success).toBe(true);
     expect(buffer.commands.some((command) => command.op === "AddText" && command.text === "loaded")).toBe(true);
+  });
+
+  it("loads RenderScript dynamically through the module resolver", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, async (moduleName) => {
+      if (moduleName === "RenderScript") {
+        return renderScriptFixture;
+      }
+      return null;
+    });
+
+    const result = await env.execute(`
+      local RenderScript = require("RenderScript")
+      local rs = RenderScript.Instance()
+      local layer = rs.CreateLayer()
+      local font = rs.LoadFont("Play", 16)
+      rs.AddText(layer, font, "wrapper loaded", 10, 20)
+      setOutput(table.concat({
+        type(RenderScript.Instance),
+        type(rs.CreateLayer),
+        type(font.GetID),
+      }, ","))
+    `);
+
+    if (!result.success) {
+      throw new Error(result.error ?? "RenderScript execution failed");
+    }
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("function,function,function");
   });
 
   it("renders SimpleSignS with SilverZero shared library", async () => {
@@ -284,5 +314,33 @@ describe("lua runtime example integration", () => {
     const [width, height] = result.output.split(",").map(Number);
     expect(width).toBeGreaterThan(0);
     expect(height).toBeGreaterThan(0);
+  });
+
+  it("exposes loadImage for allowed Novaquark asset URLs", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer);
+
+    const result = await env.execute(`
+      local image = loadImage("assets.prod.novaquark.com/4745/example.jpg")
+      setOutput(tostring(image))
+    `);
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("1");
+    expect(buffer.images[0]?.url).toBe("https://assets.prod.novaquark.com/4745/example.jpg");
+  });
+
+  it("rejects loadImage calls for disallowed image URLs", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer);
+
+    const result = await env.execute(`
+      local image = loadImage("assets.prod.novaquark.com.evil.com/4745/example.jpg")
+      setOutput(tostring(image))
+    `);
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("0");
+    expect(buffer.images).toHaveLength(0);
   });
 });

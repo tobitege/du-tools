@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { CodeEditor } from "./components/CodeEditor";
 import { Canvas, type CanvasHandle } from "./components/Canvas";
-import { Sidebar, DEFAULT_SETTINGS, getResolutionPreset, RESOLUTION_PRESETS, type SessionEntry, type Settings } from "./components/Sidebar";
+import { Sidebar } from "./components/Sidebar";
+import { DEFAULT_SETTINGS, getResolutionPreset, getThemeOption, RESOLUTION_PRESETS, THEME_OPTIONS, type SessionEntry, type Settings } from "./components/sidebarConfig";
 import { DrawBuffer, createLuaEnvironment, type LuaExecResult } from "./emulator";
-import EXAMPLE_CODE from "../examples/example1.lua?raw";
+import { moveSessionInOrder, sortSessionsByOrder, type SessionDropPlacement } from "./sessionOrdering";
 import {
-  clearDuLuaRootHandle,
   createSession,
   deleteSession,
   getDuLuaRootHandle,
@@ -14,47 +14,30 @@ import {
   readSessionContent,
   renameSession,
   saveSessionToLocal,
+  saveSessionOrder,
   setDuLuaRootHandle,
   writeSessionContent,
 } from "./storage/sessionStore";
 
 const DEFAULT_MAX_FPS = 60;
 const FRAME_INTERVAL_MS = 1000 / DEFAULT_MAX_FPS;
-const BUNDLED_LUA_FILES = import.meta.glob("../examples/**/*.lua", { query: "?raw", import: "default" }) as Record<string, () => Promise<string>>;
-const BUNDLED_LUA_LOADERS = Object.fromEntries(
-  Object.entries(BUNDLED_LUA_FILES).map(([filePath, loader]) => [normalizeBundledLuaPath(filePath), loader])
-) as Record<string, () => Promise<string>>;
 
 function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value));
 }
 
-function normalizePath(value: string): string {
-  return value.replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\//, "").toLowerCase();
-}
-
-function normalizeBundledLuaPath(filePath: string): string {
-  return normalizePath(filePath.replace(/^\.\.\/examples\//, ""));
-}
-
-function dirname(filePath: string): string {
-  const normalized = normalizePath(filePath);
-  const slashIndex = normalized.lastIndexOf("/");
-  return slashIndex >= 0 ? normalized.slice(0, slashIndex) : "";
-}
-
-function joinPath(left: string, right: string): string {
-  if (!left) {
-    return normalizePath(right);
-  }
-  return normalizePath(`${left}/${right}`);
+function classNames(...values: Array<string | false | null | undefined>): string {
+  return values.filter(Boolean).join(" ");
 }
 
 function normalizeSettings(raw: unknown): Settings {
-  const value = (raw && typeof raw === "object") ? raw as Partial<Settings> & { resolution?: number; panelSplit?: number } : {};
+  const value = (raw && typeof raw === "object") ? raw as Partial<Settings> & { resolution?: number; panelSplit?: number; darkBg?: boolean } : {};
   let resolutionPreset = value.resolutionPreset ?? DEFAULT_SETTINGS.resolutionPreset;
   let canvasWidth = value.canvasWidth;
   let canvasHeight = value.canvasHeight;
+  const themeId = typeof value.themeId === "string" && getThemeOption(value.themeId)
+    ? value.themeId
+    : DEFAULT_SETTINGS.themeId;
 
   if ((!canvasWidth || !canvasHeight) && typeof value.resolution === "number") {
     canvasWidth = value.resolution;
@@ -67,6 +50,11 @@ function normalizeSettings(raw: unknown): Settings {
   const resolvedHeight = typeof canvasHeight === "number" && canvasHeight > 0 ? canvasHeight : preset.height;
 
   const legacySplit = typeof value.panelSplit === "number" ? value.panelSplit : DEFAULT_SETTINGS.horizontalSplit;
+  const darkEditor = typeof value.darkEditor === "boolean"
+    ? value.darkEditor
+    : typeof value.darkBg === "boolean"
+      ? value.darkBg
+      : DEFAULT_SETTINGS.darkEditor;
 
   return {
     ...DEFAULT_SETTINGS,
@@ -74,10 +62,12 @@ function normalizeSettings(raw: unknown): Settings {
     resolutionPreset,
     canvasWidth: resolvedWidth,
     canvasHeight: resolvedHeight,
+    themeId,
+    darkEditor,
     layoutOrientation: value.layoutOrientation === "horizontal" ? "horizontal" : "vertical",
     horizontalSplit: clamp(typeof value.horizontalSplit === "number" ? value.horizontalSplit : legacySplit, 0.25, 0.75),
     verticalSplit: clamp(typeof value.verticalSplit === "number" ? value.verticalSplit : legacySplit, 0.25, 0.75),
-    editorFontSize: clamp(typeof value.editorFontSize === "number" ? value.editorFontSize : DEFAULT_SETTINGS.editorFontSize, 12, 28),
+    editorFontSize: clamp(typeof value.editorFontSize === "number" ? value.editorFontSize : DEFAULT_SETTINGS.editorFontSize, 8, 28),
   };
 }
 
@@ -102,6 +92,11 @@ type DirectoryPermissionHandle = FileSystemDirectoryHandle & {
   queryPermission?: (descriptor?: { mode?: "read" | "readwrite" }) => Promise<PermissionState>;
   requestPermission?: (descriptor?: { mode?: "read" | "readwrite" }) => Promise<PermissionState>;
 };
+
+interface ResolvedServerModule {
+  source: string;
+  resolvedPath: string;
+}
 
 async function ensureReadableDirectoryHandle(handle: FileSystemDirectoryHandle): Promise<boolean> {
   const permissionAware = handle as DirectoryPermissionHandle;
@@ -166,13 +161,14 @@ async function readLuaModuleFromRoot(root: FileSystemDirectoryHandle, moduleName
   return null;
 }
 
-async function readLuaModuleFromServer(moduleName: string): Promise<string | null> {
+async function readLuaModuleFromServer(moduleName: string, fromSource?: string | null): Promise<ResolvedServerModule | null> {
   try {
-    const response = await fetch(`/__du_lua/module?name=${encodeURIComponent(moduleName)}`);
+    const suffix = fromSource ? `&from=${encodeURIComponent(fromSource)}` : "";
+    const response = await fetch(`/__du_lua/module?name=${encodeURIComponent(moduleName)}${suffix}`);
     if (!response.ok) {
       return null;
     }
-    return await response.text();
+    return await response.json() as ResolvedServerModule;
   } catch {
     return null;
   }
@@ -202,6 +198,16 @@ function makeUntitledName(sessions: SessionEntry[]): string {
   return `Untitled ${index}`;
 }
 
+function sessionNameFromFileName(fileName: string): string {
+  const trimmed = fileName.trim();
+  if (!trimmed) {
+    return "Untitled";
+  }
+
+  const withoutExtension = trimmed.replace(/\.[^.\\/]+$/, "");
+  return withoutExtension || trimmed;
+}
+
 function fileLabel(session: SessionEntry | undefined): string {
   if (!session) {
     return "no session";
@@ -209,100 +215,8 @@ function fileLabel(session: SessionEntry | undefined): string {
   return session.linkedFileName ?? session.tempPath;
 }
 
-function buildLocalModuleCandidates(moduleName: string): string[] {
-  const normalized = moduleName.replace(/\\/g, "/").trim();
-  if (!normalized) {
-    return [];
-  }
-
-  const dotPath = normalized.split(".").filter(Boolean).join("/");
-  const candidates = new Set<string>();
-  const variants = [normalized, dotPath].filter(Boolean);
-
-  for (const variant of variants) {
-    candidates.add(variant);
-    if (!variant.endsWith(".lua")) {
-      candidates.add(`${variant}.lua`);
-      candidates.add(`${variant}/init.lua`);
-    }
-    const slashIndex = variant.lastIndexOf("/");
-    if (slashIndex >= 0) {
-      const base = variant.slice(slashIndex + 1);
-      if (base) {
-        candidates.add(base);
-        if (!base.endsWith(".lua")) {
-          candidates.add(`${base}.lua`);
-          candidates.add(`${base}/init.lua`);
-        }
-      }
-    }
-  }
-
-  return [...candidates].map((value) => normalizePath(value));
-}
-
-function findBundledLuaPathByLabel(label: string): string | null {
-  const normalized = normalizePath(label);
-  if (!normalized) {
-    return null;
-  }
-
-  if (BUNDLED_LUA_LOADERS[normalized]) {
-    return normalized;
-  }
-
-  const slashIndex = normalized.lastIndexOf("/");
-  const suffix = slashIndex >= 0 ? normalized.slice(slashIndex + 1) : normalized;
-  for (const bundledPath of Object.keys(BUNDLED_LUA_LOADERS)) {
-    if (bundledPath === normalized || bundledPath.endsWith(`/${suffix}`)) {
-      return bundledPath;
-    }
-  }
-
-  return null;
-}
-
-function findBundledLuaPathForSession(session: SessionEntry | undefined): string | null {
-  if (!session) {
-    return null;
-  }
-
-  return findBundledLuaPathByLabel(session.linkedFileName ?? "")
-    ?? findBundledLuaPathByLabel(session.name);
-}
-
-function findBundledModulePath(moduleName: string, fromPath?: string | null): string | null {
-  const candidates = buildLocalModuleCandidates(moduleName);
-
-  if (fromPath) {
-    const baseDir = dirname(fromPath);
-    for (const candidate of candidates) {
-      const relativePath = joinPath(baseDir, candidate);
-      if (BUNDLED_LUA_LOADERS[relativePath]) {
-        return relativePath;
-      }
-    }
-  }
-
-  for (const candidate of candidates) {
-    if (BUNDLED_LUA_LOADERS[candidate]) {
-      return candidate;
-    }
-  }
-
-  for (const candidate of candidates) {
-    for (const bundledPath of Object.keys(BUNDLED_LUA_LOADERS)) {
-      if (bundledPath.endsWith(`/${candidate}`)) {
-        return bundledPath;
-      }
-    }
-  }
-
-  return null;
-}
-
 function sortSessions(entries: SessionEntry[]): SessionEntry[] {
-  return [...entries].sort((a, b) => b.updatedAt - a.updatedAt);
+  return sortSessionsByOrder(entries);
 }
 
 export default function App() {
@@ -315,6 +229,7 @@ export default function App() {
   const statusTimerRef = useRef<number>(0);
   const persistTimerRef = useRef<number>(0);
   const autoRunTimerRef = useRef<number>(0);
+  const executionTokenRef = useRef(0);
   const persistedCodeRef = useRef("");
   const prevResolutionRef = useRef({ width: DEFAULT_SETTINGS.canvasWidth, height: DEFAULT_SETTINGS.canvasHeight });
   const skipInitialAutoRunRef = useRef(true);
@@ -326,19 +241,14 @@ export default function App() {
 
   const resolveLuaModule = useCallback(async (moduleName: string, fromModule?: string | null) => {
     const activeSession = sessionsRef.current.find((session) => session.id === activeSessionIdRef.current);
-    const fromPath = fromModule
-      ? resolvedModulePathsRef.current[fromModule] ?? null
-      : findBundledLuaPathForSession(activeSession);
+    const fromSource = fromModule
+      ? resolvedModulePathsRef.current[fromModule] ?? fromModule
+      : activeSession?.linkedFileName ?? activeSession?.name ?? null;
 
-    const bundledRelativePath = findBundledModulePath(moduleName, fromPath);
-    if (bundledRelativePath) {
-      resolvedModulePathsRef.current[moduleName] = bundledRelativePath;
-      return BUNDLED_LUA_LOADERS[bundledRelativePath]();
-    }
-
-    const serverModule = await readLuaModuleFromServer(moduleName);
+    const serverModule = await readLuaModuleFromServer(moduleName, fromSource);
     if (serverModule !== null) {
-      return serverModule;
+      resolvedModulePathsRef.current[moduleName] = serverModule.resolvedPath;
+      return serverModule.source;
     }
 
     const root = duLuaRootHandleRef.current;
@@ -378,6 +288,8 @@ export default function App() {
     () => sessions.find((session) => session.id === activeSessionId),
     [sessions, activeSessionId]
   );
+  const activeTheme = getThemeOption(settings.themeId) ?? THEME_OPTIONS[0];
+  const editorTheme = settings.darkEditor ? "vs-dark" : "vs";
 
   sessionsRef.current = sessions;
   activeSessionIdRef.current = activeSessionId;
@@ -387,6 +299,10 @@ export default function App() {
     : settings.duLuaRootName
       ? settings.duLuaRootName
       : "No DU Lua include path configured.";
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", activeTheme.id);
+  }, [activeTheme.id]);
 
   const showStatus = useCallback((message: string) => {
     setStatusMsg(message);
@@ -400,7 +316,16 @@ export default function App() {
     if (!updated) {
       return;
     }
-    setSessions((current) => sortSessions([updated, ...current.filter((entry) => entry.id !== updated.id)]));
+    setSessions((current) => {
+      const index = current.findIndex((entry) => entry.id === updated.id);
+      if (index === -1) {
+        return sortSessions([...current, updated]);
+      }
+
+      const next = [...current];
+      next[index] = updated;
+      return next;
+    });
   }, []);
 
   const refreshSessions = useCallback(async () => {
@@ -409,13 +334,25 @@ export default function App() {
     return next;
   }, []);
 
+  const clearAutoRunTimer = useCallback(() => {
+    if (autoRunTimerRef.current) {
+      clearTimeout(autoRunTimerRef.current);
+      autoRunTimerRef.current = 0;
+    }
+  }, []);
+
   const resetRuntime = useCallback(() => {
+    clearAutoRunTimer();
+    executionTokenRef.current += 1;
     resolvedModulePathsRef.current = {};
     bufferRef.current.resetRuntimeState();
     envRef.current = createLuaEnvironment(bufferRef.current, resolveLuaModule);
-  }, [resolveLuaModule]);
+    setRunning(false);
+  }, [clearAutoRunTimer, resolveLuaModule]);
 
   const stopAnimation = useCallback(() => {
+    clearAutoRunTimer();
+    executionTokenRef.current += 1;
     if (animTimerRef.current) {
       clearTimeout(animTimerRef.current);
       animTimerRef.current = 0;
@@ -425,7 +362,8 @@ export default function App() {
       animFrameRef.current = 0;
     }
     setAnimating(false);
-  }, []);
+    setRunning(false);
+  }, [clearAutoRunTimer]);
 
   const persistCodeNow = useCallback(async (sessionId: string, nextCode: string, markDirty: boolean) => {
     const updated = await writeSessionContent(sessionId, nextCode, { markDirty });
@@ -459,7 +397,16 @@ export default function App() {
     return nextCode;
   }, [resetRuntime]);
 
+  const clearActiveSession = useCallback(() => {
+    persistedCodeRef.current = "";
+    setActiveSessionId("");
+    setCode("");
+    setLoadingSession(false);
+  }, []);
+
   const executeCode = useCallback(async (codeToRun: string) => {
+    const executionToken = executionTokenRef.current + 1;
+    executionTokenRef.current = executionToken;
     setRunning(true);
     setStatusMsg(null);
     resolvedModulePathsRef.current = {};
@@ -469,6 +416,9 @@ export default function App() {
 
     try {
       const firstResult = await envRef.current.execute(codeToRun);
+      if (executionTokenRef.current !== executionToken) {
+        return;
+      }
       setResult(firstResult);
       canvasRef.current?.render(buffer, { showGrid: settings.showGrid });
 
@@ -492,6 +442,9 @@ export default function App() {
           buffer.screen.height = settings.canvasHeight;
 
           const frameResult = await envRef.current.execute(codeToRun);
+          if (executionTokenRef.current !== executionToken) {
+            return;
+          }
           setResult(frameResult);
           canvasRef.current?.render(buffer, { showGrid: settings.showGrid });
 
@@ -520,12 +473,17 @@ export default function App() {
         setAnimating(false);
       }
     } catch (error: unknown) {
+      if (executionTokenRef.current !== executionToken) {
+        return;
+      }
       const message = error instanceof Error ? error.message : String(error);
       setResult({ success: false, error: message, logs: [], output: "", requestAnimFrames: 0 });
       showStatus(`Error: ${message.slice(0, 140)}`);
       setAnimating(false);
     } finally {
-      setRunning(false);
+      if (executionTokenRef.current === executionToken) {
+        setRunning(false);
+      }
     }
   }, [settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus]);
 
@@ -553,7 +511,7 @@ export default function App() {
   const handleEditorFontStep = useCallback((delta: number) => {
     setSettings((current) => ({
       ...current,
-      editorFontSize: clamp(current.editorFontSize + delta, 12, 28),
+      editorFontSize: clamp(current.editorFontSize + delta, 8, 28),
     }));
   }, []);
 
@@ -575,20 +533,24 @@ export default function App() {
     }
 
     try {
+      await flushActiveSession();
+      stopAnimation();
+      resetRuntime();
+      setResult(null);
+      setEditorDropActive(false);
+      bufferRef.current.screen.width = settings.canvasWidth;
+      bufferRef.current.screen.height = settings.canvasHeight;
+      canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+
       const loadedFiles = await Promise.all(files.map(async (file) => ({
         file,
         text: await file.text(),
       })));
 
-      await flushActiveSession();
-      stopAnimation();
-      setResult(null);
-      setEditorDropActive(false);
-
       let lastCreatedId = "";
       for (const { file, text } of loadedFiles) {
         const created = await createSession({
-          name: file.name,
+          name: sessionNameFromFileName(file.name),
           linkedFileName: file.name,
           initialContent: text,
         });
@@ -613,7 +575,7 @@ export default function App() {
       const message = error instanceof Error ? error.message : String(error);
       showStatus(`Import failed: ${message.slice(0, 140)}`);
     }
-  }, [flushActiveSession, loadSessionIntoEditor, refreshSessions, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus, stopAnimation]);
+  }, [flushActiveSession, loadSessionIntoEditor, refreshSessions, resetRuntime, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus, stopAnimation]);
 
   const handleImportFilePick = useCallback(() => {
     importInputRef.current?.click();
@@ -698,19 +660,13 @@ export default function App() {
     try {
       stopAnimation();
 
-      const bundledPath = findBundledLuaPathForSession(activeSession);
       let nextCode: string | null = null;
       let sourceLabel = "";
 
-      if (bundledPath) {
-        nextCode = await BUNDLED_LUA_LOADERS[bundledPath]();
-        sourceLabel = bundledPath;
-      } else {
-        const linked = await readSessionFromLinkedFile(activeSession.id);
-        if (linked) {
-          nextCode = linked.content;
-          sourceLabel = linked.fileName;
-        }
+      const linked = await readSessionFromLinkedFile(activeSession.id);
+      if (linked) {
+        nextCode = linked.content;
+        sourceLabel = linked.fileName;
       }
 
       if (nextCode === null) {
@@ -766,20 +722,12 @@ export default function App() {
     }
   }, [resetRuntime, showStatus]);
 
-  const handleClearDuLuaRoot = useCallback(async () => {
-    duLuaRootHandleRef.current = null;
-    await clearDuLuaRootHandle();
-    setSettings((current) => ({ ...current, duLuaRootName: "" }));
-    resetRuntime();
-    showStatus("DU include folder cleared");
-  }, [resetRuntime, showStatus]);
-
   const handleSelectSession = useCallback(async (sessionId: string) => {
     if (sessionId === activeSessionId) {
       return;
     }
-    await flushActiveSession();
     stopAnimation();
+    await flushActiveSession();
     await loadSessionIntoEditor(sessionId);
     bufferRef.current.screen.width = settings.canvasWidth;
     bufferRef.current.screen.height = settings.canvasHeight;
@@ -800,34 +748,51 @@ export default function App() {
 
   const handleDeleteSession = useCallback(async (sessionId: string) => {
     const deletingActive = sessionId === activeSessionId;
+    const deletedIndex = sessionsRef.current.findIndex((session) => session.id === sessionId);
     if (!deletingActive) {
       await flushActiveSession();
     }
     stopAnimation();
+    if (deletingActive) {
+      resetRuntime();
+      setResult(null);
+      bufferRef.current.screen.width = settings.canvasWidth;
+      bufferRef.current.screen.height = settings.canvasHeight;
+      canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+    }
     await deleteSession(sessionId);
     const remaining = await refreshSessions();
     if (remaining.length === 0) {
-      const replacement = await createSession({ name: "Untitled", initialContent: "" });
-      const nextSessions = await refreshSessions();
-      await loadSessionIntoEditor(replacement.id);
+      clearActiveSession();
       setResult(null);
-      showStatus("Session deleted; created a new temp session");
-      if (!nextSessions.length) {
-        return;
-      }
+      bufferRef.current.screen.width = settings.canvasWidth;
+      bufferRef.current.screen.height = settings.canvasHeight;
+      canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+      showStatus("Session deleted");
       return;
     }
     if (deletingActive) {
-      const next = remaining[0];
+      const nextIndex = deletedIndex >= 0 ? Math.min(deletedIndex, remaining.length - 1) : 0;
+      const next = remaining[nextIndex];
+      if (!next) {
+        return;
+      }
       const nextCode = await loadSessionIntoEditor(next.id);
       void executeCode(nextCode);
     }
-  }, [activeSessionId, executeCode, flushActiveSession, loadSessionIntoEditor, refreshSessions, showStatus, stopAnimation]);
+  }, [activeSessionId, clearActiveSession, executeCode, flushActiveSession, loadSessionIntoEditor, refreshSessions, resetRuntime, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus, stopAnimation]);
 
   const handleRenameSession = useCallback(async (sessionId: string, name: string) => {
     const updated = await renameSession(sessionId, name);
     applySessionUpdate(updated);
   }, [applySessionUpdate]);
+
+  const handleReorderSessions = useCallback(async (draggedId: string, targetId: string, placement: SessionDropPlacement) => {
+    setSessions((current) => moveSessionInOrder(current, draggedId, targetId, placement));
+    const reordered = moveSessionInOrder(sessionsRef.current, draggedId, targetId, placement);
+    const persisted = await saveSessionOrder(reordered.map((session) => session.id));
+    setSessions(persisted);
+  }, []);
 
   useEffect(() => {
     safeSaveSettings(settings);
@@ -952,17 +917,14 @@ export default function App() {
         }));
       }
 
-      let knownSessions = await listSessions();
-      if (knownSessions.length === 0) {
-        await createSession({ name: "Example 1", initialContent: EXAMPLE_CODE });
-        knownSessions = await listSessions();
-      }
+      const knownSessions = await listSessions();
       if (cancelled) {
         return;
       }
       setSessions(sortSessions(knownSessions));
       const first = knownSessions[0];
       if (!first) {
+        clearActiveSession();
         setLoadingSession(false);
         setBootstrapped(true);
         return;
@@ -992,40 +954,60 @@ export default function App() {
         clearTimeout(statusTimerRef.current);
       }
     };
-  }, [loadSessionIntoEditor, stopAnimation]);
+  }, [clearActiveSession, loadSessionIntoEditor, stopAnimation]);
 
   const currentFileLabel = fileLabel(activeSession);
-  const reloadSourceLabel = activeSession ? (findBundledLuaPathForSession(activeSession) ?? activeSession.linkedFileName ?? "the source file") : "the source file";
-  const canReload = Boolean(activeSession && (findBundledLuaPathForSession(activeSession) || activeSession.linkedFileName));
+  const primaryFileLabel = activeSession?.name || "RenderScript.lua";
+  const showSecondaryFileLabel = Boolean(activeSession && currentFileLabel !== primaryFileLabel);
+  const reloadSourceLabel = activeSession?.linkedFileName ?? "the source file";
+  const canReload = Boolean(activeSession?.linkedFileName);
   const canRunToggle = !saving && !loadingSession && !!activeSession;
   const isHorizontalLayout = settings.layoutOrientation === "horizontal";
   const activeSplit = isHorizontalLayout ? settings.horizontalSplit : settings.verticalSplit;
   const showEmptyEditorDropzone = Boolean(activeSession) && code.trim().length === 0;
+  const useCenteredSingleLineHeader = !isHorizontalLayout && !showSecondaryFileLabel;
+  const editorHeaderClassName = classNames(
+    "flex flex-wrap border-b border-base-300 bg-base-100 px-5 py-3",
+    isHorizontalLayout
+      ? "items-start justify-between gap-x-5 gap-y-3"
+      : useCenteredSingleLineHeader
+        ? "items-center justify-start gap-x-4 gap-y-2"
+        : "items-start justify-start gap-x-4 gap-y-2"
+  );
+  const editorTitleBlockClassName = classNames(
+    "flex min-w-0",
+    isHorizontalLayout
+      ? "flex-[1_1_220px] flex-col gap-1"
+      : useCenteredSingleLineHeader
+        ? "max-w-full flex-[0_1_auto] items-center self-stretch"
+        : "max-w-full flex-[0_1_auto] flex-col gap-1"
+  );
+  const editorActionsClassName = classNames(
+    "flex min-w-0 flex-wrap items-center justify-start",
+    isHorizontalLayout ? "flex-[1_1_320px] gap-3.5" : "flex-[0_1_auto] gap-3"
+  );
+  const workspaceClassName = classNames("flex min-h-0 flex-1 overflow-hidden", isHorizontalLayout ? "flex-row" : "flex-col");
   const canvasPaneStyle = isHorizontalLayout
-    ? { ...styles.canvasPane, flex: `0 0 ${activeSplit * 100}%`, minWidth: 320, order: 2 }
-    : { ...styles.canvasPane, flex: `0 0 ${activeSplit * 100}%`, minHeight: 240 };
-  const editorPaneStyle = isHorizontalLayout
-    ? { ...styles.editorPane, borderTop: "none", borderLeft: "none", borderRight: "1px solid #2a2a4a", order: 0 }
-    : styles.editorPane;
-  const workspaceStyle = isHorizontalLayout
-    ? { ...styles.workspace, flexDirection: "row" as const }
-    : styles.workspace;
-  const splitterStyle = isHorizontalLayout
-    ? {
-        ...styles.splitter,
-        width: 12,
-        order: 1,
-        cursor: "col-resize",
-        borderLeft: "1px solid #2a2a4a",
-        borderRight: "1px solid #151528",
-      }
-    : {
-        ...styles.splitter,
-        height: 12,
-        cursor: "row-resize",
-        borderTop: "1px solid #2a2a4a",
-        borderBottom: "1px solid #151528",
-      };
+    ? { flex: `0 0 ${activeSplit * 100}%`, minWidth: 320, order: 2 }
+    : { flex: `0 0 ${activeSplit * 100}%`, minHeight: 240 };
+  const editorPaneClassName = classNames(
+    "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+    isHorizontalLayout ? "order-0 border-r border-base-300" : "border-t border-base-300"
+  );
+  const splitterClassName = classNames(
+    "relative shrink-0 bg-base-200",
+    splitterDragging && "bg-primary",
+    isHorizontalLayout
+      ? "order-1 flex w-3 cursor-col-resize items-center justify-center border-l border-r border-l-base-300 border-r-base-100"
+      : "flex h-3 cursor-row-resize items-center justify-center border-t border-b border-t-base-300 border-b-base-100"
+  );
+  const splitterGripClassName = isHorizontalLayout
+    ? "h-9 w-1 rounded-full bg-primary opacity-65"
+    : "h-1 w-9 rounded-full bg-primary opacity-65";
+  const editorDropzoneOverlayClassName = classNames(
+    "pointer-events-none absolute inset-5 flex items-center justify-center rounded-2xl",
+    editorDropActive && "bg-primary/12 ring-2 ring-inset ring-primary/45"
+  );
 
   useEffect(() => {
     bufferRef.current.onAssetsChanged = () => {
@@ -1037,34 +1019,47 @@ export default function App() {
   }, [settings.showGrid]);
 
   return (
-    <div style={styles.root}>
+    <div className="rs-theme-root flex h-screen w-screen overflow-hidden bg-base-300 text-base-content" data-theme={activeTheme.id}>
       <Sidebar
         sessions={sessions}
         activeSessionId={activeSessionId}
         onSelectSession={(id) => { void handleSelectSession(id); }}
         onNewSession={() => { void handleNewSession(); }}
+        onImportFiles={(files) => { void importFilesIntoSessions(files); }}
         onDeleteSession={(id) => { void handleDeleteSession(id); }}
         onRenameSession={(id, name) => { void handleRenameSession(id, name); }}
+        onReorderSessions={(draggedId, targetId, placement) => { void handleReorderSessions(draggedId, targetId, placement); }}
         settings={settings}
         onSettingsChange={setSettings}
         duLuaRootStatus={duLuaRootStatus}
         onPickDuLuaRoot={() => { void handlePickDuLuaRoot(); }}
-        onClearDuLuaRoot={() => { void handleClearDuLuaRoot(); }}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((current) => !current)}
       />
 
-      <div style={styles.main}>
-        <div ref={workspaceRef} style={workspaceStyle}>
-          <div style={canvasPaneStyle}>
-            <div style={styles.canvasContainer}>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div ref={workspaceRef} className={workspaceClassName}>
+          <div style={canvasPaneStyle} className="flex min-h-0 min-w-0 overflow-hidden bg-base-300 p-5">
+            <div className="relative flex h-full w-full items-center justify-center">
+              {statusMsg ? (
+                <div
+                  className={classNames(
+                    "pointer-events-none absolute bottom-3 left-1/2 z-3 w-auto max-w-[min(420px,calc(100%-24px))] -translate-x-1/2 rounded-xl px-3 py-2 font-mono text-xs shadow-lg backdrop-blur-md",
+                    statusMsg.startsWith("Error") || statusMsg.startsWith("Save failed") || statusMsg.startsWith("Reload failed") || statusMsg.startsWith("Import failed")
+                      ? "alert alert-error"
+                      : "alert alert-success"
+                  )}
+                >
+                  {statusMsg}
+                </div>
+              ) : null}
               <Canvas
                 ref={canvasRef}
                 width={settings.canvasWidth}
                 height={settings.canvasHeight}
                 showGrid={settings.showGrid}
-                darkBg={settings.darkBg}
                 showFps={settings.showFPS}
+                themeMode={activeTheme.mode}
               />
             </div>
           </div>
@@ -1074,48 +1069,39 @@ export default function App() {
             aria-orientation={isHorizontalLayout ? "vertical" : "horizontal"}
             aria-label="Resize canvas and editor"
             onPointerDown={handleSplitterPointerDown}
-            style={{
-              ...splitterStyle,
-              ...(splitterDragging ? styles.splitterActive : {}),
-            }}
+            className={splitterClassName}
           >
-            <div style={isHorizontalLayout ? styles.splitterGripVertical : styles.splitterGripHorizontal} />
+            <div className={splitterGripClassName} />
           </div>
 
-          <div style={editorPaneStyle}>
-            <div style={styles.editorHeader}>
-              <div style={styles.editorTitleGroup}>
-                <span style={styles.editorTitle}>{activeSession?.name || "RenderScript.lua"}</span>
-                <span style={styles.fileLabel}>
-                  {currentFileLabel}
+          <div className={editorPaneClassName}>
+            <div className={editorHeaderClassName}>
+              <div className={editorTitleBlockClassName}>
+                <span className={classNames("truncate font-mono text-sm font-medium text-base-content", useCenteredSingleLineHeader && "leading-none")}>
+                  {primaryFileLabel}
                   {activeSession?.dirty ? " *" : ""}
                 </span>
-              </div>
-              <div style={styles.editorActions}>
-                {statusMsg ? (
-                  <span
-                    style={{
-                      ...styles.statusMsg,
-                      color: statusMsg.startsWith("Error") || statusMsg.startsWith("Save failed") ? "#f88" : "#8f8",
-                    }}
-                  >
-                    {statusMsg}
+                {showSecondaryFileLabel ? (
+                  <span className="truncate font-mono text-xs text-base-content/60">
+                    {currentFileLabel}
                   </span>
                 ) : null}
-                <div style={styles.editorFontControls}>
+              </div>
+              <div className={editorActionsClassName}>
+                <div className="flex items-center gap-2.5 whitespace-nowrap">
                   <button
                     type="button"
                     onClick={() => handleEditorFontStep(-1)}
-                    style={styles.iconBtn}
+                    className="btn btn-ghost btn-sm btn-square"
                     title="Decrease editor font"
                   >
                     A-
                   </button>
-                  <span style={styles.editorFontLabel}>{settings.editorFontSize}px</span>
+                  <span className="badge badge-outline badge-sm min-w-11 justify-center font-mono">{settings.editorFontSize}px</span>
                   <button
                     type="button"
                     onClick={() => handleEditorFontStep(1)}
-                    style={styles.iconBtn}
+                    className="btn btn-ghost btn-sm btn-square"
                     title="Increase editor font"
                   >
                     A+
@@ -1124,7 +1110,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleToggleLayout}
-                  style={styles.iconBtn}
+                  className="btn btn-ghost btn-sm btn-square"
                   title={isHorizontalLayout ? "Switch to vertical layout" : "Switch to horizontal layout"}
                 >
                   {isHorizontalLayout ? "V" : "H"}
@@ -1132,7 +1118,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleResetLayout}
-                  style={styles.iconBtn}
+                  className="btn btn-ghost btn-sm btn-square"
                   title="Reset layout split and editor font size"
                 >
                   R
@@ -1140,7 +1126,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => { void handleSave(); }}
-                  style={{ ...styles.iconBtn, opacity: saving ? 0.6 : 1 }}
+                  className="btn btn-ghost btn-sm btn-square"
                   disabled={saving || !activeSession}
                   title="Save session to local file"
                 >
@@ -1151,7 +1137,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setReloadConfirmOpen(true)}
-                  style={{ ...styles.iconBtn, opacity: (canReload && !reloading) ? 1 : 0.55 }}
+                  className="btn btn-ghost btn-sm btn-square"
                   disabled={!canReload || reloading || loadingSession}
                   title="Reload this session from its source"
                 >
@@ -1162,20 +1148,37 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleRun}
-                  style={{
-                    ...styles.runBtn,
-                    ...(animating ? styles.stopBtn : {}),
-                    opacity: (!canRunToggle && !animating) ? 0.7 : 1,
-                  }}
+                  className={classNames(
+                    "btn btn-sm min-w-24 gap-2",
+                    animating ? "btn-error" : "btn-primary"
+                  )}
                   disabled={!canRunToggle}
-                  title={animating ? "Stop the running animation" : "Run the current script"}
+                  title={animating ? "Stop the running animation" : "Run the current script (Ctrl+Enter)"}
                 >
-                  {loadingSession ? "Loading..." : saving ? "Saving..." : running ? "Running..." : animating ? "Stop" : "Run  Ctrl+Enter"}
+                  {loadingSession ? "Loading..." : saving ? "Saving..." : running ? "Running..." : animating ? (
+                    <>
+                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">
+                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                          <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" />
+                        </svg>
+                      </span>
+                      <span>Stop</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">
+                        <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
+                          <path d="M8 6.5v11l8.5-5.5z" fill="currentColor" />
+                        </svg>
+                      </span>
+                      <span>Run</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
             <div
-              style={styles.editorBody}
+              className="relative flex-1 overflow-hidden"
               onDragEnter={handleEditorDragEnter}
               onDragOver={handleEditorDragOver}
               onDragLeave={handleEditorDragLeave}
@@ -1187,21 +1190,18 @@ export default function App() {
                 multiple
                 accept=".lua,.txt,text/plain"
                 onChange={handleImportFileChange}
-                style={styles.hiddenInput}
+                className="hidden"
               />
-              <CodeEditor value={code} onChange={setCode} onRun={handleRun} fontSize={settings.editorFontSize} />
+              <CodeEditor value={code} onChange={setCode} onRun={handleRun} fontSize={settings.editorFontSize} theme={editorTheme} />
               {showEmptyEditorDropzone ? (
-                <div style={{
-                  ...styles.editorDropzoneOverlay,
-                  ...(editorDropActive ? styles.editorDropzoneOverlayActive : {}),
-                }}>
-                  <div style={styles.editorDropzoneCard}>
-                    <div style={styles.editorDropzoneTitle}>Drop Lua files here</div>
-                    <div style={styles.editorDropzoneText}>Each imported file creates a new session named after the file.</div>
+                <div className={editorDropzoneOverlayClassName}>
+                  <div className="pointer-events-auto flex w-[min(420px,78%)] flex-col items-center gap-2 rounded-2xl border border-primary/30 bg-base-100/90 px-7 py-6 text-center shadow-2xl">
+                    <div className="text-xl font-bold text-base-content">Drop Lua files here</div>
+                    <div className="max-w-80 text-sm leading-6 text-base-content/65">Each imported file creates a new session named after the file.</div>
                     <button
                       type="button"
                       onClick={handleImportFilePick}
-                      style={styles.dropzoneButton}
+                      className="btn btn-primary btn-sm mt-2"
                       title="Choose one or more Lua files to import as new sessions"
                     >
                       Choose Files
@@ -1214,39 +1214,39 @@ export default function App() {
         </div>
 
         {result && !result.success ? (
-          <div style={styles.errorBar}>{result.error}</div>
+          <div className="border-t border-error/30 bg-error/15 px-4 py-2 font-mono text-sm text-error">{result.error}</div>
         ) : null}
 
         {result && result.logs.length > 0 ? (
-          <div style={styles.logBar}>
+          <div className="max-h-18 overflow-auto border-t border-success/25 bg-success/10 px-4 py-2 font-mono text-xs text-success">
             {result.logs.map((line, index) => (
-              <div key={index} style={styles.logLine}>{line}</div>
+              <div key={index} className="py-px">{line}</div>
             ))}
           </div>
         ) : null}
       </div>
 
       {reloadConfirmOpen ? (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modalCard}>
-            <div style={styles.modalTitle}>Reload Session?</div>
-            <div style={styles.modalText}>
+        <div className="modal modal-open">
+          <div className="modal-box max-w-md">
+            <div className="text-lg font-bold text-base-content">Reload Session?</div>
+            <div className="mt-3 text-sm leading-6 text-base-content/70">
               {activeSession?.dirty
                 ? `This replaces the current editor content with ${reloadSourceLabel}. Unsaved changes in this session will be lost.`
                 : `This reloads the current session from ${reloadSourceLabel}.`}
             </div>
-            <div style={styles.modalActions}>
+            <div className="modal-action">
               <button
                 type="button"
                 onClick={() => setReloadConfirmOpen(false)}
-                style={styles.modalSecondaryButton}
+                className="btn btn-ghost"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => { void handleConfirmReload(); }}
-                style={styles.modalPrimaryButton}
+                className="btn btn-primary"
               >
                 Reload
               </button>
@@ -1257,295 +1257,3 @@ export default function App() {
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  root: {
-    display: "flex",
-    height: "100vh",
-    width: "100vw",
-    overflow: "hidden",
-    background: "#0d0d1a",
-    color: "#e0e0e0",
-    fontFamily: "system-ui, -apple-system, sans-serif",
-  },
-  main: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden",
-  },
-  workspace: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden",
-  },
-  canvasPane: {
-    display: "flex",
-    minHeight: 0,
-    minWidth: 0,
-    padding: 16,
-    background: "#111122",
-    overflow: "hidden",
-  },
-  canvasContainer: {
-    position: "relative",
-    display: "flex",
-    width: "100%",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  splitter: {
-    flexShrink: 0,
-    background: "linear-gradient(180deg, #181a2b 0%, #232845 100%)",
-    position: "relative",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  splitterActive: {
-    background: "linear-gradient(180deg, #2b3562 0%, #3a4b85 100%)",
-  },
-  splitterGripVertical: {
-    width: 4,
-    height: 36,
-    borderRadius: 999,
-    background: "rgba(151, 163, 255, 0.55)",
-    boxShadow: "0 0 0 1px rgba(12, 14, 26, 0.35)",
-  },
-  splitterGripHorizontal: {
-    width: 36,
-    height: 4,
-    borderRadius: 999,
-    background: "rgba(151, 163, 255, 0.55)",
-    boxShadow: "0 0 0 1px rgba(12, 14, 26, 0.35)",
-  },
-  editorPane: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    borderTop: "1px solid #2a2a4a",
-    minWidth: 0,
-    minHeight: 0,
-    overflow: "hidden",
-  },
-  editorHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "8px 16px",
-    background: "#1a1a2e",
-    borderBottom: "1px solid #2a2a4a",
-    gap: 16,
-  },
-  editorTitleGroup: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 2,
-    minWidth: 0,
-  },
-  editorTitle: {
-    fontSize: 13,
-    color: "#ddd",
-    fontFamily: "monospace",
-  },
-  fileLabel: {
-    fontSize: 11,
-    color: "#7f84ab",
-    fontFamily: "monospace",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap" as const,
-    maxWidth: 380,
-  },
-  editorActions: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    minWidth: 0,
-  },
-  editorFontControls: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-  },
-  editorFontLabel: {
-    minWidth: 38,
-    textAlign: "center" as const,
-    fontSize: 11,
-    color: "#9ea5d6",
-    fontFamily: "monospace",
-  },
-  statusMsg: {
-    fontSize: 12,
-    fontFamily: "monospace",
-    maxWidth: 360,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap" as const,
-  },
-  iconBtn: {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    border: "1px solid #444a72",
-    background: "#242845",
-    color: "#d7daf7",
-    cursor: "pointer",
-  },
-  runBtn: {
-    background: "#6c6cf0",
-    color: "#fff",
-    border: "none",
-    padding: "8px 16px",
-    borderRadius: 8,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-    fontFamily: "inherit",
-    minWidth: 124,
-  },
-  stopBtn: {
-    background: "#c14f5f",
-  },
-  editorBody: {
-    flex: 1,
-    overflow: "hidden",
-    position: "relative",
-  },
-  hiddenInput: {
-    display: "none",
-  },
-  editorDropzoneOverlay: {
-    position: "absolute",
-    inset: 20,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    pointerEvents: "none",
-  },
-  editorDropzoneOverlayActive: {
-    background: "rgba(77, 96, 190, 0.12)",
-    boxShadow: "inset 0 0 0 2px rgba(125, 145, 255, 0.45)",
-    borderRadius: 14,
-  },
-  editorDropzoneCard: {
-    width: "min(420px, 78%)",
-    padding: "24px 28px",
-    borderRadius: 16,
-    background: "rgba(19, 22, 40, 0.92)",
-    border: "1px dashed rgba(125, 145, 255, 0.55)",
-    boxShadow: "0 24px 48px rgba(0, 0, 0, 0.35)",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 10,
-    textAlign: "center" as const,
-    pointerEvents: "auto",
-  },
-  editorDropzoneTitle: {
-    fontSize: 20,
-    fontWeight: 700,
-    color: "#eef1ff",
-  },
-  editorDropzoneText: {
-    fontSize: 13,
-    color: "#a8afd8",
-    lineHeight: 1.5,
-    maxWidth: 320,
-  },
-  dropzoneButton: {
-    marginTop: 6,
-    border: "1px solid #6674d9",
-    background: "#4b5cc7",
-    color: "#fff",
-    padding: "9px 14px",
-    borderRadius: 10,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-  },
-  errorBar: {
-    background: "#3a1111",
-    color: "#f88",
-    padding: "8px 16px",
-    fontSize: 13,
-    fontFamily: "monospace",
-    borderTop: "1px solid #5a2222",
-    maxHeight: 80,
-    overflow: "auto",
-  },
-  logBar: {
-    background: "#111a11",
-    color: "#8f8",
-    padding: "8px 16px",
-    fontSize: 12,
-    fontFamily: "monospace",
-    borderTop: "1px solid #223a22",
-    maxHeight: 72,
-    overflow: "auto",
-  },
-  logLine: {
-    padding: "1px 0",
-  },
-  modalOverlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(8, 10, 20, 0.62)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-    zIndex: 1000,
-  },
-  modalCard: {
-    width: "min(420px, calc(100vw - 32px))",
-    background: "#161a30",
-    border: "1px solid #404975",
-    borderRadius: 14,
-    boxShadow: "0 28px 70px rgba(0, 0, 0, 0.45)",
-    padding: 20,
-    display: "flex",
-    flexDirection: "column",
-    gap: 14,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 700,
-    color: "#eef1ff",
-  },
-  modalText: {
-    fontSize: 13,
-    lineHeight: 1.5,
-    color: "#b7beda",
-  },
-  modalActions: {
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: 10,
-  },
-  modalSecondaryButton: {
-    border: "1px solid #48527c",
-    background: "#232845",
-    color: "#e3e7ff",
-    padding: "9px 14px",
-    borderRadius: 10,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-  },
-  modalPrimaryButton: {
-    border: "1px solid #6674d9",
-    background: "#4b5cc7",
-    color: "#fff",
-    padding: "9px 14px",
-    borderRadius: 10,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-  },
-};

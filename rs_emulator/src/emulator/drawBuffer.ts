@@ -3,6 +3,41 @@ import { RSShape, defaultLayerStyle, DEFAULT_SCREEN } from "./types";
 import type { LayerStyle, FontEntry, ImageEntry } from "./types";
 import { measureFontMetrics, measureTextBounds } from "./textMetrics";
 
+const NOVAQUARK_ASSET_HOST = "assets.prod.novaquark.com";
+
+function normalizeNovaquarkAssetUrl(url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed.startsWith(NOVAQUARK_ASSET_HOST)) {
+    return null;
+  }
+
+  const nextChar = trimmed[NOVAQUARK_ASSET_HOST.length];
+  if (nextChar && nextChar !== "/" && nextChar !== "?" && nextChar !== "#") {
+    return null;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(`https://${trimmed}`);
+  } catch {
+    return null;
+  }
+
+  if (parsed.protocol !== "https:" || parsed.hostname !== NOVAQUARK_ASSET_HOST) {
+    return null;
+  }
+
+  if (parsed.username || parsed.password) {
+    return null;
+  }
+
+  if (!parsed.pathname || parsed.pathname === "/") {
+    return null;
+  }
+
+  return parsed.toString();
+}
+
 export class DrawBuffer {
   commands: DrawCommand[] = [];
   screen: ScreenConfig = { ...DEFAULT_SCREEN };
@@ -49,6 +84,7 @@ export class DrawBuffer {
     this.nextLayerId = 1;
     this.time = 0;
     this.deltaTime = 0;
+    this.screen.backgroundColor = [...DEFAULT_SCREEN.backgroundColor];
   }
 
   private push(cmd: DrawCommand) {
@@ -292,14 +328,18 @@ export class DrawBuffer {
   }
 
   LoadImage(url: string): number {
-    const existing = this.images.find(i => i.url === url);
+    const normalizedUrl = normalizeNovaquarkAssetUrl(url);
+    if (!normalizedUrl) {
+      return 0;
+    }
+
+    const existing = this.images.find(i => i.url === normalizedUrl);
     if (existing) return existing.id;
     const id = this.nextImageId++;
-    const entry: ImageEntry = { id, url, loaded: false, element: null, width: 0, height: 0 };
+    const entry: ImageEntry = { id, url: normalizedUrl, loaded: false, element: null, width: 0, height: 0 };
     this.images.push(entry);
-    // start async load
+
     const img = new Image();
-    img.crossOrigin = "anonymous";
     img.onload = () => {
       entry.loaded = true;
       entry.element = img;
@@ -307,7 +347,10 @@ export class DrawBuffer {
       entry.height = img.naturalHeight;
       this.onAssetsChanged?.();
     };
-    img.src = url;
+    img.onerror = () => {
+      this.onAssetsChanged?.();
+    };
+    img.src = normalizedUrl;
     return id;
   }
   IsImageLoaded(imageId: number): boolean {
