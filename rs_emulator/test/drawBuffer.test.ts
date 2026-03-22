@@ -56,12 +56,26 @@ describe("drawBuffer style snapshotting", () => {
     expect(buffer.images[0]?.url).toBe("https://assets.prod.novaquark.com/4745/example.jpg");
   });
 
+  it("accepts data image URLs and reuses their handles", () => {
+    const buffer = new DrawBuffer();
+    const dataUrl = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+
+    const firstId = buffer.LoadImage(dataUrl);
+    const secondId = buffer.LoadImage(dataUrl);
+
+    expect(firstId).toBe(1);
+    expect(secondId).toBe(firstId);
+    expect(buffer.images).toHaveLength(1);
+    expect(buffer.images[0]?.url).toBe(dataUrl);
+  });
+
   it("rejects image URLs outside the allowed Novaquark asset host", () => {
     const buffer = new DrawBuffer();
 
     expect(buffer.LoadImage("https://assets.prod.novaquark.com/4745/example.jpg")).toBe(0);
     expect(buffer.LoadImage("cdn.example.com/example.jpg")).toBe(0);
     expect(buffer.LoadImage("assets.prod.novaquark.com.evil.com/example.jpg")).toBe(0);
+    expect(buffer.LoadImage("data:text/plain;base64,SGVsbG8=")).toBe(0);
     expect(buffer.images).toHaveLength(0);
   });
 });

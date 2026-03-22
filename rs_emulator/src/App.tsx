@@ -239,6 +239,7 @@ export default function App() {
   const prevResolutionRef = useRef({ width: DEFAULT_SETTINGS.canvasWidth, height: DEFAULT_SETTINGS.canvasHeight });
   const skipInitialAutoRunRef = useRef(true);
   const splitterDragRef = useRef(false);
+  const initializedRef = useRef(false);
   const duLuaRootHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
   const sessionsRef = useRef<SessionEntry[]>([]);
   const activeSessionIdRef = useRef("");
@@ -912,6 +913,11 @@ export default function App() {
   }, [result, settings.showGrid]);
 
   useEffect(() => {
+    if (initializedRef.current) {
+      return;
+    }
+    initializedRef.current = true;
+
     let cancelled = false;
     const initialize = async () => {
       const duLuaServerStatus = await readDuLuaServerStatus();
@@ -922,10 +928,16 @@ export default function App() {
       const duLuaRootHandle = await getDuLuaRootHandle();
       if (duLuaRootHandle) {
         duLuaRootHandleRef.current = duLuaRootHandle;
-        setSettings((current) => ({
-          ...current,
-          duLuaRootName: current.duLuaRootName || duLuaRootHandle.name,
-        }));
+        setSettings((current) => {
+          const nextName = current.duLuaRootName || duLuaRootHandle.name;
+          if (nextName === current.duLuaRootName) {
+            return current;
+          }
+          return {
+            ...current,
+            duLuaRootName: nextName,
+          };
+        });
       }
 
       const knownSessions = await listSessions();
@@ -954,6 +966,7 @@ export default function App() {
     void initialize();
     return () => {
       cancelled = true;
+      initializedRef.current = false;
       stopAnimation();
       if (persistTimerRef.current) {
         clearTimeout(persistTimerRef.current);
@@ -965,7 +978,7 @@ export default function App() {
         clearTimeout(statusTimerRef.current);
       }
     };
-  }, [clearActiveSession, loadSessionIntoEditor, stopAnimation]);
+  }, []);
 
   const currentFileLabel = fileLabel(activeSession);
   const primaryFileLabel = activeSession?.name || "RenderScript.lua";

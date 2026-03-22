@@ -76,6 +76,7 @@ export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
 
   // clear
   const bg = buffer.screen.backgroundColor;
+  ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = rgbaStr(bg);
   ctx.fillRect(0, 0, w, h);
 
@@ -230,12 +231,19 @@ export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
           const imgEntry = buffer.images.find(i => i.id === cmd.imageId);
           if (imgEntry?.loaded && imgEntry.element) {
             ctx.save();
+            ctx.imageSmoothingEnabled = false;
             if (rot !== 0) {
               ctx.translate(cmd.x + cmd.w / 2, cmd.y + cmd.h / 2);
               ctx.rotate(rot);
               ctx.translate(-(cmd.x + cmd.w / 2), -(cmd.y + cmd.h / 2));
             }
-            ctx.drawImage(imgEntry.element, cmd.x, cmd.y, cmd.w, cmd.h);
+            ctx.drawImage(
+              imgEntry.element,
+              Math.round(cmd.x),
+              Math.round(cmd.y),
+              Math.round(cmd.w),
+              Math.round(cmd.h)
+            );
             ctx.restore();
           }
           break;
@@ -244,7 +252,18 @@ export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
           const imgEntry = buffer.images.find(i => i.id === cmd.imageId);
           if (imgEntry?.loaded && imgEntry.element) {
             ctx.save();
-            ctx.drawImage(imgEntry.element, cmd.subX, cmd.subY, cmd.subW, cmd.subH, cmd.x, cmd.y, cmd.w, cmd.h);
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(
+              imgEntry.element,
+              Math.round(cmd.subX),
+              Math.round(cmd.subY),
+              Math.round(cmd.subW),
+              Math.round(cmd.subH),
+              Math.round(cmd.x),
+              Math.round(cmd.y),
+              Math.round(cmd.w),
+              Math.round(cmd.h)
+            );
             ctx.restore();
           }
           break;

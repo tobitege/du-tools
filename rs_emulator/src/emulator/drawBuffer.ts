@@ -5,6 +5,20 @@ import { measureFontMetrics, measureTextBounds } from "./textMetrics";
 
 const NOVAQUARK_ASSET_HOST = "assets.prod.novaquark.com";
 
+function normalizeDataImageUrl(url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed.toLowerCase().startsWith("data:image/")) {
+    return null;
+  }
+
+  const commaIndex = trimmed.indexOf(",");
+  if (commaIndex <= "data:image/".length) {
+    return null;
+  }
+
+  return trimmed;
+}
+
 function normalizeNovaquarkAssetUrl(url: string): string | null {
   const trimmed = url.trim();
   if (!trimmed.startsWith(NOVAQUARK_ASSET_HOST)) {
@@ -36,6 +50,10 @@ function normalizeNovaquarkAssetUrl(url: string): string | null {
   }
 
   return parsed.toString();
+}
+
+function normalizeImageUrl(url: string): string | null {
+  return normalizeDataImageUrl(url) ?? normalizeNovaquarkAssetUrl(url);
 }
 
 export class DrawBuffer {
@@ -328,7 +346,7 @@ export class DrawBuffer {
   }
 
   LoadImage(url: string): number {
-    const normalizedUrl = normalizeNovaquarkAssetUrl(url);
+    const normalizedUrl = normalizeImageUrl(url);
     if (!normalizedUrl) {
       return 0;
     }

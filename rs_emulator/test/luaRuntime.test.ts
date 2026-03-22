@@ -15,6 +15,7 @@ import containerHubHubMSource from "../examples/SilverZero/ContainerHubHubM.lua?
 import industrySelectorMSource from "../examples/SilverZero/IndustrySelectorM.lua?raw";
 import oreExplorerMSource from "../examples/SilverZero/OreExplorerM.lua?raw";
 import silverZeroLibFixture from "../examples/SilverZero/SilverZeroRsLib.lua?raw";
+import locuraTreesSource from "../examples/Locura-Trees.lua?raw";
 import { DrawBuffer, createLuaEnvironment } from "../src/emulator";
 
 describe("lua runtime example integration", () => {
@@ -304,6 +305,18 @@ describe("lua runtime example integration", () => {
     expect(buffer.commands.some((command) => command.op === "AddCircle")).toBe(true);
   });
 
+  it("renders Locura-Trees with embedded base64 image layers", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer);
+
+    const result = await env.execute(locuraTreesSource);
+
+    expect(result.success).toBe(true);
+    expect(result.requestAnimFrames).toBe(1);
+    expect(buffer.images.length).toBeGreaterThanOrEqual(4);
+    expect(buffer.commands.some((command) => command.op === "AddText")).toBe(true);
+  });
+
   it("returns non-zero text bounds for Lua strings", async () => {
     const buffer = new DrawBuffer();
     const env = createLuaEnvironment(buffer);
@@ -328,6 +341,20 @@ describe("lua runtime example integration", () => {
     expect(result.success).toBe(true);
     expect(result.output).toBe("1");
     expect(buffer.images[0]?.url).toBe("https://assets.prod.novaquark.com/4745/example.jpg");
+  });
+
+  it("exposes loadImage for allowed data image URLs", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer);
+
+    const result = await env.execute(`
+      local image = loadImage("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==")
+      setOutput(tostring(image))
+    `);
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("1");
+    expect(buffer.images[0]?.url).toBe("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==");
   });
 
   it("rejects loadImage calls for disallowed image URLs", async () => {
