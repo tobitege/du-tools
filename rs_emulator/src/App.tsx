@@ -235,6 +235,9 @@ export default function App() {
   const persistTimerRef = useRef<number>(0);
   const autoRunTimerRef = useRef<number>(0);
   const executionTokenRef = useRef(0);
+  const sessionListRequestRef = useRef(0);
+  const sessionLoadTokenRef = useRef(0);
+  const persistPromiseRef = useRef<Promise<SessionEntry | null> | null>(null);
   const persistedCodeRef = useRef("");
   const prevResolutionRef = useRef({ width: DEFAULT_SETTINGS.canvasWidth, height: DEFAULT_SETTINGS.canvasHeight });
   const skipInitialAutoRunRef = useRef(true);
@@ -334,8 +337,13 @@ export default function App() {
   }, []);
 
   const refreshSessions = useCallback(async () => {
-    const next = await listSessions();
-    setSessions(sortSessions(next));
+    const requestToken = sessionListRequestRef.current + 1;
+    sessionListRequestRef.current = requestToken;
+    const next = sortSessions(await listSessions());
+    if (sessionListRequestRef.current !== requestToken) {
+      return sessionsRef.current;
+    }
+    setSessions(next);
     return next;
   }, []);
 
@@ -371,10 +379,22 @@ export default function App() {
   }, [clearAutoRunTimer]);
 
   const persistCodeNow = useCallback(async (sessionId: string, nextCode: string, markDirty: boolean) => {
-    const updated = await writeSessionContent(sessionId, nextCode, { markDirty });
-    persistedCodeRef.current = nextCode;
-    applySessionUpdate(updated);
-    return updated;
+    const persistPromise = (async () => {
+      const updated = await writeSessionContent(sessionId, nextCode, { markDirty });
+      persistedCodeRef.current = nextCode;
+      applySessionUpdate(updated);
+      return updated;
+    })();
+
+    persistPromiseRef.current = persistPromise;
+
+    try {
+      return await persistPromise;
+    } finally {
+      if (persistPromiseRef.current === persistPromise) {
+        persistPromiseRef.current = null;
+      }
+    }
   }, [applySessionUpdate]);
 
   const flushActiveSession = useCallback(async () => {
@@ -385,16 +405,24 @@ export default function App() {
       clearTimeout(persistTimerRef.current);
       persistTimerRef.current = 0;
     }
+    if (persistPromiseRef.current) {
+      await persistPromiseRef.current;
+    }
     if (code === persistedCodeRef.current) {
       return;
     }
     await persistCodeNow(activeSessionId, code, true);
   }, [activeSessionId, code, persistCodeNow]);
 
-  const loadSessionIntoEditor = useCallback(async (sessionId: string) => {
+  const loadSessionIntoEditor = useCallback(async (sessionId: string): Promise<string | null> => {
+    const loadToken = sessionLoadTokenRef.current + 1;
+    sessionLoadTokenRef.current = loadToken;
     setLoadingSession(true);
     resetRuntime();
     const nextCode = await readSessionContent(sessionId);
+    if (sessionLoadTokenRef.current !== loadToken) {
+      return null;
+    }
     persistedCodeRef.current = nextCode;
     setActiveSessionId(sessionId);
     setCode(nextCode);
@@ -403,6 +431,7 @@ export default function App() {
   }, [resetRuntime]);
 
   const clearActiveSession = useCallback(() => {
+    sessionLoadTokenRef.current += 1;
     persistedCodeRef.current = "";
     setActiveSessionId("");
     setCode("");
@@ -564,7 +593,10 @@ export default function App() {
 
       await refreshSessions();
       if (lastCreatedId) {
-        await loadSessionIntoEditor(lastCreatedId);
+        const loadedCode = await loadSessionIntoEditor(lastCreatedId);
+        if (loadedCode === null) {
+          return;
+        }
       }
 
       bufferRef.current.screen.width = settings.canvasWidth;
@@ -684,7 +716,10 @@ export default function App() {
 
       const updated = await writeSessionContent(activeSession.id, nextCode, { markDirty: false });
       applySessionUpdate(updated);
-      await loadSessionIntoEditor(activeSession.id);
+      const loadedCode = await loadSessionIntoEditor(activeSession.id);
+      if (loadedCode === null) {
+        return;
+      }
       setResult(null);
       bufferRef.current.screen.width = settings.canvasWidth;
       bufferRef.current.screen.height = settings.canvasHeight;
@@ -736,7 +771,10 @@ export default function App() {
     }
     stopAnimation();
     await flushActiveSession();
-    await loadSessionIntoEditor(sessionId);
+    const loadedCode = await loadSessionIntoEditor(sessionId);
+    if (loadedCode === null) {
+      return;
+    }
     bufferRef.current.screen.width = settings.canvasWidth;
     bufferRef.current.screen.height = settings.canvasHeight;
     setResult(null);
@@ -749,7 +787,10 @@ export default function App() {
     stopAnimation();
     const created = await createSession({ name: makeUntitledName(sessions), initialContent: "" });
     await refreshSessions();
-    await loadSessionIntoEditor(created.id);
+    const loadedCode = await loadSessionIntoEditor(created.id);
+    if (loadedCode === null) {
+      return;
+    }
     bufferRef.current.screen.width = settings.canvasWidth;
     bufferRef.current.screen.height = settings.canvasHeight;
     setResult(null);
@@ -789,6 +830,9 @@ export default function App() {
         return;
       }
       const nextCode = await loadSessionIntoEditor(next.id);
+      if (nextCode === null) {
+        return;
+      }
       void executeCode(nextCode);
     }
   }, [activeSessionId, clearActiveSession, executeCode, flushActiveSession, loadSessionIntoEditor, refreshSessions, resetRuntime, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus, stopAnimation]);
@@ -799,9 +843,14 @@ export default function App() {
   }, [applySessionUpdate]);
 
   const handleReorderSessions = useCallback(async (draggedId: string, targetId: string, placement: SessionDropPlacement) => {
+    const requestToken = sessionListRequestRef.current + 1;
+    sessionListRequestRef.current = requestToken;
     setSessions((current) => moveSessionInOrder(current, draggedId, targetId, placement));
     const reordered = moveSessionInOrder(sessionsRef.current, draggedId, targetId, placement);
     const persisted = await saveSessionOrder(reordered.map((session) => session.id));
+    if (sessionListRequestRef.current !== requestToken) {
+      return;
+    }
     setSessions(persisted);
   }, []);
 
@@ -944,6 +993,7 @@ export default function App() {
       if (cancelled) {
         return;
       }
+      sessionListRequestRef.current += 1;
       setSessions(sortSessions(knownSessions));
       const first = knownSessions[0];
       if (!first) {
@@ -954,6 +1004,9 @@ export default function App() {
       }
       const nextCode = await loadSessionIntoEditor(first.id);
       if (cancelled) {
+        return;
+      }
+      if (nextCode === null) {
         return;
       }
       setBootstrapped(true);
@@ -967,6 +1020,7 @@ export default function App() {
     return () => {
       cancelled = true;
       executionTokenRef.current += 1;
+      sessionLoadTokenRef.current += 1;
       if (animFrameRef.current) {
         cancelAnimationFrame(animFrameRef.current);
         animFrameRef.current = 0;
