@@ -1,4 +1,4 @@
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 
@@ -100,6 +100,13 @@ const RS_SNIPPETS = [
 
 export function CodeEditor({ value, onChange, onRun, fontSize, theme }: CodeEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+
+  useEffect(() => {
+    editorRef.current?.updateOptions({
+      fontSize,
+      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+    });
+  }, [fontSize]);
 
   const handleMount: OnMount = useCallback(
     (editor, monaco) => {

@@ -4,6 +4,7 @@ import { Canvas, type CanvasHandle } from "./components/Canvas";
 import { Sidebar } from "./components/Sidebar";
 import { DEFAULT_SETTINGS, getResolutionPreset, getThemeOption, RESOLUTION_PRESETS, THEME_OPTIONS, type SessionEntry, type Settings } from "./components/sidebarConfig";
 import { DrawBuffer, createLuaEnvironment, type LuaExecResult } from "./emulator";
+import { getFrameDeltaSeconds, getRuntimeTimeSeconds } from "./emulator/frameTiming";
 import { moveSessionInOrder, sortSessionsByOrder, type SessionDropPlacement } from "./sessionOrdering";
 import {
   createSession,
@@ -415,8 +416,11 @@ export default function App() {
     setStatusMsg(null);
     resolvedModulePathsRef.current = {};
     const buffer = bufferRef.current;
+    const runStartedAt = performance.now();
     buffer.screen.width = settings.canvasWidth;
     buffer.screen.height = settings.canvasHeight;
+    buffer.time = 0;
+    buffer.deltaTime = 0;
 
     try {
       const firstResult = await envRef.current.execute(codeToRun);
@@ -436,12 +440,13 @@ export default function App() {
 
       if (firstResult.requestAnimFrames > 0) {
         setAnimating(true);
-        let lastFrameStartedAt = performance.now();
+        let previousFrameStartedAt = runStartedAt;
 
         const animate = async () => {
-          lastFrameStartedAt = performance.now();
-          buffer.time = performance.now() / 1000;
-          buffer.deltaTime = 1 / 60;
+          const frameStartedAt = performance.now();
+          buffer.time = getRuntimeTimeSeconds(frameStartedAt, runStartedAt);
+          buffer.deltaTime = getFrameDeltaSeconds(frameStartedAt, previousFrameStartedAt, FRAME_INTERVAL_MS);
+          previousFrameStartedAt = frameStartedAt;
           buffer.screen.width = settings.canvasWidth;
           buffer.screen.height = settings.canvasHeight;
 
@@ -453,13 +458,11 @@ export default function App() {
           canvasRef.current?.render(buffer, { showGrid: settings.showGrid });
 
           if (buffer.requestAnimFrames > 0) {
-            const elapsedSinceFrameStart = performance.now() - lastFrameStartedAt;
+            const elapsedSinceFrameStart = performance.now() - frameStartedAt;
             const delay = Math.max(0, FRAME_INTERVAL_MS - elapsedSinceFrameStart);
             animTimerRef.current = window.setTimeout(() => {
               animTimerRef.current = 0;
-              animFrameRef.current = requestAnimationFrame(() => {
-                void animate();
-              });
+              void animate();
             }, delay);
           } else {
             animFrameRef.current = 0;
@@ -469,9 +472,7 @@ export default function App() {
         };
         animTimerRef.current = window.setTimeout(() => {
           animTimerRef.current = 0;
-          animFrameRef.current = requestAnimationFrame(() => {
-            void animate();
-          });
+          void animate();
         }, FRAME_INTERVAL_MS);
       } else {
         setAnimating(false);
@@ -749,9 +750,12 @@ export default function App() {
     const created = await createSession({ name: makeUntitledName(sessions), initialContent: "" });
     await refreshSessions();
     await loadSessionIntoEditor(created.id);
+    bufferRef.current.screen.width = settings.canvasWidth;
+    bufferRef.current.screen.height = settings.canvasHeight;
     setResult(null);
+    canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
     showStatus(`New temp session: ${created.name}`);
-  }, [flushActiveSession, loadSessionIntoEditor, refreshSessions, sessions, showStatus, stopAnimation]);
+  }, [flushActiveSession, loadSessionIntoEditor, refreshSessions, sessions, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus, stopAnimation]);
 
   const handleDeleteSession = useCallback(async (sessionId: string) => {
     const deletingActive = sessionId === activeSessionId;

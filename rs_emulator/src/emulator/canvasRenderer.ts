@@ -209,7 +209,7 @@ export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
         }
         case "AddText": {
           ctx.save();
-          applyStyle(ctx, style, false);
+          applyStyle(ctx, style, true);
           const font = buffer.fonts.find(f => f.id === cmd.fontId);
           const fontName = font?.name ?? "sans-serif";
           const fontSize = font?.size ?? 16;
@@ -218,10 +218,10 @@ export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
           ctx.textAlign = alignToCanvas(style.textAlign.hor, style.textAlign.ver);
           ctx.textBaseline = verToBaseline(RSAlignVer.Baseline);
           ctx.lineJoin = "round";
-          ctx.lineWidth = Math.max(1, fontSize * 0.16);
-          ctx.strokeStyle = "rgba(0, 0, 0, 0.72)";
           const textY = resolveTextY(fontName, fontSize, style.textAlign.ver, cmd.y);
-          ctx.strokeText(cmd.text, cmd.x, textY);
+          if (style.strokeWidth > 0 && style.strokeColor[3] > 0) {
+            ctx.strokeText(cmd.text, cmd.x, textY);
+          }
           ctx.fillText(cmd.text, cmd.x, textY);
           ctx.restore();
           break;

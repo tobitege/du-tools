@@ -51,9 +51,34 @@ describe("canvasRenderer text rendering", () => {
 
     renderBuffer(canvas, buffer);
 
-    expect(context.strokeText).toHaveBeenCalledWith("Hello RenderScript", 180, 560);
     expect(context.fillText).toHaveBeenCalledWith("Hello RenderScript", 180, 560);
     expect(context.font).toContain("24px");
+  });
+
+  it("uses Shape_Text fill and stroke defaults for text rendering", () => {
+    const buffer = new DrawBuffer();
+    const layer = buffer.CreateLayer();
+    const fontId = buffer.LoadFont("Arial", 24);
+
+    buffer.SetDefaultFillColor(layer, 7, 0.1, 0.2, 0.3, 0.4);
+    buffer.SetDefaultStrokeColor(layer, 7, 0.7, 0.8, 0.9, 1);
+    buffer.SetDefaultStrokeWidth(layer, 7, 2);
+    buffer.AddText(layer, fontId, "Styled", 100, 120);
+
+    const context = createMockContext();
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn(() => context),
+    } as unknown as HTMLCanvasElement;
+
+    renderBuffer(canvas, buffer);
+
+    expect(context.fillStyle).toBe("rgba(26,51,77,0.4)");
+    expect(context.strokeStyle).toBe("rgba(179,204,230,1)");
+    expect(context.lineWidth).toBe(2);
+    expect(context.strokeText).toHaveBeenCalledWith("Styled", 100, 120);
+    expect(context.fillText).toHaveBeenCalledWith("Styled", 100, 120);
   });
 
   it("moves descender-aligned text upward to avoid bottom clipping", () => {

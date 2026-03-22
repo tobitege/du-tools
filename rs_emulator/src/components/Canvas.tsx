@@ -18,18 +18,17 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
   ({ width, height, showGrid, showFps, themeMode }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const lastRenderAtRef = useRef<number | null>(null);
-    const [stats, setStats] = useState({ drawCalls: 0, textCalls: 0, ms: 0, fps: 0 });
+    const [stats, setStats] = useState({ drawCalls: 0, textCalls: 0, frameMs: 0, fps: 0 });
 
     useImperativeHandle(ref, () => ({
       render(buffer: DrawBuffer, opts?: { showGrid?: boolean }) {
         if (!canvasRef.current) return;
 
-        const t0 = performance.now();
         renderBuffer(canvasRef.current, buffer);
         const t1 = performance.now();
-        const elapsed = t1 - t0;
         const frameDelta = lastRenderAtRef.current === null ? 0 : t1 - lastRenderAtRef.current;
         lastRenderAtRef.current = t1;
+        const frameMs = buffer.deltaTime > 0 ? buffer.deltaTime * 1000 : frameDelta;
 
         const drawGrid = opts?.showGrid ?? showGrid;
         if (drawGrid) {
@@ -39,8 +38,8 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
         setStats({
           drawCalls: buffer.commands.length,
           textCalls: buffer.commands.filter((command) => command.op === "AddText").length,
-          ms: elapsed,
-          fps: frameDelta > 0 ? 1000 / frameDelta : 0,
+          frameMs,
+          fps: frameMs > 0 ? 1000 / frameMs : 0,
         });
       },
       getCanvas() {
@@ -96,7 +95,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
             }}
           >
             <div>{stats.fps > 0 ? Math.round(stats.fps) : "-"} fps</div>
-            <div>{stats.ms.toFixed(1)} ms</div>
+            <div>{stats.frameMs > 0 ? stats.frameMs.toFixed(1) : "-"} ms frame</div>
             <div>{stats.drawCalls} draw calls</div>
             <div>{stats.textCalls} text calls</div>
           </div>

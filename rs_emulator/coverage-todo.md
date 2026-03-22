@@ -173,7 +173,7 @@ Important note:
 ### Remaining time/animation tasks
 
 - [~] `RequestAnimationFrame(frames)` currently behaves like "keep animating if > 0" rather than honoring an exact future frame count contract
-- [~] `GetDeltaTime` is still synthetic, not measured from actual render cadence
+- [x] `GetDeltaTime` now uses measured frame cadence instead of a synthetic fixed step
 - [ ] Implement proper frame countdown semantics for `RequestAnimationFrame(n)`
 - [ ] Decide whether the runtime should continue redrawing automatically only when the script requests it again each execution
 - [ ] Add tests for one-shot, delayed, and continuous animation requests
