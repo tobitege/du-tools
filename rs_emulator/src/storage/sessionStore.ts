@@ -352,6 +352,12 @@ function supportsFilePicker(): boolean {
   return typeof window !== "undefined" && "showSaveFilePicker" in window;
 }
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException
+    ? error.name === "AbortError"
+    : error instanceof Error && error.name === "AbortError";
+}
+
 async function ensureWritableHandle(handle: FileSystemFileHandle): Promise<boolean> {
   const permissionAware = handle as FileSystemFileHandle & {
     queryPermission?: (descriptor?: { mode?: "read" | "readwrite" }) => Promise<PermissionState>;
@@ -428,10 +434,17 @@ export async function saveSessionToLocal(id: string, content: string, suggestedN
         types?: Array<{ description?: string; accept: Record<string, string[]> }>;
       }) => Promise<FileSystemFileHandle>;
     };
-    handle = await picker.showSaveFilePicker?.({
-      suggestedName: sanitized.endsWith(".lua") ? sanitized : `${sanitized}.lua`,
-      types: [{ description: "Lua files", accept: { "text/plain": [".lua"] } }],
-    }) ?? null;
+    try {
+      handle = await picker.showSaveFilePicker?.({
+        suggestedName: sanitized.endsWith(".lua") ? sanitized : `${sanitized}.lua`,
+        types: [{ description: "Lua files", accept: { "text/plain": [".lua"] } }],
+      }) ?? null;
+    } catch (error: unknown) {
+      if (isAbortError(error)) {
+        return null;
+      }
+      throw error;
+    }
     if (handle) {
       await setLinkedHandle(id, handle);
     }

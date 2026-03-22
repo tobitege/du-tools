@@ -7,6 +7,7 @@ interface SidebarProps {
   activeSessionId: string | null;
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
+  onOpenFile: () => void;
   onImportFiles: (files: FileList | File[]) => void;
   onDeleteSession: (id: string) => void;
   onRenameSession: (id: string, name: string) => void;
@@ -46,6 +47,23 @@ function KebabIcon() {
   );
 }
 
+function FileIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        d="M4 1.75H8.75L12.5 5.5V13a1.25 1.25 0 0 1-1.25 1.25h-7.25A1.25 1.25 0 0 1 2.75 13V3A1.25 1.25 0 0 1 4 1.75Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.25"
+        strokeLinejoin="round"
+      />
+      <path d="M8.5 2V5.75H12.25" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinejoin="round" />
+      <path d="M5.25 8.5H10" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+      <path d="M5.25 10.75H9.25" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function classNames(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(" ");
 }
@@ -68,6 +86,7 @@ export function Sidebar({
   activeSessionId,
   onSelectSession,
   onNewSession,
+  onOpenFile,
   onImportFiles,
   onDeleteSession,
   onRenameSession,
@@ -194,9 +213,15 @@ export function Sidebar({
 
       {section === "sessions" && (
         <div className="flex-1 overflow-auto px-3 py-4">
-          <button type="button" onClick={onNewSession} className="btn btn-outline btn-md mb-5 w-full justify-start px-4 normal-case" title="Create a new temporary session">
-            + New Session
-          </button>
+          <div className="mb-5 flex flex-col gap-2.5">
+            <button type="button" onClick={onNewSession} className="btn btn-outline btn-md w-full justify-start px-4 normal-case" title="Create a new temporary session">
+              + New Session
+            </button>
+            <button type="button" onClick={onOpenFile} className="btn btn-outline btn-md w-full justify-start gap-2 px-4 normal-case" title="Pick a Lua file and import it as a new session">
+              <FileIcon />
+              <span>Open File</span>
+            </button>
+          </div>
           <div
             className="flex min-h-[140px] flex-col gap-3 rounded-2xl"
             style={sidebarDropStyle}

@@ -22,6 +22,7 @@ import {
 
 const DEFAULT_MAX_FPS = 60;
 const FRAME_INTERVAL_MS = 1000 / DEFAULT_MAX_FPS;
+type CanvasRotation = 0 | 90 | 180 | 270;
 
 function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value));
@@ -29,6 +30,11 @@ function clamp(value: number, low: number, high: number): number {
 
 function classNames(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(" ");
+}
+
+function rotateCanvasBy(current: CanvasRotation, delta: 90 | -90): CanvasRotation {
+  const next = (current + delta + 360) % 360;
+  return next as CanvasRotation;
 }
 
 function normalizeSettings(raw: unknown): Settings {
@@ -291,6 +297,7 @@ export default function App() {
   const [editorDropActive, setEditorDropActive] = useState(false);
   const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false);
   const [reloading, setReloading] = useState(false);
+  const [canvasRotation, setCanvasRotation] = useState<CanvasRotation>(0);
 
   const activeSession = useMemo(
     () => sessions.find((session) => session.id === activeSessionId),
@@ -559,6 +566,18 @@ export default function App() {
     }));
     showStatus("Layout reset to defaults");
   }, [showStatus]);
+
+  const handleRotateCanvasLeft = useCallback(() => {
+    setCanvasRotation((current) => rotateCanvasBy(current, -90));
+  }, []);
+
+  const handleRotateCanvasRight = useCallback(() => {
+    setCanvasRotation((current) => rotateCanvasBy(current, 90));
+  }, []);
+
+  const handleResetCanvasRotation = useCallback(() => {
+    setCanvasRotation(0);
+  }, []);
 
   const importFilesIntoSessions = useCallback(async (inputFiles: FileList | File[]) => {
     const files = Array.from(inputFiles);
@@ -1113,6 +1132,7 @@ export default function App() {
         activeSessionId={activeSessionId}
         onSelectSession={(id) => { void handleSelectSession(id); }}
         onNewSession={() => { void handleNewSession(); }}
+        onOpenFile={handleImportFilePick}
         onImportFiles={(files) => { void importFilesIntoSessions(files); }}
         onDeleteSession={(id) => { void handleDeleteSession(id); }}
         onRenameSession={(id, name) => { void handleRenameSession(id, name); }}
@@ -1127,7 +1147,7 @@ export default function App() {
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div ref={workspaceRef} className={workspaceClassName}>
-          <div style={canvasPaneStyle} className="flex min-h-0 min-w-0 overflow-hidden bg-base-300 p-5">
+          <div style={canvasPaneStyle} className="flex min-h-0 min-w-0 overflow-hidden bg-base-300">
             <div className="relative flex h-full w-full items-center justify-center">
               {statusMsg ? (
                 <div
@@ -1148,6 +1168,10 @@ export default function App() {
                 showGrid={settings.showGrid}
                 showFps={settings.showFPS}
                 themeMode={activeTheme.mode}
+                rotationDegrees={canvasRotation}
+                onRotateLeft={handleRotateCanvasLeft}
+                onRotateRight={handleRotateCanvasRight}
+                onResetRotation={handleResetCanvasRotation}
               />
             </div>
           </div>

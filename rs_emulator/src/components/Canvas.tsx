@@ -1,5 +1,7 @@
-import { useRef, forwardRef, useImperativeHandle, useState } from "react";
+import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from "react";
 import { DrawBuffer, renderBuffer } from "../emulator";
+
+const CANVAS_SHELL_PADDING = 16;
 
 export interface CanvasHandle {
   render: (buffer: DrawBuffer, opts?: { showGrid?: boolean }) => void;
@@ -12,13 +14,77 @@ interface CanvasProps {
   showGrid: boolean;
   showFps: boolean;
   themeMode: "light" | "dark";
+  rotationDegrees: number;
+  onRotateLeft: () => void;
+  onRotateRight: () => void;
+  onResetRotation: () => void;
 }
 
 export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
-  ({ width, height, showGrid, showFps, themeMode }, ref) => {
+  ({ width, height, showGrid, showFps, themeMode, rotationDegrees, onRotateLeft, onRotateRight, onResetRotation }, ref) => {
+    const shellRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const lastRenderAtRef = useRef<number | null>(null);
+    const [shellSize, setShellSize] = useState({ width: 0, height: 0 });
     const [stats, setStats] = useState({ drawCalls: 0, textCalls: 0, frameMs: 0, fps: 0 });
+    const normalizedRotation = normalizeRotation(rotationDegrees);
+    const rotatedByQuarterTurn = normalizedRotation % 180 !== 0;
+    const rotatedWidth = rotatedByQuarterTurn ? height : width;
+    const rotatedHeight = rotatedByQuarterTurn ? width : height;
+    const contentWidth = Math.max(0, shellSize.width - CANVAS_SHELL_PADDING * 2);
+    const contentHeight = Math.max(0, shellSize.height - CANVAS_SHELL_PADDING * 2);
+    const stageSize = fitRectWithin(
+      contentWidth || rotatedWidth,
+      contentHeight || rotatedHeight,
+      rotatedWidth,
+      rotatedHeight
+    );
+    const stageOffsetLeft = CANVAS_SHELL_PADDING + Math.max(0, (contentWidth - stageSize.width) / 2);
+    const stageOffsetTop = CANVAS_SHELL_PADDING + Math.max(0, (contentHeight - stageSize.height) / 2);
+    const toolbarOrientation = getRotationToolbarOrientation({
+      left: stageOffsetLeft,
+      top: stageOffsetTop,
+      right: stageOffsetLeft + stageSize.width,
+      bottom: stageOffsetTop + stageSize.height,
+    });
+    const displayCanvasWidth = rotatedByQuarterTurn ? stageSize.height : stageSize.width;
+    const displayCanvasHeight = rotatedByQuarterTurn ? stageSize.width : stageSize.height;
+
+    useEffect(() => {
+      const shell = shellRef.current;
+      if (!shell) {
+        return;
+      }
+
+      const updateShellSize = (nextWidth: number, nextHeight: number) => {
+        setShellSize({
+          width: Math.max(0, nextWidth),
+          height: Math.max(0, nextHeight),
+        });
+      };
+
+      const measure = () => {
+        const bounds = shell.getBoundingClientRect();
+        updateShellSize(bounds.width, bounds.height);
+      };
+
+      measure();
+
+      if (typeof ResizeObserver !== "undefined") {
+        const observer = new ResizeObserver((entries) => {
+          const entry = entries[0];
+          if (!entry) {
+            return;
+          }
+          updateShellSize(entry.contentRect.width, entry.contentRect.height);
+        });
+        observer.observe(shell);
+        return () => observer.disconnect();
+      }
+
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }, []);
 
     useImperativeHandle(ref, () => ({
       render(buffer: DrawBuffer, opts?: { showGrid?: boolean }) {
@@ -49,10 +115,11 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
 
     return (
       <div
+        ref={shellRef}
         style={{
           width: "100%",
           height: "100%",
-          padding: 16,
+          padding: CANVAS_SHELL_PADDING,
           background: "var(--color-base-200)",
           borderRadius: 8,
           boxSizing: "border-box",
@@ -63,21 +130,98 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
           overflow: "hidden",
         }}
       >
-        <canvas
-          ref={canvasRef}
-          width={width}
-          height={height}
+        <div
           style={{
-            display: "block",
-            width: "auto",
-            height: "auto",
-            maxWidth: "100%",
-            maxHeight: "100%",
-            imageRendering: "pixelated",
-            borderRadius: 4,
-            boxShadow: "0 0 20px rgba(0,0,0,0.5)",
+            position: "absolute",
+            top: 8,
+            left: 8,
+            zIndex: 2,
+            display: "flex",
+            flexDirection: toolbarOrientation === "vertical" ? "column" : "row",
+            alignItems: "center",
+            gap: 6,
+            padding: 6,
+            borderRadius: 18,
+            border: "1px solid color-mix(in srgb, var(--color-base-300) 82%, transparent)",
+            background: "color-mix(in srgb, var(--color-base-100) 88%, transparent)",
+            boxShadow: "0 12px 26px color-mix(in srgb, black 22%, transparent)",
+            backdropFilter: "blur(12px)",
           }}
-        />
+        >
+          <button
+            type="button"
+            onClick={onRotateLeft}
+            className="btn btn-ghost btn-sm btn-square"
+            title="Rotate canvas 90° left"
+            aria-label="Rotate canvas 90 degrees left"
+          >
+            <RotateCanvasLeftIcon />
+          </button>
+          <button
+            type="button"
+            onClick={onRotateRight}
+            className="btn btn-ghost btn-sm btn-square"
+            title="Rotate canvas 90° right"
+            aria-label="Rotate canvas 90 degrees right"
+          >
+            <RotateCanvasRightIcon />
+          </button>
+          <button
+            type="button"
+            onClick={onResetRotation}
+            className="btn btn-ghost btn-sm btn-square"
+            disabled={normalizedRotation === 0}
+            title="Reset canvas rotation"
+            aria-label="Reset canvas rotation"
+          >
+            <ResetCanvasRotationIcon />
+          </button>
+          <span
+            className="badge badge-outline badge-sm min-w-12 justify-center font-mono"
+            style={toolbarOrientation === "vertical" ? { minHeight: 32 } : undefined}
+          >
+            {normalizedRotation}°
+          </span>
+        </div>
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              width: Math.max(1, stageSize.width),
+              height: Math.max(1, stageSize.height),
+              flex: "0 0 auto",
+            }}
+          >
+            <canvas
+              ref={canvasRef}
+              width={width}
+              height={height}
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                display: "block",
+                width: Math.max(1, displayCanvasWidth),
+                height: Math.max(1, displayCanvasHeight),
+                transform: `translate(-50%, -50%) rotate(${normalizedRotation}deg)`,
+                transformOrigin: "center center",
+                imageRendering: "pixelated",
+                borderRadius: 4,
+                boxShadow: "0 0 20px rgba(0,0,0,0.5)",
+              }}
+            />
+          </div>
+        </div>
         {showFps && (
           <div
             style={{
@@ -104,6 +248,81 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
     );
   }
 );
+
+type ToolbarOrientation = "horizontal" | "vertical";
+
+function RotateCanvasLeftIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path d="M9 5L4 10L9 15" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20 19a8 8 0 0 0-8-8H4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function RotateCanvasRightIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path d="M15 5L20 10L15 15" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 19a8 8 0 0 1 8-8H20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ResetCanvasRotationIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path d="M7 7h10v10H7z" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M12 3v3M21 12h-3M12 21v-3M3 12h3" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function normalizeRotation(rotationDegrees: number): 0 | 90 | 180 | 270 {
+  const normalized = ((rotationDegrees % 360) + 360) % 360;
+  if (normalized === 90 || normalized === 180 || normalized === 270) {
+    return normalized;
+  }
+  return 0;
+}
+
+function fitRectWithin(boundsWidth: number, boundsHeight: number, contentWidth: number, contentHeight: number) {
+  if (boundsWidth <= 0 || boundsHeight <= 0 || contentWidth <= 0 || contentHeight <= 0) {
+    return { width: 0, height: 0 };
+  }
+
+  const scale = Math.min(boundsWidth / contentWidth, boundsHeight / contentHeight);
+  return {
+    width: contentWidth * scale,
+    height: contentHeight * scale,
+  };
+}
+
+function getRotationToolbarOrientation(stageRect: { left: number; top: number; right: number; bottom: number }): ToolbarOrientation {
+  const horizontal = { left: 8, top: 8, width: 184, height: 48 };
+  const vertical = { left: 8, top: 8, width: 60, height: 150 };
+
+  const horizontalOverlap = getRectOverlapArea(horizontal, stageRect);
+  const verticalOverlap = getRectOverlapArea(vertical, stageRect);
+
+  if (verticalOverlap < horizontalOverlap) {
+    return "vertical";
+  }
+
+  return "horizontal";
+}
+
+function getRectOverlapArea(
+  a: { left: number; top: number; width: number; height: number },
+  b: { left: number; top: number; right: number; bottom: number }
+) {
+  const aRight = a.left + a.width;
+  const aBottom = a.top + a.height;
+  const overlapWidth = Math.max(0, Math.min(aRight, b.right) - Math.max(a.left, b.left));
+  const overlapHeight = Math.max(0, Math.min(aBottom, b.bottom) - Math.max(a.top, b.top));
+  return overlapWidth * overlapHeight;
+}
+
 
 function drawGridOverlay(canvas: HTMLCanvasElement) {
   const ctx = canvas.getContext("2d");
