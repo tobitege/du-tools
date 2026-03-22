@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type DragEvent as ReactDragEvent } from "react";
-import { getResolutionPreset, getThemeOption, RESOLUTION_PRESETS, THEME_OPTIONS, type SessionEntry, type Settings } from "./sidebarConfig";
+import { FPS_LIMIT_OPTIONS, getResolutionPreset, getThemeOption, RESOLUTION_PRESETS, THEME_OPTIONS, type SessionEntry, type Settings } from "./sidebarConfig";
 import type { SessionDropPlacement } from "../sessionOrdering";
 
 interface SidebarProps {
@@ -120,6 +120,8 @@ export function Sidebar({
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const openMenuRef = useRef<HTMLDivElement | null>(null);
   const activeTheme = getThemeOption(settings.themeId);
+  const compactSelectWidthClass = "w-32 min-w-32 max-w-32 flex-none [field-sizing:fixed]";
+  const settingsControlRowClass = "grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-x-4 border-b border-base-300 py-2";
   const sidebarDropStyle = sidebarDropActive
     ? {
         background: "linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 18%, var(--color-base-100) 82%) 0%, color-mix(in srgb, var(--color-primary) 12%, var(--color-base-200) 88%) 100%)",
@@ -464,9 +466,9 @@ export function Sidebar({
       )}
 
       {section === "settings" && (
-        <div className="flex-1 overflow-auto px-5 py-4">
-          <label className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-base-300 py-3">
-            <span className="min-w-0 flex-[0_1_auto]">Resolution</span>
+        <div className="flex-1 overflow-auto px-5 py-3 text-[0.9rem]">
+          <label className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-base-300 py-2">
+            <span className="min-w-0 flex-[0_1_auto] text-[0.9rem] font-medium leading-5">Resolution</span>
             <select
               value={settings.resolutionPreset}
               onChange={(e) => {
@@ -481,83 +483,95 @@ export function Sidebar({
                   canvasHeight: preset.height,
                 });
               }}
-              className="select select-bordered select-sm min-w-0 max-w-full flex-[1_1_11.5rem]"
+              className="select select-bordered select-sm min-w-0 max-w-full flex-[1_1_11.5rem] text-[0.9rem]"
             >
               {RESOLUTION_PRESETS.map((preset) => (
                 <option key={preset.id} value={preset.id}>{preset.label} - {preset.width} x {preset.height}</option>
               ))}
             </select>
           </label>
-          <div className="py-1 pb-3.5 text-right text-xs text-base-content/55">{settings.canvasWidth} x {settings.canvasHeight}</div>
-          <label className="flex items-center justify-between gap-4 border-b border-base-300 py-3">
-            <span>Theme</span>
+          <div className="py-1 pb-2.5 text-right text-[0.77rem] leading-4 text-base-content/55">{settings.canvasWidth} x {settings.canvasHeight}</div>
+          <label className={settingsControlRowClass}>
+            <span className="text-[0.9rem] font-medium leading-5">Theme</span>
             <select
               value={settings.themeId}
               onChange={(e) => onSettingsChange({ ...settings, themeId: e.target.value })}
-              className="select select-bordered select-sm w-40"
+              className={`select select-bordered select-sm text-[0.9rem] ${compactSelectWidthClass}`}
             >
               {THEME_OPTIONS.map((theme) => (
                 <option key={theme.id} value={theme.id}>{theme.label}</option>
               ))}
             </select>
           </label>
-          <div className="py-1 pb-3.5 text-right text-xs text-base-content/55">
+          <div className="py-1 pb-2.5 text-right text-[0.77rem] leading-4 text-base-content/55">
             {activeTheme ? `${activeTheme.label} (${activeTheme.mode})` : settings.themeId}
           </div>
-          <label className="flex items-center justify-between gap-4 border-b border-base-300 py-3">
-            <span>Canvas / Editor</span>
+          <label className={settingsControlRowClass}>
+            <span className="text-[0.9rem] font-medium leading-5">Canvas / Editor</span>
             <select
               value={settings.layoutOrientation}
               onChange={(e) => onSettingsChange({
                 ...settings,
                 layoutOrientation: e.target.value === "horizontal" ? "horizontal" : "vertical",
               })}
-              className="select select-bordered select-sm w-40"
+              className={`select select-bordered select-sm text-[0.9rem] ${compactSelectWidthClass}`}
             >
               <option value="vertical">Vertical</option>
               <option value="horizontal">Horizontal</option>
             </select>
           </label>
-          <label className="flex items-center justify-between gap-4 border-b border-base-300 py-3">
-            <span>Show Grid</span>
+          <label className={settingsControlRowClass}>
+            <span className="text-[0.9rem] font-medium leading-5">Max FPS</span>
+            <select
+              value={String(settings.maxFPS)}
+              onChange={(e) => onSettingsChange({ ...settings, maxFPS: Number.parseInt(e.target.value, 10) })}
+              className={`select select-bordered select-sm text-[0.9rem] ${compactSelectWidthClass}`}
+            >
+              {FPS_LIMIT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className={settingsControlRowClass}>
+            <span className="text-[0.9rem] font-medium leading-5">Show Grid</span>
             <input
               type="checkbox"
               checked={settings.showGrid}
               onChange={(e) => onSettingsChange({ ...settings, showGrid: e.target.checked })}
-              className="toggle toggle-sm"
+              className="toggle toggle-sm justify-self-end"
             />
           </label>
-          <label className="flex items-center justify-between gap-4 border-b border-base-300 py-3">
-            <span>Show FPS</span>
+          <label className={settingsControlRowClass}>
+            <span className="text-[0.9rem] font-medium leading-5">Show FPS</span>
             <input
               type="checkbox"
               checked={settings.showFPS}
               onChange={(e) => onSettingsChange({ ...settings, showFPS: e.target.checked })}
-              className="toggle toggle-sm"
+              className="toggle toggle-sm justify-self-end"
             />
           </label>
-          <label className="flex items-center justify-between gap-4 border-b border-base-300 py-3">
-            <span>Dark Editor</span>
+          <label className={settingsControlRowClass}>
+            <span className="text-[0.9rem] font-medium leading-5">Dark Editor</span>
             <input
               type="checkbox"
               checked={settings.darkEditor}
               onChange={(e) => onSettingsChange({ ...settings, darkEditor: e.target.checked })}
-              className="toggle toggle-sm"
+              className="toggle toggle-sm justify-self-end"
             />
           </label>
-          <label className="flex items-center justify-between gap-4 border-b border-base-300 py-3">
-            <span>Auto-run on change</span>
+          <label className={settingsControlRowClass}>
+            <span className="text-[0.9rem] font-medium leading-5">Auto-run on change</span>
             <input
               type="checkbox"
               checked={settings.autoRun}
               onChange={(e) => onSettingsChange({ ...settings, autoRun: e.target.checked })}
-              className="toggle toggle-sm"
+              className="toggle toggle-sm justify-self-end"
             />
           </label>
-          <div className="flex flex-wrap items-start gap-x-4 gap-y-3 border-b border-base-300 py-3">
+          <div className="flex flex-wrap items-start gap-x-4 gap-y-1.5 border-b border-base-300 py-2">
             <div className="flex min-w-0 flex-[1_1_100%] flex-col gap-1">
-              <span>DU Lua includes</span>
-              <span className="text-xs leading-5 text-base-content/60 [overflow-wrap:anywhere]">{duLuaRootStatus}</span>
+              <span className="text-[0.9rem] font-medium leading-5">DU Lua includes</span>
+              <span className="text-[0.77rem] leading-4 text-base-content/60 [overflow-wrap:anywhere]">{duLuaRootStatus}</span>
             </div>
             <div className="flex w-full flex-wrap justify-end gap-1.5">
               <button type="button" className="btn btn-outline btn-xs" onClick={onPickDuLuaRoot} title="Pick the Dual Universe Lua folder">

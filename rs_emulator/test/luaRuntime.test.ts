@@ -142,6 +142,113 @@ describe("lua runtime example integration", () => {
     expect(result.output).toBe("function,function,function");
   });
 
+  it("caches wrapper loadImage calls within one execution", async () => {
+    const buffer = new DrawBuffer({ imageLoadingEnabled: true });
+    const env = createLuaEnvironment(buffer, async (moduleName) => {
+      if (moduleName === "RenderScript") {
+        return renderScriptFixture;
+      }
+      return null;
+    }, { imageLoadingEnabled: true, luaHostIoEnabled: true });
+
+    const result = await env.execute(`
+      local RenderScript = require("RenderScript")
+      local rs = RenderScript.Instance()
+      local rawLoadImage = loadImage
+      local calls = 0
+
+      loadImage = function(path)
+        calls = calls + 1
+        return rawLoadImage(path)
+      end
+
+      local a = rs.LoadImage("assets.prod.novaquark.com/4745/example.jpg")
+      local b = rs.LoadImage("assets.prod.novaquark.com/4745/example.jpg")
+
+      setOutput(table.concat({
+        tostring(calls),
+        tostring(a),
+        tostring(b),
+        tostring(a == b),
+      }, "|"))
+    `);
+
+    if (!result.success) {
+      throw new Error(result.error ?? "RenderScript loadImage execution failed");
+    }
+    expect(result.output).toBe("1|1|1|true");
+  });
+
+  it("prefers a working wrapper LoadImage implementation over the native fallback", async () => {
+    const buffer = new DrawBuffer({ imageLoadingEnabled: true });
+    const env = createLuaEnvironment(buffer, async (moduleName) => {
+      if (moduleName === "RenderScript") {
+        return `
+          local M = {}
+          function M.Instance()
+            return {
+              LoadImage = function(path)
+                return 77
+              end,
+            }
+          end
+          return M
+        `;
+      }
+      return null;
+    }, { imageLoadingEnabled: true, luaHostIoEnabled: true });
+
+    const result = await env.execute(`
+      local RenderScript = require("RenderScript")
+      local rs = RenderScript.Instance()
+      local image = rs.LoadImage("assets.prod.novaquark.com/4745/example.jpg")
+      setOutput(tostring(image))
+    `);
+
+    if (!result.success) {
+      throw new Error(result.error ?? "RenderScript preferred LoadImage execution failed");
+    }
+    expect(result.output).toBe("77");
+    expect(buffer.images).toHaveLength(0);
+  });
+
+  it("resets the wrapper loadImage cache on the next execution frame", async () => {
+    const buffer = new DrawBuffer({ imageLoadingEnabled: true });
+    const env = createLuaEnvironment(buffer, async (moduleName) => {
+      if (moduleName === "RenderScript") {
+        return renderScriptFixture;
+      }
+      return null;
+    }, { imageLoadingEnabled: true, luaHostIoEnabled: true });
+
+    const script = `
+      local RenderScript = require("RenderScript")
+      local rs = RenderScript.Instance()
+      local rawLoadImage = loadImage
+      local calls = 0
+
+      loadImage = function(path)
+        calls = calls + 1
+        return rawLoadImage(path)
+      end
+
+      rs.LoadImage("assets.prod.novaquark.com/4745/example.jpg")
+      setOutput(tostring(calls))
+    `;
+
+    const first = await env.execute(script);
+    const second = await env.execute(script);
+
+    if (!first.success) {
+      throw new Error(first.error ?? "First RenderScript frame failed");
+    }
+    if (!second.success) {
+      throw new Error(second.error ?? "Second RenderScript frame failed");
+    }
+    expect(first.output).toBe("1");
+    expect(second.output).toBe("1");
+  });
+
   it("renders SimpleSignS with SilverZero shared library", async () => {
     const buffer = new DrawBuffer();
     const env = createLuaEnvironment(buffer, async (moduleName) => {

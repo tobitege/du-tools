@@ -1,6 +1,7 @@
 import type { DrawCommand, ScreenConfig } from "./types";
 import { RSShape, defaultLayerStyle, DEFAULT_SCREEN } from "./types";
 import type { LayerStyle, FontEntry, ImageEntry } from "./types";
+import { normalizeAnimationFrameCount } from "./frameTiming";
 import { measureFontMetrics, measureTextBounds } from "./textMetrics";
 import { normalizeImageSource } from "../security/inputGuards";
 
@@ -14,9 +15,13 @@ export interface DrawBufferOptions {
   disabledImageUrl?: string;
 }
 
+type RenderableDrawCommand = Extract<DrawCommand, { style: LayerStyle }>;
+
 export class DrawBuffer {
   commands: DrawCommand[] = [];
   screen: ScreenConfig = { ...DEFAULT_SCREEN };
+  layerOrder: number[] = [];
+  layerRenderCommands = new Map<number, RenderableDrawCommand[]>();
   layerStyles = new Map<number, Record<number, LayerStyle>>();
   nextOverrides = new Map<number, Partial<LayerStyle>>();
   layerTransforms = new Map<number, { origin: [number, number]; translation: [number, number]; scale: [number, number]; rotation: number; clipRect: { x: number; y: number; w: number; h: number } | null }>();
@@ -47,8 +52,49 @@ export class DrawBuffer {
     this.disabledImageUrl = options?.disabledImageUrl ?? DEFAULT_DISABLED_IMAGE_URL;
   }
 
+  createRenderSnapshot(): DrawBuffer {
+    const snapshot = new DrawBuffer({
+      imageLoadingEnabled: this.imageLoadingEnabled,
+      disabledImageUrl: this.disabledImageUrl,
+    });
+
+    snapshot.commands = [...this.commands];
+    snapshot.screen = {
+      ...this.screen,
+      backgroundColor: [...this.screen.backgroundColor],
+    };
+    snapshot.layerOrder = [...this.layerOrder];
+    snapshot.layerRenderCommands = new Map(
+      [...this.layerRenderCommands.entries()].map(([layer, commands]) => [layer, [...commands]])
+    );
+    snapshot.layerTransforms = new Map(
+      [...this.layerTransforms.entries()].map(([layer, transform]) => [
+        layer,
+        {
+          origin: [...transform.origin] as [number, number],
+          translation: [...transform.translation] as [number, number],
+          scale: [...transform.scale] as [number, number],
+          rotation: transform.rotation,
+          clipRect: transform.clipRect ? { ...transform.clipRect } : null,
+        },
+      ])
+    );
+    snapshot.fonts = [...this.fonts];
+    snapshot.images = [...this.images];
+    snapshot.renderCost = this.renderCost;
+    snapshot.time = this.time;
+    snapshot.deltaTime = this.deltaTime;
+    snapshot.output = this.output;
+    snapshot.logs = [...this.logs];
+    snapshot.requestAnimFrames = this.requestAnimFrames;
+
+    return snapshot;
+  }
+
   resetFrame() {
     this.commands = [];
+    this.layerOrder = [];
+    this.layerRenderCommands.clear();
     this.layerStyles.clear();
     this.nextOverrides.clear();
     this.layerTransforms.clear();
@@ -70,8 +116,31 @@ export class DrawBuffer {
     this.screen.backgroundColor = [...DEFAULT_SCREEN.backgroundColor];
   }
 
+  private isRenderableCommand(command: DrawCommand): command is RenderableDrawCommand {
+    return command.op.startsWith("Add");
+  }
+
+  private assertLayerExists(layer: number): void {
+    if (!this.layerRenderCommands.has(layer)) {
+      throw new Error("invalid layer handle");
+    }
+  }
+
+  private getLayerRenderCommands(layer: number): RenderableDrawCommand[] {
+    this.assertLayerExists(layer);
+    if (!this.layerRenderCommands.has(layer)) {
+      this.layerRenderCommands.set(layer, []);
+    }
+    return this.layerRenderCommands.get(layer)!;
+  }
+
   private push(cmd: DrawCommand) {
     this.commands.push(cmd);
+
+    if (this.isRenderableCommand(cmd)) {
+      this.getLayerRenderCommands(cmd.layer).push(cmd);
+    }
+
     // cost each draw call as 1 unit (simplified)
     const shapeOps = ["AddBezier","AddBox","AddBoxRounded","AddCircle","AddLine","AddQuad","AddTriangle","AddText","AddImage","AddImageSub"];
     if (shapeOps.includes(cmd.op)) this.renderCost += 1;
@@ -115,6 +184,7 @@ export class DrawBuffer {
 
   // --- layer style helpers ---
   private getLayerShapeStyle(layer: number, shape: number): LayerStyle {
+    this.assertLayerExists(layer);
     if (!this.layerStyles.has(layer)) {
       const shapes = {} as Record<number, LayerStyle>;
       for (let s = 0; s <= 7; s++) shapes[s] = defaultLayerStyle();
@@ -124,6 +194,7 @@ export class DrawBuffer {
   }
 
   private getLayerTransform(layer: number) {
+    this.assertLayerExists(layer);
     if (!this.layerTransforms.has(layer)) {
       this.layerTransforms.set(layer, { origin: [0, 0], translation: [0, 0], scale: [1, 1], rotation: 0, clipRect: null });
     }
@@ -134,9 +205,19 @@ export class DrawBuffer {
 
   CreateLayer(): number {
     const id = this.nextLayerId++;
+    this.layerOrder.push(id);
+    this.layerRenderCommands.set(id, []);
     // initialize default styles for this layer
     this.getLayerShapeStyle(id, RSShape.Box);
     return id;
+  }
+
+  GetLayerIds(): number[] {
+    return [...this.layerOrder];
+  }
+
+  GetRenderableCommandsForLayer(layer: number): RenderableDrawCommand[] {
+    return [...(this.layerRenderCommands.get(layer) ?? [])];
   }
 
   AddBezier(layer: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) {
@@ -213,42 +294,49 @@ export class DrawBuffer {
   }
 
   SetNextFillColor(layer: number, r: number, g: number, b: number, a: number) {
+    this.assertLayerExists(layer);
     const o = this.nextOverrides.get(layer) ?? {};
     o.fillColor = [r, g, b, a];
     this.nextOverrides.set(layer, o);
     this.push({ op: "SetNextFillColor", layer, color: [r, g, b, a] });
   }
   SetNextStrokeColor(layer: number, r: number, g: number, b: number, a: number) {
+    this.assertLayerExists(layer);
     const o = this.nextOverrides.get(layer) ?? {};
     o.strokeColor = [r, g, b, a];
     this.nextOverrides.set(layer, o);
     this.push({ op: "SetNextStrokeColor", layer, color: [r, g, b, a] });
   }
   SetNextStrokeWidth(layer: number, width: number) {
+    this.assertLayerExists(layer);
     const o = this.nextOverrides.get(layer) ?? {};
     o.strokeWidth = width;
     this.nextOverrides.set(layer, o);
     this.push({ op: "SetNextStrokeWidth", layer, width });
   }
   SetNextShadow(layer: number, radius: number, r: number, g: number, b: number, a: number) {
+    this.assertLayerExists(layer);
     const o = this.nextOverrides.get(layer) ?? {};
     o.shadow = { radius, color: [r, g, b, a] };
     this.nextOverrides.set(layer, o);
     this.push({ op: "SetNextShadow", layer, radius, color: [r, g, b, a] });
   }
   SetNextRotation(layer: number, rot: number) {
+    this.assertLayerExists(layer);
     const o = this.nextOverrides.get(layer) ?? {};
     o.rotation = rot;
     this.nextOverrides.set(layer, o);
     this.push({ op: "SetNextRotation", layer, rotation: rot });
   }
   SetNextRotationDegrees(layer: number, deg: number) {
+    this.assertLayerExists(layer);
     const o = this.nextOverrides.get(layer) ?? {};
     o.rotation = (deg * Math.PI) / 180;
     this.nextOverrides.set(layer, o);
     this.push({ op: "SetNextRotationDegrees", layer, rotation: deg });
   }
   SetNextTextAlign(layer: number, hor: number, ver: number) {
+    this.assertLayerExists(layer);
     const o = this.nextOverrides.get(layer) ?? {};
     o.textAlign = { hor, ver };
     this.nextOverrides.set(layer, o);
@@ -399,5 +487,5 @@ export class DrawBuffer {
   }
   SetOutput(output: string) { this.output = output; }
   Log(message: string) { this.logs.push(message); }
-  RequestAnimationFrame(frames: number) { this.requestAnimFrames = frames; }
+  RequestAnimationFrame(frames: number) { this.requestAnimFrames = normalizeAnimationFrameCount(frames); }
 }

@@ -24,16 +24,16 @@ Important note:
 - [x] Support `LoadedFont` / `FontHandle` style objects if the wrapper expects object handles rather than plain numeric IDs
 - [x] Implement a font object API with `GetID()` if required by the wrapper path
 - [x] Verify `GetTextBounds` works correctly when called through the wrapper, not only as a raw global
-- [ ] Verify `LoadImage` wrapper-level caching semantics match the real file
-- [ ] Verify `RequestAnimationFrame` behavior matches the wrapper expectation that image cache resets per frame
+- [~] `LoadImage` wrapper compatibility now caches repeated same-path calls within a single execution, but DU/file-fidelity still needs validation
+- [x] Ensure wrapper-level image cache resets on each new execution/frame so `RequestAnimationFrame` reruns do not keep stale wrapper cache state
 
 ## 2. Layer System Fidelity
 
-- [~] Fix real layer compositing order so layers render by layer index, not by raw command insertion order
-- [ ] Separate per-layer command buckets from style-setting bookkeeping more cleanly
-- [ ] Verify whether lower layer IDs always draw before higher layer IDs in the real runtime and mirror that exactly
-- [ ] Confirm whether empty layers still exist as real render targets and emulate that properly
-- [ ] Add explicit tests for cross-layer ordering when commands are interleaved in script execution
+- [x] Fix real layer compositing order so layers render by layer index, not by raw command insertion order
+- [x] Separate per-layer command buckets from style-setting bookkeeping more cleanly
+- [~] Emulator now mirrors lower layer IDs / creation order first, but DU validation is still pending
+- [~] Empty created layers now exist explicitly in runtime state, but whether DU allocates true render targets still needs validation
+- [x] Add explicit tests for cross-layer ordering when commands are interleaved in script execution
 
 ## 3. Shape Rendering Commands
 
@@ -172,9 +172,9 @@ Important note:
 
 ### Remaining time/animation tasks
 
-- [~] `RequestAnimationFrame(frames)` currently behaves like "keep animating if > 0" rather than honoring an exact future frame count contract
+- [~] `RequestAnimationFrame(frames)` now waits the requested number of emulator frames before redrawing, but DU-fidelity for long-running cadence still needs validation
 - [x] `GetDeltaTime` now uses measured frame cadence instead of a synthetic fixed step
-- [ ] Implement proper frame countdown semantics for `RequestAnimationFrame(n)`
+- [x] Implement proper frame countdown semantics for `RequestAnimationFrame(n)`
 - [ ] Decide whether the runtime should continue redrawing automatically only when the script requests it again each execution
 - [ ] Add tests for one-shot, delayed, and continuous animation requests
 
@@ -265,7 +265,7 @@ Recommended order from highest leverage to lower leverage:
 
 1. [ ] Wrapper compatibility with `RenderScript.lua`
 2. [ ] Proper layer ordering
-3. [ ] Proper `RequestAnimationFrame(frames)` semantics
+3. [x] Proper `RequestAnimationFrame(frames)` semantics
 4. [ ] Real cursor/input plumbing
 5. [ ] Better `GetTextBounds` and font metrics
 6. [ ] Better image loading/error behavior

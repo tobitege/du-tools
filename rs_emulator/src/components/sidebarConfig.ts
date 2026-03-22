@@ -22,6 +22,11 @@ export interface ThemeOption {
   mode: "light" | "dark";
 }
 
+export interface FpsLimitOption {
+  value: number;
+  label: string;
+}
+
 export const RESOLUTION_PRESETS: ResolutionPreset[] = [
   { id: "hd-landscape", label: "HD 16:9", width: 1280, height: 720 },
   { id: "hd-portrait", label: "HD 9:16", width: 720, height: 1280 },
@@ -48,6 +53,26 @@ export function getThemeOption(id: string): ThemeOption | undefined {
   return THEME_OPTIONS.find((theme) => theme.id === id);
 }
 
+export const DEFAULT_MAX_FPS = 60;
+
+export const FPS_LIMIT_OPTIONS: FpsLimitOption[] = [
+  { value: 24, label: "24 FPS" },
+  { value: 30, label: "30 FPS" },
+  { value: 45, label: "45 FPS" },
+  { value: 60, label: "60 FPS" },
+  { value: 90, label: "90 FPS" },
+  { value: 120, label: "120 FPS" },
+];
+
+export function normalizeMaxFps(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULT_MAX_FPS;
+  }
+
+  const normalized = Math.round(value);
+  return FPS_LIMIT_OPTIONS.some((option) => option.value === normalized) ? normalized : DEFAULT_MAX_FPS;
+}
+
 export interface Settings {
   resolutionPreset: string;
   canvasWidth: number;
@@ -58,6 +83,7 @@ export interface Settings {
   editorFontSize: number;
   showGrid: boolean;
   showFPS: boolean;
+  maxFPS: number;
   themeId: string;
   darkEditor: boolean;
   autoRun: boolean;
@@ -74,6 +100,7 @@ export const DEFAULT_SETTINGS: Settings = {
   editorFontSize: 14,
   showGrid: false,
   showFPS: true,
+  maxFPS: DEFAULT_MAX_FPS,
   themeId: "night",
   darkEditor: true,
   autoRun: false,

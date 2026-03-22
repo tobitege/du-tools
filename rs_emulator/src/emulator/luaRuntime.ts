@@ -394,6 +394,7 @@ async function installRuntime(lua: LuaEngine, buffer: DrawBuffer, runtimeFlags?:
         local rawGetFontSize = instance.GetFontSize
         local rawSetFontSize = instance.SetFontSize
         local rawGetFontMetrics = instance.GetFontMetrics
+        local imageHandleCache = {}
 
         instance.LoadFont = function(name, size)
           return createLoadedFont(rawLoadFont(name, size))
@@ -422,6 +423,29 @@ async function installRuntime(lua: LuaEngine, buffer: DrawBuffer, runtimeFlags?:
 
         instance.GetFontMetrics = function(font)
           return rawGetFontMetrics(resolveFontId(font))
+        end
+
+        if type(instance.LoadImage) == "function" then
+          local rawLoadImage = instance.LoadImage
+          local compatLoadImage = function(path)
+            local cacheKey = tostring(path or "")
+            local cachedHandle = imageHandleCache[cacheKey]
+            if cachedHandle ~= nil then
+              return cachedHandle
+            end
+
+            local wrapperHandle = rawLoadImage(path)
+            if type(wrapperHandle) == "number" and wrapperHandle ~= 0 then
+              imageHandleCache[cacheKey] = wrapperHandle
+              return wrapperHandle
+            end
+
+            local nativeHandle = _ENV.loadImage(path)
+            imageHandleCache[cacheKey] = nativeHandle
+            return nativeHandle
+          end
+
+          instance.LoadImage = compatLoadImage
         end
 
         instance.__rsCompatWrapped = true

@@ -129,6 +129,67 @@ describe("canvasRenderer text rendering", () => {
     expect(context.drawImage).toHaveBeenNthCalledWith(2, foregroundImage, 0, 0, 10, 10);
   });
 
+  it("uses documented same-layer shape buckets instead of raw insertion order", () => {
+    const buffer = new DrawBuffer();
+    const layer = buffer.CreateLayer();
+    const fontId = buffer.LoadFont("Arial", 16);
+    const image = { tag: "layer-image" } as unknown as HTMLImageElement;
+
+    buffer.images.push({
+      id: 1,
+      url: "https://assets.prod.novaquark.com/1/layer-image.jpg",
+      loaded: true,
+      element: image,
+      width: 10,
+      height: 10,
+    });
+
+    buffer.AddText(layer, fontId, "Top text", 12, 24);
+    buffer.AddImage(layer, 1, 0, 0, 10, 10);
+
+    const context = createMockContext();
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn(() => context),
+    } as unknown as HTMLCanvasElement;
+
+    renderBuffer(canvas, buffer);
+
+    expect(context.drawImage.mock.invocationCallOrder[0]).toBeLessThan(context.fillText.mock.invocationCallOrder[0]);
+  });
+
+  it("still prioritizes layer order when interleaved commands use different shape buckets", () => {
+    const buffer = new DrawBuffer();
+    const background = buffer.CreateLayer();
+    const foreground = buffer.CreateLayer();
+    const fontId = buffer.LoadFont("Arial", 16);
+    const image = { tag: "foreground-layer-image" } as unknown as HTMLImageElement;
+
+    buffer.images.push({
+      id: 1,
+      url: "https://assets.prod.novaquark.com/1/foreground-layer-image.jpg",
+      loaded: true,
+      element: image,
+      width: 10,
+      height: 10,
+    });
+
+    buffer.AddImage(foreground, 1, 0, 0, 10, 10);
+    buffer.AddText(background, fontId, "Background text", 20, 20);
+
+    const context = createMockContext();
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn(() => context),
+    } as unknown as HTMLCanvasElement;
+
+    renderBuffer(canvas, buffer);
+
+    expect(context.fillText.mock.invocationCallOrder[0]).toBeLessThan(context.drawImage.mock.invocationCallOrder[0]);
+  });
+
   it("renders a placeholder panel for disabled images before the asset has loaded", () => {
     const buffer = new DrawBuffer();
     const layer = buffer.CreateLayer();

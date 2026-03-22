@@ -5,6 +5,19 @@ import { getFontString, measureFontMetrics } from "./textMetrics";
 
 type RenderableCommand = Extract<DrawCommand, { style: LayerStyle }>;
 
+const SHAPE_RENDER_ORDER: Record<RenderableCommand["op"], number> = {
+  AddImage: 0,
+  AddImageSub: 0,
+  AddBezier: 1,
+  AddBox: 2,
+  AddBoxRounded: 3,
+  AddCircle: 4,
+  AddLine: 5,
+  AddTriangle: 6,
+  AddQuad: 7,
+  AddText: 8,
+};
+
 function rgbaStr(c: RGBA): string {
   return `rgba(${Math.round(c[0]*255)},${Math.round(c[1]*255)},${Math.round(c[2]*255)},${c[3]})`;
 }
@@ -62,10 +75,6 @@ function resolveTextY(fontName: string, fontSize: number, ver: number, y: number
   return y;
 }
 
-function isRenderableCommand(command: DrawCommand): command is RenderableCommand {
-  return command.op.startsWith("Add");
-}
-
 function drawImagePlaceholder(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, w: number, h: number) {
   ctx.save();
   ctx.fillStyle = "rgba(0,0,0,1)";
@@ -97,33 +106,37 @@ export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
   ctx.fillStyle = rgbaStr(bg);
   ctx.fillRect(0, 0, w, h);
 
-  const renderCommands = buffer.commands
-    .filter(isRenderableCommand)
-    .map((command, index) => ({ command, index }))
-    .sort((left, right) => {
-      if (left.command.layer !== right.command.layer) {
-        return left.command.layer - right.command.layer;
-      }
-      return left.index - right.index;
-    });
+  for (const layer of buffer.GetLayerIds()) {
+    const renderCommands = buffer.GetRenderableCommandsForLayer(layer)
+      .map((command, index) => ({ command, index }))
+      .sort((left, right) => {
+        const leftOrder = SHAPE_RENDER_ORDER[left.command.op];
+        const rightOrder = SHAPE_RENDER_ORDER[right.command.op];
+        if (leftOrder !== rightOrder) {
+          return leftOrder - rightOrder;
+        }
 
-  for (const { command: cmd } of renderCommands) {
+        return left.index - right.index;
+      });
 
-    if ("layer" in cmd) {
-      const layer = (cmd as any).layer as number;
-      ctx.save();
+    if (renderCommands.length === 0) {
+      continue;
+    }
 
-      // layer transform
-      applyLayerTransform(ctx, buffer, layer);
+    ctx.save();
 
-      // clip rect
-      const lt = buffer.layerTransforms.get(layer);
-      if (lt?.clipRect) {
-        ctx.beginPath();
-        ctx.rect(lt.clipRect.x, lt.clipRect.y, lt.clipRect.w, lt.clipRect.h);
-        ctx.clip();
-      }
+    // layer transform
+    applyLayerTransform(ctx, buffer, layer);
 
+    // clip rect
+    const lt = buffer.layerTransforms.get(layer);
+    if (lt?.clipRect) {
+      ctx.beginPath();
+      ctx.rect(lt.clipRect.x, lt.clipRect.y, lt.clipRect.w, lt.clipRect.h);
+      ctx.clip();
+    }
+
+    for (const { command: cmd } of renderCommands) {
       const style = cmd.style;
       const rot = style.rotation;
 
@@ -290,8 +303,8 @@ export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
           break;
         }
       }
-
-      ctx.restore();
     }
+
+    ctx.restore();
   }
 }

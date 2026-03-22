@@ -132,7 +132,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
         }
 
         setStats({
-          drawCalls: buffer.commands.length,
+          drawCalls: buffer.GetRenderCost(),
           textCalls: buffer.commands.filter((command) => command.op === "AddText").length,
           frameMs,
           fps: frameMs > 0 ? 1000 / frameMs : 0,

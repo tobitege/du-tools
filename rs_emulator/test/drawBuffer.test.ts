@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DrawBuffer } from "../src/emulator";
 
 describe("drawBuffer style snapshotting", () => {
@@ -44,6 +44,71 @@ describe("drawBuffer style snapshotting", () => {
     expect(buffer.screen.backgroundColor).toEqual([0, 0, 0, 1]);
   });
 
+  it("stores requestAnimationFrame counts as positive whole frames", () => {
+    const buffer = new DrawBuffer();
+
+    buffer.RequestAnimationFrame(5.9);
+    expect(buffer.requestAnimFrames).toBe(5);
+
+    buffer.RequestAnimationFrame(-1);
+    expect(buffer.requestAnimFrames).toBe(0);
+  });
+
+  it("keeps explicit per-layer render buckets separate from style bookkeeping", () => {
+    const buffer = new DrawBuffer();
+    const baseLayer = buffer.CreateLayer();
+    const emptyLayer = buffer.CreateLayer();
+
+    buffer.SetDefaultFillColor(baseLayer, 1, 0.2, 0.3, 0.4, 1);
+    buffer.AddBox(baseLayer, 0, 0, 20, 20);
+
+    expect(buffer.GetLayerIds()).toEqual([baseLayer, emptyLayer]);
+    expect(buffer.commands.some((command) => command.op === "SetDefaultFillColor")).toBe(true);
+    expect(buffer.GetRenderableCommandsForLayer(baseLayer).map((command) => command.op)).toEqual(["AddBox"]);
+    expect(buffer.GetRenderableCommandsForLayer(emptyLayer)).toEqual([]);
+  });
+
+  it("clears explicit layer buckets on frame reset", () => {
+    const buffer = new DrawBuffer();
+    const layer = buffer.CreateLayer();
+
+    buffer.AddCircle(layer, 10, 10, 4);
+    expect(buffer.GetLayerIds()).toEqual([layer]);
+    expect(buffer.GetRenderableCommandsForLayer(layer)).toHaveLength(1);
+
+    buffer.resetFrame();
+
+    expect(buffer.GetLayerIds()).toEqual([]);
+    expect(buffer.GetRenderableCommandsForLayer(layer)).toEqual([]);
+  });
+
+  it("keeps a completed render snapshot stable after the live buffer is reset", () => {
+    const buffer = new DrawBuffer();
+    const layer = buffer.CreateLayer();
+
+    buffer.SetBackgroundColor(0.2, 0.4, 0.6);
+    buffer.AddBox(layer, 5, 6, 70, 80);
+
+    const snapshot = buffer.createRenderSnapshot();
+
+    buffer.resetFrame();
+    const nextLayer = buffer.CreateLayer();
+    buffer.AddCircle(nextLayer, 40, 50, 12);
+
+    expect(snapshot.screen.backgroundColor).toEqual([0.2, 0.4, 0.6, 1]);
+    expect(snapshot.GetLayerIds()).toEqual([layer]);
+    expect(snapshot.GetRenderableCommandsForLayer(layer).map((command) => command.op)).toEqual(["AddBox"]);
+    expect(snapshot.commands.map((command) => command.op)).toContain("AddBox");
+  });
+
+  it("throws for invalid layer handles instead of silently creating hidden render state", () => {
+    const buffer = new DrawBuffer();
+
+    expect(() => buffer.AddBox(99, 0, 0, 10, 10)).toThrow("invalid layer handle");
+    expect(() => buffer.SetNextFillColor(99, 1, 0, 0, 1)).toThrow("invalid layer handle");
+    expect(() => buffer.SetLayerTranslation(99, 10, 20)).toThrow("invalid layer handle");
+  });
+
   it("normalizes allowed Novaquark asset URLs and reuses their handles", () => {
     const buffer = new DrawBuffer({ imageLoadingEnabled: true });
 
@@ -67,6 +132,52 @@ describe("drawBuffer style snapshotting", () => {
     expect(secondId).toBe(firstId);
     expect(buffer.images).toHaveLength(1);
     expect(buffer.images[0]?.url).toBe(dataUrl);
+  });
+
+  it("does not create a second browser image load for the same URL after a frame reset", () => {
+    const createdImages: Array<{ assignedSrc: string | null }> = [];
+
+    class MockImage {
+      naturalWidth = 0;
+      naturalHeight = 0;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      private _src = "";
+
+      constructor() {
+        createdImages.push({ assignedSrc: null });
+      }
+
+      set src(value: string) {
+        this._src = value;
+        createdImages[createdImages.length - 1]!.assignedSrc = value;
+      }
+
+      get src() {
+        return this._src;
+      }
+    }
+
+    const originalImage = globalThis.Image;
+    vi.stubGlobal("Image", MockImage);
+
+    try {
+      const buffer = new DrawBuffer({ imageLoadingEnabled: true });
+      const url = "assets.prod.novaquark.com/4745/example.jpg";
+
+      const firstId = buffer.LoadImage(url);
+      buffer.resetFrame();
+      const secondId = buffer.LoadImage(url);
+
+      expect(firstId).toBe(1);
+      expect(secondId).toBe(firstId);
+      expect(createdImages).toEqual([
+        { assignedSrc: "https://assets.prod.novaquark.com/4745/example.jpg" },
+      ]);
+    } finally {
+      vi.unstubAllGlobals();
+      globalThis.Image = originalImage;
+    }
   });
 
   it("rejects image URLs outside the allowed Novaquark asset host", () => {

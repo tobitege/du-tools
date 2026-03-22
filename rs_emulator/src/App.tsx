@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, ty
 import { CodeEditor, type CodeEditorHandle } from "./components/CodeEditor";
 import { Canvas, type CanvasHandle } from "./components/Canvas";
 import { Sidebar } from "./components/Sidebar";
-import { DEFAULT_SETTINGS, getResolutionPreset, getThemeOption, RESOLUTION_PRESETS, THEME_OPTIONS, type SessionEntry, type Settings } from "./components/sidebarConfig";
+import { DEFAULT_SETTINGS, getResolutionPreset, getThemeOption, normalizeMaxFps, RESOLUTION_PRESETS, THEME_OPTIONS, type SessionEntry, type Settings } from "./components/sidebarConfig";
 import { runtimeFlags } from "./config/runtimeFlags";
 import { DrawBuffer, createLuaEnvironment, type LuaExecResult } from "./emulator";
-import { getFrameDeltaSeconds, getRuntimeTimeSeconds } from "./emulator/frameTiming";
+import { getAnimationDelayMs, getEffectiveMaxFps, getFrameDeltaSeconds, getRuntimeTimeSeconds, mergeMeasuredDisplayFps } from "./emulator/frameTiming";
 import { moveSessionInOrder, sortSessionsByOrder, type SessionDropPlacement } from "./sessionOrdering";
 import { sessionNameFromFileName, validateGitHubLuaUrl, validateImportedSessionFile } from "./security/inputGuards";
 import {
@@ -23,8 +23,6 @@ import {
   writeSessionContent,
 } from "./storage/sessionStore";
 
-const DEFAULT_MAX_FPS = 60;
-const FRAME_INTERVAL_MS = 1000 / DEFAULT_MAX_FPS;
 type CanvasRotation = 0 | 90 | 180 | 270;
 
 function clamp(value: number, low: number, high: number): number {
@@ -33,6 +31,10 @@ function clamp(value: number, low: number, high: number): number {
 
 function classNames(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(" ");
+}
+
+function getFrameIntervalMs(maxFps: number): number {
+  return 1000 / Math.max(1, maxFps);
 }
 
 function escapeRegExp(value: string): string {
@@ -114,6 +116,7 @@ function normalizeSettings(raw: unknown): Settings {
     horizontalSplit: clamp(typeof value.horizontalSplit === "number" ? value.horizontalSplit : legacySplit, 0.25, 0.75),
     verticalSplit: clamp(typeof value.verticalSplit === "number" ? value.verticalSplit : legacySplit, 0.25, 0.75),
     editorFontSize: clamp(typeof value.editorFontSize === "number" ? value.editorFontSize : DEFAULT_SETTINGS.editorFontSize, 8, 28),
+    maxFPS: normalizeMaxFps(value.maxFPS),
   };
 }
 
@@ -262,15 +265,16 @@ function sortSessions(entries: SessionEntry[]): SessionEntry[] {
 export default function App() {
   const bufferRef = useRef(new DrawBuffer({ imageLoadingEnabled: runtimeFlags.imageLoadingEnabled }));
   const canvasRef = useRef<CanvasHandle>(null);
+  const committedBufferRef = useRef(bufferRef.current.createRenderSnapshot());
   const codeEditorRef = useRef<CodeEditorHandle>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const githubUrlInputRef = useRef<HTMLInputElement>(null);
-  const animFrameRef = useRef<number>(0);
   const animTimerRef = useRef<number>(0);
   const statusTimerRef = useRef<number>(0);
   const persistTimerRef = useRef<number>(0);
   const autoRunTimerRef = useRef<number>(0);
+  const displayRefreshRateRef = useRef<number | null>(null);
   const executionTokenRef = useRef(0);
   const sessionListRequestRef = useRef(0);
   const sessionLoadTokenRef = useRef(0);
@@ -332,6 +336,7 @@ export default function App() {
   const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false);
   const [reloading, setReloading] = useState(false);
   const [canvasRotation, setCanvasRotation] = useState<CanvasRotation>(0);
+  const settingsRef = useRef(settings);
 
   const activeSession = useMemo(
     () => sessions.find((session) => session.id === activeSessionId),
@@ -347,6 +352,7 @@ export default function App() {
 
   sessionsRef.current = sessions;
   activeSessionIdRef.current = activeSessionId;
+  settingsRef.current = settings;
 
   const duLuaRootStatus = duLuaServerRootPath
     ? duLuaServerRootPath
@@ -357,6 +363,20 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", activeTheme.id);
   }, [activeTheme.id]);
+
+  const commitBufferForRender = useCallback(() => {
+    committedBufferRef.current = bufferRef.current.createRenderSnapshot();
+    return committedBufferRef.current;
+  }, []);
+
+  const renderCommittedBuffer = useCallback((showGridOverride?: boolean) => {
+    canvasRef.current?.render(committedBufferRef.current, { showGrid: showGridOverride ?? settings.showGrid });
+  }, [settings.showGrid]);
+
+  const commitAndRenderBuffer = useCallback((showGridOverride?: boolean) => {
+    commitBufferForRender();
+    renderCommittedBuffer(showGridOverride);
+  }, [commitBufferForRender, renderCommittedBuffer]);
 
   const showStatus = useCallback((message: string) => {
     setStatusMsg(message);
@@ -400,12 +420,56 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    let frameId = 0;
+    let previousTimestamp: number | null = null;
+    let sampleCount = 0;
+    let sampleTotalMs = 0;
+
+    const sampleDisplayRate = (timestamp: number) => {
+      if (document.visibilityState !== "visible") {
+        previousTimestamp = null;
+        sampleCount = 0;
+        sampleTotalMs = 0;
+        frameId = window.requestAnimationFrame(sampleDisplayRate);
+        return;
+      }
+
+      if (previousTimestamp !== null) {
+        const deltaMs = timestamp - previousTimestamp;
+        if (deltaMs > 0 && deltaMs < 100) {
+          sampleTotalMs += deltaMs;
+          sampleCount += 1;
+
+          if (sampleCount >= 30) {
+            const measuredRefreshRate = 1000 / (sampleTotalMs / sampleCount);
+            displayRefreshRateRef.current = mergeMeasuredDisplayFps(displayRefreshRateRef.current, measuredRefreshRate);
+            sampleCount = 0;
+            sampleTotalMs = 0;
+          }
+        }
+      }
+
+      previousTimestamp = timestamp;
+      frameId = window.requestAnimationFrame(sampleDisplayRate);
+    };
+
+    frameId = window.requestAnimationFrame(sampleDisplayRate);
+    return () => {
+      if (frameId) {
+        cancelAnimationFrame(frameId);
+      }
+    };
+  }, []);
+
   const resetRuntime = useCallback(() => {
     clearAutoRunTimer();
     executionTokenRef.current += 1;
     resolvedModulePathsRef.current = {};
     bufferRef.current.resetRuntimeState();
+    committedBufferRef.current = bufferRef.current.createRenderSnapshot();
     envRef.current = createLuaEnvironment(bufferRef.current, resolveLuaModule, runtimeFlags);
+    setResult(null);
     setRunning(false);
   }, [clearAutoRunTimer, resolveLuaModule]);
 
@@ -415,10 +479,6 @@ export default function App() {
     if (animTimerRef.current) {
       clearTimeout(animTimerRef.current);
       animTimerRef.current = 0;
-    }
-    if (animFrameRef.current) {
-      cancelAnimationFrame(animFrameRef.current);
-      animFrameRef.current = 0;
     }
     setAnimating(false);
     setRunning(false);
@@ -492,6 +552,9 @@ export default function App() {
     resolvedModulePathsRef.current = {};
     const buffer = bufferRef.current;
     const runStartedAt = performance.now();
+    const getEffectiveFrameIntervalMs = () => getFrameIntervalMs(
+      getEffectiveMaxFps(settingsRef.current.maxFPS, displayRefreshRateRef.current)
+    );
     buffer.screen.width = settings.canvasWidth;
     buffer.screen.height = settings.canvasHeight;
     buffer.time = 0;
@@ -504,24 +567,38 @@ export default function App() {
         return;
       }
       setResult(firstResult);
-      canvasRef.current?.render(buffer, { showGrid: settings.showGrid });
+      commitAndRenderBuffer();
 
       if (firstResult.success) {
         const animationInfo = firstResult.requestAnimFrames > 0 ? `, anim ${firstResult.requestAnimFrames}f` : "";
         const logInfo = firstResult.logs.length > 0 ? `, ${firstResult.logs.length} log(s)` : "";
-        showStatus(`OK: ${buffer.commands.length} draw call(s)${animationInfo}${logInfo}`);
+        showStatus(`OK: ${buffer.GetRenderCost()} draw call(s)${animationInfo}${logInfo}`);
       } else {
         showStatus(`Error: ${(firstResult.error ?? "unknown error").slice(0, 140)}`);
       }
 
-      if (firstResult.requestAnimFrames > 0) {
+      if (firstResult.success && firstResult.requestAnimFrames > 0) {
         setAnimating(true);
         let previousFrameStartedAt = runStartedAt;
 
+        const scheduleNextAnimation = (requestedFrames: number, frameStartedAt: number) => {
+          const delay = getAnimationDelayMs(
+            performance.now(),
+            frameStartedAt,
+            requestedFrames,
+            getEffectiveFrameIntervalMs()
+          );
+          animTimerRef.current = window.setTimeout(() => {
+            animTimerRef.current = 0;
+            void animate();
+          }, delay);
+        };
+
         const animate = async () => {
           const frameStartedAt = performance.now();
+          const frameIntervalMs = getEffectiveFrameIntervalMs();
           buffer.time = getRuntimeTimeSeconds(frameStartedAt, runStartedAt);
-          buffer.deltaTime = getFrameDeltaSeconds(frameStartedAt, previousFrameStartedAt, FRAME_INTERVAL_MS);
+          buffer.deltaTime = getFrameDeltaSeconds(frameStartedAt, previousFrameStartedAt, frameIntervalMs);
           previousFrameStartedAt = frameStartedAt;
           buffer.screen.width = settings.canvasWidth;
           buffer.screen.height = settings.canvasHeight;
@@ -531,25 +608,16 @@ export default function App() {
             return;
           }
           setResult(frameResult);
-          canvasRef.current?.render(buffer, { showGrid: settings.showGrid });
+          commitAndRenderBuffer();
 
-          if (buffer.requestAnimFrames > 0) {
-            const elapsedSinceFrameStart = performance.now() - frameStartedAt;
-            const delay = Math.max(0, FRAME_INTERVAL_MS - elapsedSinceFrameStart);
-            animTimerRef.current = window.setTimeout(() => {
-              animTimerRef.current = 0;
-              void animate();
-            }, delay);
+          if (frameResult.success && frameResult.requestAnimFrames > 0) {
+            scheduleNextAnimation(frameResult.requestAnimFrames, frameStartedAt);
           } else {
-            animFrameRef.current = 0;
             animTimerRef.current = 0;
             setAnimating(false);
           }
         };
-        animTimerRef.current = window.setTimeout(() => {
-          animTimerRef.current = 0;
-          void animate();
-        }, FRAME_INTERVAL_MS);
+        scheduleNextAnimation(firstResult.requestAnimFrames, runStartedAt);
       } else {
         setAnimating(false);
       }
@@ -566,7 +634,7 @@ export default function App() {
         setRunning(false);
       }
     }
-  }, [activeChunkLabel, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus]);
+  }, [activeChunkLabel, commitAndRenderBuffer, settings.canvasHeight, settings.canvasWidth, showStatus]);
 
   const runCurrentCode = useCallback((nextCode?: string) => {
     stopAnimation();
@@ -656,7 +724,7 @@ export default function App() {
       setEditorDropActive(false);
       bufferRef.current.screen.width = settings.canvasWidth;
       bufferRef.current.screen.height = settings.canvasHeight;
-      canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+      commitAndRenderBuffer();
 
       const loadedFiles = await Promise.all(acceptedFiles.map(async ({ file, safeFileName, sessionName }) => ({
         file,
@@ -685,7 +753,7 @@ export default function App() {
 
       bufferRef.current.screen.width = settings.canvasWidth;
       bufferRef.current.screen.height = settings.canvasHeight;
-      canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+      commitAndRenderBuffer();
 
       const skippedLabel = rejectedReasons.length > 0
         ? ` Skipped ${rejectedReasons.length} blocked file${rejectedReasons.length === 1 ? "" : "s"}.`
@@ -771,7 +839,7 @@ export default function App() {
       setEditorDropActive(false);
       bufferRef.current.screen.width = settings.canvasWidth;
       bufferRef.current.screen.height = settings.canvasHeight;
-      canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+      commitAndRenderBuffer();
 
       const created = await createSession({
         name: sessionName,
@@ -788,7 +856,7 @@ export default function App() {
 
       bufferRef.current.screen.width = settings.canvasWidth;
       bufferRef.current.screen.height = settings.canvasHeight;
-      canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+      commitAndRenderBuffer();
       closeGitHubImport();
       showStatus(`Imported GitHub script: ${safeFileName}`);
     } catch (error: unknown) {
@@ -869,7 +937,7 @@ export default function App() {
       setResult(null);
       bufferRef.current.screen.width = settings.canvasWidth;
       bufferRef.current.screen.height = settings.canvasHeight;
-      canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+      commitAndRenderBuffer();
       showStatus(`Reloaded from source: ${sourceLabel}`);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
@@ -924,7 +992,7 @@ export default function App() {
     bufferRef.current.screen.width = settings.canvasWidth;
     bufferRef.current.screen.height = settings.canvasHeight;
     setResult(null);
-    canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+    commitAndRenderBuffer();
     showStatus("Session loaded");
   }, [activeSessionId, flushActiveSession, loadSessionIntoEditor, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus, stopAnimation]);
 
@@ -940,7 +1008,7 @@ export default function App() {
     bufferRef.current.screen.width = settings.canvasWidth;
     bufferRef.current.screen.height = settings.canvasHeight;
     setResult(null);
-    canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+    commitAndRenderBuffer();
     showStatus(`New temp session: ${created.name}`);
   }, [flushActiveSession, loadSessionIntoEditor, refreshSessions, sessions, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus, stopAnimation]);
 
@@ -956,7 +1024,7 @@ export default function App() {
       setResult(null);
       bufferRef.current.screen.width = settings.canvasWidth;
       bufferRef.current.screen.height = settings.canvasHeight;
-      canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+      commitAndRenderBuffer();
     }
     await deleteSession(sessionId);
     const remaining = await refreshSessions();
@@ -965,7 +1033,7 @@ export default function App() {
       setResult(null);
       bufferRef.current.screen.width = settings.canvasWidth;
       bufferRef.current.screen.height = settings.canvasHeight;
-      canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+      commitAndRenderBuffer();
       showStatus("Session deleted");
       return;
     }
@@ -1096,13 +1164,13 @@ export default function App() {
     if (result) {
       runCurrentCode();
     } else {
-      canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+      commitAndRenderBuffer();
     }
   }, [bootstrapped, result, runCurrentCode, settings.canvasHeight, settings.canvasWidth, settings.showGrid]);
 
   useEffect(() => {
     if (result) {
-      canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+      commitAndRenderBuffer();
     }
   }, [result, settings.showGrid]);
 
@@ -1160,17 +1228,13 @@ export default function App() {
       setResult(null);
       bufferRef.current.screen.width = settings.canvasWidth;
       bufferRef.current.screen.height = settings.canvasHeight;
-      canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+      commitAndRenderBuffer();
     };
     void initialize();
     return () => {
       cancelled = true;
       executionTokenRef.current += 1;
       sessionLoadTokenRef.current += 1;
-      if (animFrameRef.current) {
-        cancelAnimationFrame(animFrameRef.current);
-        animFrameRef.current = 0;
-      }
       if (animTimerRef.current) {
         clearTimeout(animTimerRef.current);
         animTimerRef.current = 0;
@@ -1247,7 +1311,7 @@ export default function App() {
 
   useEffect(() => {
     bufferRef.current.onAssetsChanged = () => {
-      canvasRef.current?.render(bufferRef.current, { showGrid: settings.showGrid });
+      renderCommittedBuffer();
     };
     return () => {
       bufferRef.current.onAssetsChanged = null;
