@@ -170,6 +170,22 @@ Important behavioral rules:
 - hidden `screen_editor` state is treated as stale cache and must not be used as live board content
 - `boardId` is not yet enforced as a verified in-game board identity
 
+## Visual Verification Fallback
+
+For live DU sessions, an external Windows screenshot MCP server such as `ScreenShotNet` is a useful fallback next to `DuMcpBridge`.
+
+Recommended use:
+
+- use `capture_window_screenshot` for the `Dual Universe` window when you need to confirm what the player actually sees
+- use it before native input steps like `du_open_editor_native` if the in-game state is unclear
+- use it right after opening an editor or after `apply` when the visible result matters more than the last structured probe response
+
+Important limits:
+
+- do not use screenshots as the primary automation path when a structured probe/tool result already answers the question
+- do not capture at every step; image payloads are much larger than normal bridge events and slow down the workflow
+- keep `DuMcpBridge` as the main control path and treat screenshots as a targeted reality check for the visible client state
+
 ## Transfer Contract
 
 Editor content transfer now has exactly one supported write path:

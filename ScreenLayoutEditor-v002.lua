@@ -913,7 +913,6 @@ function ScreenLayoutEditor.commitDocument(state)
     state.lastCommittedSerialized = serialized
     state.lastCommittedHash = hash
     state.lastOutputEnvelope = ScreenLayoutEditor.serializeOutputEnvelope(state.document, serialized, hash)
-    state.pendingOutputEnvelope = state.lastOutputEnvelope
     state.documentDirty = false
     return true
 end
@@ -937,8 +936,7 @@ function ScreenLayoutEditor.createState(screenWidth, screenHeight, initialDocume
         documentDirty = false,
         lastCommittedSerialized = serialized,
         lastCommittedHash = ScreenLayoutEditor.hashText(serialized),
-        lastOutputEnvelope = "",
-        pendingOutputEnvelope = ""
+        lastOutputEnvelope = ""
     }
 end
 
@@ -1020,15 +1018,6 @@ function ScreenLayoutEditor.getOutputEnvelope(state)
         return ""
     end
     return state.lastOutputEnvelope or ""
-end
-
-function ScreenLayoutEditor.takePendingOutputEnvelope(state)
-    if type(state) ~= "table" then
-        return ""
-    end
-    local envelope = state.pendingOutputEnvelope or ""
-    state.pendingOutputEnvelope = ""
-    return envelope
 end
 
 SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE = type(SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE) == "table" and SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE or {}
@@ -1365,7 +1354,9 @@ local function runRenderScript()
     for index = 1, #state.document.elements do
         local element = state.document.elements[index]
         drawRoundedElement(layer, element)
-        drawElementText(layer, element, frameFontCache)
+        -- Diagnostic switch: keep font/text code in the file, but disable all
+        -- text rendering for now so the live screen can rule out font-related OOMs.
+        -- drawElementText(layer, element, frameFontCache)
     end
 
     if state.document.selectedId then
@@ -1375,9 +1366,10 @@ local function runRenderScript()
         end
     end
 
-    drawHud(state, layer, screenHeight, frameFontCache)
+    -- Diagnostic switch: disable HUD text rendering for the same font isolation run.
+    -- drawHud(state, layer, screenHeight, frameFontCache)
 
-    local envelope = ScreenLayoutEditor.takePendingOutputEnvelope(state)
+    local envelope = ScreenLayoutEditor.getOutputEnvelope(state)
     if envelope ~= "" then
         pcall(setOutput, envelope)
     end

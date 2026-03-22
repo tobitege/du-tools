@@ -1,30 +1,19 @@
 if SCREEN_LAYOUT_EDITOR_ENABLED and type(SCREEN_LAYOUT_EDITOR_MODULE) == "table" then
     local outputText = Screen.getScriptOutput()
     if type(outputText) == "string" and outputText ~= "" then
-        local record, recordError = SCREEN_LAYOUT_EDITOR_MODULE.buildPersistenceRecordFromOutput(
+        local record = SCREEN_LAYOUT_EDITOR_MODULE.buildPersistenceRecordFromOutput(
             outputText,
             SCREEN_LAYOUT_EDITOR_MAX_SCREEN_CODE_CHARS
         )
         if record and record.fits then
-            if databank and (
-                record.revision ~= SCREEN_LAYOUT_EDITOR_LAST_PERSISTED_REVISION
-                or record.hash ~= SCREEN_LAYOUT_EDITOR_LAST_PERSISTED_HASH
-            ) then
+            if record.revision ~= SCREEN_LAYOUT_EDITOR_LAST_PERSISTED_REVISION
+                or record.hash ~= SCREEN_LAYOUT_EDITOR_LAST_PERSISTED_HASH then
                 databank.setStringValue(record.key, record.text)
                 SCREEN_LAYOUT_EDITOR_LAST_PERSISTED_REVISION = record.revision
                 SCREEN_LAYOUT_EDITOR_LAST_PERSISTED_HASH = record.hash
             end
-        elseif record == nil and recordError then
-            system.print("WARN: ScreenLayoutEditor output ignored: " .. tostring(recordError))
-        elseif record and not record.fits then
-            system.print(
-                "WARN: ScreenLayoutEditor output exceeds max length: "
-                    .. tostring(record.length)
-                    .. "/"
-                    .. tostring(record.maxLength)
-            )
+            Screen.clearScriptOutput()
         end
-        Screen.clearScriptOutput()
     end
     return
 end

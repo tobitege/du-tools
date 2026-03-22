@@ -1735,6 +1735,7 @@ function ScreenLayoutEditor.commitDocument(state)
     state.lastCommittedSerialized = serialized
     state.lastCommittedHash = hash
     state.lastOutputEnvelope = ScreenLayoutEditor.serializeOutputEnvelope(state.document, serialized, hash)
+    state.pendingOutputEnvelope = state.lastOutputEnvelope
     state.documentDirty = false
     return true
 end
@@ -1758,7 +1759,8 @@ function ScreenLayoutEditor.createState(screenWidth, screenHeight, initialDocume
         documentDirty = false,
         lastCommittedSerialized = serialized,
         lastCommittedHash = ScreenLayoutEditor.hashText(serialized),
-        lastOutputEnvelope = ""
+        lastOutputEnvelope = "",
+        pendingOutputEnvelope = ""
     }
 end
 
@@ -1840,6 +1842,15 @@ function ScreenLayoutEditor.getOutputEnvelope(state)
         return ""
     end
     return state.lastOutputEnvelope or ""
+end
+
+function ScreenLayoutEditor.takePendingOutputEnvelope(state)
+    if type(state) ~= "table" then
+        return ""
+    end
+    local envelope = state.pendingOutputEnvelope or ""
+    state.pendingOutputEnvelope = ""
+    return envelope
 end
 
 local function getFont(size)
@@ -1996,42 +2007,52 @@ end
 
 local function runRenderScript()
     local state = getState()
+    local frameFontCache = {}
     local cursorX, cursorY = getCursor()
+    local cursorPressed = getCursorPressed()
+    local cursorDown = getCursorDown()
+    local cursorReleased = getCursorReleased()
     ScreenLayoutEditor.applyPointerFrame(state, {
         cursorX = cursorX,
         cursorY = cursorY,
-        pressed = getCursorPressed(),
-        down = getCursorDown(),
-        released = getCursorReleased()
+        pressed = cursorPressed,
+        down = cursorDown,
+        released = cursorReleased
     })
 
     local _, screenHeight = getResolution()
     setBackgroundColor(0.06, 0.06, 0.07)
 
-    local contentLayer = createLayer()
-    local overlayLayer = createLayer()
+    local layer = createLayer()
 
     for index = 1, #state.document.elements do
         local element = state.document.elements[index]
-        drawRoundedElement(contentLayer, element)
-        drawElementText(contentLayer, element)
+        drawRoundedElement(layer, element)
+        -- Diagnostic switch: keep font/text code in the file, but disable all
+        -- text rendering for now so the live screen can rule out font-related OOMs.
+        -- drawElementText(layer, element, frameFontCache)
     end
 
     if state.document.selectedId then
         local selected = ScreenLayoutEditor.findElement(state.document, state.document.selectedId)
         if selected then
-            drawSelectionOverlay(state, overlayLayer, selected)
+            drawSelectionOverlay(state, layer, selected)
         end
     end
 
-    drawHud(state, overlayLayer, screenHeight)
+    -- Diagnostic switch: disable HUD text rendering for the same font isolation run.
+    -- drawHud(state, layer, screenHeight, frameFontCache)
 
-    local envelope = ScreenLayoutEditor.getOutputEnvelope(state)
+    local envelope = ScreenLayoutEditor.takePendingOutputEnvelope(state)
     if envelope ~= "" then
         pcall(setOutput, envelope)
     end
 
-    requestAnimationFrame(1)
+    local nextFrameDelay = 6
+    if state.operation or cursorPressed or cursorDown or cursorReleased then
+        nextFrameDelay = 1
+    end
+    requestAnimationFrame(nextFrameDelay)
 end
 
 if type(getResolution) == "function"
@@ -2104,4 +2125,3 @@ end
 
 unit.hideWidget();
 unit.setTimer("UPD")
-

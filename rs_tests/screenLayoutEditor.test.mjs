@@ -363,6 +363,88 @@ test("tracks revision and dirty state without font cache in pure logic", async (
   assert.equal(result, "ok");
 });
 
+test("emits a committed output envelope only once across renders", async () => {
+  const result = await runLua(`
+    local outputCount = 0
+    local lastOutput = nil
+
+    function setNextFillColor(...) end
+    function setNextStrokeColor(...) end
+    function setNextStrokeWidth(...) end
+    function addBox(...) end
+    function addBoxRounded(...) end
+    function addText(...) end
+    function setBackgroundColor(...) end
+    function createLayer()
+      return 1
+    end
+    function getCursor()
+      return -1, -1
+    end
+    function getCursorPressed()
+      return false
+    end
+    function getCursorDown()
+      return false
+    end
+    function getCursorReleased()
+      return false
+    end
+    function getResolution()
+      return 320, 240
+    end
+    function setOutput(value)
+      outputCount = outputCount + 1
+      lastOutput = value
+    end
+    function requestAnimationFrame(...) end
+
+    SCREEN_LAYOUT_EDITOR_INITIAL_DOCUMENT = [[
+      {version=1,revision=0,elements={
+        {id="box",type="boxRounded",x=20,y=20,w=100,h=80,movable=true,resizable=true}
+      }}
+    ]]
+    SCREEN_LAYOUT_EDITOR_STATE = nil
+
+    local loader = assert(load(__MODULE_SOURCE, "@ScreenLayoutEditor.lua", "t", _ENV))
+    local editor = loader()
+    local state = SCREEN_LAYOUT_EDITOR_STATE
+
+    if outputCount ~= 0 then
+      error("initial render must not emit output")
+    end
+
+    editor.applyPointerFrame(state, { cursorX = 30, cursorY = 30, pressed = true })
+    editor.applyPointerFrame(state, { cursorX = 60, cursorY = 70, down = true })
+    editor.applyPointerFrame(state, { cursorX = 60, cursorY = 70, released = true })
+
+    if state.pendingOutputEnvelope == "" then
+      error("expected pending output envelope after commit")
+    end
+    if state.lastOutputEnvelope == "" then
+      error("expected last output envelope after commit")
+    end
+
+    loader()
+    if outputCount ~= 1 then
+      error("expected exactly one output after first post-commit render")
+    end
+    if lastOutput ~= state.lastOutputEnvelope then
+      error("render emitted unexpected envelope")
+    end
+    if state.pendingOutputEnvelope ~= "" then
+      error("pending output envelope must be consumed")
+    end
+
+    loader()
+    if outputCount ~= 1 then
+      error("idle render must not re-emit the same envelope")
+    end
+    return "ok"
+  `);
+  assert.equal(result, "ok");
+});
+
 test("caches font discovery, handles, and text bounds across renders", async () => {
   const result = await runLua(`
     local loadFontCalls = 0

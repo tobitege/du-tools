@@ -21,6 +21,8 @@ Observability ohne direkten describe: du_get_last_result, du_tail_runtime_logs. 
 
 du_lua_apply schließt oft die gesamte Lua-Editor-Maske — nur bewusst oder ganz am Ende nutzen.
 
+Falls zusätzlich ein Windows-Screenshot-MCP wie `ScreenShotNet` verfügbar ist: Screenshots nur gezielt nutzen, um den sichtbaren DU-Client-Zustand zu prüfen, wenn Probe-Status und sichtbarer Zustand auseinanderlaufen könnten. Gute Zeitpunkte sind direkt vor nativen Inputs wie `Ctrl+L` / `du_open_editor_native` und direkt nach `apply`. Nicht bei jedem Schritt verwenden; Bild-Payload ist deutlich schwerer als normale Probe-Ergebnisse.
+
 Probe/Build: ModUiExtractor/payload/lua-editor-probe.modules/035-lua-mcp-runtime.js, tools/build-lua-probe.ps1, tools/publish-lua-probe.ps1 (Repo → `payload-overrides`), Chat-Stempel lua-editor-probe.build.json. **Module-Override:** Server konkateniert Manifest + Module und wrappt mit derselben IIFE wie `build-lua-probe.ps1` (`ModUIExtractor.cs` — bei Änderung DLL neu bauen). Theming: drei Presets (Monokai / GitHub Dark / Gruvbox), APPLY/CANCEL an Themes gekoppelt — siehe `ModUiExtractor/README.md`.
 
 Bei Timeouts/Fehlern: Probe-Override validieren, Editor im Client offen, bridge-events.ndjson (command_enqueued → command_result → probe_result) prüfen.
@@ -79,6 +81,7 @@ Default aus der Doku (Beispiel):
 - **Tool:** `du_lua_describe_editor` (`playerId`, `timeoutMs` z. B. 8000)  
 - **Erwartung:** JSON mit `visible`, `title`, `slots[]`, `filters[]`, `selectedSlot`, `selectedFilter`, `codeLength`.  
 - **Bei Fehler / Timeout:** Override + erneut injizieren; Editor wirklich offen; `du_lua_wait_for_editor` (optional).
+- **Optional visuell:** Wenn ein Screenshot-MCP verfügbar ist, `capture_window_screenshot` für `Dual Universe` nur dann nutzen, wenn unklar ist, ob der sichtbare Client-Zustand wirklich zum Probe-Snapshot passt.
 
 ### Schritt B2 — Warten auf Editor (optional)
 
@@ -179,6 +182,7 @@ Heute nur **`uiKind: lua_editor`** (gleiche Bus-Semantik wie `du_lua_*`):
 
 - **Tool:** `du_lua_apply`  
 - **Hinweis:** Schließt in der Praxis oft die **gesamte** Lua-Editor-Maske; danach Probe-Schritte ggf. erst nach erneutem Öffnen.
+- **Optional visuell:** Ein gezielter Screenshot direkt nach `apply` kann helfen zu unterscheiden, ob der sichtbare Screen stabil ist oder ob nur der Editor erfolgreich gespeichert wurde.
 
 ---
 
@@ -203,6 +207,7 @@ Heute nur **`uiKind: lua_editor`** (gleiche Bus-Semantik wie `du_lua_*`):
 
 - `DuMcpBridge/README.md` — Tool-/Resource-Liste, Verträge
 - `ModUiExtractor/README.md` — Mod, Override, Hot-Reload, Build-Stamp
+- `du-visual-subagent.md` — Probe-first Workflow für einen Screenshot-fähigen Hilfs-Subagenten
 - `live_board/README.md` — Fester Repo-Ablageort und getrackte Live-Board-Snapshots
 
 ---
