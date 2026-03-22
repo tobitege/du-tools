@@ -208,6 +208,10 @@ function sessionNameFromFileName(fileName: string): string {
   return withoutExtension || trimmed;
 }
 
+function hasGeneratedUntitledName(name: string): boolean {
+  return /^Untitled(?: \d+)?$/.test(name.trim());
+}
+
 function fileLabel(session: SessionEntry | undefined): string {
   if (!session) {
     return "no session";
@@ -636,6 +640,9 @@ export default function App() {
       await flushActiveSession();
       const saved = await saveSessionToLocal(activeSession.id, code, activeSession.name || "render-script");
       if (saved) {
+        if (hasGeneratedUntitledName(activeSession.name)) {
+          await renameSession(activeSession.id, sessionNameFromFileName(saved.fileName));
+        }
         await refreshSessions();
         const modeLabel = saved.mode === "file-handle" ? "saved" : "downloaded";
         showStatus(`File ${modeLabel}: ${saved.fileName}`);

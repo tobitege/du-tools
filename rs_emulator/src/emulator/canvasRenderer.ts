@@ -79,10 +79,17 @@ export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
   ctx.fillStyle = rgbaStr(bg);
   ctx.fillRect(0, 0, w, h);
 
-  for (const cmd of buffer.commands) {
-    if (!isRenderableCommand(cmd)) {
-      continue;
-    }
+  const renderCommands = buffer.commands
+    .filter(isRenderableCommand)
+    .map((command, index) => ({ command, index }))
+    .sort((left, right) => {
+      if (left.command.layer !== right.command.layer) {
+        return left.command.layer - right.command.layer;
+      }
+      return left.index - right.index;
+    });
+
+  for (const { command: cmd } of renderCommands) {
 
     if ("layer" in cmd) {
       const layer = (cmd as any).layer as number;

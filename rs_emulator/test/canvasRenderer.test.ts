@@ -75,4 +75,32 @@ describe("canvasRenderer text rendering", () => {
 
     expect(context.fillText).toHaveBeenCalledWith("Bottom HUD", 16, 96);
   });
+
+  it("renders lower layers before higher layers even when commands were added later", () => {
+    const buffer = new DrawBuffer();
+    const background = buffer.CreateLayer();
+    const foreground = buffer.CreateLayer();
+    const backgroundImage = { tag: "background" } as unknown as HTMLImageElement;
+    const foregroundImage = { tag: "foreground" } as unknown as HTMLImageElement;
+
+    buffer.images.push(
+      { id: 1, url: "https://assets.prod.novaquark.com/1/background.jpg", loaded: true, element: backgroundImage, width: 10, height: 10 },
+      { id: 2, url: "https://assets.prod.novaquark.com/1/foreground.jpg", loaded: true, element: foregroundImage, width: 10, height: 10 }
+    );
+
+    buffer.AddImage(foreground, 2, 0, 0, 10, 10);
+    buffer.AddImage(background, 1, 0, 0, 10, 10);
+
+    const context = createMockContext();
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn(() => context),
+    } as unknown as HTMLCanvasElement;
+
+    renderBuffer(canvas, buffer);
+
+    expect(context.drawImage).toHaveBeenNthCalledWith(1, backgroundImage, 0, 0, 10, 10);
+    expect(context.drawImage).toHaveBeenNthCalledWith(2, foregroundImage, 0, 0, 10, 10);
+  });
 });
