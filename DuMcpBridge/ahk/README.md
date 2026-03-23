@@ -9,6 +9,13 @@ Current helper:
 Current supported action:
 
 - `ctrl_l`: send explicit left-`Ctrl+L` (`LCtrl`) to the `Dual Universe` window to open the currently targeted element code editor (`lua_editor` or `screen_editor`)
+- `camera_move`: center the `Dual Universe` client and apply one relative camera move with explicit `--x`, `--y`, and `--settle-ms` values
+
+Important behavior note:
+
+- the helper also has a recovery mode that sends `Escape` before `Ctrl+L`
+- do not treat that leading `Escape` as neutral; from a normal in-world state it can open the game Options menu
+- if that happens, use a second `Escape` to return in-world before retrying an editor-open step
 
 The bridge resolves the AutoHotkey executable in this order:
 
@@ -36,6 +43,7 @@ Example manual call:
 
 ```powershell
 AutoHotkey64.exe ".\ahk\du_bridge_input.ahk" ctrl_l --window-title "Dual Universe" --activate true
+AutoHotkey64.exe ".\ahk\du_bridge_input.ahk" camera_move --window-title "Dual Universe" --x -100 --y 120 --settle-ms 1000
 ```
 
 For testing, AHK v2 is here:

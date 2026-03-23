@@ -1,12 +1,12 @@
 #
 # Live in-world camera steering harness for Dual Universe.
-# Uses the existing relative mouse nudge helper and logs repeatable step
+# Uses the shared native camera-move helper and logs repeatable step
 # sequences so visible aim-point drift can be judged against the screen center.
 #
 
 param(
-    [ValidateSet("single", "repeatability", "round_trip", "ladder_x", "ladder_y")]
-    [string]$Mode = "single",
+    [ValidateSet("repeatability", "round_trip", "ladder_x", "ladder_y")]
+    [string]$Mode = "repeatability",
     [string]$WindowTitle = "Dual Universe",
     [string]$AhkPath = "C:\Program Files\tools\AutoHotkey\v2\AutoHotkey64.exe",
     [int]$MoveX = 0,
@@ -62,7 +62,7 @@ namespace LiveBoardCamera {
 "@
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$nudgeScript = Join-Path $scriptDir "du_view_nudge.ahk"
+$cameraMoveScript = [System.IO.Path]::GetFullPath((Join-Path $scriptDir "..\DuMcpBridge\ahk\du_bridge_input.ahk"))
 
 [void][LiveBoardCamera.NativeMethods]::SetProcessDPIAware()
 
@@ -200,7 +200,7 @@ function Save-CenteredClientCapture {
     }
 }
 
-function Invoke-DuViewNudge {
+function Invoke-DuCameraMove {
     param(
         [int]$StepMoveX,
         [int]$StepMoveY,
@@ -208,28 +208,55 @@ function Invoke-DuViewNudge {
     )
 
     $args = @(
-        $nudgeScript,
+        $cameraMoveScript,
+        "camera_move",
+        "--window-title",
         $WindowTitle,
+        "--x",
         [string]$StepMoveX,
+        "--y",
         [string]$StepMoveY,
+        "--settle-ms",
         [string]$StepSettleMs
     )
 
-    & $AhkPath @args | Out-Null
-    $exitCode = $LASTEXITCODE
+    $stdoutFile = [System.IO.Path]::GetTempFileName()
+    $stderrFile = [System.IO.Path]::GetTempFileName()
+    try {
+        $process = Start-Process -FilePath $AhkPath -ArgumentList $args -Wait -PassThru -WindowStyle Hidden -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile
+        $exitCode = $process.ExitCode
+        $text = [System.IO.File]::ReadAllText($stdoutFile).Trim()
+        $stderrText = [System.IO.File]::ReadAllText($stderrFile).Trim()
+    } finally {
+        if (Test-Path -LiteralPath $stdoutFile) {
+            Remove-Item -LiteralPath $stdoutFile -Force -ErrorAction SilentlyContinue
+        }
+        if (Test-Path -LiteralPath $stderrFile) {
+            Remove-Item -LiteralPath $stderrFile -Force -ErrorAction SilentlyContinue
+        }
+    }
 
-    if ($exitCode -ne 0) {
-        throw "du_view_nudge.ahk failed with exit code $exitCode."
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        if ([string]::IsNullOrWhiteSpace($stderrText)) {
+            throw "du_bridge_input.ahk returned no output for camera_move."
+        }
+        throw "du_bridge_input.ahk returned no stdout for camera_move. stderr: $stderrText"
+    }
+
+    try {
+        $parsed = $text | ConvertFrom-Json
+    } catch {
+        throw "Could not parse du_bridge_input.ahk output for camera_move: $text"
+    }
+
+    if ($exitCode -ne 0 -or -not $parsed.ok) {
+        throw "camera_move failed: $text"
     }
 
     return [pscustomobject]@{
         ExitCode = $exitCode
-        Raw = ""
-        Result = [pscustomobject]@{
-            ok = $true
-            cursorX = 0
-            cursorY = 0
-        }
+        Raw = $text
+        Result = $parsed
     }
 }
 
@@ -253,8 +280,11 @@ function Invoke-StepSequence {
         $step = $Steps[$i]
         Write-Host ("[{0}/{1}] moveX={2} moveY={3} settleMs={4}" -f ($i + 1), $Steps.Count, $step.MoveX, $step.MoveY, $step.SettleMs) -ForegroundColor Cyan
 
-        $response = Invoke-DuViewNudge -StepMoveX $step.MoveX -StepMoveY $step.MoveY -StepSettleMs $step.SettleMs
+        $response = Invoke-DuCameraMove -StepMoveX $step.MoveX -StepMoveY $step.MoveY -StepSettleMs $step.SettleMs
         $capturePath = $null
+        $resultMoveX = if ($null -ne $response.Result.moveX) { [int]$response.Result.moveX } else { [int]$step.MoveX }
+        $resultMoveY = if ($null -ne $response.Result.moveY) { [int]$response.Result.moveY } else { [int]$step.MoveY }
+        $resultSettleMs = if ($null -ne $response.Result.settleMs) { [int]$response.Result.settleMs } else { [int]$step.SettleMs }
 
         if ($CaptureArtifacts) {
             $windowContext = Get-DuWindowContext -TitleFragment $WindowTitle
@@ -265,9 +295,9 @@ function Invoke-StepSequence {
         $runLog.Add([pscustomobject]@{
             Index = $i + 1
             Label = $step.Label
-            MoveX = $step.MoveX
-            MoveY = $step.MoveY
-            SettleMs = $step.SettleMs
+            MoveX = $resultMoveX
+            MoveY = $resultMoveY
+            SettleMs = $resultSettleMs
             CursorX = [int]$response.Result.cursorX
             CursorY = [int]$response.Result.cursorY
             CapturePath = $capturePath
@@ -319,15 +349,12 @@ function Get-SweepInts {
 }
 
 Ensure-FileExists -Path $AhkPath -Label "AutoHotkey executable"
-Ensure-FileExists -Path $nudgeScript -Label "du_view_nudge.ahk"
+Ensure-FileExists -Path $cameraMoveScript -Label "du_bridge_input.ahk"
 
 $steps = New-Object System.Collections.Generic.List[object]
 $captureDir = Resolve-OutputDirectory -BasePath $ArtifactDir
 
 switch ($Mode) {
-    "single" {
-        Add-Step -Steps $steps -Label "single" -StepMoveX $MoveX -StepMoveY $MoveY -StepSettleMs $SettleMs
-    }
     "repeatability" {
         for ($i = 1; $i -le $RepeatCount; $i++) {
             Add-Step -Steps $steps -Label ("repeat_{0}" -f $i) -StepMoveX $MoveX -StepMoveY $MoveY -StepSettleMs $SettleMs

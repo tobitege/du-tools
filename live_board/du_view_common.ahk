@@ -274,7 +274,7 @@ FocusAndNudge(windowTitle, moveX, moveY, settleMs := 400) {
     return result
 }
 
-FocusAndSendKey(windowTitle, keySequence, actionName := "focus_and_send_key", settleMs := 120) {
+FocusAndSendKey(windowTitle, keySequence, actionName := "focus_and_send_key", settleMs := 120, repeatCount := 1, repeatDelayMs := 120) {
     result := FocusClientCenter(windowTitle)
     result.action := actionName
     result.settleMs := settleMs
@@ -287,7 +287,13 @@ FocusAndSendKey(windowTitle, keySequence, actionName := "focus_and_send_key", se
     }
 
     try {
-        SendEvent(keySequence)
+        loopCount := repeatCount < 1 ? 1 : repeatCount
+        Loop loopCount {
+            SendEvent(keySequence)
+            if (A_Index < loopCount && repeatDelayMs > 0) {
+                Sleep(repeatDelayMs)
+            }
+        }
         result.sendMode := "send_event_active_key"
     } catch as err {
         result.ok := false

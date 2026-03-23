@@ -48,7 +48,7 @@ This avoids races in the live DU UI.
 
 1. Read the latest structured state first:
    - `du_list_active_sessions`
-   - `du_lua_describe_editor` or `du_lua_get_selection`
+   - `du_ui_describe(uiKind = lua_editor)` or `du_ui_wait(uiKind = lua_editor)`
    - optional `du_tail_runtime_logs` or `du_get_last_result`
 2. Decide whether a screenshot is actually needed.
 
@@ -98,7 +98,7 @@ This keeps `Escape` as a fallback, not a default.
 
 ### Phase 4: Post-Apply Verification
 
-After `du_lua_apply` or other live save/apply steps:
+After `du_editor_save` or other live save/apply steps:
 
 1. Read probe/log state first.
 2. If the visible result matters, take one targeted screenshot.
@@ -178,7 +178,7 @@ Keep work in the main agent when:
 Good moments to use this workflow:
 
 - before or after `du_open_editor_native`
-- right after `du_lua_apply`
+- right after `du_editor_save`
 - when a user says the visible client behavior does not match the tool result
 - when the main agent suspects wrong UI focus, stuck overlays, or accidental `Escape`
 

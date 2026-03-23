@@ -1,6 +1,6 @@
 import { forwardRef, useRef, useCallback, useEffect, useImperativeHandle, useMemo } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
-import type { editor } from "monaco-editor";
+import type { editor, languages } from "monaco-editor";
 
 interface CodeEditorProps {
   value: string;
@@ -239,8 +239,8 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
             [/"([^"\\]|\\.)*"/, "string"],
             [/'([^'\\]|\\.)*'/, "string"],
             [/\[\[([^\]]|\][^\]])*\]\]/, "string"],
-            [/\d+(\.\d*)?([eE][\-+]?\d+)?/, "number"],
-            [/\.\d+([eE][\-+]?\d+)?/, "number"],
+            [/\d+(\.\d*)?([eE][-+]?\d+)?/, "number"],
+            [/\.\d+([eE][-+]?\d+)?/, "number"],
             [/[a-zA-Z_]\w*/, {
               cases: {
                 "@keywords": "keyword",
@@ -248,8 +248,8 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
                 "@default": "identifier",
               },
             }],
-            [/[{}()\[\]]/, "@brackets"],
-            [/[<>!~=+\-*\/%#^]/, "operator"],
+            [/[[\]{}()]/, "@brackets"],
+            [/[<>!~=+*/%#^-]/, "operator"],
             [/[;,.]/, "delimiter"],
           ],
           comment_multi: [
@@ -261,7 +261,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
 
       // Register completions
       monaco.languages.registerCompletionItemProvider("lua", {
-        provideCompletionItems(model: any, position: any) {
+        provideCompletionItems(model: editor.ITextModel, position: { lineNumber: number; column: number }) {
           const word = model.getWordUntilPosition(position);
           const range = {
             startLineNumber: position.lineNumber,
@@ -270,7 +270,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
             endColumn: word.endColumn,
           };
 
-          const items: any[] = RS_COMPLETIONS.map((c) => ({
+          const items: languages.CompletionItem[] = RS_COMPLETIONS.map((c) => ({
             label: c.label,
             kind: monaco.languages.CompletionItemKind.Function,
             insertText: c.insertText,

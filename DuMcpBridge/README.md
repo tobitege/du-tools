@@ -62,7 +62,7 @@ The current implementation supports:
 - active code snapshots and last-result lookup
 - runtime log tailing
 - a Lua runtime-probe API for the open Lua editor
-- thin MCP convenience wrappers around that probe (`du_lua_describe_editor`, `du_lua_select_slot`, …)
+- a compact generic UI probe surface built around `du_ui_describe`, `du_ui_invoke`, and `du_ui_wait`
 - a chat snapshot path from the active HUD chat into bridge events
 - a mention inbox that returns only `@ai` messages (case-insensitive)
 - an explicit opt-in server-side chat snapshot path (`server_chat`) for multi-channel reads without the visible HUD tab restriction
@@ -191,7 +191,7 @@ Important limits:
 Editor content transfer now has exactly one supported write path:
 
 1. local source file in the workspace
-2. `du_editor_push_code` or `du_lua_set_code` with `sourcePath`
+2. `du_editor_push_code` with `sourcePath`
 3. bridge writes the player-/target-scoped workspace snapshot plus `ide_import.player-<playerId>.<targetKind>.json`
 4. `ModUiExtractor` injects `applyIdeImport(payload)` into the live UI
 5. the probe validates target/context/reference metadata and emits `ide_import_result`
@@ -200,7 +200,7 @@ Important consequences:
 
 - no inline editor content in MCP tool arguments
 - no bridge `action = set_code` write path for editor content
-- no public probe `set_code` write path through `du_lua_probe_call` or `du_ui_invoke`
+- no public probe `set_code` write path through `du_ui_invoke`
 - `du_editor_save` stays a separate explicit step
 - if the correct editor, slot, or filter is not live yet, the import stays on the file path and is retried by the existing IDE-sync contract
 - reusable live board artifacts must live on a tracked repo path such as `live_board/`, not in untracked or temporary folders
@@ -239,7 +239,7 @@ For editor content, `lua_editor` now accepts only the file-based IDE import path
 1. `DuMcpBridge` stages `ide_import.player-<playerId>.lua_editor.json`
 2. `ModUiExtractor` injects `window.__UI_EXTRACTOR_LUA_PROBE_STATE__.applyIdeImport(payload)`
 3. the probe validates target/context/reference metadata and emits `ide_import_result`
-4. a later explicit `du_editor_save` / `du_lua_apply` calls `LUAEditorManager.apply()`
+4. a later explicit `du_editor_save` calls `LUAEditorManager.apply()`
 
 Inline `set_code` write paths are intentionally rejected on this target.
 
@@ -267,7 +267,7 @@ Important scope note:
 - when visible, the injected probe now also gives `screen_editor` the same theme-switcher treatment as the Lua editor and themes the content header panel as well; this remains probe-side UI logic, not MCP-side state
 - when visible, the probe also adds its own `IDE Sync` button to the top control row; export goes to `ide-workspace/player-<playerId>/screen_editor/snippet.txt`, and file edits flow back through `payload-overrides/ide_import.player-<playerId>.screen_editor.json`
 - opening or toggling a screen through gameplay hotkeys such as `Ctrl+L` or `F` is not currently exposed through MCP
-- the generic `du_ui_*` probe envelope now supports `screen_editor` for `describe`, `apply`, `outer_html`, `raw_eval`
+- the generic `du_ui_*` probe envelope now supports `screen_editor` for `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`
 - slot/filter/chat methods remain `lua_editor`-only
 
 For the Lua editor IDE-sync path, the runtime probe now blocks file transfer when no filter is actively selected.
@@ -277,7 +277,7 @@ That means:
 - no IDE import apply into the Lua editor when no filter is active
 - the intended workflow is: first confirm slot + filter, then transfer code
 - after a slot switch, the client can rebuild the FILTERS panel asynchronously; low-level automation should therefore not guess immediately from stale rows
-- preferred MCP path for live work is now `du_lua_select_context(slotName, filterName)`: confirm slot, wait at least 1 second, then resolve the visible filter by name/signature
+- preferred MCP path for live work is now `du_ui_invoke(uiKind = lua_editor, method = select_context)`: confirm slot, wait at least 1 second, then resolve the visible filter by name/signature
 
 ### Lua runtime probe
 
@@ -305,7 +305,7 @@ Currently supported probe methods:
 - `outer_html`
 - `raw_eval` (trusted-debug only: arbitrary JS body with parameter `state`)
 
-The dedicated MCP chat snapshot tools still use the runtime probe internally, but `chat_snapshot` is not exposed through the generic `du_lua_probe_call` / `du_ui_invoke` method enums.
+The dedicated MCP chat snapshot tools still use the runtime probe internally, but `chat_snapshot` is not exposed through the generic `du_ui_invoke` method enum.
 
 The probe emits `lua_mcp_result` packets for editor actions plus `chat_snapshot`, `chat_send_result`, and `chat_channel_result` packets for chat-specific actions.
 `ModUiExtractor` converts those packets into bridge events of type `probe_result`, `chat_snapshot`, `chat_send_result`, and `chat_channel_result`.
@@ -497,58 +497,106 @@ Important:
 - it does not guarantee a verified board identity for `screen_editor`
 - saving is not implicit; use `du_editor_save` separately after the import path has landed
 
-### `du_lua_probe_call`
+### Compact Tool Model
+
+The live MCP surface is intentionally centered on a small set of tool families:
+
+- `du_ui_describe`, `du_ui_invoke`, `du_ui_wait`
+  Canonical live UI read, action, and readiness paths for `lua_editor` and `screen_editor`.
+- `du_editor_push_code`, `du_editor_pull_code`, `du_editor_save`
+  File-based IDE import, last-known snapshot reads, and explicit save/apply.
+- `du_chat_*`
+  Dedicated chat read/write helpers that add structured semantics beyond a raw probe result.
+- `du_camera_move`
+  The single native entry point for explicit in-world camera steering through relative `x` / `y` movement.
+- `du_open_editor_native`
+  The single native entry point for opening supported element editors through `Ctrl+L`.
+- `du_get_last_result`, `du_tail_runtime_logs`, `du_list_active_sessions`
+  Observability and session discovery.
+
+Wrapper tools such as `du_lua_*`, `du_ui_eval_raw`, and `du_send_key_native` are intentionally no longer part of the public surface. The generic UI path now owns the semantics that mattered in practice:
+
+- `du_ui_invoke(uiKind = lua_editor, method = select_context)` now uses `slotName`, `filterName`, and `settleMs` directly and stretches the timeout budget to cover the settle delay.
+- `du_ui_invoke(uiKind = screen_editor, method = cancel)` keeps the one correct current live exit path: probe cancel first, then delayed native `Escape` cleanup.
+
+### `du_ui_describe`
 
 Purpose:
 
-- call a targeted runtime function inside the open Lua editor UI
-- wait briefly for the matching structured result
+- read the current live UI snapshot for `lua_editor` or `screen_editor`
 
 Inputs:
 
+- `uiKind`
 - `playerId`
-- `method`
-- `slotName`
-- `filterEvent`
-- `message`
-- `channelId`
-- `channelName`
-- `addFilterName` (for `add_filter`)
-- `outerHtmlSelector` (for `outer_html`, default `#filters`)
-- `rawEvalBody` (for `raw_eval`)
 - `timeoutMs`
-
-Supported methods:
-
-- `describe`
-- `chat_send`
-- `chat_join_channel`
-- `chat_select_channel`
-- `select_slot`
-- `select_filter`
-- `apply`
-- `add_filter`
-- `outer_html`
-- `raw_eval`
 
 Behavior:
 
-1. `DuMcpBridge` queues `action = probe_call`
-2. `ModUiExtractor` injects `window.__UI_EXTRACTOR_LUA_PROBE_STATE__.mcp.invoke(...)`
-3. the probe executes against the live Lua editor
-4. the probe emits `lua_mcp_result`
-5. `ModUiExtractor` writes a `probe_result`
-6. `DuMcpBridge` waits for that result and returns it
+- queues `probe_call describe`
+- returns the raw structured snapshot from the live probe
 
-Return fields:
+### `du_ui_invoke`
 
-- `found`
-- `commandId`
+Purpose:
+
+- run the canonical live UI action path for `lua_editor` or `screen_editor`
+
+Inputs:
+
+- `uiKind`
+- `playerId`
 - `method`
-- `success`
-- `createdAtUtc`
-- `resultJson`
-- `error`
+- method-specific fields:
+  - `slotName` for `select_slot` or `select_context`
+  - `filterName` for `select_filter`, `select_context`, or `add_filter`
+  - `filterIndex` for `select_filter_index`
+  - `settleMs` for `select_context`
+  - `message`, `channelId`, `channelName` for chat write/select flows
+  - `selector` for `outer_html`
+  - `functionBody` for `raw_eval`
+  - `timeoutMs`
+
+Supported methods today:
+
+- `lua_editor`: `describe`, `list_filters`, `select_slot`, `select_context`, `select_filter`, `select_filter_index`, `chat_send`, `chat_join_channel`, `chat_select_channel`, `apply`, `add_filter`, `outer_html`, `raw_eval`
+- `screen_editor`: `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`
+
+Important built-in semantics:
+
+- `select_context` is the preferred Lua-editor workflow because it confirms the slot, waits at least `settleMs`, then resolves the visible filter by real name/signature.
+- `cancel` on `screen_editor` automatically performs the required native cleanup after the probe close. This is not an optional flag.
+- `raw_eval` remains a trusted-debug escape hatch only.
+
+### `du_ui_wait`
+
+Purpose:
+
+- poll `describe` until the chosen UI looks ready
+
+Inputs:
+
+- `uiKind`
+- `playerId`
+- `maxWaitMs`
+- `pollIntervalMs`
+- `timeoutMs`
+- `requireVisible`
+
+Behavior:
+
+- polls `du_ui_describe` semantics with target-specific readiness checks for `lua_editor` and `screen_editor`
+
+### Live Lua workflow
+
+For normal editor edits, use this order:
+
+1. `du_ui_describe` or `du_ui_wait` to confirm the editor is live.
+2. `du_ui_invoke(uiKind = lua_editor, method = select_context, slotName, filterName, settleMs)` to establish the target buffer.
+3. `du_editor_push_code` to stage the file-based import.
+4. `du_editor_save` to commit the change explicitly.
+
+If you bypass `select_context` and issue lower-level calls manually, you must still account for the post-slot redraw delay yourself.
 
 ### `du_chat_snapshot`
 
@@ -863,15 +911,15 @@ These shapes were verified end-to-end with `playerId = 10000`, `DuMcpBridge` wri
 
 For edits to land in the script the player sees, use this order:
 
-1. **`du_lua_select_context`** — activate the slot, confirm it, wait for UI settle, then select the visible filter by its real name/signature.
-2. **`du_editor_push_code` / `du_lua_set_code`** — stage the local file through IDE import for that slot+filter context.
-3. **`apply`** — commit the staged change explicitly.
+1. **`du_ui_invoke(uiKind = lua_editor, method = select_context)`** — activate the slot, confirm it, wait for UI settle, then select the visible filter by its real name/signature.
+2. **`du_editor_push_code`** — stage the local file through IDE import for that slot+filter context.
+3. **`du_editor_save`** — commit the staged change explicitly.
 
 If the import is staged with **no slot or filter selected**, the live target context can still be wrong. Establish **slot, then filter**, then stage the import file.
 
 **MCP calls:** run probe steps **sequentially** for the same `playerId` (one tool call at a time). Parallel calls can race on the file bus and confuse debugging.
 
-**Timing note:** after a slot change, Coherent GT can redraw the FILTERS panel and CodeMirror buffer with a delay. If you are using the low-level calls manually, insert an explicit pause of at least **1000 ms** between `select_slot` confirmation and filter resolution. `du_lua_select_context` already does that for you.
+**Timing note:** after a slot change, Coherent GT can redraw the FILTERS panel and CodeMirror buffer with a delay. If you are using low-level calls manually, insert an explicit pause of at least **1000 ms** between `select_slot` confirmation and filter resolution. The canonical `select_context` path already does that for you.
 
 ### `apply` semantics
 
@@ -906,7 +954,7 @@ If the import is staged with **no slot or filter selected**, the live target con
 - Implemented in `035-lua-mcp-runtime.js`. Flow: if no row already has the target event, the probe uses an **unsettled** row (no real event chosen yet, e.g. “Select event”) if one exists; otherwise it **clicks `.lua_add_filter_button`** (fallback: `LUAEditorManager.addNewFilter(true)`), waits for an unsettled row, then opens that row’s kebab (`.action_list_button_wrapper` hover / nudges) and clicks the matching `ul.actionsList li`. Normalization strips spaces and trailing `()`.
 - Cohtml: heavy work runs inside **`setTimeout(..., 0)`**; allow a longer MCP `timeoutMs` (e.g. 15s). Waits use **yieldCpu** iteration yields, not `Date.now()` busy-loops.
 - If a row already shows that event, the result includes **`alreadyPresent: true`** (idempotent).
-- **MCP:** `du_lua_probe_call` with `method: "add_filter"` and `addFilterName`, or **`du_lua_add_filter`**.
+- **MCP:** `du_ui_invoke(uiKind = lua_editor, method = add_filter, filterName = ...)`.
 - Unknown handler → `add_filter_option_not_found:…`. Missing add path → `add_filter_no_add_button` / `add_filter_no_new_row` / `add_filter_no_placeholder_row`.
 - After adding, use **`select_filter`** and then stage the file-based import if you need to edit that handler’s buffer.
 
@@ -914,58 +962,23 @@ If the import is staged with **no slot or filter selected**, the live target con
 
 - Probe method **`outer_html`** with one string argument: a **CSS selector**. Resolution: `querySelector` on `#dpu_editor` first, then `document`. Default when omitted: `"#filters"`.
 - Result JSON: `selector`, `outerHTML`, `originalLength`, `truncated` (markup is capped at **350000** characters so MCP/JSON stays bounded).
-- **MCP:** `du_lua_probe_call` with `method: "outer_html"` and `outerHtmlSelector`, or **`du_lua_outer_html`** with `selector`.
+- **MCP:** `du_ui_invoke(uiKind = lua_editor, method = outer_html, selector = ...)`.
 
 **`raw_eval` (escape hatch)**
 
 - Runs a **function body** (not wrapped by you) with parameter **`state`** = `window.__UI_EXTRACTOR_LUA_PROBE_STATE__`, in **strict** mode via `new Function("state", body)(st)`.
-- Example `rawEvalBody`: `return state.describeLuaEditor();`
+- Example `functionBody`: `return state.describeLuaEditor();`
 - **Security:** executes arbitrary JS in the HUD context — use only for trusted debugging.
-- **MCP:** `du_lua_probe_call` with `method: "raw_eval"` and `rawEvalBody`, or **`du_lua_probe_raw`** with `functionBody`.
+- **MCP:** `du_ui_invoke(uiKind = lua_editor, method = raw_eval, functionBody = ...)`.
 
-**Generic `du_ui_*` tools (preview)**
+**Generic `du_ui_*` tools**
 
-- **`du_ui_describe`**, **`du_ui_invoke`**, **`du_ui_wait`**, **`du_ui_eval_raw`** take **`uiKind`** and delegate to the same file-bus `probe_call` envelope.
+- **`du_ui_describe`**, **`du_ui_invoke`**, and **`du_ui_wait`** take **`uiKind`** and delegate to the same file-bus `probe_call` envelope.
 - Supported today:
-  - `uiKind = lua_editor`: schema-exposed probe surface (`describe`, `select_slot`, `select_filter`, `chat_send`, `chat_join_channel`, `chat_select_channel`, `apply`, `add_filter`, `outer_html`, `raw_eval`)
-  - `uiKind = screen_editor`: `describe`, `apply`, `outer_html`, `raw_eval`
-- `du_chat_snapshot` remains a dedicated MCP tool path; it is not currently part of the generic `du_ui_invoke` / `du_lua_probe_call` method enum.
+  - `uiKind = lua_editor`: schema-exposed probe surface (`describe`, `list_filters`, `select_slot`, `select_context`, `select_filter`, `select_filter_index`, `chat_send`, `chat_join_channel`, `chat_select_channel`, `apply`, `add_filter`, `outer_html`, `raw_eval`)
+  - `uiKind = screen_editor`: `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`
+- `du_chat_snapshot` remains a dedicated MCP tool path; it is not currently part of the generic `du_ui_invoke` method enum.
 - The screen snapshot is intentionally different from the Lua editor snapshot: one editor only, no slots/filters, plus mode/wrap/error metadata from the screen panel.
-
-This tool is the first concrete step toward a “transport-only” MCP server with runtime UI intelligence in the probe.
-
-### Lua probe convenience wrappers
-
-These tools enqueue the same `probe_call` commands as `du_lua_probe_call`. They add no extra business logic on the server.
-
-| Tool | Role |
-| ------ | ------ |
-| `du_lua_describe_editor` | `method = describe` |
-| `du_open_editor_native` | native Windows path via `DuMcpBridge/ahk/du_bridge_input.ahk`; sends `Ctrl+L` to the DU window through AutoHotkey v2 and then waits for the opened element editor (`lua_editor` or `screen_editor`) |
-| `du_lua_list_filters` | `list_filters` — returns current filter rows with visible/signature metadata for debugging |
-| `du_lua_select_slot` | `select_slot` with `slotName` |
-| `du_lua_select_context` | `select_context` with `slotName` + `filterName`; confirms slot, waits at least `settleMs`, then selects the visible filter by name/signature |
-| `du_lua_select_filter` | `select_filter` with `filterName` (same value as the probe’s filter event / `du_lua_probe_call`’s `filterEvent`) |
-| `du_lua_select_filter_index` | `select_filter_index` with a DOM row index from `du_lua_list_filters`; debug/fallback path only |
-| `du_lua_add_filter` | `add_filter` — `+ add filter` when needed, then kebab on the new/unsettled row (`filterName`) |
-| `du_lua_outer_html` | `outer_html` — `outerHTML` for a selector (default `#filters`; truncated if huge) |
-| `du_lua_probe_raw` | `raw_eval` — trusted-debug JS body with `state` parameter |
-| `du_lua_set_code` | file-based IDE-import wrapper for `lua_editor` with `sourcePath` |
-| `du_lua_apply` | `apply` |
-| `du_lua_get_selection` | one `describe`, structured output: `selectedSlot`, `selectedFilter`, `title`, `canApply`, `visible`, `wrapLines`, `codeLength` |
-| `du_lua_wait_for_editor` | polls `describe` until a readiness heuristic succeeds or `maxWaitMs` is reached; each attempt’s wait is capped so the loop respects the total budget; separate from `du_editor_push_code` retries |
-| `du_chat_snapshot` | queues `chat_snapshot` and returns the selected channel plus recent read-only chat messages |
-| `du_chat_ai_mentions` | same snapshot path, but returns only foreign messages that contain `@ai` |
-| `du_chat_server_snapshot` | opt-in server-side snapshot across player-relevant chat channels; independent of the visible HUD tab |
-| `du_chat_server_mentions` | same server-side path, but returns only `@ai` mentions across player-relevant channels |
-| `du_chat_send_message` | sends one message into the selected or explicitly targeted chat channel |
-| `du_chat_create_channel` | creates or joins a custom channel via `/join <name>` and selects `room_<lowercase>` |
-| `du_chat_select_channel` | selects an already existing HUD channel by `channelId` and never joins/creates |
-
-| `du_ui_describe` | `uiKind = lua_editor` or `screen_editor`; generic `describe` snapshot |
-| `du_ui_invoke` | `uiKind` + schema-exposed generic probe-call surface; `lua_editor` supports `describe`, `list_filters`, `select_slot`, `select_context`, `select_filter`, `select_filter_index`, `chat_send`, `chat_join_channel`, `chat_select_channel`, `apply`, `add_filter`, `outer_html`, `raw_eval`; `screen_editor` currently supports `describe`, `apply`, `outer_html`, `raw_eval` |
-| `du_ui_wait` | `uiKind` + generic readiness wait with target-specific heuristics |
-| `du_ui_eval_raw` | `uiKind` + same raw-eval escape hatch as `du_lua_probe_raw` |
 
 Native Windows helper note:
 
@@ -973,8 +986,9 @@ Native Windows helper note:
 - the helper expects AutoHotkey v2; preferred setup is an MCP launch argument `--ahk-path "C:\Program Files\tools\AutoHotkey\v2\AutoHotkey64.exe"` on `run-mcp.cmd`
 - the bridge still accepts per-call `ahkPath` and otherwise checks `DU_AHK_EXE`, `DU_MCP_BRIDGE_AHK_EXE`, `DU_AHK_DIR`, `DU_MCP_BRIDGE_AHK_DIR`, then common install paths
 - current native action scope is intentionally narrow: send `Ctrl+L` to the `Dual Universe` window and then verify which supported element editor became visible through the normal probe path
-
-Structured outputs match `du_lua_probe_call` where noted in the MCP schemas, except `du_lua_get_selection` (narrower fields) and `du_lua_wait_for_editor` (`ready`, `attempts`, `waitedMs`, plus last snapshot fields).
+- keep `sendEscapeFirst` as a fallback, not the default: if the player was already in-world, that first `Escape` can open the game Options UI instead of "clearing" anything
+- if that happens, treat the client as being in Options, not on a clean slate; send `Escape` once more to return in-world before retrying editor-open logic
+- for current live `screen_editor` behavior, `du_ui_invoke(uiKind = screen_editor, method = cancel)` now adds a delayed native `Escape` cleanup automatically after the probe close so the client returns out of the stuck UI state
 
 ### `du_editor_pull_code`
 
@@ -1156,16 +1170,17 @@ Verified live:
 
 ## Current Limitations
 
-- the bridge now exposes only the Windows-native `du_open_editor_native` helper for opening supported element code editors, not a generic gameplay input layer
+- the bridge now exposes only two Windows-native gameplay helpers: `du_camera_move` for explicit relative camera steering and `du_open_editor_native` for the shared element-editor `Ctrl+L` case
 - `screen_editor` still depends on the user having the correct editor UI open
 - `boardId` is not yet enforced as a verified board selection
 - `du_editor_pull_code` returns the last known snapshot, not necessarily the exact live editor state
 - newly added MCP tools require an MCP host reload after rebuild
 - newly added probe modules require the override folder to contain the updated module set
-- Lua-editor slot changes are still timing-sensitive in the live client; if you bypass `du_lua_select_context` and use low-level calls manually, you must account for the post-slot redraw delay yourself
+- Lua-editor slot changes are still timing-sensitive in the live client; if you bypass the canonical `select_context` path and use low-level calls manually, you must account for the post-slot redraw delay yourself
 - HUD channel switching is still state-dependent; in one live session with `open = false` and a selected construct channel (`HC_TestCore_L`), select/join to `room_ai_hlp2` timed out even though `server_chat` could still read that room
 - normal HUD mention reads are intentionally limited to the currently selected client tab; if the visible tab is `POIN` or another unrelated channel, `du_chat_ai_mentions` can correctly return zero while `du_chat_server_mentions` still sees relevant server-side traffic such as `room_ai_hlp2`
-- there is still no general hotkey contract: `du_open_editor_native` covers only the shared element-editor `Ctrl+L` case on Windows via AutoHotkey v2, not generic gameplay inputs like `F` / `Use`
+- there is still no broad gameplay hotkey contract: native input is intentionally limited to `du_camera_move` and `du_open_editor_native`, not generic action keys like `F` / `Use`
+- `sendEscapeFirst = true` is not a harmless preflight: from a normal in-world state it can open the game Options menu. If that happens, the next recovery step is another `Escape` to get back in-world before you assume a clean retry state.
 
 ## Recommended Next Steps
 

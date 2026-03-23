@@ -4365,6 +4365,72 @@
     };
   }
 
+  function cancelScreenEditorChanges() {
+    var root = getScreenEditorRoot();
+    var panel = getScreenEditorPanel();
+    var cancelNode = null;
+    var closeNode = null;
+    function waitForScreenEditorClosedAsync(resultValue) {
+      return pollUntilAsync(
+        function() {
+          var currentRoot = getScreenEditorRoot();
+          if (!isElementVisible(currentRoot || root)) {
+            return resultValue;
+          }
+          return null;
+        },
+        40,
+        25,
+        function() {
+          return new Error("screen_editor_cancel_failed");
+        }
+      );
+    }
+
+    if (!isElementVisible(root)) {
+      throw new Error("screen_editor_not_visible");
+    }
+
+    if (root && root.querySelector) {
+      try {
+        cancelNode = root.querySelector(".footer_line .right_block .cancel_button");
+      } catch (_ignoreScreenCancelButton) {}
+      try {
+        closeNode = root.querySelector(".header_block .close_button");
+      } catch (_ignoreScreenCloseButton) {}
+    }
+
+    if (cancelNode && dispatchMouseSequence(cancelNode)) {
+      return waitForScreenEditorClosedAsync({
+        cancelled: true,
+        usedDomButton: true,
+        usedCloseButton: false
+      });
+    }
+
+    if (closeNode && dispatchMouseSequence(closeNode)) {
+      return waitForScreenEditorClosedAsync({
+        cancelled: true,
+        usedDomButton: false,
+        usedCloseButton: true
+      });
+    }
+
+    try {
+      if (panel && typeof panel.close === "function") {
+        panel.close();
+        return waitForScreenEditorClosedAsync({
+          cancelled: true,
+          usedDomButton: false,
+          usedCloseButton: false,
+          usedPanelClose: true
+        });
+      }
+    } catch (_ignoreScreenPanelClose) {}
+
+    throw new Error("screen_editor_cancel_failed");
+  }
+
   function normalizeProbeTargetKind(targetKind) {
     var normalized = String(targetKind || "").trim().toLowerCase();
     if (normalized === "screen_editor") {
@@ -4394,6 +4460,13 @@
       return applyScreenEditorChanges();
     }
     return applyLuaEditorChanges();
+  }
+
+  function cancelChangesForProbeTarget(targetKind) {
+    if (normalizeProbeTargetKind(targetKind) === "screen_editor") {
+      return cancelScreenEditorChanges();
+    }
+    throw new Error("unsupported_method_for_target:" + normalizeProbeTargetKind(targetKind) + ":cancel");
   }
 
   var MAX_OUTER_HTML_CHARS = 350000;
@@ -5634,6 +5707,8 @@
         result = setCodeForProbeTarget(normalizedTarget, listArgs[0]);
       } else if (normalizedMethod === "apply") {
         result = applyChangesForProbeTarget(normalizedTarget);
+      } else if (normalizedMethod === "cancel") {
+        result = cancelChangesForProbeTarget(normalizedTarget);
       } else if (normalizedMethod === "add_filter") {
         if (normalizedTarget !== "lua_editor") {
           throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);

@@ -84,22 +84,6 @@ const nativeEditorOpenOutputSchema = {
   error: z.string().nullable()
 };
 
-const nativeKeySendOutputSchema = {
-  invoked: z.boolean(),
-  ahkPath: z.string().nullable(),
-  scriptPath: z.string(),
-  windowTitle: z.string(),
-  targetHwnd: z.string().nullable(),
-  activeBefore: z.boolean().nullable(),
-  activeAfter: z.boolean().nullable(),
-  sendMode: z.string().nullable(),
-  key: z.enum(supportedNativeKeys),
-  repeatCount: z.number().int().positive(),
-  delayMs: z.number().int().nonnegative(),
-  nativeResultJson: z.string().nullable(),
-  error: z.string().nullable()
-};
-
 type NativeInputResult = {
   ok: boolean;
   action: string;
@@ -107,10 +91,32 @@ type NativeInputResult = {
   targetHwnd: string;
   activeBefore: boolean;
   activeAfter: boolean;
+  moveX?: number | null;
+  moveY?: number | null;
+  settleMs?: number | null;
+  cursorX?: number | null;
+  cursorY?: number | null;
   sendMode: string;
   key?: string | null;
   repeatCount?: number | null;
   error: string;
+};
+
+const nativeCameraMoveOutputSchema = {
+  invoked: z.boolean(),
+  ahkPath: z.string().nullable(),
+  scriptPath: z.string(),
+  windowTitle: z.string(),
+  targetHwnd: z.string().nullable(),
+  activeBefore: z.boolean().nullable(),
+  activeAfter: z.boolean().nullable(),
+  moveX: z.number().int(),
+  moveY: z.number().int(),
+  settleMs: z.number().int().nonnegative(),
+  cursorX: z.number().int().nullable(),
+  cursorY: z.number().int().nullable(),
+  nativeResultJson: z.string().nullable(),
+  error: z.string().nullable()
 };
 
 type EditorSnapshotFields = {
@@ -123,7 +129,7 @@ type EditorSnapshotFields = {
   parseError: string | null;
 };
 
-type NativeInputToolOptions = {
+export type NativeInputToolOptions = {
   defaultAhkPath?: string | null;
 };
 
@@ -200,15 +206,18 @@ async function resolveAutoHotkeyExecutable(preferredPath?: string | null): Promi
   return "AutoHotkey64.exe";
 }
 
-async function runNativeAhkInput(
-  action: "ctrl_l" | "send_key",
+export async function runNativeAhkInput(
+  action: "ctrl_l" | "send_key" | "camera_move",
   windowTitle: string,
   activateWindow: boolean,
   sendEscapeFirst: boolean,
   key: SupportedNativeKey | null,
   repeatCount: number,
   delayMs: number,
-  preferredAhkPath?: string | null
+  preferredAhkPath?: string | null,
+  moveX = 0,
+  moveY = 0,
+  settleMs = 400
 ): Promise<{
   ahkPath: string | null;
   scriptPath: string;
@@ -239,6 +248,9 @@ async function runNativeAhkInput(
     args.push("--key", key);
   }
   args.push("--repeat", String(repeatCount), "--delay-ms", String(delayMs));
+  if (action === "camera_move") {
+    args.push("--x", String(moveX), "--y", String(moveY), "--settle-ms", String(settleMs));
+  }
 
   try {
     const { stdout } = await execFileAsync(ahkPath, args, {
@@ -449,6 +461,56 @@ export function registerNativeInputTools(
   options?: NativeInputToolOptions
 ): void {
   server.registerTool(
+    "du_camera_move",
+    {
+      title: "Move Dual Universe Camera",
+      description:
+        "Uses a native AutoHotkey v2 helper from `DuMcpBridge/ahk` to center the Dual Universe client and apply one relative camera move with explicit `x` and `y` deltas. This is the canonical live path for native camera steering.",
+      inputSchema: {
+        x: z.number().int().describe("Relative horizontal camera move in native mouse-event units"),
+        y: z.number().int().describe("Relative vertical camera move in native mouse-event units"),
+        settleMs: z.number().int().min(0).max(10000).default(400).describe("Post-move settle delay in milliseconds before the tool returns"),
+        windowTitle: z.string().min(1).default("Dual Universe").describe("Window title substring used to locate the Dual Universe client"),
+        activateWindow: z.boolean().default(true).describe("When true, AutoHotkey first activates the target window before moving the camera"),
+        ahkPath: z.string().min(1).optional().describe("Optional AutoHotkey v2 exe path or directory override for this call")
+      },
+      outputSchema: nativeCameraMoveOutputSchema
+    },
+    async ({ x, y, settleMs, windowTitle, activateWindow, ahkPath }) => {
+      const resolvedAhkPath = ahkPath ?? options?.defaultAhkPath ?? null;
+      const native = await runNativeAhkInput("camera_move", windowTitle, activateWindow, false, null, 1, 0, resolvedAhkPath, x, y, settleMs);
+      const nativeOk = native.nativeResult?.ok === true;
+
+      const structuredContent = {
+        invoked: nativeOk,
+        ahkPath: native.ahkPath,
+        scriptPath: native.scriptPath,
+        windowTitle,
+        targetHwnd: native.nativeResult?.targetHwnd || null,
+        activeBefore: native.nativeResult ? native.nativeResult.activeBefore : null,
+        activeAfter: native.nativeResult ? native.nativeResult.activeAfter : null,
+        moveX: native.nativeResult?.moveX ?? x,
+        moveY: native.nativeResult?.moveY ?? y,
+        settleMs: native.nativeResult?.settleMs ?? settleMs,
+        cursorX: native.nativeResult?.cursorX ?? null,
+        cursorY: native.nativeResult?.cursorY ?? null,
+        nativeResultJson: native.nativeResultJson,
+        error: native.nativeResult?.error || null
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(structuredContent, null, 2)
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
+  server.registerTool(
     "du_open_editor_native",
     {
       title: "Open Element Code Editor via AutoHotkey",
@@ -459,7 +521,7 @@ export function registerNativeInputTools(
         timeoutMs: z.number().int().min(500).max(30000).default(12000).describe("Maximum total wait for either supported element editor to become visible"),
         windowTitle: z.string().min(1).default("Dual Universe").describe("Window title substring used to locate the Dual Universe client"),
         activateWindow: z.boolean().default(true).describe("When true, AutoHotkey first activates the target window before sending `Ctrl+L`"),
-        sendEscapeFirst: z.boolean().default(false).describe("When true, AutoHotkey first sends `Escape` to clear a stuck UI state before `Ctrl+L`"),
+        sendEscapeFirst: z.boolean().default(false).describe("When true, AutoHotkey first sends `Escape` before `Ctrl+L`. Use this only as a recovery path when the client is already stuck in a UI; from a normal in-world state that first `Escape` can open the game Options menu, and a second `Escape` is then needed to return in-world before retrying."),
         ahkPath: z.string().min(1).optional().describe("Optional AutoHotkey v2 exe path or directory override for this call")
       },
       outputSchema: nativeEditorOpenOutputSchema
@@ -519,51 +581,4 @@ export function registerNativeInputTools(
     }
   );
 
-  server.registerTool(
-    "du_send_key_native",
-    {
-      title: "Send Native Key via AutoHotkey",
-      description:
-        "Uses the native AutoHotkey v2 helper from `DuMcpBridge/ahk` to send a supported key directly to the Dual Universe window. Useful for future gameplay/UI automation beyond `Ctrl+L`.",
-      inputSchema: {
-        key: z.enum(supportedNativeKeys).describe("Supported native key to send"),
-        repeatCount: z.number().int().min(1).max(20).default(1).describe("How often the key should be sent"),
-        delayMs: z.number().int().min(0).max(5000).default(120).describe("Delay between repeated key sends in milliseconds"),
-        windowTitle: z.string().min(1).default("Dual Universe").describe("Window title substring used to locate the Dual Universe client"),
-        activateWindow: z.boolean().default(true).describe("When true, AutoHotkey first activates the target window before sending the key"),
-        ahkPath: z.string().min(1).optional().describe("Optional AutoHotkey v2 exe path or directory override for this call")
-      },
-      outputSchema: nativeKeySendOutputSchema
-    },
-    async ({ key, repeatCount, delayMs, windowTitle, activateWindow, ahkPath }) => {
-      const resolvedAhkPath = ahkPath ?? options?.defaultAhkPath ?? null;
-      const native = await runNativeAhkInput("send_key", windowTitle, activateWindow, false, key, repeatCount, delayMs, resolvedAhkPath);
-      const nativeOk = native.nativeResult?.ok === true;
-      const structuredContent = {
-        invoked: nativeOk,
-        ahkPath: native.ahkPath,
-        scriptPath: native.scriptPath,
-        windowTitle,
-        targetHwnd: native.nativeResult?.targetHwnd || null,
-        activeBefore: native.nativeResult ? native.nativeResult.activeBefore : null,
-        activeAfter: native.nativeResult ? native.nativeResult.activeAfter : null,
-        sendMode: native.nativeResult?.sendMode || null,
-        key,
-        repeatCount,
-        delayMs,
-        nativeResultJson: native.nativeResultJson,
-        error: native.nativeResult?.error || null
-      };
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(structuredContent, null, 2)
-          }
-        ],
-        structuredContent
-      };
-    }
-  );
 }

@@ -13,13 +13,13 @@ Du arbeitest im Repo du-tobi an DuMcpBridge + ModUiExtractor (Lua-Editor-Probe).
 
 MCP-Server: DuMcpBridge (z. B. user-DuMcpBridge in Cursor). Vor jedem Testlauf playerId per du_list_active_sessions ermitteln; alle probe/relevanten Calls für dieselbe playerId sequentiell ausführen (keine parallelen MCP-Calls pro Session, wenn Race vermieden werden soll).
 
-Empfohlener Kernpfad: du_lua_describe_editor → optional du_lua_wait_for_editor → du_lua_select_slot → du_lua_select_filter → du_lua_set_code (set_code ersetzt den gesamten Buffer). Nach Slot-Wechsel oft erneut select_filter nötig, sonst kann codeLength 0 sein.
+Empfohlener Kernpfad: du_ui_describe → optional du_ui_wait → du_ui_invoke(method = select_context) → du_editor_push_code → du_editor_save. Nach Slot-Wechsel nicht sofort mit alten Filter-Daten weiterarbeiten; der FILTERS-Bereich kann verzögert neu aufgebaut werden.
 
-du_lua_add_filter: timeoutMs eher 10000–15000. Debug: du_lua_outer_html, du_lua_probe_call, du_lua_probe_raw; generische Wrapper: du_ui_describe, du_ui_invoke, du_ui_wait, du_ui_eval_raw (uiKind: lua_editor).
+du_ui_invoke(method = add_filter): timeoutMs eher 10000–15000. Debug: du_ui_invoke(method = outer_html / raw_eval); generische Live-Pfade sind du_ui_describe, du_ui_invoke, du_ui_wait (uiKind: lua_editor).
 
-Observability ohne direkten describe: du_get_last_result, du_tail_runtime_logs. du_editor_pull_code liefert Datei-/Rig-Workspace — kann vom Live-CodeMirror pro Filter abweichen; Live-Text eher describe / set_code / raw_eval.
+Observability ohne direkten describe: du_get_last_result, du_tail_runtime_logs. du_editor_pull_code liefert Datei-/Rig-Workspace — kann vom Live-CodeMirror pro Filter abweichen; Live-Text eher describe / raw_eval.
 
-du_lua_apply schließt oft die gesamte Lua-Editor-Maske — nur bewusst oder ganz am Ende nutzen.
+du_editor_save kann bei lua_editor die gesamte Lua-Editor-Maske schließen — nur bewusst oder ganz am Ende nutzen.
 
 Falls zusätzlich ein Windows-Screenshot-MCP wie `ScreenShotNet` verfügbar ist: Screenshots nur gezielt nutzen, um den sichtbaren DU-Client-Zustand zu prüfen, wenn Probe-Status und sichtbarer Zustand auseinanderlaufen könnten. Gute Zeitpunkte sind direkt vor nativen Inputs wie `Ctrl+L` / `du_open_editor_native` und direkt nach `apply`. Nicht bei jedem Schritt verwenden; Bild-Payload ist deutlich schwerer als normale Probe-Ergebnisse.
 
@@ -65,7 +65,7 @@ Default aus der Doku (Beispiel):
 ### 1.5 Timeouts
 
 - Viele Tools: `timeoutMs` 250–15000 ms (MCP-Schema-Maximum).
-- **`du_lua_add_filter`:** eher **10000–15000** ms (Cohtml / `setTimeout` in der Probe).
+- **`du_ui_invoke(method = add_filter)`:** eher **10000–15000** ms (Cohtml / `setTimeout` in der Probe).
 
 ---
 
@@ -78,38 +78,33 @@ Default aus der Doku (Beispiel):
 
 ### Schritt B1 — Editor sichtbar / Snapshot
 
-- **Tool:** `du_lua_describe_editor` (`playerId`, `timeoutMs` z. B. 8000)  
+- **Tool:** `du_ui_describe` (`uiKind: lua_editor`, `playerId`, `timeoutMs` z. B. 8000)
 - **Erwartung:** JSON mit `visible`, `title`, `slots[]`, `filters[]`, `selectedSlot`, `selectedFilter`, `codeLength`.  
-- **Bei Fehler / Timeout:** Override + erneut injizieren; Editor wirklich offen; `du_lua_wait_for_editor` (optional).
+- **Bei Fehler / Timeout:** Override + erneut injizieren; Editor wirklich offen; `du_ui_wait` (optional).
 - **Optional visuell:** Wenn ein Screenshot-MCP verfügbar ist, `capture_window_screenshot` für `Dual Universe` nur dann nutzen, wenn unklar ist, ob der sichtbare Client-Zustand wirklich zum Probe-Snapshot passt.
 
 ### Schritt B2 — Warten auf Editor (optional)
 
-- **Tool:** `du_lua_wait_for_editor` (`maxWaitMs`, `timeoutMs`, `requireVisible` nach Bedarf)  
+- **Tool:** `du_ui_wait` (`uiKind: lua_editor`, `maxWaitMs`, `timeoutMs`, `requireVisible` nach Bedarf)
 - **Erwartung:** `ready: true` mit Snapshot, oder nach Budget `ready: false` (dann Logs / NDJSON prüfen).
 
 ---
 
 ## 3. Navigations- und Code-Pfad (empielene Reihenfolge)
 
-### Schritt N1 — Slot wählen
+### Schritt N1 — Slot + Filter wählen
 
-- **Tool:** `du_lua_select_slot` (`slotName` exakt wie im Snapshot, z. B. `system`)  
-- **Erwartung:** `selectedSlot` passt; `filters[]` kann sich je nach Slot ändern.
+- **Tool:** `du_ui_invoke` mit `uiKind: lua_editor`, `method: select_context`, `slotName`, `filterName`, optional `settleMs`
+- **Erwartung:** `selectedSlot` und `selectedFilter` passen; der Toolpfad wartet nach dem Slot-Wechsel bereits auf das notwendige UI-Settling.
 
-### Schritt N2 — Filter wählen
+### Schritt N2 — Code setzen
 
-- **Tool:** `du_lua_select_filter` (`filterName` wie `filters[].event`, z. B. `onStart`)  
-- **Erwartung:** `selectedFilter` gesetzt; `codeLength` kann wechseln.
+- **Tool:** `du_editor_push_code` (`playerId`, `targetKind: lua_editor`, `sourcePath`)
+- **Erwartung:** Import wurde staged; im Spielbuffer landet der Dateiinhalt nach dem IDE-Sync-Pfad.
 
-### Schritt N3 — Code setzen
+### Schritt N3 — Erneut beschreiben
 
-- **Tool:** `du_lua_set_code` (`code` = **gesamter** Buffer)  
-- **Erwartung:** `codeLength` > 0 wenn Text gesetzt; im Spielbuffer prüfen.
-
-### Schritt N4 — Erneut beschreiben
-
-- **Tool:** `du_lua_describe_editor` oder `du_lua_get_selection`  
+- **Tool:** `du_ui_describe`
 - **Erwartung:** Konsistenz mit N1–N3.
 
 ---
@@ -117,7 +112,7 @@ Default aus der Doku (Beispiel):
 ## 4. Filter anlegen (`add_filter`)
 
 - **Voraussetzung:** Richtiger Slot (N1); Handler-Name muss im **Kebab-Menü der neuen Zeile** existieren (slot-/geräteabhängig).
-- **Tool:** `du_lua_add_filter` (`filterName`, ggf. `timeoutMs` 15000)  
+- **Tool:** `du_ui_invoke` mit `uiKind: lua_editor`, `method: add_filter`, `filterName`, ggf. `timeoutMs` 15000
 - **Erwartung:** `added` und erweiterte `filters[]`; oder `alreadyPresent: true` bei Idempotenz.  
 - **Hinweis:** Die Probe nutzt **`+ add filter`** (`.lua_add_filter_button`), nicht nur Kebab auf einer bereits befüllten Zeile zum „Neu-Anlegen“.
 
@@ -127,18 +122,18 @@ Default aus der Doku (Beispiel):
 
 ### Schritt D1 — `outer_html`
 
-- **Tool:** `du_lua_outer_html` (`selector`, z. B. `#filters` oder `.lua_add_filter_button`)  
+- **Tool:** `du_ui_invoke` mit `uiKind: lua_editor`, `method: outer_html`, `selector` z. B. `#filters` oder `.lua_add_filter_button`
 - **Erwartung:** JSON mit `outerHTML`, `truncated`, `originalLength` — nur wenn die Probe `outer_html` enthält (aktueller Override/DLL).
 
 ### Schritt D2 — Low-Level Probe
 
-- **Tool:** `du_lua_probe_call` mit `method` + passenden optionalen Feldern (`outerHtmlSelector`, `rawEvalBody`, …)  
-- **Erwartung:** Gleiches Ergebnis wie die jeweiligen Wrapper.
+- **Tool:** `du_ui_invoke` mit `method` + passenden methodenspezifischen Feldern (`filterName`, `selector`, `functionBody`, …)
+- **Erwartung:** Direkter Zugriff auf den kanonischen Probe-Pfad.
 
 ### Schritt D3 — `raw_eval` (nur vertrauenswürdig)
 
-- **Tool:** `du_lua_probe_raw` oder `du_lua_probe_call` mit `method: raw_eval`  
-- **`functionBody`/`rawEvalBody`:** Strict Body mit Parameter `state`, z. B.:  
+- **Tool:** `du_ui_invoke` mit `uiKind: lua_editor`, `method: raw_eval`
+- **`functionBody`:** Strict Body mit Parameter `state`, z. B.:
   `return state.describeLuaEditor();`  
 - **Risiko:** Beliebiges JS im HUD — nicht mit fremden Strings aus dem Internet füttern.
 
@@ -146,14 +141,11 @@ Default aus der Doku (Beispiel):
 
 ## 6. Generische `du_ui_*`-Tools
 
-Heute nur **`uiKind: lua_editor`** (gleiche Bus-Semantik wie `du_lua_*`):
+Kanonischer Live-Pfad:
 
-| Tool | Entspricht (Lua) |
-| ---- | ----------------- |
-| `du_ui_describe` | `du_lua_describe_editor` |
-| `du_ui_invoke` | `du_lua_probe_call` (alle Methoden + Argumente) |
-| `du_ui_wait` | `du_lua_wait_for_editor` |
-| `du_ui_eval_raw` | `du_lua_probe_raw` |
+- `du_ui_describe`: generischer Snapshot
+- `du_ui_invoke`: generischer Action-/Debug-Pfad
+- `du_ui_wait`: generischer Readiness-Pfad
 
 **Test:** `du_ui_invoke` mit `method: describe` und leeren weiteren Feldern — Ergebnis wie B1.
 
@@ -174,14 +166,14 @@ Heute nur **`uiKind: lua_editor`** (gleiche Bus-Semantik wie `du_lua_*`):
 ### Schritt R3 — Aktiver Code (Datei-Workspace)
 
 - **Tool:** `du_editor_pull_code` (`playerId`, `targetKind: lua_editor`)  
-- **Hinweis:** Kann **Rig/Snippet** aus dem Datei-Workspace zeigen, nicht zwingend den **gleichen** Stand wie der Live-CodeMirror pro Filter. Für pro-Filter-Live-Text eher `describe` / `set_code` / ggf. `raw_eval`.
+- **Hinweis:** Kann **Rig/Snippet** aus dem Datei-Workspace zeigen, nicht zwingend den **gleichen** Stand wie der Live-CodeMirror pro Filter. Für pro-Filter-Live-Text eher `describe` / ggf. `raw_eval`.
 
 ---
 
-## 8. Apply (Vorsicht)
+## 8. Save / Apply (Vorsicht)
 
-- **Tool:** `du_lua_apply`  
-- **Hinweis:** Schließt in der Praxis oft die **gesamte** Lua-Editor-Maske; danach Probe-Schritte ggf. erst nach erneutem Öffnen.
+- **Tool:** `du_editor_save` (`playerId`, `targetKind: lua_editor`)
+- **Hinweis:** Führt bei `lua_editor` in der Praxis oft denselben Save-/Apply-Pfad aus und schließt häufig die **gesamte** Lua-Editor-Maske; danach Probe-Schritte ggf. erst nach erneutem Öffnen.
 - **Optional visuell:** Ein gezielter Screenshot direkt nach `apply` kann helfen zu unterscheiden, ob der sichtbare Screen stabil ist oder ob nur der Editor erfolgreich gespeichert wurde.
 
 ---

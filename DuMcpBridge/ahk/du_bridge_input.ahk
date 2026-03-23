@@ -30,6 +30,11 @@ EmitResult(result) {
         . ',"targetHwnd":"' . JsonEscape(result.targetHwnd) . '"'
         . ',"activeBefore":' . JsonBool(result.activeBefore)
         . ',"activeAfter":' . JsonBool(result.activeAfter)
+        . ',"moveX":' . result.moveX
+        . ',"moveY":' . result.moveY
+        . ',"settleMs":' . result.settleMs
+        . ',"cursorX":' . result.cursorX
+        . ',"cursorY":' . result.cursorY
         . ',"sendMode":"' . JsonEscape(result.sendMode) . '"'
         . ',"key":"' . JsonEscape(result.key) . '"'
         . ',"repeatCount":' . result.repeatCount
@@ -61,6 +66,84 @@ ToBool(value, defaultValue := false) {
         return false
     }
     return defaultValue
+}
+
+GetClientCenterScreen(targetHwnd, &centerX, &centerY) {
+    rect := Buffer(16, 0)
+    if (!DllCall("GetClientRect", "ptr", targetHwnd, "ptr", rect, "Int")) {
+        return false
+    }
+
+    clientWidth := NumGet(rect, 8, "Int")
+    clientHeight := NumGet(rect, 12, "Int")
+    point := Buffer(8, 0)
+    NumPut("Int", clientWidth // 2, point, 0)
+    NumPut("Int", clientHeight // 2, point, 4)
+
+    if (!DllCall("ClientToScreen", "ptr", targetHwnd, "ptr", point, "Int")) {
+        return false
+    }
+
+    centerX := NumGet(point, 0, "Int")
+    centerY := NumGet(point, 4, "Int")
+    return true
+}
+
+FocusClientCenter(windowTitle, activateWindow := true) {
+    result := {
+        ok: false,
+        action: "focus_client_center",
+        windowTitle: windowTitle,
+        targetHwnd: "",
+        activeBefore: false,
+        activeAfter: false,
+        moveX: 0,
+        moveY: 0,
+        settleMs: 0,
+        cursorX: 0,
+        cursorY: 0,
+        sendMode: "",
+        key: "",
+        repeatCount: 1,
+        error: ""
+    }
+
+    targetHwnd := WinExist(windowTitle)
+    if (!targetHwnd) {
+        result.error := "window_not_found"
+        return result
+    }
+
+    targetSpec := "ahk_id " . targetHwnd
+    result.targetHwnd := String(targetHwnd)
+    result.activeBefore := !!WinActive(targetSpec)
+
+    if (activateWindow) {
+        try {
+            WinActivate(targetSpec)
+            WinWaitActive(targetSpec, , 1)
+        } catch as err {
+            result.error := "activate_failed:" . err.Message
+            return result
+        }
+    }
+
+    result.activeAfter := !!WinActive(targetSpec)
+    if (!result.activeAfter) {
+        result.error := "window_not_active"
+        return result
+    }
+
+    if (!GetClientCenterScreen(targetHwnd, &centerX, &centerY)) {
+        result.error := "client_center_lookup_failed"
+        return result
+    }
+
+    DllCall("SetCursorPos", "Int", centerX, "Int", centerY)
+    result.cursorX := centerX
+    result.cursorY := centerY
+    result.ok := true
+    return result
 }
 
 SendCtrlL(windowTitle, activateWindow := true, sendEscapeFirst := false) {
@@ -232,6 +315,25 @@ SendNativeKey(windowTitle, keyName, repeatCount := 1, delayMs := 120, activateWi
     }
 }
 
+MoveCamera(windowTitle, moveX, moveY, settleMs := 400, activateWindow := true) {
+    result := FocusClientCenter(windowTitle, activateWindow)
+    result.action := "camera_move"
+    result.moveX := moveX
+    result.moveY := moveY
+    result.settleMs := settleMs
+    if (!result.ok) {
+        return result
+    }
+
+    Sleep(120)
+    DllCall("mouse_event", "UInt", 0x0001, "Int", moveX, "Int", moveY, "UInt", 0, "UPtr", 0)
+    if (settleMs > 0) {
+        Sleep(settleMs)
+    }
+
+    return result
+}
+
 Main() {
     action := A_Args.Length >= 1 ? String(A_Args[1]) : ""
     windowTitle := ReadOption("--window-title", "Dual Universe")
@@ -240,8 +342,11 @@ Main() {
     keyName := ReadOption("--key", "")
     repeatCount := Integer(ReadOption("--repeat", "1"))
     delayMs := Integer(ReadOption("--delay-ms", "120"))
+    moveX := Integer(ReadOption("--x", "0"))
+    moveY := Integer(ReadOption("--y", "0"))
+    settleMs := Integer(ReadOption("--settle-ms", "400"))
 
-    if (action != "ctrl_l" && action != "send_key") {
+    if (action != "ctrl_l" && action != "send_key" && action != "camera_move") {
         EmitResult({
             ok: false,
             action: action,
@@ -249,6 +354,11 @@ Main() {
             targetHwnd: "",
             activeBefore: false,
             activeAfter: false,
+            moveX: moveX,
+            moveY: moveY,
+            settleMs: settleMs,
+            cursorX: 0,
+            cursorY: 0,
             sendMode: "",
             key: keyName,
             repeatCount: repeatCount,
@@ -259,6 +369,8 @@ Main() {
 
     if (action = "ctrl_l") {
         result := SendCtrlL(windowTitle, activateWindow, sendEscapeFirst)
+    } else if (action = "camera_move") {
+        result := MoveCamera(windowTitle, moveX, moveY, settleMs, activateWindow)
     } else {
         result := SendNativeKey(windowTitle, keyName, repeatCount, delayMs, activateWindow)
     }

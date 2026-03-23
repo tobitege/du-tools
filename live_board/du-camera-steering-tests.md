@@ -1,18 +1,19 @@
 # DU Camera Steering Tests
 
-Purpose: measure how repeatable the in-world camera steering nudges are when Dual Universe has captured the mouse for first-person look.
+Purpose: measure how repeatable the in-world camera steering moves are when Dual Universe has captured the mouse for first-person look.
 
 This is the next problem after the free-cursor UI tests: the useful interaction target is the screen center, not an unlocked cursor.
 
 ## Core Idea
 
-- use relative `mouse_event` nudges through [du_view_nudge.ahk](/d:/github/du-tobi/live_board/du_view_nudge.ahk#L1)
+- use the bridge-native `du_camera_move(x, y)` semantics for relative camera movement
 - run controlled step sequences through [Test-DuCameraSteering.ps1](/d:/github/du-tobi/live_board/Test-DuCameraSteering.ps1#L1)
 - judge movement by what the center of the DU screen points at before and after each step
 
 Current confirmed behavior from live unattended capture runs:
 
-- direct `du_view_nudge.ahk` calls do move the in-world camera on both axes
+- direct relative camera moves do move the in-world camera on both axes
+- the primary camera contract is now generic x/y movement, not named retarget wrappers
 - `Test-DuCameraSteering.ps1` now supports unattended `move -> settle -> centered capture` runs through `-CaptureArtifacts`
 - `Test-DuCameraSteering.ps1` also supports full-window context captures through `-CaptureFullClient`
 - a cumulative `moveY = -35` run (`-5,-10,-20`) shifted the lower console by about `69 px` in the centered crop
@@ -40,7 +41,7 @@ pwsh -File .\live_board\Test-DuCameraSteering.ps1 -Mode repeatability -MoveX 20 
 
 What to look for:
 
-- does each `+20` horizontal nudge move the screen center by about the same amount
+- does each `+20` horizontal move change the screen center by about the same amount
 - does the apparent movement depend on current aim direction or nearby geometry
 
 ### 2. Round Trip
@@ -85,13 +86,33 @@ What to look for:
 - which step size is the first one that is clearly visible and repeatable
 - whether horizontal and vertical steering behave differently
 
+### 4. Iterative Targeting
+
+For real interaction workflows, do not rely on named camera wrappers. Use iterative x/y movement instead.
+
+Example:
+
+```text
+capture -> choose x/y delta -> du_camera_move(x, y) -> capture -> adjust -> repeat
+```
+
+For the editor workflow, the practical handoff is:
+
+1. steer onto the board or screen you want to interact with using iterative x/y moves
+2. open the editor with `du_open_editor_native` or the local `du_open_screen_editor.ahk` fallback
+3. make the Lua change
+4. apply/save
+5. return in-world and continue with iterative x/y moves if the other element needs to be brought back under the crosshair
+
 ## Recommended Visual Workflow
 
 1. Pick a stable in-world target with a clear edge or corner near the screen center.
 2. Take one screenshot before the first steering step.
-3. Run a step sequence with `-PauseBetweenSteps`.
-4. Take another screenshot after each step, or after each forward/reverse pair.
-5. Compare where the screen center points.
+3. Treat that first screenshot as the required baseline check before you move.
+4. Run a step sequence with `-PauseBetweenSteps`.
+5. Take another screenshot after each step, or after each forward/reverse pair.
+6. Compare where the screen center points before deciding on the next x/y correction or editor-open attempt.
+7. If the target is still not under the crosshair, adjust one or both axes and repeat the same loop.
 
 If you want a more stable reference than terrain, use a board, screen frame, console edge, or text baseline with strong contrast.
 
@@ -100,8 +121,12 @@ If you want a more stable reference than terrain, use a board, screen frame, con
 - Keep these tests in-world. Do not open DU settings for them.
 - Prefer one-axis tests first. Mixed `MoveX` + `MoveY` can wait until single-axis behavior looks stable.
 - The JSON log option is only for step bookkeeping. The meaningful measurement still comes from what the DU camera visibly points at.
-- The unattended capture path is the current reliable workflow: direct AHK nudge call, `SettleMs`, then local centered screenshot save.
+- The unattended capture path is the current reliable workflow: direct camera-move call, `SettleMs`, then local centered screenshot save.
+- A screenshot-gated live check on 2026-03-23 confirmed the practical rule here: fixed named retargets are the wrong abstraction for the editor workflow because the needed correction can require both a direction change and a step-size change between iterations.
 - If the centered crop hides too much surrounding context, use `-CaptureFullClient`.
+- A future "smart retarget" path could estimate the next mouse move from before/after image comparison in window pixels, but that is a separate problem from the current generic `du_camera_move(x, y)` workflow.
+- Right-click context menus on elements also free the mouse cursor, so visible state can drift into a cursor-driven UI state without moving the avatar.
+- For the current DU screen editor behavior, a plain single `Escape` is not enough to close reliably. Use the dedicated `close_screen_editor` helper or an equivalent two-tap close path.
 
 ## Practical Steering Estimate
 
@@ -109,10 +134,11 @@ For the current live board/screen setup captured in the smoke runs:
 
 - the screen already occupies the crosshair area in the baseline view
 - the top edge of the lower board sits roughly `80 px` below the crosshair in the centered crop
-- with the observed `moveY` rate of about `2.0 px/unit`, moving the lower board edge onto the crosshair from the current screen-facing baseline should take about `moveY +40`
-- a practical range is `moveY +35` to `+45` to go from the current screen-facing baseline onto the lower board
-- moving back from the lower board to the upper screen should usually take a somewhat smaller reverse step because the screen is much taller and more forgiving; a practical starting range is `moveY -20` to `-40` depending on how far into the lower board aim point you are
+- with the observed `moveY` rate of about `2.0 px/unit` in that one captured layout, moving the lower board edge onto the crosshair from the current screen-facing baseline took about `moveY +40`
+- a practical starting range is `moveY +35` to `+45` to go from the current screen-facing baseline onto the lower board
+- moving back from the lower board to the upper screen should usually take a smaller reverse step because the screen is much taller and more forgiving; a practical starting range is `moveY -30` with a range of about `-20` to `-40` depending on how far into the lower board aim point you are
+- a small upper-screen refinement is about `moveY -15`
 - horizontal travel is much less critical for board-to-screen transitions because the upper screen spans most of the view and overlaps the lower board strongly in `x`
-- still, the confirmed `moveX` rate of about `2.3 px/unit` means that `moveX +/-20` already gives a meaningful lateral correction and `moveX +/-35` gives a clearly visible re-aim
+- still, the observed `moveX` rate of about `2.3 px/unit` in that captured layout means that `moveX +/-20` already gives a meaningful lateral correction and `moveX +/-35` gives a clearly visible re-aim
 
 These are live empirical estimates, not hard guarantees. They are good enough for editor-exit recovery and “swing the camera back onto the other element” routines, where only a few pixels of overlap are needed for `use`.

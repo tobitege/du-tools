@@ -403,7 +403,7 @@ This now works for both `lua_editor` and `screen_editor`.
 MCP transfer contract note:
 
 - MCP-driven editor writes use this same file-based path.
-- `du_editor_push_code` and `du_lua_set_code` now stage `ide_import.player-<playerId>.<targetKind>.json` from a local `sourcePath`.
+- `du_editor_push_code` now stages `ide_import.player-<playerId>.<targetKind>.json` from a local `sourcePath`.
 - Inline bridge/probe `set_code` write paths are intentionally disabled for editor content.
 - Reusable live board Lua snapshots belong on a tracked repo path such as `live_board/`, not in untracked or temporary folders.
 
@@ -447,13 +447,13 @@ Chat timestamp note:
 Supported probe methods:
 
 - `lua_editor`: `describe`, `chat_snapshot`, `chat_send`, `chat_join_channel`, `chat_select_channel`, `select_slot`, `select_filter`, `apply`, `add_filter`, `outer_html`, `raw_eval`
-- `screen_editor`: `describe`, `apply`, `outer_html`, `raw_eval`
+- `screen_editor`: `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`
 
-For `lua_mcp_result`, the probe now emits `targetKind` so bridge events can keep `lua_editor` and `screen_editor` separated. MCP entry points: `DuMcpBridge/README.md` (`du_lua_probe_call`, `du_open_editor_native`, `du_chat_snapshot`, `du_chat_ai_mentions`, `du_chat_send_message`, `du_chat_create_channel`, `du_lua_add_filter`, `du_lua_outer_html`, `du_lua_probe_raw`, `du_ui_*`).
+For `lua_mcp_result`, the probe now emits `targetKind` so bridge events can keep `lua_editor` and `screen_editor` separated. MCP entry points: `DuMcpBridge/README.md` (`du_ui_describe`, `du_ui_invoke`, `du_ui_wait`, `du_open_editor_native`, `du_chat_snapshot`, `du_chat_ai_mentions`, `du_chat_send_message`, `du_chat_create_channel`).
 
 Probe workflow notes (see `DuMcpBridge/README.md` for detail):
 
-- Reliable automation order: **`select_slot` → `select_filter` → file-based IDE import → `apply`**. `apply` often closes the full Lua editor window.
+- Reliable automation order from MCP is **`du_ui_invoke(method = select_context)` → file-based IDE import → `du_editor_save`**. Probe-level low-level calls still map to `select_slot` → `select_filter` → `apply`, and `apply` often closes the full Lua editor window.
 - **`select_filter`** activates an **existing** `.filter.view` row. **`add_filter`** uses **`+ add filter`** when needed, then the new row’s kebab. **`outer_html`** returns truncated `outerHTML`. **`raw_eval`** runs trusted-debug JS with parameter `state` = probe state object.
 - For `lua_editor`, hidden editor state is treated as stale cache. The probe only reports live content while the editor is visible; hidden snapshots are zeroed and editor-mutating methods reject with `lua_editor_not_visible`.
 - For `screen_editor`, hidden editor state is treated as stale cache. The probe only reports live content while the editor is visible; hidden snapshots are zeroed and `apply` rejects with `screen_editor_not_visible`.

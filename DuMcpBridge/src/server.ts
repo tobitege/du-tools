@@ -52,7 +52,9 @@ async function main(): Promise<void> {
   const commandQueue = new BridgeCommandQueue(config);
   const eventStore = new BridgeEventStore(config);
 
-  registerEditorTools(server, commandQueue, eventStore);
+  registerEditorTools(server, commandQueue, eventStore, {
+    defaultAhkPath: launchOptions.ahkPath
+  });
   registerLogTools(server, eventStore);
   registerNativeInputTools(server, commandQueue, eventStore, {
     defaultAhkPath: launchOptions.ahkPath

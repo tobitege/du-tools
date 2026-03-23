@@ -8,9 +8,8 @@ DetectHiddenWindows(false)
 GetMacroSpec(macroName) {
     specs := Map()
     specs["focus_center"] := { action: "focus_center" }
-    specs["look_up"] := { action: "nudge", moveX: 0, moveY: -80, settleMs: 600 }
-    specs["look_right_to_screen"] := { action: "nudge", moveX: 140, moveY: -30, settleMs: 600 }
-    specs["open_screen_editor"] := { action: "nudge_key", moveX: 0, moveY: -80, settleMs: 350, key: "{LCtrl down}l{LCtrl up}", actionName: "focus_nudge_and_ctrl_l", postKeyDelayMs: 300 }
+    specs["open_screen_editor"] := { action: "nudge_key", moveX: 0, moveY: -30, settleMs: 350, key: "{LCtrl down}l{LCtrl up}", actionName: "focus_nudge_and_ctrl_l", postKeyDelayMs: 300 }
+    specs["close_screen_editor"] := { action: "key_repeat", key: "{Escape}", actionName: "focus_and_close_screen_editor", settleMs: 250, repeatCount: 2, repeatDelayMs: 200 }
     specs["press_f"] := { action: "key", key: "f", actionName: "focus_and_press_f", settleMs: 120 }
     specs["press_esc"] := { action: "key", key: "{Escape}", actionName: "focus_and_press_escape", settleMs: 120 }
     specs["open_options"] := { action: "key", key: "{Escape}", actionName: "focus_and_open_options", settleMs: 120 }
@@ -25,7 +24,7 @@ GetMacroSpec(macroName) {
 
 PrintUsage() {
     StdOut('Usage: du_control_center.ahk <macro-name> [--window-title "Dual Universe"] [--dpi 1600] [--baseline-dpi 1600]')
-    StdOut("Macros: focus_center, look_up, look_right_to_screen, open_screen_editor, press_f, press_esc, open_options, close_options, click_client_percent, click_client_px, ui_calibrate")
+    StdOut("Macros: focus_center, open_screen_editor, close_screen_editor, press_f, press_esc, open_options, close_options, click_client_percent, click_client_px, ui_calibrate")
     StdOut('Extra for click_client_percent: --x-percent <0-100> --y-percent <0-100>')
     StdOut('Extra for click_client_px/ui_calibrate: --client-x <px> --client-y <px>')
 }
@@ -76,13 +75,11 @@ Main() {
         case "focus_center":
             result := FocusClientCenter(windowTitle)
             result.action := "focus_center"
-        case "nudge":
-            moveX := ScaleDeltaForDpi(macroSpec.moveX, dpi, baselineDpi)
-            moveY := ScaleDeltaForDpi(macroSpec.moveY, dpi, baselineDpi)
-            result := FocusAndNudge(windowTitle, moveX, moveY, macroSpec.settleMs)
-            result.action := macroName
         case "key":
             result := FocusAndSendKey(windowTitle, macroSpec.key, macroSpec.actionName, macroSpec.settleMs)
+            result.action := macroName
+        case "key_repeat":
+            result := FocusAndSendKey(windowTitle, macroSpec.key, macroSpec.actionName, macroSpec.settleMs, macroSpec.repeatCount, macroSpec.repeatDelayMs)
             result.action := macroName
         case "nudge_key":
             moveX := ScaleDeltaForDpi(macroSpec.moveX, dpi, baselineDpi)

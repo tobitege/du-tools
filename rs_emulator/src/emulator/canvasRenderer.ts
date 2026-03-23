@@ -46,7 +46,7 @@ function applyStyle(ctx: CanvasRenderingContext2D, style: LayerStyle, hasStroke:
   }
 }
 
-function alignToCanvas(hor: number, _ver: number): CanvasTextAlign {
+function alignToCanvas(hor: number): CanvasTextAlign {
   if (hor === RSAlignHor.Center) return "center";
   if (hor === RSAlignHor.Right) return "right";
   return "left";
