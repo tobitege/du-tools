@@ -27,6 +27,8 @@ EmitResult(result) {
         . ',"settleMs":' . result.settleMs
         . ',"cursorX":' . result.cursorX
         . ',"cursorY":' . result.cursorY
+        . ',"clientX":' . result.clientX
+        . ',"clientY":' . result.clientY
         . ',"sendMode":"' . JsonEscape(result.sendMode) . '"'
         . ',"error":"' . JsonEscape(result.error) . '"'
         . "}"
@@ -107,6 +109,16 @@ GetClientSize(targetHwnd, &clientWidth, &clientHeight) {
     return true
 }
 
+ResolveClientPointFromPercent(targetHwnd, xPercent, yPercent, &clientX, &clientY) {
+    if (!GetClientSize(targetHwnd, &clientWidth, &clientHeight)) {
+        return false
+    }
+
+    clientX := Round(clientWidth * xPercent / 100.0)
+    clientY := Round(clientHeight * yPercent / 100.0)
+    return true
+}
+
 FocusClientCenter(windowTitle) {
     result := {
         ok: false,
@@ -120,6 +132,8 @@ FocusClientCenter(windowTitle) {
         settleMs: 0,
         cursorX: 0,
         cursorY: 0,
+        clientX: 0,
+        clientY: 0,
         sendMode: "",
         error: ""
     }
@@ -160,23 +174,15 @@ FocusClientCenter(windowTitle) {
     return result
 }
 
-FocusAndClickClientPercent(windowTitle, xPercent, yPercent, settleMs := 120, button := "left") {
+FocusAndMoveClientPoint(windowTitle, clientX, clientY, settleMs := 120) {
     result := FocusClientCenter(windowTitle)
-    result.action := "focus_and_click_client_percent"
+    result.action := "focus_and_move_client_point"
     result.settleMs := settleMs
     if (!result.ok) {
         return result
     }
 
     targetHwnd := Integer(result.targetHwnd)
-    if (!GetClientSize(targetHwnd, &clientWidth, &clientHeight)) {
-        result.ok := false
-        result.error := "client_size_lookup_failed"
-        return result
-    }
-
-    clientX := Round(clientWidth * xPercent / 100.0)
-    clientY := Round(clientHeight * yPercent / 100.0)
     if (!GetClientPointScreen(targetHwnd, clientX, clientY, &screenX, &screenY)) {
         result.ok := false
         result.error := "client_point_lookup_failed"
@@ -186,8 +192,38 @@ FocusAndClickClientPercent(windowTitle, xPercent, yPercent, settleMs := 120, but
     DllCall("SetCursorPos", "Int", screenX, "Int", screenY)
     result.cursorX := screenX
     result.cursorY := screenY
+    result.clientX := clientX
+    result.clientY := clientY
     if (settleMs > 0) {
         Sleep(settleMs)
+    }
+
+    return result
+}
+
+FocusAndMoveClientPercent(windowTitle, xPercent, yPercent, settleMs := 120) {
+    result := FocusClientCenter(windowTitle)
+    result.action := "focus_and_move_client_percent"
+    result.settleMs := settleMs
+    if (!result.ok) {
+        return result
+    }
+
+    targetHwnd := Integer(result.targetHwnd)
+    if (!ResolveClientPointFromPercent(targetHwnd, xPercent, yPercent, &clientX, &clientY)) {
+        result.ok := false
+        result.error := "client_size_lookup_failed"
+        return result
+    }
+
+    return FocusAndMoveClientPoint(windowTitle, clientX, clientY, settleMs)
+}
+
+FocusAndClickClientPoint(windowTitle, clientX, clientY, settleMs := 120, button := "left") {
+    result := FocusAndMoveClientPoint(windowTitle, clientX, clientY, settleMs)
+    result.action := "focus_and_click_client_point"
+    if (!result.ok) {
+        return result
     }
 
     try {
@@ -199,6 +235,24 @@ FocusAndClickClientPercent(windowTitle, xPercent, yPercent, settleMs := 120, but
     }
 
     return result
+}
+
+FocusAndClickClientPercent(windowTitle, xPercent, yPercent, settleMs := 120, button := "left") {
+    result := FocusClientCenter(windowTitle)
+    result.action := "focus_and_click_client_percent"
+    result.settleMs := settleMs
+    if (!result.ok) {
+        return result
+    }
+
+    targetHwnd := Integer(result.targetHwnd)
+    if (!ResolveClientPointFromPercent(targetHwnd, xPercent, yPercent, &clientX, &clientY)) {
+        result.ok := false
+        result.error := "client_size_lookup_failed"
+        return result
+    }
+
+    return FocusAndClickClientPoint(windowTitle, clientX, clientY, settleMs, button)
 }
 
 FocusAndNudge(windowTitle, moveX, moveY, settleMs := 400) {

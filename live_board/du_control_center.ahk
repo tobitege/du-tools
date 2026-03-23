@@ -16,6 +16,8 @@ GetMacroSpec(macroName) {
     specs["open_options"] := { action: "key", key: "{Escape}", actionName: "focus_and_open_options", settleMs: 120 }
     specs["close_options"] := { action: "key", key: "{Escape}", actionName: "focus_and_close_options", settleMs: 120 }
     specs["click_client_percent"] := { action: "click_client_percent", settleMs: 120 }
+    specs["click_client_px"] := { action: "click_client_px", settleMs: 120 }
+    specs["ui_calibrate"] := { action: "ui_calibrate", settleMs: 120 }
 
     normalized := StrLower(Trim(String(macroName)))
     return specs.Has(normalized) ? specs[normalized] : ""
@@ -23,8 +25,9 @@ GetMacroSpec(macroName) {
 
 PrintUsage() {
     StdOut('Usage: du_control_center.ahk <macro-name> [--window-title "Dual Universe"] [--dpi 1600] [--baseline-dpi 1600]')
-    StdOut("Macros: focus_center, look_up, look_right_to_screen, open_screen_editor, press_f, press_esc, open_options, close_options, click_client_percent")
+    StdOut("Macros: focus_center, look_up, look_right_to_screen, open_screen_editor, press_f, press_esc, open_options, close_options, click_client_percent, click_client_px, ui_calibrate")
     StdOut('Extra for click_client_percent: --x-percent <0-100> --y-percent <0-100>')
+    StdOut('Extra for click_client_px/ui_calibrate: --client-x <px> --client-y <px>')
 }
 
 Main() {
@@ -53,6 +56,8 @@ Main() {
             settleMs: 0,
             cursorX: 0,
             cursorY: 0,
+            clientX: 0,
+            clientY: 0,
             sendMode: "",
             error: "unknown_macro:" . macroName
         })
@@ -64,6 +69,8 @@ Main() {
     baselineDpi := ToInteger(ReadOption("--baseline-dpi", "1600"), 1600)
     xPercent := ToInteger(ReadOption("--x-percent", "50"), 50)
     yPercent := ToInteger(ReadOption("--y-percent", "50"), 50)
+    clientX := ToInteger(ReadOption("--client-x", "0"), 0)
+    clientY := ToInteger(ReadOption("--client-y", "0"), 0)
 
     switch macroSpec.action {
         case "focus_center":
@@ -85,6 +92,12 @@ Main() {
         case "click_client_percent":
             result := FocusAndClickClientPercent(windowTitle, xPercent, yPercent, macroSpec.settleMs)
             result.action := macroName
+        case "click_client_px":
+            result := FocusAndClickClientPoint(windowTitle, clientX, clientY, macroSpec.settleMs)
+            result.action := macroName
+        case "ui_calibrate":
+            result := FocusAndMoveClientPoint(windowTitle, clientX, clientY, macroSpec.settleMs)
+            result.action := macroName
         default:
             result := {
                 ok: false,
@@ -98,6 +111,8 @@ Main() {
                 settleMs: 0,
                 cursorX: 0,
                 cursorY: 0,
+                clientX: 0,
+                clientY: 0,
                 sendMode: "",
                 error: "unsupported_macro_action"
             }
