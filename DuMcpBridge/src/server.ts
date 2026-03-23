@@ -5,6 +5,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { BridgeCommandQueue } from "./bridge/commandQueue.js";
 import { BridgeEventStore } from "./bridge/eventStore.js";
 import { ensureBridgeDirectories, loadConfig } from "./config.js";
+import { registerEmptyPromptSupport } from "./prompts/emptyPromptSupport.js";
 import { registerSessionResources } from "./resources/sessionResources.js";
 import { registerEditorTools } from "./tools/editorTools.js";
 import { registerLogTools } from "./tools/logTools.js";
@@ -60,6 +61,7 @@ async function main(): Promise<void> {
     defaultAhkPath: launchOptions.ahkPath
   });
   registerSessionResources(server, eventStore);
+  registerEmptyPromptSupport(server);
 
   await eventStore.appendSystemEvent({
     eventId: `evt-${Date.now()}`,
