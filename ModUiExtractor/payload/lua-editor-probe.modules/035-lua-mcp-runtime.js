@@ -1149,6 +1149,9 @@
     if (normalized === "screen_editor") {
       return "screen_editor";
     }
+    if (normalized === "hud_chat") {
+      return "hud_chat";
+    }
     return "lua_editor";
   }
 
@@ -2370,24 +2373,27 @@
     try {
       var result = null;
       if (normalizedMethod === "describe") {
+        if (normalizedTarget === "hud_chat") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
         result = describeProbeTarget(normalizedTarget);
       } else if (normalizedMethod === "chat_snapshot") {
-        if (normalizedTarget !== "lua_editor") {
+        if (normalizedTarget !== "hud_chat") {
           throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
         }
         result = captureChatSnapshot();
       } else if (normalizedMethod === "chat_send") {
-        if (normalizedTarget !== "lua_editor") {
+        if (normalizedTarget !== "hud_chat") {
           throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
         }
         result = sendChatMessage(listArgs[0], listArgs[1]);
       } else if (normalizedMethod === "chat_join_channel") {
-        if (normalizedTarget !== "lua_editor") {
+        if (normalizedTarget !== "hud_chat") {
           throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
         }
         result = createOrJoinChatChannel(listArgs[0]);
       } else if (normalizedMethod === "chat_select_channel") {
-        if (normalizedTarget !== "lua_editor") {
+        if (normalizedTarget !== "hud_chat") {
           throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
         }
         result = selectExistingChatChannel(listArgs[0]);

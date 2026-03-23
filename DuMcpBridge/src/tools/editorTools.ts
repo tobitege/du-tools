@@ -177,12 +177,8 @@ const chatChannelOutputSchema = {
   parseError: z.string().nullable()
 };
 
-type LuaProbeMethod =
+type UiProbeMethod =
   | "describe"
-  | "chat_snapshot"
-  | "chat_send"
-  | "chat_join_channel"
-  | "chat_select_channel"
   | "list_filters"
   | "select_slot"
   | "select_context"
@@ -194,34 +190,24 @@ type LuaProbeMethod =
   | "outer_html"
   | "raw_eval";
 
-type LuaProbeCallFields = {
+type UiProbeCallFields = {
   slotName?: string | undefined;
   filterName?: string | undefined;
   filterIndex?: number | undefined;
   settleMs?: number | undefined;
-  message?: string | undefined;
-  channelId?: string | undefined;
-  channelName?: string | undefined;
   selector?: string | undefined;
   functionBody?: string | undefined;
 };
 
-const screenEditorProbeMethods = new Set<LuaProbeMethod>(["describe", "apply", "cancel", "outer_html", "raw_eval"]);
+const screenEditorProbeMethods = new Set<UiProbeMethod>(["describe", "apply", "cancel", "outer_html", "raw_eval"]);
 
-function buildUiProbeArgs(targetKind: EditorUiKind, method: LuaProbeMethod, fields: LuaProbeCallFields): string[] {
+function buildUiProbeArgs(targetKind: EditorUiKind, method: UiProbeMethod, fields: UiProbeCallFields): string[] {
   switch (method) {
     case "describe":
-    case "chat_snapshot":
     case "list_filters":
     case "apply":
     case "cancel":
       return [];
-    case "chat_send":
-      return [fields.message ?? "", fields.channelId ?? ""];
-    case "chat_join_channel":
-      return [fields.channelName ?? ""];
-    case "chat_select_channel":
-      return [fields.channelId ?? fields.channelName ?? ""];
     case "select_slot":
       return [fields.slotName ?? ""];
     case "select_context":
@@ -248,7 +234,7 @@ const uiKindSchema = z
   .enum(["lua_editor", "screen_editor"])
   .describe("Target UI. `lua_editor` supports the public Lua probe API; `screen_editor` currently supports `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`.");
 
-function assertUiProbeMethodSupported(uiKind: EditorUiKind, method: LuaProbeMethod): void {
+function assertUiProbeMethodSupported(uiKind: EditorUiKind, method: UiProbeMethod): void {
   if (uiKind === "screen_editor" && !screenEditorProbeMethods.has(method)) {
     throw new Error(`ui_method_not_supported_for_${uiKind}:${method}`);
   }
@@ -259,7 +245,7 @@ async function enqueueAndWaitUiProbe(
   eventStore: BridgeEventStore,
   targetKind: EditorUiKind,
   playerId: number,
-  method: LuaProbeMethod,
+  method: UiProbeMethod,
   probeArgs: string[],
   timeoutMs: number
 ): Promise<ProbeResultSnapshot> {
@@ -755,6 +741,38 @@ function sleepMs(ms: number): Promise<void> {
   });
 }
 
+async function runScreenEditorEscapeCleanup(
+  commandQueue: BridgeCommandQueue,
+  eventStore: BridgeEventStore,
+  playerId: number,
+  timeoutMs: number,
+  defaultAhkPath: string | null
+): Promise<{
+  nativeOk: boolean;
+  native: Awaited<ReturnType<typeof runNativeAhkInput>>;
+  finalDescribe: ProbeResultSnapshot;
+}> {
+  await sleepMs(500);
+  const native = await runNativeAhkInput(
+    "send_key",
+    "Dual Universe",
+    true,
+    false,
+    "Escape",
+    1,
+    120,
+    defaultAhkPath
+  );
+  const nativeOk = native.nativeResult?.ok === true;
+  const finalDescribe = await enqueueAndWaitUiProbe(commandQueue, eventStore, "screen_editor", playerId, "describe", [], timeoutMs);
+
+  return {
+    nativeOk,
+    native,
+    finalDescribe
+  };
+}
+
 export function registerEditorTools(
   server: McpServer,
   commandQueue: BridgeCommandQueue,
@@ -848,7 +866,7 @@ export function registerEditorTools(
         commandQueue,
         eventStore,
         playerId,
-        "lua_editor",
+        "hud_chat",
         "chat_snapshot",
         [],
         "chat_snapshot",
@@ -911,7 +929,7 @@ export function registerEditorTools(
         commandQueue,
         eventStore,
         playerId,
-        "lua_editor",
+        "hud_chat",
         "chat_snapshot",
         [],
         "chat_snapshot",
@@ -1120,7 +1138,7 @@ export function registerEditorTools(
         commandQueue,
         eventStore,
         playerId,
-        "lua_editor",
+        "hud_chat",
         "chat_send",
         [message, channelId ?? ""],
         "chat_send_result",
@@ -1188,7 +1206,7 @@ export function registerEditorTools(
         commandQueue,
         eventStore,
         playerId,
-        "lua_editor",
+        "hud_chat",
         "chat_join_channel",
         [channelName],
         "chat_channel_result",
@@ -1255,7 +1273,7 @@ export function registerEditorTools(
         commandQueue,
         eventStore,
         playerId,
-        "lua_editor",
+        "hud_chat",
         "chat_select_channel",
         [channelId],
         "chat_channel_result",
@@ -1338,9 +1356,6 @@ export function registerEditorTools(
             "select_context",
             "select_filter",
             "select_filter_index",
-            "chat_send",
-            "chat_join_channel",
-            "chat_select_channel",
             "apply",
             "cancel",
             "add_filter",
@@ -1355,9 +1370,6 @@ export function registerEditorTools(
           .describe("Visible filter or handler name for `select_filter`, `select_context`, or `add_filter`"),
         filterIndex: z.number().int().nonnegative().optional().describe("DOM filter index for `select_filter_index`"),
         settleMs: z.number().int().min(1000).max(15000).optional().describe("Minimum wait after slot confirmation for `select_context`"),
-        message: z.string().optional().describe("Chat message for `chat_send`"),
-        channelId: z.string().optional().describe("Optional channel ID for `chat_send` or `chat_select_channel`"),
-        channelName: z.string().optional().describe("Custom channel name for `chat_join_channel`"),
         selector: z.string().optional().describe("CSS selector for `outer_html`"),
         functionBody: z.string().optional().describe("Trusted function body for `raw_eval` using parameter `state`"),
         timeoutMs: z.number().int().min(250).max(15000).default(15000)
@@ -1372,9 +1384,6 @@ export function registerEditorTools(
       filterName,
       filterIndex,
       settleMs,
-      message,
-      channelId,
-      channelName,
       selector,
       functionBody,
       timeoutMs
@@ -1385,9 +1394,6 @@ export function registerEditorTools(
         filterName,
         filterIndex,
         settleMs,
-        message,
-        channelId,
-        channelName,
         selector,
         functionBody
       });
@@ -1396,20 +1402,14 @@ export function registerEditorTools(
         : timeoutMs;
       const probeResult = await enqueueAndWaitUiProbe(commandQueue, eventStore, uiKind, playerId, method, probeArgs, effectiveTimeout);
       if (uiKind === "screen_editor" && method === "cancel" && probeResult.found && probeResult.success) {
-        await sleepMs(500);
-        const native = await runNativeAhkInput(
-          "send_key",
-          "Dual Universe",
-          true,
-          false,
-          "Escape",
-          1,
-          120,
+        const cleanup = await runScreenEditorEscapeCleanup(
+          commandQueue,
+          eventStore,
+          playerId,
+          effectiveTimeout,
           options?.defaultAhkPath ?? null
         );
-        const nativeOk = native.nativeResult?.ok === true;
-        const finalDescribe = await enqueueAndWaitUiProbe(commandQueue, eventStore, "screen_editor", playerId, "describe", [], effectiveTimeout);
-        const combinedSuccess = nativeOk && finalDescribe.found && finalDescribe.success === true;
+        const combinedSuccess = cleanup.nativeOk && cleanup.finalDescribe.found && cleanup.finalDescribe.success === true;
         const combinedPayload = {
           cancel: {
             commandId: probeResult.commandId,
@@ -1417,16 +1417,16 @@ export function registerEditorTools(
             error: probeResult.error
           },
           nativeCleanup: {
-            invoked: nativeOk,
-            ahkPath: native.ahkPath,
-            scriptPath: native.scriptPath,
-            nativeResultJson: native.nativeResultJson,
-            error: native.nativeResult?.error || null
+            invoked: cleanup.nativeOk,
+            ahkPath: cleanup.native.ahkPath,
+            scriptPath: cleanup.native.scriptPath,
+            nativeResultJson: cleanup.native.nativeResultJson,
+            error: cleanup.native.nativeResult?.error || null
           },
           finalDescribe: {
-            commandId: finalDescribe.commandId,
-            resultJson: finalDescribe.resultJson,
-            error: finalDescribe.error
+            commandId: cleanup.finalDescribe.commandId,
+            resultJson: cleanup.finalDescribe.resultJson,
+            error: cleanup.finalDescribe.error
           }
         };
         return formatProbeToolResult(
@@ -1437,7 +1437,7 @@ export function registerEditorTools(
             success: combinedSuccess,
             createdAtUtc: probeResult.createdAtUtc,
             resultJson: JSON.stringify(combinedPayload, null, 2),
-            error: combinedSuccess ? null : native.nativeResult?.error || finalDescribe.error || "screen_editor_cancel_cleanup_failed"
+            error: combinedSuccess ? null : cleanup.native.nativeResult?.error || cleanup.finalDescribe.error || "screen_editor_cancel_cleanup_failed"
           },
           effectiveTimeout,
           method
@@ -1618,6 +1618,29 @@ export function registerEditorTools(
           retryDelayMs: waitForEditor ? retryDelayMs : null
         }
       });
+
+      if (targetKind === "screen_editor") {
+        const cleanupTimeoutMs = waitForEditor
+          ? Math.min((maxAttempts * retryDelayMs) + 5000, 30000)
+          : 5000;
+        const commandEvent = await eventStore.waitForCommandEvent(result.command.commandId, "command_result", cleanupTimeoutMs);
+        if (commandEvent.found) {
+          try {
+            const payload = commandEvent.payloadJson ? JSON.parse(commandEvent.payloadJson) as Record<string, unknown> : null;
+            if (payload?.status === "injected") {
+              await runScreenEditorEscapeCleanup(
+                commandQueue,
+                eventStore,
+                playerId,
+                cleanupTimeoutMs,
+                options?.defaultAhkPath ?? null
+              );
+            }
+          } catch {
+            // If command_result payload parsing fails, keep the save result stable and skip cleanup inference.
+          }
+        }
+      }
 
       const structuredContent = {
         commandId: result.command.commandId,

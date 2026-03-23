@@ -1238,6 +1238,42 @@ ORDER BY table_schema, table_name, ordinal_position";
             }
         }
 
+        if (string.Equals(targetKind, "hud_chat", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.Equals(action, "probe_call", StringComparison.OrdinalIgnoreCase))
+            {
+                var probeMethod = payload["probeMethod"]?.Value<string>()?.Trim();
+                var probeArgsToken = payload["probeArgs"] as JArray ?? new JArray();
+                if (string.IsNullOrWhiteSpace(probeMethod))
+                {
+                    status = "rejected";
+                    details = "missing_probe_method";
+                    return false;
+                }
+
+                var escapedCommandId = Newtonsoft.Json.JsonConvert.SerializeObject(commandId);
+                var escapedProbeMethod = Newtonsoft.Json.JsonConvert.SerializeObject(probeMethod);
+                var escapedProbeArgs = probeArgsToken.ToString(Newtonsoft.Json.Formatting.None);
+                var escapedTargetKind = Newtonsoft.Json.JsonConvert.SerializeObject("hud_chat");
+                injectCode =
+                    "(function(){" +
+                    "var probe=window.__UI_EXTRACTOR_LUA_PROBE_STATE__;" +
+                    "if(!probe){return;}" +
+                    "var commandId=" + escapedCommandId + ";" +
+                    "var targetKind=" + escapedTargetKind + ";" +
+                    "var method=" + escapedProbeMethod + ";" +
+                    "var args=" + escapedProbeArgs + ";" +
+                    "if(probe.mcp&&typeof probe.mcp.invokeForTarget==='function'){probe.mcp.invokeForTarget(commandId,targetKind,method,args);return;}" +
+                    "if(typeof probe.invokeMcpCommandForTarget==='function'){probe.invokeMcpCommandForTarget(commandId,targetKind,method,args);return;}" +
+                    "if(probe.mcp&&typeof probe.mcp.invoke==='function'){probe.mcp.invoke(commandId,method,args);return;}" +
+                    "if(typeof probe.invokeMcpCommand==='function'){probe.invokeMcpCommand(commandId,method,args);}" +
+                    "})();";
+                summary = "hud_chat probe_call " + probeMethod;
+                status = "ok";
+                return true;
+            }
+        }
+
         details = "unsupported_target_or_action";
         return false;
     }
@@ -1586,6 +1622,10 @@ ORDER BY table_schema, table_name, ordinal_position";
     private static string ResolveProbeTargetKind(JObject payload)
     {
         var raw = payload["targetKind"]?.Value<string>()?.Trim();
+        if (string.Equals(raw, "hud_chat", StringComparison.OrdinalIgnoreCase))
+        {
+            return "hud_chat";
+        }
         if (string.Equals(raw, "screen_editor", StringComparison.OrdinalIgnoreCase))
         {
             return "screen_editor";
@@ -1730,17 +1770,17 @@ ORDER BY table_schema, table_name, ordinal_position";
             else if (string.Equals(packetType, "chat_snapshot", StringComparison.OrdinalIgnoreCase))
             {
                 var packetData = parsedPacket["data"] as JObject ?? new JObject();
-                await AppendMcpBridgeEvent("lua_editor", "chat_snapshot", playerId, packetData);
+                await AppendMcpBridgeEvent("hud_chat", "chat_snapshot", playerId, packetData);
             }
             else if (string.Equals(packetType, "chat_send_result", StringComparison.OrdinalIgnoreCase))
             {
                 var packetData = parsedPacket["data"] as JObject ?? new JObject();
-                await AppendMcpBridgeEvent("lua_editor", "chat_send_result", playerId, packetData);
+                await AppendMcpBridgeEvent("hud_chat", "chat_send_result", playerId, packetData);
             }
             else if (string.Equals(packetType, "chat_channel_result", StringComparison.OrdinalIgnoreCase))
             {
                 var packetData = parsedPacket["data"] as JObject ?? new JObject();
-                await AppendMcpBridgeEvent("lua_editor", "chat_channel_result", playerId, packetData);
+                await AppendMcpBridgeEvent("hud_chat", "chat_channel_result", playerId, packetData);
             }
             else if (string.Equals(packetType, "ide_import_result", StringComparison.OrdinalIgnoreCase))
             {

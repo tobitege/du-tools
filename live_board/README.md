@@ -1,84 +1,631 @@
 # live_board
 
-This folder now holds two kinds of tracked live artifacts:
+This folder is the operator manual and tracked artifact area for live Dual Universe bridge work.
 
-- live board Lua snapshots captured from the game
-- native AutoHotkey and PowerShell helpers for Dual Universe live-window workflows
+Use it when you need to do any of the following safely:
 
-Current files:
+- orient the camera onto a Screen or Programming Board
+- open the correct editor through the bridge
+- move code between a local file and the live editor
+- inspect live UI state without guessing
+- save or cancel safely
+- recover from broken or unclear client states
 
-- `unit-onStart.lua`: exact live snapshot of the board `unit.onStart` script.
-- `unit-onTimer-UPD.lua`: exact live snapshot of the board `unit.onTimer("UPD")` script.
-- `du_control_center.ahk`: headless AutoHotkey CLI entry point for focus, editor-open fallback, key sends, and client-pixel UI actions.
-- `du_view_common.ahk`: shared window-focus, client-coordinate, and JSON result helpers used by the AHK scripts.
-- `Test-DuClientPixels.ps1`: live Dual Universe smoke test for `ui_calibrate` and `click_client_px`.
-- `du-client-pixel-live-tests.md`: MCP screenshot-aware workflow note for interactive live verification of the client-pixel actions.
-- `Test-DuCameraSteering.ps1`: live in-world camera steering harness for repeatability, ladder, and round-trip camera-move tests.
-- `du-camera-steering-tests.md`: workflow note for measuring in-world steering precision with screenshot comparisons.
+This document is written for a first-time human user or AI assistant.
+It is intentionally procedural.
+If a step says to verify state first, do that before continuing.
 
-Current live steering status:
+## 1. Canonical Rule Set
 
-- the canonical camera path is now `du_camera_move(x, y)` in the bridge surface
-- `Test-DuCameraSteering.ps1` now exists only as a sequence test harness around the same underlying camera-move behavior
-- `du_open_screen_editor.ahk` now uses the smaller board-to-screen nudge that matches the live smoke runs
-- `du_control_center.ahk close_screen_editor` still models the current DU behavior for a local native fallback: two `Escape` taps and then stop
-- `Test-DuCameraSteering.ps1` now supports unattended centered screenshot capture through `-CaptureArtifacts`
-- if the centered crop is too tight, `Test-DuCameraSteering.ps1` can capture the full DU client through `-CaptureFullClient`
-- cumulative `moveY = -35` produced about `69 px` of visible travel in the centered crop
-- cumulative `moveX = +35` produced about `80 px` of visible travel in the centered crop
-- for the current board/screen layout and avatar pose, a practical first estimate to move from the current screen-facing baseline onto the lower board is about `moveY +40`
-- a practical first estimate to move back from the lower board onto the upper screen is about `moveY -30`
-- a practical first estimate for a small upper-screen refinement is about `moveY -15`
-- a practical lateral correction is about `moveX +/-20`
+Use the MCP bridge surface as the primary control path.
 
-Important limits:
+Primary tools:
 
-- the observed pixel travel in old captures is only a temporary observation for that exact window size, avatar pose, and camera distance
-- if the game window layout changes, or the avatar/camera moves even slightly, the apparent pixel travel changes too
-- treat the old pixel-travel estimates as current observations for this live setup, not as portable calibration constants
-- camera targeting is iterative; prefer `capture -> decide x/y -> du_camera_move -> capture` over blind repeated guesses
-- right-click context menus on elements also free the mouse cursor, so screenshot or cursor-sensitive checks should account for that
-- from a normal in-world state, a single `Escape` opens the game Options UI; if a recovery path sent `Escape` first, the client is not back on a clean slate until a second `Escape` returns to the world
+- `du_camera_move`
+- `du_open_editor_native`
+- `du_ui_describe`
+- `du_ui_wait`
+- `du_ui_invoke`
+- `du_editor_pull_code`
+- `du_editor_push_code`
+- `du_editor_save`
+- `du_get_last_result`
+- `du_tail_runtime_logs`
+- `du_list_active_sessions`
 
-`Test-DuClientPixels.ps1` modes:
+Treat local AHK and PowerShell helpers in this folder as fallback or measurement tools.
+Do not switch to them just because the MCP path feels slower.
 
-- `cursor`: verifies `ui_calibrate` against the real Dual Universe client rect by comparing the requested client point with the actual OS cursor position.
-- `checkbox`: expects the game to already show `Options -> Settings -> Controls`, clicks the `Invert Y-axis` checkbox twice with `click_client_px`, and checks that the checkbox region changes and then returns to its original pixels.
-- `all`: runs both tests.
+Do not assume any undocumented gameplay hotkey is part of the supported bridge workflow.
+
+## 2. Safety Rules
+
+These rules matter because a wrong action can lose unsaved changes or leave the client in a blocked state.
+
+- Never save unless you have confirmed the correct live editor is open.
+- Never trust stale code snapshots as proof of current live editor state.
+- Never use `du_editor_push_code` as if it opens the editor. It does not.
+- Never use `du_editor_save` as if it chooses the target buffer for you. It does not.
+- For `screen_editor`, a save is only a valid test if the buffer is actually dirty.
+- For `lua_editor`, always establish slot and filter before pushing code.
+- Prefer structured probe reads first and screenshots second.
+- If the current client state is unclear, stop and re-check instead of guessing.
+
+## 3. What Must Already Be True
+
+Before starting, make sure all of the following are true:
+
+- `DuMcpBridge` is built.
+- The MCP host has reloaded the updated bridge after the build.
+- If probe files changed, the updated probe payload has been reinjected.
+- The Dual Universe client is running.
+- The player is online.
+- AutoHotkey v2 is installed and reachable by the bridge.
+- At least one active bridge session exists.
+
+Minimum readiness check:
+
+1. `du_list_active_sessions(limit = 20)`
+Expected:
+returns at least one session and gives you a usable `playerId`.
+
+2. `du_get_last_result()`
+Expected:
+returns a recent bridge event.
+
+3. `du_tail_runtime_logs(playerId = <playerId>, limit = 20..30)`
+Expected:
+shows fresh bridge activity.
+
+If one of those checks fails, do not continue into editor actions.
+
+## 4. Files In This Folder
+
+Tracked live artifacts:
+
+- `unit-onStart.lua`
+  Exact tracked snapshot of the board `unit.onStart` script.
+- `unit-onTimer-UPD.lua`
+  Exact tracked snapshot of the board `unit.onTimer("UPD")` script.
+
+Fallback and measurement helpers:
+
+- `du_control_center.ahk`
+  Local native helper for focus, fallback editor handling, key sends, and client-pixel actions.
+- `du_view_common.ahk`
+  Shared AHK helpers used by the local scripts.
+- `Test-DuClientPixels.ps1`
+  Local smoke test for `ui_calibrate` and `click_client_px`.
+- `du-client-pixel-live-tests.md`
+  Notes for screenshot-aware client-pixel testing.
+- `Test-DuCameraSteering.ps1`
+  Local camera steering harness for repeatability and sweep testing.
+- `du-camera-steering-tests.md`
+  Notes for measuring visible steering effects by screenshot comparison.
+
+Use tracked repo files such as files in `live_board/` as the source for editor push workflows.
+Do not use temporary untracked files as the normal long-term workflow.
+
+## 5. Client State Model
+
+You need to think in client states, not just commands.
+
+Common states:
+
+- Free in-world state
+  The player is in the world and no editor is open.
+- Element targeted under crosshair
+  The camera is aligned so that the intended element is the current interaction target.
+- `screen_editor` visible
+  The screen content editor is live and probe calls act on it.
+- `lua_editor` visible
+  The programming board editor is live and probe calls act on it.
+- Dirty buffer
+  The editor has unsaved changes.
+- Clean buffer
+  The editor has no unsaved changes.
+- Mouse-captured blocked state
+  The editor looks gone or partly gone, but the client still needs cleanup to return to normal world interaction.
+- Options UI accidentally opened
+  A recovery `Escape` was sent from a normal in-world state and opened the game Options UI instead of clearing a problem state.
+
+The correct next step depends on the current state.
+Do not treat all failures as the same failure.
+
+## 6. How To Look Around Safely
+
+The canonical live camera path is `du_camera_move(x, y)`.
+
+Use it iteratively:
+
+1. Start from a known baseline.
+2. Apply a small movement with `du_camera_move`.
+3. Re-check the visible result.
+4. Repeat until the intended element is under the crosshair.
 
 Example:
 
-```powershell
-pwsh -File .\live_board\Test-DuClientPixels.ps1 -Mode cursor -EnterFreeCursorUi -RestoreAfterFreeCursorUi
-
-pwsh -File .\live_board\Test-DuClientPixels.ps1 -Mode checkbox -CaptureArtifacts
+```text
+capture or inspect
+-> decide small x/y adjustment
+-> du_camera_move(x, y)
+-> capture or inspect again
 ```
 
-For agent-assisted live checks, prefer the screenshot MCP workflow described in [du-client-pixel-live-tests.md](/d:/github/du-tobi/live_board/du-client-pixel-live-tests.md#L1) and [../du-visual-subagent.md](/d:/github/du-tobi/du-visual-subagent.md#L1). Keep `-CaptureArtifacts` as a local fallback, not the default repo workflow.
+Important limits:
 
-For bridge-driven editor workflows, keep the MCP surface canonical:
+- Visible pixel travel depends on window size, avatar pose, camera distance, and current scene.
+- Old observed movement values are not stable calibration constants.
+- Do not make large blind repeated guesses if the target is not clearly moving as expected.
 
-- steer with `du_camera_move(x, y)` until the intended element is under the crosshair
-- open the looked-at element editor with `du_open_editor_native`
-- close the live `screen_editor` with `du_ui_invoke(uiKind = screen_editor, method = cancel)`
-- use the local AHK `close_screen_editor` helper only as a manual or non-MCP fallback when you are intentionally working outside the bridge surface
+When the visible state matters more than the last structured probe result, use a screenshot as a reality check.
 
-For the current steering findings and unattended capture examples, see [du-camera-steering-tests.md](/d:/github/du-tobi/live_board/du-camera-steering-tests.md#L1).
+## 7. How To Confirm The Bridge Can See A Live Editor
 
-Recommended quick commands:
+Use these tools:
+
+- `du_ui_describe`
+- `du_ui_wait`
+
+For `screen_editor`, a usable visible snapshot usually includes:
+
+- `visible = true`
+- non-empty `title`
+- non-empty `mode`
+- `codeLength > 0`
+
+For `lua_editor`, a usable visible snapshot usually includes:
+
+- `visible = true`
+- non-empty `title`
+- populated slot information or filter information
+
+If `describe` returns an empty safe snapshot, do not continue as if the editor were open.
+
+## 8. How To Open A Screen Editor
+
+Use this procedure:
+
+1. Confirm a valid `playerId` through the baseline checks.
+2. Orient the camera until the intended screen is under the crosshair.
+3. Run `du_open_editor_native(playerId = <playerId>, timeoutMs = 12000)`.
+4. Immediately confirm with `du_ui_describe(uiKind = screen_editor, playerId = <playerId>)`.
+
+Pass criteria:
+
+- `du_open_editor_native` returns a successful invocation.
+- `openedUiKind = screen_editor`, or the follow-up `du_ui_describe` confirms a visible `screen_editor`.
+
+If the editor does not become visible:
+
+- do not continue to push or save
+- re-check the visible target and the current client state
+- if necessary, use a screenshot to confirm what the player actually sees
+
+## 9. How To Open A Programming Board Editor
+
+Use this procedure:
+
+1. Confirm a valid `playerId` through the baseline checks.
+2. Orient the camera until the intended board is under the crosshair.
+3. Run `du_open_editor_native(playerId = <playerId>, timeoutMs = 12000)`.
+4. Immediately confirm with `du_ui_describe(uiKind = lua_editor, playerId = <playerId>)`.
+
+Pass criteria:
+
+- `du_open_editor_native` succeeds.
+- `lua_editor` is visibly open according to the follow-up describe or wait path.
+
+If the editor does not become visible:
+
+- do not continue to slot, filter, push, or save steps
+- re-check the visible target first
+
+## 10. Screen Editor Development Cycle
+
+This is the canonical bridge-driven edit cycle for a Screen.
+
+### 10.1 Confirm The Editor Is Live
+
+Run:
+
+- `du_ui_describe(uiKind = screen_editor, playerId = <playerId>)`
+- optionally `du_ui_wait(uiKind = screen_editor, playerId = <playerId>, requireVisible = true)`
+
+Do not continue until the screen editor is visibly live.
+
+### 10.2 Pull Existing Code If Needed
+
+Run:
+
+- `du_editor_pull_code(playerId = <playerId>, targetKind = screen_editor)`
+
+Use this as the last known code snapshot for local work.
+Do not treat it as guaranteed proof of the exact current live editor buffer.
+
+### 10.3 Edit A Local Source File
+
+Edit a tracked local file in the repo.
+
+For smoke testing a save path:
+
+- make a semantically neutral minimal change
+- example: add one extra blank line
+
+This matters because `screen_editor` save is only a valid close test when the buffer is dirty.
+
+### 10.4 Push Code Into The Live Screen Editor
+
+Run:
+
+- `du_editor_push_code(playerId = <playerId>, targetKind = screen_editor, sourcePath = <local file>)`
+
+Expected:
+
+- staging succeeds
+- the workspace and import payload are updated
+
+Then re-check:
+
+- `du_ui_describe(uiKind = screen_editor, playerId = <playerId>)`
+
+Expected for a real pending save:
+
+- `canApply = true`
+
+If `canApply` is still false, do not use `du_editor_save` as a save test yet.
+
+### 10.5 Save
+
+Run:
+
+- `du_editor_save(playerId = <playerId>, targetKind = screen_editor)`
+
+Expected behavior:
+
+- the mod invokes `CPPScreenContentEditor.save(...)`
+- the bridge runs delayed native `Escape` cleanup after the save injection
+- the editor closes when the save path actually commits changes
+
+Verify:
+
+- `du_ui_describe(uiKind = screen_editor, playerId = <playerId>)`
+
+Pass criteria:
+
+- `visible = false`
+
+Optional:
+
+- use a screenshot to confirm the client is back in a free in-world state
+
+### 10.6 Cancel Instead Of Save
+
+If the goal is to exit without saving, use:
+
+- `du_ui_invoke(uiKind = screen_editor, method = cancel, playerId = <playerId>)`
+
+Expected behavior:
+
+- the probe triggers the live cancel path
+- the bridge runs delayed native `Escape` cleanup
+- the editor closes
+
+Verify:
+
+- final `du_ui_describe(uiKind = screen_editor, playerId = <playerId>)` reports `visible = false`
+
+### 10.7 Invalid Save Test
+
+This is not a valid save-path test:
+
+- opening the screen editor
+- making no change
+- running `du_editor_save`
+- expecting the editor to close as proof that save works
+
+If the buffer was still clean, that sequence proves nothing useful about the save path.
+
+## 11. Programming Board Development Cycle
+
+This is the canonical bridge-driven edit cycle for a Programming Board.
+
+### 11.1 Confirm The Editor Is Live
+
+Run:
+
+- `du_ui_describe(uiKind = lua_editor, playerId = <playerId>)`
+- optionally `du_ui_wait(uiKind = lua_editor, playerId = <playerId>, requireVisible = true)`
+
+Do not continue until the Lua editor is visibly live.
+
+### 11.2 Establish The Correct Slot And Filter
+
+Use the canonical context path:
+
+- `du_ui_invoke(uiKind = lua_editor, method = select_context, slotName = ..., filterName = ..., settleMs = ...)`
+
+Why this matters:
+
+- the Lua editor can have multiple slots and filters
+- the active target buffer is not safe to guess
+- slot changes are timing-sensitive
+
+The preferred path is:
+
+1. confirm the slot
+2. wait for settle
+3. resolve the visible filter by real name
+
+Do not skip this step before code push.
+
+### 11.3 Push Code
+
+Run:
+
+- `du_editor_push_code(playerId = <playerId>, targetKind = lua_editor, sourcePath = <local file>)`
+
+Use this only after the correct slot and filter are established.
+
+### 11.4 Save
+
+Run:
+
+- `du_editor_save(playerId = <playerId>, targetKind = lua_editor)`
+
+Expected:
+
+- the live Lua apply path is triggered
+
+Note:
+
+- Lua editor apply/save behavior can close the editor panel as part of the normal path
+- do not parallelize additional probe calls on the same editor while saving
+
+### 11.5 Validate
+
+After push or save, use:
+
+- `du_ui_describe`
+- `du_get_last_result`
+- `du_tail_runtime_logs`
+
+Use a screenshot only when the visible state matters more than the structured probe state.
+
+## 12. How To Inspect Live UI Safely
+
+Use these methods intentionally:
+
+### `du_ui_describe`
+
+Use when you need the current structured live snapshot.
+
+### `du_ui_wait`
+
+Use when the UI may still be opening or settling and you need a readiness gate.
+
+### `du_ui_invoke(..., method = outer_html, ...)`
+
+Use when you need a bounded DOM snapshot for debugging or selector confirmation.
+
+### `du_ui_invoke(..., method = raw_eval, ...)`
+
+Use only for trusted debugging.
+This executes arbitrary JavaScript in the live HUD context.
+It is not a normal workflow step.
+
+## 13. Chat Workflow
+
+The bridge also exposes live HUD chat and optional server-side chat helpers.
+
+Canonical HUD chat checks:
+
+1. `du_chat_snapshot(playerId = <playerId>)`
+2. `du_chat_ai_mentions(playerId = <playerId>)`
+3. `du_chat_select_channel(playerId = <playerId>, channelId = "2")`
+4. `du_chat_send_message(playerId = <playerId>, channelId = "2", message = "<smoke>")`
+5. `du_chat_create_channel(playerId = <playerId>, channelName = "<3-10 chars>")`
+
+Important:
+
+- HUD reads are limited to the visible or active HUD context
+- server-side chat reads are a separate opt-in path
+
+Server chat opt-in check:
+
+- `du_chat_server_snapshot(playerId = <playerId>, limit = 50)`
+- `du_chat_server_mentions(playerId = <playerId>, limit = 50)`
+
+If the mod build does not support server chat reads, expect the explicit negative response:
+
+- `server_chat_opt_in_disabled`
+
+## 14. Local Helper Scripts In This Folder
+
+These are not the canonical bridge path, but they are useful in the right situations.
+
+### `Test-DuCameraSteering.ps1`
+
+Use when you need repeatability checks or sweep measurements for visible camera motion.
+
+Examples:
 
 ```powershell
 pwsh -File .\live_board\Test-DuCameraSteering.ps1 -Mode repeatability -MoveX 20 -MoveY 0 -RepeatCount 5 -CaptureArtifacts -SettleMs 1000
 pwsh -File .\live_board\Test-DuCameraSteering.ps1 -Mode ladder_y -SweepValues -5,-10,-20 -CaptureArtifacts -SettleMs 1000
-AutoHotkey64.exe ".\DuMcpBridge\ahk\du_bridge_input.ahk" camera_move --window-title "Dual Universe" --x -100 --y 120 --settle-ms 1000
 ```
 
-Run those commands from a screenshot-confirmed baseline. For real interaction flows, use iterative `du_camera_move(x, y)` adjustments instead of named camera wrappers.
+### `Test-DuClientPixels.ps1`
 
-Manual native fallback for a local non-MCP session:
+Use when you need local smoke checks for client-pixel calibration or client-pixel click behavior.
+
+Modes:
+
+- `cursor`
+- `checkbox`
+- `all`
+
+Examples:
+
+```powershell
+pwsh -File .\live_board\Test-DuClientPixels.ps1 -Mode cursor -EnterFreeCursorUi -RestoreAfterFreeCursorUi
+pwsh -File .\live_board\Test-DuClientPixels.ps1 -Mode checkbox -CaptureArtifacts
+```
+
+### `du_control_center.ahk`
+
+Use only as a local non-MCP fallback when you intentionally need to work outside the bridge surface.
+
+Example:
 
 ```powershell
 & 'C:\Program Files\tools\AutoHotkey\v2\AutoHotkey64.exe' .\live_board\du_control_center.ahk close_screen_editor
 ```
 
-If a newer live board snapshot supersedes the tracked Lua files, replace them in this folder so the reusable reference stays in git.
+## 15. Recovery Cookbook
+
+### No Active Session
+
+Symptoms:
+
+- `du_list_active_sessions` returns nothing usable
+
+Action:
+
+- confirm the player is online
+- confirm the bridge is running
+- confirm the MCP host has reloaded the current bridge build
+
+### Editor Did Not Open
+
+Symptoms:
+
+- `du_open_editor_native` returns success, but the follow-up editor describe is empty
+
+Action:
+
+- verify the visible target under the crosshair
+- verify the current client state with a screenshot if needed
+- do not continue into push or save
+
+### Editor Closed But Client State Still Feels Wrong
+
+Symptoms:
+
+- the editor looks closed, but interaction state still feels blocked
+
+Action:
+
+- use the canonical close path first
+- for `screen_editor`, prefer `cancel` or a real dirty-buffer `save`
+- verify with `du_ui_describe` that the editor is actually gone
+
+### Save Had No Effect In `screen_editor`
+
+Symptoms:
+
+- the editor stayed open after `du_editor_save`
+
+Likely cause:
+
+- the buffer was not dirty
+
+Action:
+
+- confirm with `du_ui_describe` whether `canApply = true`
+- make a real minimal change
+- retry the push and save cycle
+
+### `screen_editor_not_visible`
+
+Symptoms:
+
+- `apply` or `cancel` returns `screen_editor_not_visible`
+
+Action:
+
+- stop mutating actions
+- reopen the editor and re-verify visibility first
+
+### `lua_editor_not_visible`
+
+Symptoms:
+
+- Lua mutating probe methods fail because the editor is not visible
+
+Action:
+
+- reopen and re-verify `lua_editor`
+- then repeat slot/filter establishment
+
+### Wrong Slot Or Filter In `lua_editor`
+
+Symptoms:
+
+- pushed code does not land in the intended target
+
+Likely cause:
+
+- slot or filter was not explicitly established
+
+Action:
+
+- use `select_context`
+- verify slot and filter
+- then push again
+
+### `server_chat_opt_in_disabled`
+
+Symptoms:
+
+- server-side chat tools return that explicit error
+
+Action:
+
+- treat it as a configuration state, not as a timeout mystery
+- use HUD chat tools or rebuild the mod with the opt-in server chat support
+
+### Options UI Opened Unexpectedly
+
+Symptoms:
+
+- a recovery `Escape` from a normal in-world state opened the game Options UI
+
+Action:
+
+- recognize that the client is now in Options, not in a clean baseline
+- send another `Escape` to return to the world
+- re-check state before continuing
+
+## 16. Do This, Not That
+
+- Do: verify editor visibility before push or save.
+- Do not: assume the editor is open because a previous step said it should be.
+
+- Do: use `select_context` for Lua editing.
+- Do not: guess the active slot or filter.
+
+- Do: make a real minimal change before a screen save test.
+- Do not: treat a clean-buffer save attempt as a meaningful validation.
+
+- Do: use iterative `du_camera_move(x, y)` adjustments.
+- Do not: treat old movement observations as fixed calibration constants.
+
+- Do: use local helper scripts as fallback or measurement tooling.
+- Do not: let them replace the canonical MCP workflow without a reason.
+
+## 17. Related Documents
+
+- [DuMcpBridge README](/d:/github/du-tobi/DuMcpBridge/README.md)
+- [Bridge Live Test](/d:/github/du-tobi/DuMcpBridge/bridge-live-test.md)
+- [Client Pixel Live Tests](/d:/github/du-tobi/live_board/du-client-pixel-live-tests.md)
+- [Camera Steering Tests](/d:/github/du-tobi/live_board/du-camera-steering-tests.md)
+- [DU Visual Subagent Notes](/d:/github/du-tobi/du-visual-subagent.md)
+
+## 18. Maintaining The Tracked Live Snapshots
+
+If a newer live board snapshot replaces the tracked Lua snapshots in this folder:
+
+- update the tracked file
+- keep the file path stable when possible
+- commit the new snapshot so the reusable reference stays in git

@@ -1,6 +1,6 @@
 import * as z from "zod/v4";
 
-export const targetKindSchema = z.enum(["lua_editor", "screen_editor", "server_chat"]);
+export const targetKindSchema = z.enum(["lua_editor", "screen_editor", "hud_chat", "server_chat"]);
 export const commandActionSchema = z.enum(["save", "probe_call"]);
 export const commandPayloadSchema = z.object({
   save: z.boolean().optional(),

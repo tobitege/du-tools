@@ -73,6 +73,7 @@ Current in-game targets:
 
 - `lua_editor`
 - `screen_editor`
+- `hud_chat`
 - `server_chat` (opt-in read path; no UI injection)
 
 ## Runtime Layout
@@ -293,9 +294,6 @@ Currently supported probe methods:
 
 - `describe`
 - `list_filters`
-- `chat_send`
-- `chat_join_channel`
-- `chat_select_channel`
 - `select_slot`
 - `select_context`
 - `select_filter`
@@ -305,7 +303,7 @@ Currently supported probe methods:
 - `outer_html`
 - `raw_eval` (trusted-debug only: arbitrary JS body with parameter `state`)
 
-The dedicated MCP chat snapshot tools still use the runtime probe internally, but `chat_snapshot` is not exposed through the generic `du_ui_invoke` method enum.
+The dedicated MCP chat tools still use the runtime probe internally, but they now run against the distinct `hud_chat` bridge target instead of piggybacking on `lua_editor`. Chat methods are not exposed through the generic `du_ui_invoke` method enum.
 
 The probe emits `lua_mcp_result` packets for editor actions plus `chat_snapshot`, `chat_send_result`, and `chat_channel_result` packets for chat-specific actions.
 `ModUiExtractor` converts those packets into bridge events of type `probe_result`, `chat_snapshot`, `chat_send_result`, and `chat_channel_result`.
@@ -518,6 +516,7 @@ Wrapper tools such as `du_lua_*`, `du_ui_eval_raw`, and `du_send_key_native` are
 
 - `du_ui_invoke(uiKind = lua_editor, method = select_context)` now uses `slotName`, `filterName`, and `settleMs` directly and stretches the timeout budget to cover the settle delay.
 - `du_ui_invoke(uiKind = screen_editor, method = cancel)` keeps the one correct current live exit path: probe cancel first, then delayed native `Escape` cleanup.
+- `du_editor_save(targetKind = screen_editor)` now performs the same delayed native `Escape` cleanup after the save command has been injected, so the close path does not leave the client stuck with mouse capture.
 
 ### `du_ui_describe`
 
@@ -552,14 +551,13 @@ Inputs:
   - `filterName` for `select_filter`, `select_context`, or `add_filter`
   - `filterIndex` for `select_filter_index`
   - `settleMs` for `select_context`
-  - `message`, `channelId`, `channelName` for chat write/select flows
   - `selector` for `outer_html`
   - `functionBody` for `raw_eval`
   - `timeoutMs`
 
 Supported methods today:
 
-- `lua_editor`: `describe`, `list_filters`, `select_slot`, `select_context`, `select_filter`, `select_filter_index`, `chat_send`, `chat_join_channel`, `chat_select_channel`, `apply`, `add_filter`, `outer_html`, `raw_eval`
+- `lua_editor`: `describe`, `list_filters`, `select_slot`, `select_context`, `select_filter`, `select_filter_index`, `apply`, `add_filter`, `outer_html`, `raw_eval`
 - `screen_editor`: `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`
 
 Important built-in semantics:
@@ -975,9 +973,9 @@ If the import is staged with **no slot or filter selected**, the live target con
 
 - **`du_ui_describe`**, **`du_ui_invoke`**, and **`du_ui_wait`** take **`uiKind`** and delegate to the same file-bus `probe_call` envelope.
 - Supported today:
-  - `uiKind = lua_editor`: schema-exposed probe surface (`describe`, `list_filters`, `select_slot`, `select_context`, `select_filter`, `select_filter_index`, `chat_send`, `chat_join_channel`, `chat_select_channel`, `apply`, `add_filter`, `outer_html`, `raw_eval`)
+  - `uiKind = lua_editor`: schema-exposed probe surface (`describe`, `list_filters`, `select_slot`, `select_context`, `select_filter`, `select_filter_index`, `apply`, `add_filter`, `outer_html`, `raw_eval`)
   - `uiKind = screen_editor`: `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`
-- `du_chat_snapshot` remains a dedicated MCP tool path; it is not currently part of the generic `du_ui_invoke` method enum.
+- `du_chat_snapshot`, `du_chat_send_message`, `du_chat_create_channel`, and `du_chat_select_channel` remain dedicated MCP tool paths; they are not part of the generic `du_ui_invoke` method enum.
 - The screen snapshot is intentionally different from the Lua editor snapshot: one editor only, no slots/filters, plus mode/wrap/error metadata from the screen panel.
 
 Native Windows helper note:
@@ -988,7 +986,7 @@ Native Windows helper note:
 - current native action scope is intentionally narrow: send `Ctrl+L` to the `Dual Universe` window and then verify which supported element editor became visible through the normal probe path
 - keep `sendEscapeFirst` as a fallback, not the default: if the player was already in-world, that first `Escape` can open the game Options UI instead of "clearing" anything
 - if that happens, treat the client as being in Options, not on a clean slate; send `Escape` once more to return in-world before retrying editor-open logic
-- for current live `screen_editor` behavior, `du_ui_invoke(uiKind = screen_editor, method = cancel)` now adds a delayed native `Escape` cleanup automatically after the probe close so the client returns out of the stuck UI state
+- for current live `screen_editor` behavior, both `du_ui_invoke(uiKind = screen_editor, method = cancel)` and `du_editor_save(targetKind = screen_editor)` now add the delayed native `Escape` cleanup automatically after the close path so the client returns out of the stuck UI state
 
 ### `du_editor_pull_code`
 
@@ -1033,6 +1031,7 @@ Behavior:
 
 - for `lua_editor`, the mod calls `LUAEditorManager.apply()`
 - for `screen_editor`, the mod calls `CPPScreenContentEditor.save(...)`
+- after `screen_editor` save injection, the bridge also sends one delayed native `Escape` as the same cleanup path already used by `screen_editor cancel`
 
 This only makes sense when the target editor UI is already open.
 

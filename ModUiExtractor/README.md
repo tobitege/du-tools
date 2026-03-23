@@ -432,7 +432,7 @@ Mode note:
 
 `DuMcpBridge` drops JSON commands under `tmp\ui-dumps\mcp-bridge\commands\`. This mod watches that folder, runs the command in the player HUD client, and appends structured lines to `tmp\ui-dumps\mcp-bridge\events\bridge-events.ndjson`.
 
-For `action: "probe_call"`, the Lua runtime probe (`payload/lua-editor-probe.modules/035-lua-mcp-runtime.js`, loaded via the usual Lua probe injection) now handles both the Lua editor and the screen content editor. The mod maps `lua_mcp_result` packets to bridge events:
+For `action: "probe_call"`, the Lua runtime probe (`payload/lua-editor-probe.modules/035-lua-mcp-runtime.js`, loaded via the usual Lua probe injection) now handles the Lua editor, the screen content editor, and the HUD chat target. The mod maps `lua_mcp_result` packets to bridge events:
 
 - `command_result` — dispatch / injection acknowledgement
 - `probe_result` — `method`, `success`, `result`, `error`
@@ -446,10 +446,11 @@ Chat timestamp note:
 
 Supported probe methods:
 
-- `lua_editor`: `describe`, `chat_snapshot`, `chat_send`, `chat_join_channel`, `chat_select_channel`, `select_slot`, `select_filter`, `apply`, `add_filter`, `outer_html`, `raw_eval`
+- `lua_editor`: `describe`, `list_filters`, `select_slot`, `select_context`, `select_filter`, `select_filter_index`, `apply`, `add_filter`, `outer_html`, `raw_eval`
 - `screen_editor`: `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`
+- `hud_chat`: `chat_snapshot`, `chat_send`, `chat_join_channel`, `chat_select_channel`
 
-For `lua_mcp_result`, the probe now emits `targetKind` so bridge events can keep `lua_editor` and `screen_editor` separated. MCP entry points: `DuMcpBridge/README.md` (`du_ui_describe`, `du_ui_invoke`, `du_ui_wait`, `du_open_editor_native`, `du_chat_snapshot`, `du_chat_ai_mentions`, `du_chat_send_message`, `du_chat_create_channel`).
+For `lua_mcp_result`, the probe now emits `targetKind` so bridge events can keep `lua_editor`, `screen_editor`, and `hud_chat` separated. MCP entry points: `DuMcpBridge/README.md` (`du_ui_describe`, `du_ui_invoke`, `du_ui_wait`, `du_open_editor_native`, `du_chat_snapshot`, `du_chat_ai_mentions`, `du_chat_send_message`, `du_chat_create_channel`, `du_chat_select_channel`). Chat remains probe-backed internally, but the public MCP chat path is the dedicated `du_chat_*` tool family rather than `du_ui_invoke`.
 
 Probe workflow notes (see `DuMcpBridge/README.md` for detail):
 
