@@ -16,6 +16,11 @@ param(
     [string]$SweepValues = "5,10,20,40,80,120",
     [switch]$ReturnToStart,
     [switch]$PauseBetweenSteps,
+    [switch]$CaptureArtifacts,
+    [string]$ArtifactDir = ".\test-artifacts\du-camera-steering",
+    [switch]$CaptureFullClient,
+    [int]$CaptureRegionWidth = 800,
+    [int]$CaptureRegionHeight = 600,
     [switch]$EmitJsonLog,
     [string]$JsonLogPath = ".\test-artifacts\du-camera-steering\last-run.json"
 )
@@ -23,8 +28,43 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+Add-Type -AssemblyName System.Drawing
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+
+namespace LiveBoardCamera {
+    public static class NativeMethods {
+        [StructLayout(LayoutKind.Sequential)]
+        public struct RECT {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct POINT {
+            public int X;
+            public int Y;
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
+
+        [DllImport("user32.dll", SetLastError = false)]
+        public static extern bool SetProcessDPIAware();
+    }
+}
+"@
+
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $nudgeScript = Join-Path $scriptDir "du_view_nudge.ahk"
+
+[void][LiveBoardCamera.NativeMethods]::SetProcessDPIAware()
 
 function Resolve-OutputPath {
     param([string]$Path)
@@ -47,6 +87,119 @@ function Ensure-FileExists {
     }
 }
 
+function Resolve-OutputDirectory {
+    param([string]$BasePath)
+
+    if ([System.IO.Path]::IsPathRooted($BasePath)) {
+        return [System.IO.Path]::GetFullPath($BasePath)
+    }
+
+    return [System.IO.Path]::GetFullPath((Join-Path $scriptDir $BasePath))
+}
+
+function Get-DuWindowContext {
+    param([string]$TitleFragment)
+
+    $process = Get-Process |
+        Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -like "*$TitleFragment*" } |
+        Select-Object -First 1
+
+    if ($null -eq $process) {
+        throw "Could not find a visible window with title fragment '$TitleFragment'."
+    }
+
+    $hwnd = [IntPtr]$process.MainWindowHandle
+    $clientRect = New-Object LiveBoardCamera.NativeMethods+RECT
+    if (-not [LiveBoardCamera.NativeMethods]::GetClientRect($hwnd, [ref]$clientRect)) {
+        throw "GetClientRect failed for hwnd $($process.MainWindowHandle)."
+    }
+
+    $origin = New-Object LiveBoardCamera.NativeMethods+POINT
+    $origin.X = 0
+    $origin.Y = 0
+    if (-not [LiveBoardCamera.NativeMethods]::ClientToScreen($hwnd, [ref]$origin)) {
+        throw "ClientToScreen failed for hwnd $($process.MainWindowHandle)."
+    }
+
+    $clientWidth = $clientRect.Right - $clientRect.Left
+    $clientHeight = $clientRect.Bottom - $clientRect.Top
+
+    if ($clientWidth -le 0 -or $clientHeight -le 0) {
+        throw "Client rect is invalid: ${clientWidth}x${clientHeight}."
+    }
+
+    return [pscustomobject]@{
+        ProcessName = $process.ProcessName
+        WindowTitle = $process.MainWindowTitle
+        Hwnd = $hwnd
+        ClientLeft = $origin.X
+        ClientTop = $origin.Y
+        ClientWidth = $clientWidth
+        ClientHeight = $clientHeight
+    }
+}
+
+function New-ScreenCaptureBitmap {
+    param(
+        [int]$ScreenX,
+        [int]$ScreenY,
+        [int]$Width,
+        [int]$Height
+    )
+
+    $bitmap = New-Object System.Drawing.Bitmap $Width, $Height
+    $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+    try {
+        $graphics.CopyFromScreen($ScreenX, $ScreenY, 0, 0, $bitmap.Size)
+    } finally {
+        $graphics.Dispose()
+    }
+
+    return $bitmap
+}
+
+function Save-Bitmap {
+    param(
+        [System.Drawing.Bitmap]$Bitmap,
+        [string]$Path
+    )
+
+    $directory = Split-Path -Parent $Path
+    if (-not (Test-Path -LiteralPath $directory)) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    }
+
+    $Bitmap.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
+}
+
+function Save-CenteredClientCapture {
+    param(
+        $WindowContext,
+        [string]$OutputPath,
+        [int]$Width,
+        [int]$Height
+    )
+
+    if ($CaptureFullClient) {
+        $captureWidth = $WindowContext.ClientWidth
+        $captureHeight = $WindowContext.ClientHeight
+        $screenX = $WindowContext.ClientLeft
+        $screenY = $WindowContext.ClientTop
+    } else {
+        $captureWidth = [Math]::Min($Width, $WindowContext.ClientWidth)
+        $captureHeight = [Math]::Min($Height, $WindowContext.ClientHeight)
+        $screenX = $WindowContext.ClientLeft + [Math]::Floor(($WindowContext.ClientWidth - $captureWidth) / 2)
+        $screenY = $WindowContext.ClientTop + [Math]::Floor(($WindowContext.ClientHeight - $captureHeight) / 2)
+    }
+
+    $bitmap = New-ScreenCaptureBitmap -ScreenX $screenX -ScreenY $screenY -Width $captureWidth -Height $captureHeight
+    try {
+        Save-Bitmap -Bitmap $bitmap -Path $OutputPath
+    } finally {
+        $bitmap.Dispose()
+    }
+}
+
 function Invoke-DuViewNudge {
     param(
         [int]$StepMoveX,
@@ -62,56 +215,53 @@ function Invoke-DuViewNudge {
         [string]$StepSettleMs
     )
 
-    $stdoutFile = [System.IO.Path]::GetTempFileName()
-    $stderrFile = [System.IO.Path]::GetTempFileName()
-    try {
-        $process = Start-Process -FilePath $AhkPath -ArgumentList $args -Wait -PassThru -WindowStyle Hidden -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile
-        $exitCode = $process.ExitCode
-        $stdout = [System.IO.File]::ReadAllText($stdoutFile).Trim()
-        $stderr = [System.IO.File]::ReadAllText($stderrFile).Trim()
-    } finally {
-        if (Test-Path -LiteralPath $stdoutFile) {
-            Remove-Item -LiteralPath $stdoutFile -Force -ErrorAction SilentlyContinue
-        }
-        if (Test-Path -LiteralPath $stderrFile) {
-            Remove-Item -LiteralPath $stderrFile -Force -ErrorAction SilentlyContinue
-        }
-    }
+    & $AhkPath @args | Out-Null
+    $exitCode = $LASTEXITCODE
 
-    if ([string]::IsNullOrWhiteSpace($stdout)) {
-        if ([string]::IsNullOrWhiteSpace($stderr)) {
-            throw "du_view_nudge.ahk returned no output."
-        }
-        throw "du_view_nudge.ahk returned no stdout. stderr: $stderr"
-    }
-
-    try {
-        $parsed = $stdout | ConvertFrom-Json
-    } catch {
-        throw "Could not parse du_view_nudge.ahk output: $stdout"
-    }
-
-    if ($exitCode -ne 0 -or -not $parsed.ok) {
-        throw "du_view_nudge.ahk failed: $stdout"
+    if ($exitCode -ne 0) {
+        throw "du_view_nudge.ahk failed with exit code $exitCode."
     }
 
     return [pscustomobject]@{
         ExitCode = $exitCode
-        Raw = $stdout
-        Result = $parsed
+        Raw = ""
+        Result = [pscustomobject]@{
+            ok = $true
+            cursorX = 0
+            cursorY = 0
+        }
     }
 }
 
 function Invoke-StepSequence {
-    param([System.Collections.Generic.List[object]]$Steps)
+    param(
+        [System.Collections.Generic.List[object]]$Steps,
+        [string]$CaptureDir
+    )
 
     $runLog = New-Object System.Collections.Generic.List[object]
+    $windowContext = $null
+
+    if ($CaptureArtifacts) {
+        $windowContext = Get-DuWindowContext -TitleFragment $WindowTitle
+        $baselinePath = Join-Path $CaptureDir "000-baseline.png"
+        Save-CenteredClientCapture -WindowContext $windowContext -OutputPath $baselinePath -Width $CaptureRegionWidth -Height $CaptureRegionHeight
+        Write-Host ("Baseline capture saved to {0}" -f $baselinePath) -ForegroundColor DarkGray
+    }
 
     for ($i = 0; $i -lt $Steps.Count; $i++) {
         $step = $Steps[$i]
         Write-Host ("[{0}/{1}] moveX={2} moveY={3} settleMs={4}" -f ($i + 1), $Steps.Count, $step.MoveX, $step.MoveY, $step.SettleMs) -ForegroundColor Cyan
 
         $response = Invoke-DuViewNudge -StepMoveX $step.MoveX -StepMoveY $step.MoveY -StepSettleMs $step.SettleMs
+        $capturePath = $null
+
+        if ($CaptureArtifacts) {
+            $windowContext = Get-DuWindowContext -TitleFragment $WindowTitle
+            $capturePath = Join-Path $CaptureDir ("{0:D3}-{1}.png" -f ($i + 1), $step.Label)
+            Save-CenteredClientCapture -WindowContext $windowContext -OutputPath $capturePath -Width $CaptureRegionWidth -Height $CaptureRegionHeight
+        }
+
         $runLog.Add([pscustomobject]@{
             Index = $i + 1
             Label = $step.Label
@@ -120,6 +270,7 @@ function Invoke-StepSequence {
             SettleMs = $step.SettleMs
             CursorX = [int]$response.Result.cursorX
             CursorY = [int]$response.Result.cursorY
+            CapturePath = $capturePath
             Raw = $response.Raw
         })
 
@@ -171,6 +322,7 @@ Ensure-FileExists -Path $AhkPath -Label "AutoHotkey executable"
 Ensure-FileExists -Path $nudgeScript -Label "du_view_nudge.ahk"
 
 $steps = New-Object System.Collections.Generic.List[object]
+$captureDir = Resolve-OutputDirectory -BasePath $ArtifactDir
 
 switch ($Mode) {
     "single" {
@@ -206,9 +358,17 @@ switch ($Mode) {
 }
 
 Write-Host ("Running camera steering mode '{0}' with {1} step(s)." -f $Mode, $steps.Count) -ForegroundColor White
-Write-Host "Use DU screenshots before/after or between steps to judge aim-point movement at the screen center." -ForegroundColor Yellow
+if ($CaptureArtifacts) {
+    if ($CaptureFullClient) {
+        Write-Host ("Capturing full client screenshots to {0}" -f $captureDir) -ForegroundColor Yellow
+    } else {
+        Write-Host ("Capturing centered client screenshots to {0}" -f $captureDir) -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "Use DU screenshots before/after or between steps to judge aim-point movement at the screen center." -ForegroundColor Yellow
+}
 
-$runLog = Invoke-StepSequence -Steps $steps
+$runLog = Invoke-StepSequence -Steps $steps -CaptureDir $captureDir
 
 if ($EmitJsonLog) {
     $resolvedPath = Resolve-OutputPath -Path $JsonLogPath

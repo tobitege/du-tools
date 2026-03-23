@@ -239,3 +239,4 @@ ui-extractions/*
 !ui-extractions/tools/**
 **/node_modules
 /devlogs
+test-artifacts
