@@ -1,17 +1,20 @@
----@diagnostic disable: undefined-global
--- luacheck: globals
---   loadFont getAvailableFontCount getAvailableFontName getTextBounds
---   setNextFillColor setNextStrokeColor setNextStrokeWidth addBox addBoxRounded addText
---   getResolution createLayer getCursor getCursorPressed getCursorDown getCursorReleased
---   setBackgroundColor setOutput requestAnimationFrame
---   SCREEN_LAYOUT_EDITOR_INITIAL_DOCUMENT SCREEN_LAYOUT_EDITOR_STATE
+if type(SCREEN_LAYOUT_EDITOR_MODULE) == "table" then
+    if type(getResolution) == "function"
+        and type(createLayer) == "function"
+        and type(getCursor) == "function"
+        and type(requestAnimationFrame) == "function" then
+        local ok, err = pcall(SCREEN_LAYOUT_EDITOR_MODULE._runRenderScript)
+        if not ok then error(err) end
+    end
+    return SCREEN_LAYOUT_EDITOR_MODULE
+end
 
 local ScreenLayoutEditor = {}
+SCREEN_LAYOUT_EDITOR_MODULE = ScreenLayoutEditor
 
 ScreenLayoutEditor.SCHEMA_VERSION = 1
 ScreenLayoutEditor.OUTPUT_KIND = "screen_layout_editor_doc"
 ScreenLayoutEditor.PERSISTENCE_DB_KEY = "screen_layout_editor:document"
-ScreenLayoutEditor.DEFAULT_MAX_SCREEN_CODE_CHARS = 50000
 ScreenLayoutEditor.DEFAULT_MARGIN = 8
 
 local UINT32_MOD = 4294967296
@@ -710,9 +713,9 @@ function ScreenLayoutEditor.readPersistedEnvelope(text, screenWidth, screenHeigh
 end
 
 function ScreenLayoutEditor.resolveMaxScreenCodeChars(value)
-    local numeric = math.floor(numberOrNil(value) or ScreenLayoutEditor.DEFAULT_MAX_SCREEN_CODE_CHARS)
+    local numeric = math.floor(numberOrNil(value) or 50000)
     if numeric <= 0 then
-        return ScreenLayoutEditor.DEFAULT_MAX_SCREEN_CODE_CHARS
+        return 50000
     end
     return numeric
 end
@@ -779,20 +782,31 @@ local function pointInRect(px, py, x, y, w, h)
 end
 
 function ScreenLayoutEditor.getHandleRects(metrics, element)
+    local cached = element._handleRectsCache
+    if cached
+        and cached._x == element.x and cached._y == element.y
+        and cached._w == element.w and cached._h == element.h
+        and cached._hs == metrics.handleSize then
+        return cached
+    end
+
     local handleSize = metrics.handleSize
     local half = handleSize * 0.5
-    return {
+    local handles = {
         nw = { x = element.x - half, y = element.y - half, w = handleSize, h = handleSize },
         ne = { x = element.x + element.w - half, y = element.y - half, w = handleSize, h = handleSize },
         sw = { x = element.x - half, y = element.y + element.h - half, w = handleSize, h = handleSize },
-        se = { x = element.x + element.w - half, y = element.y + element.h - half, w = handleSize, h = handleSize }
+        se = { x = element.x + element.w - half, y = element.y + element.h - half, w = handleSize, h = handleSize },
+        _x = element.x, _y = element.y, _w = element.w, _h = element.h, _hs = handleSize
     }
+    element._handleRectsCache = handles
+    return handles
 end
 
 function ScreenLayoutEditor.hitResizeHandle(metrics, element, cursorX, cursorY)
     local handles = ScreenLayoutEditor.getHandleRects(metrics, element)
     for handleName, rect in pairs(handles) do
-        if pointInRect(cursorX, cursorY, rect.x, rect.y, rect.w, rect.h) then
+        if type(rect) == "table" and pointInRect(cursorX, cursorY, rect.x, rect.y, rect.w, rect.h) then
             return handleName
         end
     end
@@ -829,6 +843,9 @@ local function setRectIfChanged(element, newX, newY, newW, newH)
     if isNumber(newH) and element.h ~= newH then
         element.h = newH
         changed = true
+    end
+    if changed then
+        element._handleRectsCache = nil
     end
     return changed
 end
@@ -913,7 +930,6 @@ function ScreenLayoutEditor.commitDocument(state)
     state.lastCommittedSerialized = serialized
     state.lastCommittedHash = hash
     state.lastOutputEnvelope = ScreenLayoutEditor.serializeOutputEnvelope(state.document, serialized, hash)
-    state.pendingOutputEnvelope = state.lastOutputEnvelope
     state.documentDirty = false
     return true
 end
@@ -938,7 +954,9 @@ function ScreenLayoutEditor.createState(screenWidth, screenHeight, initialDocume
         lastCommittedSerialized = serialized,
         lastCommittedHash = ScreenLayoutEditor.hashText(serialized),
         lastOutputEnvelope = "",
-        pendingOutputEnvelope = ""
+        frameFontCache = {},
+        pointerData = { cursorX = 0, cursorY = 0, pressed = false, down = false, released = false },
+        pointerResult = { selectedChanged = false, documentChanged = false, committed = false }
     }
 end
 
@@ -949,11 +967,14 @@ function ScreenLayoutEditor.applyPointerFrame(state, pointer)
     local pressed = not not (pointer and pointer.pressed)
     local down = not not (pointer and pointer.down)
     local released = not not (pointer and pointer.released)
-    local result = {
-        selectedChanged = false,
-        documentChanged = false,
-        committed = false
-    }
+    local result = state.pointerResult
+    if not result then
+        result = { selectedChanged = false, documentChanged = false, committed = false }
+        state.pointerResult = result
+    end
+    result.selectedChanged = false
+    result.documentChanged = false
+    result.committed = false
 
     local selected = nil
     if state.document.selectedId then
@@ -1020,15 +1041,6 @@ function ScreenLayoutEditor.getOutputEnvelope(state)
         return ""
     end
     return state.lastOutputEnvelope or ""
-end
-
-function ScreenLayoutEditor.takePendingOutputEnvelope(state)
-    if type(state) ~= "table" then
-        return ""
-    end
-    local envelope = state.pendingOutputEnvelope or ""
-    state.pendingOutputEnvelope = ""
-    return envelope
 end
 
 SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE = type(SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE) == "table" and SCREEN_LAYOUT_EDITOR_FONT_NAME_CACHE or {}
@@ -1218,9 +1230,13 @@ local function addTextWithFontRetry(layer, element, font, fontSize, lineGap, tex
     return pcall(addText, layer, retryFont, text, retryTextX, baselineY)
 end
 
+local DEFAULT_FILL_COLOR = { 0.2, 0.2, 0.2, 1.0 }
+local DEFAULT_STROKE_COLOR = { 1.0, 1.0, 1.0, 1.0 }
+local DEFAULT_TEXT_COLOR = { 1.0, 1.0, 1.0, 1.0 }
+
 local function drawRoundedElement(layer, element)
-    local fill = element.fill or { 0.2, 0.2, 0.2, 1.0 }
-    local stroke = element.stroke or { 1.0, 1.0, 1.0, 1.0 }
+    local fill = element.fill or DEFAULT_FILL_COLOR
+    local stroke = element.stroke or DEFAULT_STROKE_COLOR
     setNextFillColor(layer, fill[1], fill[2], fill[3], fill[4])
     setNextStrokeColor(layer, stroke[1], stroke[2], stroke[3], stroke[4])
     setNextStrokeWidth(layer, element.strokeWidth or 2)
@@ -1243,7 +1259,7 @@ local function drawElementText(layer, element, frameFontCache)
         return
     end
 
-    local color = element.textColor or { 1.0, 1.0, 1.0, 1.0 }
+    local color = element.textColor or DEFAULT_TEXT_COLOR
     local lineGap = element.lineGap or math.max(4, math.floor(fontSize * 0.15))
     local layout = getElementTextLayout(element, font, fontSize, lineGap)
     local totalHeight = layout.totalHeight
@@ -1262,11 +1278,12 @@ local function drawElementText(layer, element, frameFontCache)
     end
 end
 
+local SELECTION_BORDER_COLOR = { 0.14, 0.88, 0.98, 0.95 }
+
 local function drawSelectionOverlay(state, layer, element)
     local pad = state.metrics.selectionPadding
-    local border = { 0.14, 0.88, 0.98, 0.95 }
     setNextFillColor(layer, 0.00, 0.00, 0.00, 0.00)
-    setNextStrokeColor(layer, border[1], border[2], border[3], border[4])
+    setNextStrokeColor(layer, SELECTION_BORDER_COLOR[1], SELECTION_BORDER_COLOR[2], SELECTION_BORDER_COLOR[3], SELECTION_BORDER_COLOR[4])
     setNextStrokeWidth(layer, 3)
     addBoxRounded(
         layer,
@@ -1283,10 +1300,12 @@ local function drawSelectionOverlay(state, layer, element)
 
     local handles = ScreenLayoutEditor.getHandleRects(state.metrics, element)
     for _, rect in pairs(handles) do
-        setNextFillColor(layer, border[1], border[2], border[3], 0.95)
-        setNextStrokeColor(layer, 1.0, 1.0, 1.0, 0.95)
-        setNextStrokeWidth(layer, 2)
-        addBoxRounded(layer, rect.x, rect.y, rect.w, rect.h, 4)
+        if type(rect) == "table" then
+            setNextFillColor(layer, SELECTION_BORDER_COLOR[1], SELECTION_BORDER_COLOR[2], SELECTION_BORDER_COLOR[3], 0.95)
+            setNextStrokeColor(layer, 1.0, 1.0, 1.0, 0.95)
+            setNextStrokeWidth(layer, 2)
+            addBoxRounded(layer, rect.x, rect.y, rect.w, rect.h, 4)
+        end
     end
 end
 
@@ -1339,25 +1358,24 @@ local function getState()
         state.metrics = ScreenLayoutEditor.computeMetrics(screenWidth, screenHeight)
     end
 
-    return state
+    return state, screenHeight
 end
 
 local function runRenderScript()
-    local state = getState()
-    local frameFontCache = {}
+    local state, screenHeight = getState()
+    local frameFontCache = state.frameFontCache
     local cursorX, cursorY = getCursor()
     local cursorPressed = getCursorPressed()
     local cursorDown = getCursorDown()
     local cursorReleased = getCursorReleased()
-    ScreenLayoutEditor.applyPointerFrame(state, {
-        cursorX = cursorX,
-        cursorY = cursorY,
-        pressed = cursorPressed,
-        down = cursorDown,
-        released = cursorReleased
-    })
+    local pointerData = state.pointerData
+    pointerData.cursorX = cursorX
+    pointerData.cursorY = cursorY
+    pointerData.pressed = cursorPressed
+    pointerData.down = cursorDown
+    pointerData.released = cursorReleased
+    ScreenLayoutEditor.applyPointerFrame(state, pointerData)
 
-    local _, screenHeight = getResolution()
     setBackgroundColor(0.06, 0.06, 0.07)
 
     local layer = createLayer()
@@ -1377,7 +1395,7 @@ local function runRenderScript()
 
     drawHud(state, layer, screenHeight, frameFontCache)
 
-    local envelope = ScreenLayoutEditor.takePendingOutputEnvelope(state)
+    local envelope = ScreenLayoutEditor.getOutputEnvelope(state)
     if envelope ~= "" then
         pcall(setOutput, envelope)
     end
@@ -1388,6 +1406,8 @@ local function runRenderScript()
     end
     requestAnimationFrame(nextFrameDelay)
 end
+
+ScreenLayoutEditor._runRenderScript = runRenderScript
 
 if type(getResolution) == "function"
     and type(createLayer) == "function"
