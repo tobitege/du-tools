@@ -158,19 +158,19 @@ function Library.scaleColor(color, factor, alpha)
 end
 
 function Library.toScreenX(layout, sourceX)
-    return layout.x + sourceX * layout.scale
+    return layout.x + sourceX * (layout.scaleX or layout.scale)
 end
 
 function Library.toScreenY(layout, sourceY)
-    return layout.y + sourceY * layout.scale
+    return layout.y + sourceY * (layout.scaleY or layout.scale)
 end
 
 function Library.toScreenW(layout, sourceW)
-    return sourceW * layout.scale
+    return sourceW * (layout.scaleX or layout.scale)
 end
 
 function Library.toScreenH(layout, sourceH)
-    return sourceH * layout.scale
+    return sourceH * (layout.scaleY or layout.scale)
 end
 
 function Library.font(fontName, size)
@@ -591,6 +591,394 @@ function Library.withClip(layer, layout, bounds, callback)
         callback()
     end
     setLayerClipRect(layer, 0, 0, layout.screenW, layout.screenH)
+end
+
+function Library.drawPath(layer, layout, pathData, color, strokeWidth, transform)
+    local scale = layout.scale
+    local function applyTransform(x, y)
+        if not transform then
+            return x, y
+        end
+        return
+            transform[1] * x + transform[3] * y + transform[5],
+            transform[2] * x + transform[4] * y + transform[6]
+    end
+    local function toScreenX(x)
+        return Library.toScreenX(layout, x)
+    end
+    local function toScreenY(y)
+        return Library.toScreenY(layout, y)
+    end
+
+    local function emitLine(x1, y1, x2, y2)
+        local tx1, ty1 = applyTransform(x1, y1)
+        local tx2, ty2 = applyTransform(x2, y2)
+        setNextStrokeColor(layer, color[1], color[2], color[3], color[4] or 1)
+        setNextStrokeWidth(layer, math.max(0.5, strokeWidth * scale))
+        addLine(layer, toScreenX(tx1), toScreenY(ty1), toScreenX(tx2), toScreenY(ty2))
+    end
+
+    local tokens = {}
+    local pathStr = pathData or ""
+    local i = 1
+    while i <= #pathStr do
+        local c = pathStr:sub(i, i)
+        if c:match("[MmLlHhVvCcSsQqTtAaZz]") then
+            table.insert(tokens, { type = "cmd", value = c })
+            i = i + 1
+        elseif c:match("[%+%-%d%.]") then
+            local startIndex = i
+            if c == "+" or c == "-" then
+                i = i + 1
+            end
+
+            while i <= #pathStr and pathStr:sub(i, i):match("%d") do
+                i = i + 1
+            end
+
+            if i <= #pathStr and pathStr:sub(i, i) == "." then
+                i = i + 1
+                while i <= #pathStr and pathStr:sub(i, i):match("%d") do
+                    i = i + 1
+                end
+            end
+
+            if i <= #pathStr and pathStr:sub(i, i):match("[eE]") then
+                local expIndex = i
+                i = i + 1
+                if i <= #pathStr and pathStr:sub(i, i):match("[%+%-]") then
+                    i = i + 1
+                end
+                local expDigitsStart = i
+                while i <= #pathStr and pathStr:sub(i, i):match("%d") do
+                    i = i + 1
+                end
+                if expDigitsStart == i then
+                    i = expIndex
+                end
+            end
+
+            local value = tonumber(pathStr:sub(startIndex, i - 1))
+            if value ~= nil then
+                table.insert(tokens, { type = "num", value = value })
+            else
+                i = startIndex + 1
+            end
+        else
+            i = i + 1
+        end
+    end
+
+    local cx, cy = 0, 0
+    local startX, startY = 0, 0
+    local tokenIndex = 1
+    local currentCmd = nil
+    local lastCubicCtrlX, lastCubicCtrlY = nil, nil
+    local lastQuadCtrlX, lastQuadCtrlY = nil, nil
+
+    local function hasNum(count)
+        for offset = 0, count - 1 do
+            local token = tokens[tokenIndex + offset]
+            if not token or token.type ~= "num" then
+                return false
+            end
+        end
+        return true
+    end
+
+    local function getNum()
+        if not hasNum(1) then
+            return nil
+        end
+        local value = tokens[tokenIndex].value
+        tokenIndex = tokenIndex + 1
+        return value
+    end
+
+    local function cubicPoint(x0, y0, x1, y1, x2, y2, x3, y3, t)
+        local inv = 1 - t
+        local inv2 = inv * inv
+        local inv3 = inv2 * inv
+        local t2 = t * t
+        local t3 = t2 * t
+        return
+            inv3 * x0 + 3 * inv2 * t * x1 + 3 * inv * t2 * x2 + t3 * x3,
+            inv3 * y0 + 3 * inv2 * t * y1 + 3 * inv * t2 * y2 + t3 * y3
+    end
+
+    local function quadraticPoint(x0, y0, x1, y1, x2, y2, t)
+        local inv = 1 - t
+        local inv2 = inv * inv
+        local t2 = t * t
+        return
+            inv2 * x0 + 2 * inv * t * x1 + t2 * x2,
+            inv2 * y0 + 2 * inv * t * y1 + t2 * y2
+    end
+
+    local function arcPoints(x1, y1, rx, ry, rot, large, sweep, x2, y2)
+        local points = {}
+        if rx == 0 or ry == 0 then
+            return points
+        end
+        rx = math.abs(rx)
+        ry = math.abs(ry)
+        local rotRad = math.rad(rot)
+        local cosr = math.cos(rotRad)
+        local sinr = math.sin(rotRad)
+        local dx = (x1 - x2) / 2
+        local dy = (y1 - y2) / 2
+        local x1p = cosr * dx + sinr * dy
+        local y1p = -sinr * dx + cosr * dy
+        local x1pp = x1p * x1p
+        local y1pp = y1p * y1p
+        local lambda = x1pp / (rx * rx) + y1pp / (ry * ry)
+        if lambda > 1 then
+            local s = math.sqrt(lambda)
+            rx = s * rx
+            ry = s * ry
+        end
+        local den = (rx * rx * y1pp + ry * ry * x1pp)
+        if den == 0 then
+            return points
+        end
+        local a = (rx * ry * y1pp + ry * ry * x1p) / den
+        local sq = math.sqrt(a * a + 1)
+        local mdf = (large == sweep and -1 or 1) * math.max(0, sq - a)
+        local cxp = mdf * rx * y1p / ry
+        local cyp = -mdf * ry * x1p / rx
+        local cx = cosr * cxp - sinr * cyp + (x1 + x2) / 2
+        local cy = sinr * cxp + cosr * cyp + (y1 + y2) / 2
+        local function vectorAngle(ux, uy, vx, vy)
+            local dot = ux * vx + uy * vy
+            local det = ux * vy - uy * vx
+            return math.atan2(det, dot)
+        end
+
+        local theta = vectorAngle(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry)
+        local dtheta = vectorAngle(
+            (x1p - cxp) / rx,
+            (y1p - cyp) / ry,
+            (-x1p - cxp) / rx,
+            (-y1p - cyp) / ry
+        )
+
+        if sweep == 0 and dtheta > 0 then
+            dtheta = dtheta - math.pi * 2
+        elseif sweep ~= 0 and dtheta < 0 then
+            dtheta = dtheta + math.pi * 2
+        end
+
+        local segments = math.max(1, math.ceil(math.abs(dtheta) / (math.pi / 16)))
+        for j = 1, segments do
+            local t = theta + j * dtheta / segments
+            table.insert(points, {
+                x = cx + rx * math.cos(t) * cosr - ry * math.sin(t) * sinr,
+                y = cy + rx * math.cos(t) * sinr + ry * math.sin(t) * cosr
+            })
+        end
+        return points
+    end
+
+    while tokenIndex <= #tokens do
+        local token = tokens[tokenIndex]
+        if token.type == "cmd" then
+            currentCmd = token.value
+            tokenIndex = tokenIndex + 1
+        elseif currentCmd == nil then
+            tokenIndex = tokenIndex + 1
+        else
+            local cmd = currentCmd
+            local isRel = cmd == cmd:lower()
+            local ucmd = cmd:upper()
+
+            if ucmd == "M" then
+                local firstMove = true
+                while hasNum(2) do
+                    local x = getNum()
+                    local y = getNum()
+                    local nx = isRel and (cx + x) or x
+                    local ny = isRel and (cy + y) or y
+                    if firstMove then
+                        cx, cy = nx, ny
+                        startX, startY = cx, cy
+                        firstMove = false
+                    else
+                        emitLine(cx, cy, nx, ny)
+                        cx, cy = nx, ny
+                    end
+                end
+                currentCmd = isRel and "l" or "L"
+                lastCubicCtrlX, lastCubicCtrlY = nil, nil
+                lastQuadCtrlX, lastQuadCtrlY = nil, nil
+            elseif ucmd == "L" then
+                while hasNum(2) do
+                    local x = getNum()
+                    local y = getNum()
+                    local nx = isRel and (cx + x) or x
+                    local ny = isRel and (cy + y) or y
+                    emitLine(cx, cy, nx, ny)
+                    cx, cy = nx, ny
+                end
+                lastCubicCtrlX, lastCubicCtrlY = nil, nil
+                lastQuadCtrlX, lastQuadCtrlY = nil, nil
+            elseif ucmd == "H" then
+                while hasNum(1) do
+                    local x = getNum()
+                    local nx = isRel and (cx + x) or x
+                    emitLine(cx, cy, nx, cy)
+                    cx = nx
+                end
+                lastCubicCtrlX, lastCubicCtrlY = nil, nil
+                lastQuadCtrlX, lastQuadCtrlY = nil, nil
+            elseif ucmd == "V" then
+                while hasNum(1) do
+                    local y = getNum()
+                    local ny = isRel and (cy + y) or y
+                    emitLine(cx, cy, cx, ny)
+                    cy = ny
+                end
+                lastCubicCtrlX, lastCubicCtrlY = nil, nil
+                lastQuadCtrlX, lastQuadCtrlY = nil, nil
+            elseif ucmd == "C" then
+                while hasNum(6) do
+                    local x1 = getNum()
+                    local y1 = getNum()
+                    local x2 = getNum()
+                    local y2 = getNum()
+                    local x = getNum()
+                    local y = getNum()
+                    local c1x = isRel and (cx + x1) or x1
+                    local c1y = isRel and (cy + y1) or y1
+                    local c2x = isRel and (cx + x2) or x2
+                    local c2y = isRel and (cy + y2) or y2
+                    local nx = isRel and (cx + x) or x
+                    local ny = isRel and (cy + y) or y
+                    local segments = math.max(6, math.ceil((math.abs(nx - cx) + math.abs(ny - cy)) / 18))
+                    local px, py = cx, cy
+                    for step = 1, segments do
+                        local qx, qy = cubicPoint(cx, cy, c1x, c1y, c2x, c2y, nx, ny, step / segments)
+                        emitLine(px, py, qx, qy)
+                        px, py = qx, qy
+                    end
+                    cx, cy = nx, ny
+                    lastCubicCtrlX, lastCubicCtrlY = c2x, c2y
+                    lastQuadCtrlX, lastQuadCtrlY = nil, nil
+                end
+            elseif ucmd == "S" then
+                while hasNum(4) do
+                    local x2 = getNum()
+                    local y2 = getNum()
+                    local x = getNum()
+                    local y = getNum()
+                    local c1x = cx
+                    local c1y = cy
+                    if currentCmd and lastCubicCtrlX and lastCubicCtrlY and (currentCmd:upper() == "C" or currentCmd:upper() == "S") then
+                        c1x = cx * 2 - lastCubicCtrlX
+                        c1y = cy * 2 - lastCubicCtrlY
+                    end
+                    local c2x = isRel and (cx + x2) or x2
+                    local c2y = isRel and (cy + y2) or y2
+                    local nx = isRel and (cx + x) or x
+                    local ny = isRel and (cy + y) or y
+                    local segments = math.max(6, math.ceil((math.abs(nx - cx) + math.abs(ny - cy)) / 18))
+                    local px, py = cx, cy
+                    for step = 1, segments do
+                        local qx, qy = cubicPoint(cx, cy, c1x, c1y, c2x, c2y, nx, ny, step / segments)
+                        emitLine(px, py, qx, qy)
+                        px, py = qx, qy
+                    end
+                    cx, cy = nx, ny
+                    lastCubicCtrlX, lastCubicCtrlY = c2x, c2y
+                    lastQuadCtrlX, lastQuadCtrlY = nil, nil
+                end
+            elseif ucmd == "Q" then
+                while hasNum(4) do
+                    local x1 = getNum()
+                    local y1 = getNum()
+                    local x = getNum()
+                    local y = getNum()
+                    local c1x = isRel and (cx + x1) or x1
+                    local c1y = isRel and (cy + y1) or y1
+                    local nx = isRel and (cx + x) or x
+                    local ny = isRel and (cy + y) or y
+                    local segments = math.max(5, math.ceil((math.abs(nx - cx) + math.abs(ny - cy)) / 20))
+                    local px, py = cx, cy
+                    for step = 1, segments do
+                        local qx, qy = quadraticPoint(cx, cy, c1x, c1y, nx, ny, step / segments)
+                        emitLine(px, py, qx, qy)
+                        px, py = qx, qy
+                    end
+                    cx, cy = nx, ny
+                    lastQuadCtrlX, lastQuadCtrlY = c1x, c1y
+                    lastCubicCtrlX, lastCubicCtrlY = nil, nil
+                end
+            elseif ucmd == "T" then
+                while hasNum(2) do
+                    local x = getNum()
+                    local y = getNum()
+                    local c1x = cx
+                    local c1y = cy
+                    if currentCmd and lastQuadCtrlX and lastQuadCtrlY and (currentCmd:upper() == "Q" or currentCmd:upper() == "T") then
+                        c1x = cx * 2 - lastQuadCtrlX
+                        c1y = cy * 2 - lastQuadCtrlY
+                    end
+                    local nx = isRel and (cx + x) or x
+                    local ny = isRel and (cy + y) or y
+                    local segments = math.max(5, math.ceil((math.abs(nx - cx) + math.abs(ny - cy)) / 20))
+                    local px, py = cx, cy
+                    for step = 1, segments do
+                        local qx, qy = quadraticPoint(cx, cy, c1x, c1y, nx, ny, step / segments)
+                        emitLine(px, py, qx, qy)
+                        px, py = qx, qy
+                    end
+                    cx, cy = nx, ny
+                    lastQuadCtrlX, lastQuadCtrlY = c1x, c1y
+                    lastCubicCtrlX, lastCubicCtrlY = nil, nil
+                end
+            elseif ucmd == "A" then
+                while hasNum(7) do
+                    local rx = getNum()
+                    local ry = getNum()
+                    local rot = getNum()
+                    local large = getNum()
+                    local sweep = getNum()
+                    local nx = getNum()
+                    local ny = getNum()
+                    local nnx = isRel and (cx + nx) or nx
+                    local nny = isRel and (cy + ny) or ny
+                    local pts = arcPoints(cx, cy, rx, ry, rot, large, sweep, nnx, nny)
+                    for _, pt in ipairs(pts) do
+                        emitLine(cx, cy, pt.x, pt.y)
+                        cx, cy = pt.x, pt.y
+                    end
+                    if cx ~= nnx or cy ~= nny then
+                        emitLine(cx, cy, nnx, nny)
+                    end
+                    cx, cy = nnx, nny
+                end
+                lastCubicCtrlX, lastCubicCtrlY = nil, nil
+                lastQuadCtrlX, lastQuadCtrlY = nil, nil
+            elseif ucmd == "Z" then
+                if cx ~= startX or cy ~= startY then
+                    emitLine(cx, cy, startX, startY)
+                    cx, cy = startX, startY
+                end
+                lastCubicCtrlX, lastCubicCtrlY = nil, nil
+                lastQuadCtrlX, lastQuadCtrlY = nil, nil
+                currentCmd = nil
+            else
+                tokenIndex = tokenIndex + 1
+            end
+        end
+    end
+end
+
+function Library.drawDot(layer, layout, cx, cy, radius, color)
+    local scx = Library.toScreenX(layout, cx)
+    local scy = Library.toScreenY(layout, cy)
+    local sr = Library.toScreenW(layout, radius)
+    setNextFillColor(layer, color[1], color[2], color[3], color[4] or 1)
+    addCircle(layer, scx, scy, sr)
 end
 
 -- --- Geometrie-Routinen für SilverZero UI-Elemente ---

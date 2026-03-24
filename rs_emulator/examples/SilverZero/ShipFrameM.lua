@@ -1,6 +1,6 @@
 -- RenderScript conversion of SilverZero ShipFrameM.html (static)
 
-local SZ = require("SilverZeroRsLib")
+local SZ = require("lib.SilverZeroRsLib")
 
 local theme = SZ.Themes.SilverZero
 local resolutionX, resolutionY = getResolution()

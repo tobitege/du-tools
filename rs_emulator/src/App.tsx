@@ -2,7 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, ty
 import { CodeEditor, type CodeEditorHandle } from "./components/CodeEditor";
 import { Canvas, type CanvasHandle } from "./components/Canvas";
 import { Sidebar } from "./components/Sidebar";
-import { DEFAULT_SETTINGS, getResolutionPreset, getThemeOption, normalizeMaxFps, RESOLUTION_PRESETS, THEME_OPTIONS, type SessionEntry, type Settings } from "./components/sidebarConfig";
+import {
+  DEFAULT_SETTINGS,
+  getResolutionPreset,
+  getThemeOption,
+  MAX_SIDEBAR_WIDTH,
+  MIN_SIDEBAR_WIDTH,
+  normalizeMaxFps,
+  RESOLUTION_PRESETS,
+  THEME_OPTIONS,
+  type LuaModuleSearchPathEntry,
+  type SessionEntry,
+  type Settings,
+} from "./components/sidebarConfig";
 import { runtimeFlags } from "./config/runtimeFlags";
 import { DrawBuffer, createLuaEnvironment, type LuaExecResult } from "./emulator";
 import { getAnimationDelayMs, getEffectiveMaxFps, getFrameDeltaSeconds, getRuntimeTimeSeconds, mergeMeasuredDisplayFps } from "./emulator/frameTiming";
@@ -10,8 +22,10 @@ import { moveSessionInOrder, sortSessionsByOrder, type SessionDropPlacement } fr
 import { sessionNameFromFileName, validateGitHubLuaUrl, validateImportedSessionFile } from "./security/inputGuards";
 import {
   createSession,
+  deleteLuaModuleSearchPathHandle,
   deleteSession,
   getDuLuaRootHandle,
+  getLuaModuleSearchPathHandle,
   listSessions,
   readRemoteSessionSource,
   readSessionFromLinkedFile,
@@ -19,7 +33,7 @@ import {
   renameSession,
   saveSessionToLocal,
   saveSessionOrder,
-  setDuLuaRootHandle,
+  setLuaModuleSearchPathHandle,
   writeSessionContent,
 } from "./storage/sessionStore";
 
@@ -31,6 +45,51 @@ function clamp(value: number, low: number, high: number): number {
 
 function classNames(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(" ");
+}
+
+type DirectoryPickerSupport = {
+  available: boolean;
+  unavailableReason: string | null;
+};
+
+function getDirectoryPickerSupport(): DirectoryPickerSupport {
+  if (typeof window === "undefined") {
+    return {
+      available: false,
+      unavailableReason: "Local folder access is only available in the browser client.",
+    };
+  }
+
+  const picker = window as Window & {
+    showDirectoryPicker?: (options?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle>;
+  };
+
+  if (typeof picker.showDirectoryPicker === "function") {
+    return {
+      available: true,
+      unavailableReason: null,
+    };
+  }
+
+  if (!window.isSecureContext) {
+    return {
+      available: false,
+      unavailableReason: "Local folder access needs a secure context. Open the emulator via https:// or http://localhost.",
+    };
+  }
+
+  const isBrave = typeof navigator !== "undefined" && "brave" in navigator;
+  if (isBrave) {
+    return {
+      available: false,
+      unavailableReason: "Brave does not expose local folder access here. Add Local Folder needs showDirectoryPicker(). Use Chrome/Edge, or enable the Brave flag if your build provides it.",
+    };
+  }
+
+  return {
+    available: false,
+    unavailableReason: "Local folder access is not exposed by this browser here.",
+  };
 }
 
 function getFrameIntervalMs(maxFps: number): number {
@@ -79,7 +138,9 @@ function rotateCanvasBy(current: CanvasRotation, delta: 90 | -90): CanvasRotatio
 }
 
 function normalizeSettings(raw: unknown): Settings {
-  const value = (raw && typeof raw === "object") ? raw as Partial<Settings> & { resolution?: number; panelSplit?: number; darkBg?: boolean } : {};
+  const value = (raw && typeof raw === "object")
+    ? raw as Partial<Settings> & { resolution?: number; panelSplit?: number; darkBg?: boolean; luaModuleSearchPaths?: unknown }
+    : {};
   let resolutionPreset = value.resolutionPreset ?? DEFAULT_SETTINGS.resolutionPreset;
   let canvasWidth = value.canvasWidth;
   let canvasHeight = value.canvasHeight;
@@ -107,6 +168,7 @@ function normalizeSettings(raw: unknown): Settings {
   return {
     ...DEFAULT_SETTINGS,
     ...value,
+    sidebarWidth: clamp(typeof value.sidebarWidth === "number" ? value.sidebarWidth : DEFAULT_SETTINGS.sidebarWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH),
     resolutionPreset,
     canvasWidth: resolvedWidth,
     canvasHeight: resolvedHeight,
@@ -117,6 +179,7 @@ function normalizeSettings(raw: unknown): Settings {
     verticalSplit: clamp(typeof value.verticalSplit === "number" ? value.verticalSplit : legacySplit, 0.25, 0.75),
     editorFontSize: clamp(typeof value.editorFontSize === "number" ? value.editorFontSize : DEFAULT_SETTINGS.editorFontSize, 8, 28),
     maxFPS: normalizeMaxFps(value.maxFPS),
+    luaModuleSearchPaths: normalizeLuaModuleSearchPaths(value.luaModuleSearchPaths),
   };
 }
 
@@ -145,6 +208,141 @@ type DirectoryPermissionHandle = FileSystemDirectoryHandle & {
 interface ResolvedServerModule {
   source: string;
   resolvedPath: string;
+}
+
+interface ServerSearchRoot {
+  rootIndex: number;
+  path: string;
+}
+
+interface DuLuaServerStatus {
+  configured: boolean;
+  rootPath: string | null;
+  searchRoots: ServerSearchRoot[];
+}
+
+function normalizeSearchPathLabel(value: string): string {
+  return value.trim().replace(/\\/g, "/");
+}
+
+function normalizeSearchPathKey(value: string): string {
+  const normalized = normalizeSearchPathLabel(value);
+  return /^(?:[A-Za-z]:|\\\\)/.test(normalized) ? normalized.toLowerCase() : normalized;
+}
+
+function isLuaModuleSearchPathEntry(value: unknown): value is LuaModuleSearchPathEntry {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const entry = value as Partial<LuaModuleSearchPathEntry>;
+  return typeof entry.id === "string"
+    && typeof entry.label === "string"
+    && (entry.kind === "project" || entry.kind === "env" || entry.kind === "local" || entry.kind === "manual");
+}
+
+function normalizeLuaModuleSearchPaths(value: unknown): LuaModuleSearchPathEntry[] | null {
+  if (value == null) {
+    return null;
+  }
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  return value
+    .filter(isLuaModuleSearchPathEntry)
+    .map((entry) => ({
+      id: entry.id.trim(),
+      kind: entry.kind,
+      label: entry.label.trim(),
+    }))
+    .filter((entry) => entry.id !== "" && entry.label !== "");
+}
+
+function nextSearchPathId(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function createProjectSearchPathEntry(): LuaModuleSearchPathEntry {
+  return { id: "project", kind: "project", label: "./" };
+}
+
+function createEnvSearchPathEntry(rootIndex: number, pathLabel: string): LuaModuleSearchPathEntry {
+  return { id: `env:${rootIndex}`, kind: "env", label: pathLabel };
+}
+
+function createLocalSearchPathEntry(id: string, label: string): LuaModuleSearchPathEntry {
+  return { id, kind: "local", label };
+}
+
+function createManualSearchPathEntry(id: string, label: string): LuaModuleSearchPathEntry {
+  return { id, kind: "manual", label: normalizeSearchPathLabel(label) };
+}
+
+function extractEnvRootIndex(entryId: string): number | null {
+  const match = entryId.match(/^env:(\d+)$/);
+  return match ? Number.parseInt(match[1], 10) : null;
+}
+
+function defaultLuaModuleSearchPaths(serverRoots: ServerSearchRoot[]): LuaModuleSearchPathEntry[] {
+  return [createProjectSearchPathEntry(), ...serverRoots.map((root) => createEnvSearchPathEntry(root.rootIndex, root.path))];
+}
+
+function reconcileLuaModuleSearchPaths(entries: LuaModuleSearchPathEntry[] | null, serverRoots: ServerSearchRoot[]): LuaModuleSearchPathEntry[] {
+  if (entries === null) {
+    return defaultLuaModuleSearchPaths(serverRoots);
+  }
+
+  const envLabels = new Map(serverRoots.map((root) => [`env:${root.rootIndex}`, root.path]));
+  const seen = new Set<string>();
+  const result: LuaModuleSearchPathEntry[] = [];
+
+  for (const entry of entries) {
+    if (seen.has(entry.id)) {
+      continue;
+    }
+
+    if (entry.kind === "project") {
+      result.push(createProjectSearchPathEntry());
+      seen.add(entry.id);
+      continue;
+    }
+
+    if (entry.kind === "env") {
+      const nextLabel = envLabels.get(entry.id);
+      const rootIndex = extractEnvRootIndex(entry.id);
+      if (!nextLabel || rootIndex === null) {
+        continue;
+      }
+      result.push(createEnvSearchPathEntry(rootIndex, nextLabel));
+      seen.add(entry.id);
+      continue;
+    }
+
+    if (entry.kind === "local") {
+      result.push(createLocalSearchPathEntry(entry.id, entry.label));
+      seen.add(entry.id);
+      continue;
+    }
+
+    if (entry.kind === "manual") {
+      result.push(createManualSearchPathEntry(entry.id, entry.label));
+      seen.add(entry.id);
+    }
+  }
+
+  return result;
+}
+
+function sameLuaModuleSearchPaths(a: LuaModuleSearchPathEntry[], b: LuaModuleSearchPathEntry[]): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  return a.every((entry, index) => {
+    const other = b[index];
+    return other?.id === entry.id && other.kind === entry.kind && other.label === entry.label;
+  });
 }
 
 async function ensureReadableDirectoryHandle(handle: FileSystemDirectoryHandle): Promise<boolean> {
@@ -210,10 +408,26 @@ async function readLuaModuleFromRoot(root: FileSystemDirectoryHandle, moduleName
   return null;
 }
 
-async function readLuaModuleFromServer(moduleName: string, fromSource?: string | null): Promise<ResolvedServerModule | null> {
+async function readLuaModuleFromServer(
+  moduleName: string,
+  options?: { fromSource?: string | null; scope?: "relative" | "project" | "du" | "manual"; rootIndex?: number | null; rootPath?: string | null },
+): Promise<ResolvedServerModule | null> {
   try {
-    const suffix = fromSource ? `&from=${encodeURIComponent(fromSource)}` : "";
-    const response = await fetch(`/__du_lua/module?name=${encodeURIComponent(moduleName)}${suffix}`);
+    const params = new URLSearchParams({ name: moduleName });
+    if (options?.fromSource) {
+      params.set("from", options.fromSource);
+    }
+    if (options?.scope) {
+      params.set("scope", options.scope);
+    }
+    if (typeof options?.rootIndex === "number") {
+      params.set("rootIndex", String(options.rootIndex));
+    }
+    if (options?.rootPath) {
+      params.set("rootPath", options.rootPath);
+    }
+
+    const response = await fetch(`/__du_lua/module?${params.toString()}`);
     if (!response.ok) {
       return null;
     }
@@ -223,13 +437,13 @@ async function readLuaModuleFromServer(moduleName: string, fromSource?: string |
   }
 }
 
-async function readDuLuaServerStatus(): Promise<{ configured: boolean; rootPath: string | null } | null> {
+async function readDuLuaServerStatus(): Promise<DuLuaServerStatus | null> {
   try {
     const response = await fetch("/__du_lua/status");
     if (!response.ok) {
       return null;
     }
-    return await response.json() as { configured: boolean; rootPath: string | null };
+    return await response.json() as DuLuaServerStatus;
   } catch {
     return null;
   }
@@ -283,9 +497,12 @@ export default function App() {
   const prevResolutionRef = useRef({ width: DEFAULT_SETTINGS.canvasWidth, height: DEFAULT_SETTINGS.canvasHeight });
   const skipInitialAutoRunRef = useRef(true);
   const splitterDragRef = useRef(false);
-  const duLuaRootHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
+  const sidebarResizeDragRef = useRef(false);
+  const luaModuleSearchPathHandlesRef = useRef<Record<string, FileSystemDirectoryHandle>>({});
+  const pendingLuaModuleSearchPathHandlesRef = useRef<Record<string, FileSystemDirectoryHandle>>({});
   const sessionsRef = useRef<SessionEntry[]>([]);
   const activeSessionIdRef = useRef("");
+  const activeLuaModuleSearchPathsRef = useRef<LuaModuleSearchPathEntry[]>([]);
   const resolvedModulePathsRef = useRef<Record<string, string>>({});
 
   const resolveLuaModule = useCallback(async (moduleName: string, fromModule?: string | null) => {
@@ -294,23 +511,65 @@ export default function App() {
       ? resolvedModulePathsRef.current[fromModule] ?? fromModule
       : activeSession?.linkedFileName ?? activeSession?.name ?? null;
 
-    const serverModule = await readLuaModuleFromServer(moduleName, fromSource);
-    if (serverModule !== null) {
-      resolvedModulePathsRef.current[moduleName] = serverModule.resolvedPath;
-      return serverModule.source;
+    if ((moduleName.startsWith("./") || moduleName.startsWith("../")) && fromSource) {
+      const relativeModule = await readLuaModuleFromServer(moduleName, { fromSource, scope: "relative" });
+      if (relativeModule !== null) {
+        resolvedModulePathsRef.current[moduleName] = relativeModule.resolvedPath;
+        return relativeModule.source;
+      }
     }
 
-    const root = duLuaRootHandleRef.current;
-    if (!root) {
-      return null;
+    for (const entry of activeLuaModuleSearchPathsRef.current) {
+      if (entry.kind === "project") {
+        const projectModule = await readLuaModuleFromServer(moduleName, { scope: "project" });
+        if (projectModule !== null) {
+          resolvedModulePathsRef.current[moduleName] = projectModule.resolvedPath;
+          return projectModule.source;
+        }
+        continue;
+      }
+
+      if (entry.kind === "env") {
+        const rootIndex = extractEnvRootIndex(entry.id);
+        if (rootIndex === null) {
+          continue;
+        }
+
+        const envModule = await readLuaModuleFromServer(moduleName, { scope: "du", rootIndex });
+        if (envModule !== null) {
+          resolvedModulePathsRef.current[moduleName] = envModule.resolvedPath;
+          return envModule.source;
+        }
+        continue;
+      }
+
+      if (entry.kind === "manual") {
+        const manualModule = await readLuaModuleFromServer(moduleName, { scope: "manual", rootPath: entry.label });
+        if (manualModule !== null) {
+          resolvedModulePathsRef.current[moduleName] = manualModule.resolvedPath;
+          return manualModule.source;
+        }
+        continue;
+      }
+
+      const handle = luaModuleSearchPathHandlesRef.current[entry.id];
+      if (!handle) {
+        continue;
+      }
+
+      const readable = await ensureReadableDirectoryHandle(handle);
+      if (!readable) {
+        continue;
+      }
+
+      const localModule = await readLuaModuleFromRoot(handle, moduleName);
+      if (localModule !== null) {
+        resolvedModulePathsRef.current[moduleName] = `local:${entry.id}/${moduleName}`;
+        return localModule;
+      }
     }
 
-    const readable = await ensureReadableDirectoryHandle(root);
-    if (!readable) {
-      return null;
-    }
-
-    return readLuaModuleFromRoot(root, moduleName);
+    return null;
   }, []);
 
   const envRef = useRef(createLuaEnvironment(bufferRef.current, resolveLuaModule, runtimeFlags));
@@ -327,12 +586,16 @@ export default function App() {
   const [loadingSession, setLoadingSession] = useState(true);
   const [bootstrapped, setBootstrapped] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
-  const [duLuaServerRootPath, setDuLuaServerRootPath] = useState<string | null>(null);
+  const [duLuaServerSearchRoots, setDuLuaServerSearchRoots] = useState<ServerSearchRoot[]>([]);
   const [splitterDragging, setSplitterDragging] = useState(false);
   const [editorDropActive, setEditorDropActive] = useState(false);
   const [githubImportOpen, setGithubImportOpen] = useState(false);
   const [githubImporting, setGithubImporting] = useState(false);
   const [githubUrlInput, setGithubUrlInput] = useState("");
+  const [luaModuleSearchPathsOpen, setLuaModuleSearchPathsOpen] = useState(false);
+  const [luaModuleSearchPathDraft, setLuaModuleSearchPathDraft] = useState<LuaModuleSearchPathEntry[]>([]);
+  const [selectedAvailableSearchPathId, setSelectedAvailableSearchPathId] = useState("project");
+  const [manualSearchPathInput, setManualSearchPathInput] = useState("");
   const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false);
   const [reloading, setReloading] = useState(false);
   const [canvasRotation, setCanvasRotation] = useState<CanvasRotation>(0);
@@ -342,23 +605,38 @@ export default function App() {
     () => sessions.find((session) => session.id === activeSessionId),
     [sessions, activeSessionId]
   );
+  const directoryPickerSupport = useMemo(() => getDirectoryPickerSupport(), []);
   const activeChunkLabel = activeSession?.linkedFileName ?? activeSession?.tempPath ?? "session.lua";
   const activeTheme = getThemeOption(settings.themeId) ?? THEME_OPTIONS[0];
+  const activeLuaModuleSearchPaths = useMemo(
+    () => reconcileLuaModuleSearchPaths(settings.luaModuleSearchPaths, duLuaServerSearchRoots),
+    [settings.luaModuleSearchPaths, duLuaServerSearchRoots],
+  );
+  const availableDefaultLuaModuleSearchPaths = useMemo(() => {
+    const activeIds = new Set(luaModuleSearchPathDraft.map((entry) => entry.id));
+    return defaultLuaModuleSearchPaths(duLuaServerSearchRoots).filter((entry) => !activeIds.has(entry.id));
+  }, [duLuaServerSearchRoots, luaModuleSearchPathDraft]);
   const editorTheme = settings.darkEditor ? "vs-dark" : "vs";
   const activeErrorLine = useMemo(
     () => result && !result.success ? extractLuaErrorLine(result.error, activeChunkLabel) : null,
     [activeChunkLabel, result]
   );
+  const statusIsError = Boolean(
+    statusMsg
+    && (statusMsg.startsWith("Error")
+      || statusMsg.startsWith("Save failed")
+      || statusMsg.startsWith("Reload failed")
+      || statusMsg.startsWith("Import failed"))
+  );
+  const statusToastClassName = classNames(
+    "w-auto max-w-[min(420px,calc(100%-24px))] rounded-xl px-3 py-2 font-mono text-xs shadow-lg backdrop-blur-md",
+    statusIsError ? "alert alert-error" : "alert alert-success",
+  );
 
   sessionsRef.current = sessions;
   activeSessionIdRef.current = activeSessionId;
   settingsRef.current = settings;
-
-  const duLuaRootStatus = duLuaServerRootPath
-    ? duLuaServerRootPath
-    : settings.duLuaRootName
-      ? settings.duLuaRootName
-      : "No DU Lua include path configured.";
+  activeLuaModuleSearchPathsRef.current = activeLuaModuleSearchPaths;
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", activeTheme.id);
@@ -466,6 +744,7 @@ export default function App() {
     clearAutoRunTimer();
     executionTokenRef.current += 1;
     resolvedModulePathsRef.current = {};
+    void envRef.current.dispose();
     bufferRef.current.resetRuntimeState();
     committedBufferRef.current = bufferRef.current.createRenderSnapshot();
     envRef.current = createLuaEnvironment(bufferRef.current, resolveLuaModule, runtimeFlags);
@@ -483,6 +762,13 @@ export default function App() {
     setAnimating(false);
     setRunning(false);
   }, [clearAutoRunTimer]);
+
+  const stopExecution = useCallback(() => {
+    stopAnimation();
+    void envRef.current.dispose();
+    envRef.current = createLuaEnvironment(bufferRef.current, resolveLuaModule, runtimeFlags);
+    showStatus("Execution stopped");
+  }, [resolveLuaModule, showStatus, stopAnimation]);
 
   const persistCodeNow = useCallback(async (sessionId: string, nextCode: string, markDirty: boolean) => {
     const persistPromise = (async () => {
@@ -642,13 +928,12 @@ export default function App() {
   }, [code, executeCode, stopAnimation]);
 
   const handleRun = useCallback(() => {
-    if (animating) {
-      stopAnimation();
-      showStatus("Animation stopped");
+    if (animating || running) {
+      stopExecution();
       return;
     }
     runCurrentCode();
-  }, [animating, runCurrentCode, showStatus, stopAnimation]);
+  }, [animating, runCurrentCode, running, stopExecution]);
 
   const handleToggleLayout = useCallback(() => {
     setSettings((current) => ({
@@ -947,13 +1232,75 @@ export default function App() {
     }
   }, [activeSession, applySessionUpdate, loadSessionIntoEditor, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus, stopAnimation]);
 
-  const handlePickDuLuaRoot = useCallback(async () => {
+  const closeLuaModuleSearchPathsDialog = useCallback(() => {
+    pendingLuaModuleSearchPathHandlesRef.current = {};
+    setLuaModuleSearchPathDraft([]);
+    setSelectedAvailableSearchPathId("project");
+    setManualSearchPathInput("");
+    setLuaModuleSearchPathsOpen(false);
+  }, []);
+
+  const openLuaModuleSearchPathsDialog = useCallback(() => {
+    const nextDraft = activeLuaModuleSearchPaths;
+    setLuaModuleSearchPathDraft(nextDraft);
+    pendingLuaModuleSearchPathHandlesRef.current = {};
+    setSelectedAvailableSearchPathId(availableDefaultLuaModuleSearchPaths[0]?.id ?? "project");
+    setManualSearchPathInput("");
+    setLuaModuleSearchPathsOpen(true);
+  }, [activeLuaModuleSearchPaths, availableDefaultLuaModuleSearchPaths]);
+
+  const moveLuaModuleSearchPathDraftEntry = useCallback((index: number, direction: -1 | 1) => {
+    setLuaModuleSearchPathDraft((current) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= current.length) {
+        return current;
+      }
+      const next = [...current];
+      const [entry] = next.splice(index, 1);
+      next.splice(nextIndex, 0, entry);
+      return next;
+    });
+  }, []);
+
+  const handleAddDefaultLuaModuleSearchPath = useCallback(() => {
+    const entry = defaultLuaModuleSearchPaths(duLuaServerSearchRoots).find((candidate) => candidate.id === selectedAvailableSearchPathId);
+    if (!entry) {
+      return;
+    }
+
+    setLuaModuleSearchPathDraft((current) => current.some((candidate) => candidate.id === entry.id) ? current : [...current, entry]);
+    const remaining = defaultLuaModuleSearchPaths(duLuaServerSearchRoots)
+      .filter((candidate) => candidate.id !== entry.id)
+      .filter((candidate) => !luaModuleSearchPathDraft.some((draftEntry) => draftEntry.id === candidate.id));
+    setSelectedAvailableSearchPathId(remaining[0]?.id ?? "project");
+  }, [duLuaServerSearchRoots, luaModuleSearchPathDraft, selectedAvailableSearchPathId]);
+
+  const handleAddManualLuaModuleSearchPath = useCallback(() => {
+    const normalizedLabel = normalizeSearchPathLabel(manualSearchPathInput);
+    if (!normalizedLabel) {
+      showStatus("Enter a folder path first");
+      return;
+    }
+
+    const normalizedKey = normalizeSearchPathKey(normalizedLabel);
+    if (luaModuleSearchPathDraft.some((entry) => entry.kind === "manual" && normalizeSearchPathKey(entry.label) === normalizedKey)) {
+      showStatus(`Manual search path already added: ${normalizedLabel}`);
+      return;
+    }
+
+    const nextId = `manual:${nextSearchPathId()}`;
+    setLuaModuleSearchPathDraft((current) => [...current, createManualSearchPathEntry(nextId, normalizedLabel)]);
+    setManualSearchPathInput("");
+    showStatus(`Manual search path added: ${normalizedLabel}`);
+  }, [luaModuleSearchPathDraft, manualSearchPathInput, showStatus]);
+
+  const handleAddLocalLuaModuleSearchPath = useCallback(async () => {
     const picker = window as Window & {
       showDirectoryPicker?: (options?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle>;
     };
 
     if (!picker.showDirectoryPicker) {
-      showStatus("Folder picker is not available in this browser");
+      showStatus(directoryPickerSupport.unavailableReason ?? "Local folder access is not available here");
       return;
     }
 
@@ -965,11 +1312,10 @@ export default function App() {
         return;
       }
 
-      duLuaRootHandleRef.current = handle;
-      await setDuLuaRootHandle(handle);
-      setSettings((current) => ({ ...current, duLuaRootName: handle.name }));
-      resetRuntime();
-      showStatus(`DU include folder set: ${handle.name}`);
+      const nextId = `local:${nextSearchPathId()}`;
+      pendingLuaModuleSearchPathHandlesRef.current[nextId] = handle;
+      setLuaModuleSearchPathDraft((current) => [...current, createLocalSearchPathEntry(nextId, handle.name)]);
+      showStatus(`Local search path added: ${handle.name}`);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       if (message.toLowerCase().includes("abort")) {
@@ -977,7 +1323,43 @@ export default function App() {
       }
       showStatus(`Folder pick failed: ${message.slice(0, 140)}`);
     }
-  }, [resetRuntime, showStatus]);
+  }, [directoryPickerSupport.unavailableReason, showStatus]);
+
+  const handleSaveLuaModuleSearchPaths = useCallback(async () => {
+    const previousLocalIds = new Set(activeLuaModuleSearchPaths.filter((entry) => entry.kind === "local").map((entry) => entry.id));
+    const nextLocalIds = new Set(luaModuleSearchPathDraft.filter((entry) => entry.kind === "local").map((entry) => entry.id));
+
+    for (const localId of previousLocalIds) {
+      if (!nextLocalIds.has(localId)) {
+        await deleteLuaModuleSearchPathHandle(localId);
+        delete luaModuleSearchPathHandlesRef.current[localId];
+      }
+    }
+
+    for (const entry of luaModuleSearchPathDraft) {
+      if (entry.kind !== "local") {
+        continue;
+      }
+
+      const pendingHandle = pendingLuaModuleSearchPathHandlesRef.current[entry.id];
+      if (pendingHandle) {
+        await setLuaModuleSearchPathHandle(entry.id, pendingHandle);
+        luaModuleSearchPathHandlesRef.current[entry.id] = pendingHandle;
+      }
+    }
+
+    setSettings((current) => ({ ...current, luaModuleSearchPaths: luaModuleSearchPathDraft }));
+    closeLuaModuleSearchPathsDialog();
+    resetRuntime();
+    showStatus(`Saved ${luaModuleSearchPathDraft.length} module search path${luaModuleSearchPathDraft.length === 1 ? "" : "s"}`);
+  }, [activeLuaModuleSearchPaths, closeLuaModuleSearchPathsDialog, luaModuleSearchPathDraft, resetRuntime, showStatus]);
+
+  const handleResetLuaModuleSearchPathsToDefaults = useCallback(() => {
+    const nextDefaults = defaultLuaModuleSearchPaths(duLuaServerSearchRoots);
+    setLuaModuleSearchPathDraft(nextDefaults);
+    setSelectedAvailableSearchPathId("project");
+    setManualSearchPathInput("");
+  }, [duLuaServerSearchRoots]);
 
   const handleSelectSession = useCallback(async (sessionId: string) => {
     if (sessionId === activeSessionId) {
@@ -1068,12 +1450,25 @@ export default function App() {
     setSessions(persisted);
   }, []);
 
+  const handleSidebarResizePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    sidebarResizeDragRef.current = true;
+  }, []);
+
   useEffect(() => {
     safeSaveSettings(settings);
   }, [settings]);
 
   useEffect(() => {
     const handlePointerMove = (event: PointerEvent) => {
+      if (sidebarResizeDragRef.current) {
+        setSettings((current) => ({
+          ...current,
+          sidebarWidth: clamp(event.clientX, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH),
+        }));
+        return;
+      }
+
       if (!splitterDragRef.current || !workspaceRef.current) {
         return;
       }
@@ -1091,6 +1486,7 @@ export default function App() {
     };
 
     const stopDragging = () => {
+      sidebarResizeDragRef.current = false;
       splitterDragRef.current = false;
       setSplitterDragging(false);
     };
@@ -1181,27 +1577,52 @@ export default function App() {
       if (cancelled) {
         return;
       }
-      if (duLuaServerStatus?.configured) {
-        setDuLuaServerRootPath(duLuaServerStatus.rootPath);
+      const serverRoots = duLuaServerStatus?.searchRoots ?? [];
+      setDuLuaServerSearchRoots(serverRoots);
+
+      const reconciledPaths = reconcileLuaModuleSearchPaths(settingsRef.current.luaModuleSearchPaths, serverRoots);
+      const localHandles: Record<string, FileSystemDirectoryHandle> = {};
+      const nextPaths: LuaModuleSearchPathEntry[] = [];
+
+      for (const entry of reconciledPaths) {
+        if (entry.kind !== "local") {
+          nextPaths.push(entry);
+          continue;
+        }
+
+        const handle = await getLuaModuleSearchPathHandle(entry.id);
+        if (!handle) {
+          continue;
+        }
+
+        localHandles[entry.id] = handle;
+        nextPaths.push(entry);
       }
 
-      const duLuaRootHandle = await getDuLuaRootHandle();
+      const legacyDuLuaRootHandle = await getDuLuaRootHandle();
       if (cancelled) {
         return;
       }
-      if (duLuaRootHandle) {
-        duLuaRootHandleRef.current = duLuaRootHandle;
-        setSettings((current) => {
-          const nextName = current.duLuaRootName || duLuaRootHandle.name;
-          if (nextName === current.duLuaRootName) {
-            return current;
-          }
-          return {
-            ...current,
-            duLuaRootName: nextName,
-          };
-        });
+      if (legacyDuLuaRootHandle) {
+        const legacyEntryId = "local:legacy-du-root";
+        if (!nextPaths.some((entry) => entry.id === legacyEntryId)) {
+          localHandles[legacyEntryId] = legacyDuLuaRootHandle;
+          await setLuaModuleSearchPathHandle(legacyEntryId, legacyDuLuaRootHandle);
+          nextPaths.push(createLocalSearchPathEntry(legacyEntryId, legacyDuLuaRootHandle.name));
+        }
       }
+
+      luaModuleSearchPathHandlesRef.current = localHandles;
+      setSettings((current) => {
+        const currentPaths = reconcileLuaModuleSearchPaths(current.luaModuleSearchPaths, serverRoots);
+        if (sameLuaModuleSearchPaths(currentPaths, nextPaths)) {
+          return current;
+        }
+        return {
+          ...current,
+          luaModuleSearchPaths: nextPaths,
+        };
+      });
 
       const knownSessions = await listSessions();
       if (cancelled) {
@@ -1262,6 +1683,7 @@ export default function App() {
     : activeSession?.linkedFileName ?? "the source file";
   const canReload = Boolean(activeSession?.linkedFileName || activeSession?.remoteSourceUrl);
   const canRunToggle = !saving && !loadingSession && !!activeSession;
+  const runButtonShowsStop = animating || running;
   const isHorizontalLayout = settings.layoutOrientation === "horizontal";
   const activeSplit = isHorizontalLayout ? settings.horizontalSplit : settings.verticalSplit;
   const showEmptyEditorDropzone = Boolean(activeSession) && code.trim().length === 0;
@@ -1347,8 +1769,10 @@ export default function App() {
         onReorderSessions={(draggedId, targetId, placement) => { void handleReorderSessions(draggedId, targetId, placement); }}
         settings={settings}
         onSettingsChange={setSettings}
-        duLuaRootStatus={duLuaRootStatus}
-        onPickDuLuaRoot={() => { void handlePickDuLuaRoot(); }}
+        luaModuleSearchPaths={activeLuaModuleSearchPaths}
+        onOpenLuaModuleSearchPaths={openLuaModuleSearchPathsDialog}
+        width={settings.sidebarWidth}
+        onResizePointerDown={handleSidebarResizePointerDown}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((current) => !current)}
       />
@@ -1357,14 +1781,9 @@ export default function App() {
         <div ref={workspaceRef} className={workspaceClassName}>
           <div style={canvasPaneStyle} className="flex min-h-0 min-w-0 overflow-hidden bg-base-300">
             <div className="relative flex h-full w-full items-center justify-center">
-              {statusMsg ? (
+              {statusMsg && !luaModuleSearchPathsOpen ? (
                 <div
-                  className={classNames(
-                    "pointer-events-none absolute bottom-3 left-1/2 z-3 w-auto max-w-[min(420px,calc(100%-24px))] -translate-x-1/2 rounded-xl px-3 py-2 font-mono text-xs shadow-lg backdrop-blur-md",
-                    statusMsg.startsWith("Error") || statusMsg.startsWith("Save failed") || statusMsg.startsWith("Reload failed") || statusMsg.startsWith("Import failed")
-                      ? "alert alert-error"
-                      : "alert alert-success"
-                  )}
+                  className={`pointer-events-none absolute bottom-3 left-1/2 z-3 -translate-x-1/2 ${statusToastClassName}`}
                 >
                   {statusMsg}
                 </div>
@@ -1470,12 +1889,12 @@ export default function App() {
                   onClick={handleRun}
                   className={classNames(
                     "btn btn-sm min-w-24 gap-2",
-                    animating ? "btn-error" : "btn-primary"
+                    runButtonShowsStop ? "btn-error" : "btn-primary"
                   )}
                   disabled={!canRunToggle}
-                  title={animating ? "Stop the running animation" : "Run the current script (Ctrl+Enter)"}
+                  title={runButtonShowsStop ? "Stop the running execution" : "Run the current script (Ctrl+Enter)"}
                 >
-                  {loadingSession ? "Loading..." : saving ? "Saving..." : running ? "Running..." : animating ? (
+                  {loadingSession ? "Loading..." : saving ? "Saving..." : runButtonShowsStop ? (
                     <>
                       <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">
                         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -1558,6 +1977,165 @@ export default function App() {
           </div>
         ) : null}
       </div>
+
+      {luaModuleSearchPathsOpen ? (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-3xl">
+            <div className="text-lg font-bold text-base-content">Module Search Paths</div>
+            <div className="mt-2 text-sm leading-6 text-base-content/70">
+              Configure the ordered list of module search paths. The first matching module wins. Defaults from `.env.local` are visible here instead of staying implicit.
+            </div>
+
+            <div className="mt-5 flex flex-col gap-3">
+              {luaModuleSearchPathDraft.length > 0 ? luaModuleSearchPathDraft.map((entry, index) => (
+                <div key={entry.id} className="flex flex-wrap items-center gap-2 rounded-2xl border border-base-300 bg-base-100 px-3 py-3">
+                  <span className="badge badge-outline min-w-18 justify-center">
+                    {entry.kind === "project" ? "Project" : entry.kind === "env" ? "Default" : entry.kind === "manual" ? "Manual" : "Local"}
+                  </span>
+                  <input
+                    readOnly
+                    value={entry.label}
+                    className="input input-bordered input-sm min-w-[16rem] flex-1 font-mono text-[0.85rem]"
+                  />
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm btn-square"
+                      onClick={() => moveLuaModuleSearchPathDraftEntry(index, -1)}
+                      disabled={index === 0}
+                      title="Move up"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm btn-square"
+                      onClick={() => moveLuaModuleSearchPathDraftEntry(index, 1)}
+                      disabled={index === luaModuleSearchPathDraft.length - 1}
+                      title="Move down"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm text-error"
+                      onClick={() => setLuaModuleSearchPathDraft((current) => current.filter((candidate) => candidate.id !== entry.id))}
+                      title="Remove path"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              )) : (
+                <div className="rounded-2xl border border-dashed border-base-300 px-4 py-5 text-sm text-base-content/60">
+                  No search paths configured. Add a default path, a manual folder, or a local folder.
+                </div>
+              )}
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-base-300 bg-base-200/60 px-4 py-4">
+              <div className="text-sm font-medium text-base-content">Add Path</div>
+              <div className="mt-3 flex flex-wrap items-end gap-2">
+                <label className="form-control min-w-[16rem] flex-1">
+                  <span className="mb-1 text-xs text-base-content/60">Available default path</span>
+                  <select
+                    value={selectedAvailableSearchPathId}
+                    onChange={(event) => setSelectedAvailableSearchPathId(event.target.value)}
+                    className="select select-bordered select-sm"
+                    disabled={availableDefaultLuaModuleSearchPaths.length === 0}
+                  >
+                    {availableDefaultLuaModuleSearchPaths.length > 0 ? availableDefaultLuaModuleSearchPaths.map((entry) => (
+                      <option key={entry.id} value={entry.id}>{entry.label}</option>
+                    )) : (
+                      <option value="">No more default paths available</option>
+                    )}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={handleAddDefaultLuaModuleSearchPath}
+                  disabled={availableDefaultLuaModuleSearchPaths.length === 0}
+                >
+                  Add Default
+                </button>
+              </div>
+              <div className="mt-3 flex flex-wrap items-end gap-2">
+                <label className="form-control min-w-[16rem] flex-1">
+                  <span className="mb-1 text-xs text-base-content/60">Manual folder path</span>
+                  <input
+                    type="text"
+                    value={manualSearchPathInput}
+                    onChange={(event) => setManualSearchPathInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleAddManualLuaModuleSearchPath();
+                      }
+                    }}
+                    className="input input-bordered input-sm"
+                    placeholder="C:/MyDualUniverse/Game/data/lua"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={handleAddManualLuaModuleSearchPath}
+                >
+                  Add Manual Folder
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => { void handleAddLocalLuaModuleSearchPath(); }}
+                  disabled={!directoryPickerSupport.available}
+                  title={directoryPickerSupport.available ? "Add a local folder" : directoryPickerSupport.unavailableReason ?? "Local folder access is unavailable"}
+                >
+                  Add Local Folder
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={handleResetLuaModuleSearchPathsToDefaults}
+                >
+                  Reset to Defaults
+                </button>
+              </div>
+              {!directoryPickerSupport.available ? (
+                <div className="mt-3 text-xs leading-5 text-warning">
+                  {directoryPickerSupport.unavailableReason}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="modal-action items-center justify-between gap-3">
+              <div className="min-h-[2.5rem] flex-1">
+                {statusMsg ? (
+                  <div className={`pointer-events-none ml-auto ${statusToastClassName}`}>
+                    {statusMsg}
+                  </div>
+                ) : null}
+              </div>
+              <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={closeLuaModuleSearchPathsDialog}
+                className="btn btn-ghost"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => { void handleSaveLuaModuleSearchPaths(); }}
+                className="btn btn-primary"
+              >
+                Save Paths
+              </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {githubImportOpen ? (
         <div className="modal modal-open">

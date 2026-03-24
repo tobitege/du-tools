@@ -18,7 +18,7 @@
 
 ## RenderScript-spezifisch
 
-- Für wiederholte Linien braucht es eine Hilfsroutine wie SilverZeroRsLib.lua -> `library.line`, die `setNextStrokeColor` und `setNextStrokeWidth` vor jedem `addLine` erneut setzt.
+- Für wiederholte Linien braucht es eine Hilfsroutine wie `lib/SilverZeroRsLib.lua` -> `library.line`, die `setNextStrokeColor` und `setNextStrokeWidth` vor jedem `addLine` erneut setzt.
 
 ## Screenshot-Vergleich nach Anpassung
 

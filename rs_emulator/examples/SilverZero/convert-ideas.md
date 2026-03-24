@@ -8,7 +8,7 @@ Create a shared helper library as a `.lua` file before converting individual scr
 
 Suggested first library name:
 
-- `SilverZeroRsLib.lua`
+- `lib/SilverZeroRsLib.lua`
 
 Suggested responsibilities:
 
@@ -92,7 +92,7 @@ The goal is to avoid rewriting the same layout logic for every converted screen.
 
 ## Recommended Conversion Order
 
-1. Build `SilverZeroRsLib.lua`
+1. Build `lib/SilverZeroRsLib.lua`
 2. Convert `SimpleSignS.html`
 3. Convert `SimpleSignXS.html`
 4. Convert `WelcomeScreenM.html`

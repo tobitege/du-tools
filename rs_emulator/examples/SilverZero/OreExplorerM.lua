@@ -1,6 +1,6 @@
 -- RenderScript conversion of SilverZero OreExplorerM.json
 
-local SZ = require("SilverZeroRsLib")
+local SZ = require("lib.SilverZeroRsLib")
 
 local theme = SZ.Themes.SilverZero
 local resolutionX, resolutionY = getResolution()

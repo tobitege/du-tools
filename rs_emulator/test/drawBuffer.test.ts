@@ -82,6 +82,17 @@ describe("drawBuffer style snapshotting", () => {
     expect(buffer.GetRenderableCommandsForLayer(layer)).toEqual([]);
   });
 
+  it("restarts frame-local layer handles after a frame reset", () => {
+    const buffer = new DrawBuffer();
+
+    const firstLayer = buffer.CreateLayer();
+    buffer.resetFrame();
+    const secondLayer = buffer.CreateLayer();
+
+    expect(firstLayer).toBe(1);
+    expect(secondLayer).toBe(1);
+  });
+
   it("keeps a completed render snapshot stable after the live buffer is reset", () => {
     const buffer = new DrawBuffer();
     const layer = buffer.CreateLayer();
@@ -178,6 +189,18 @@ describe("drawBuffer style snapshotting", () => {
       vi.unstubAllGlobals();
       globalThis.Image = originalImage;
     }
+  });
+
+  it("reuses the same font handle for identical fonts across frame resets", () => {
+    const buffer = new DrawBuffer();
+
+    const firstId = buffer.LoadFont("Arial", 24);
+    buffer.resetFrame();
+    const secondId = buffer.LoadFont("Arial", 24);
+
+    expect(firstId).toBe(1);
+    expect(secondId).toBe(firstId);
+    expect(buffer.fonts).toHaveLength(1);
   });
 
   it("rejects image URLs outside the allowed Novaquark asset host", () => {

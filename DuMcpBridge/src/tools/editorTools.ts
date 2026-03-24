@@ -200,6 +200,7 @@ type UiProbeCallFields = {
 };
 
 const screenEditorProbeMethods = new Set<UiProbeMethod>(["describe", "apply", "cancel", "outer_html", "raw_eval"]);
+const luaEditorProbeMethods = new Set<UiProbeMethod>(["describe", "select_slot", "select_filter", "select_filter_index", "select_context", "cancel", "outer_html", "raw_eval"]);
 
 function buildUiProbeArgs(targetKind: EditorUiKind, method: UiProbeMethod, fields: UiProbeCallFields): string[] {
   switch (method) {
@@ -236,6 +237,9 @@ const uiKindSchema = z
 
 function assertUiProbeMethodSupported(uiKind: EditorUiKind, method: UiProbeMethod): void {
   if (uiKind === "screen_editor" && !screenEditorProbeMethods.has(method)) {
+    throw new Error(`ui_method_not_supported_for_${uiKind}:${method}`);
+  }
+  if (uiKind === "lua_editor" && !luaEditorProbeMethods.has(method)) {
     throw new Error(`ui_method_not_supported_for_${uiKind}:${method}`);
   }
 }
@@ -741,12 +745,13 @@ function sleepMs(ms: number): Promise<void> {
   });
 }
 
-async function runScreenEditorEscapeCleanup(
+async function runEditorEscapeCleanup(
   commandQueue: BridgeCommandQueue,
   eventStore: BridgeEventStore,
   playerId: number,
   timeoutMs: number,
-  defaultAhkPath: string | null
+  defaultAhkPath: string | null,
+  editorKind: "screen_editor" | "lua_editor"
 ): Promise<{
   nativeOk: boolean;
   native: Awaited<ReturnType<typeof runNativeAhkInput>>;
@@ -764,7 +769,7 @@ async function runScreenEditorEscapeCleanup(
     defaultAhkPath
   );
   const nativeOk = native.nativeResult?.ok === true;
-  const finalDescribe = await enqueueAndWaitUiProbe(commandQueue, eventStore, "screen_editor", playerId, "describe", [], timeoutMs);
+  const finalDescribe = await enqueueAndWaitUiProbe(commandQueue, eventStore, editorKind, playerId, "describe", [], timeoutMs);
 
   return {
     nativeOk,
@@ -1402,12 +1407,13 @@ export function registerEditorTools(
         : timeoutMs;
       const probeResult = await enqueueAndWaitUiProbe(commandQueue, eventStore, uiKind, playerId, method, probeArgs, effectiveTimeout);
       if (uiKind === "screen_editor" && method === "cancel" && probeResult.found && probeResult.success) {
-        const cleanup = await runScreenEditorEscapeCleanup(
+        const cleanup = await runEditorEscapeCleanup(
           commandQueue,
           eventStore,
           playerId,
           effectiveTimeout,
-          options?.defaultAhkPath ?? null
+          options?.defaultAhkPath ?? null,
+          uiKind
         );
         const combinedSuccess = cleanup.nativeOk && cleanup.finalDescribe.found && cleanup.finalDescribe.success === true;
         const combinedPayload = {
@@ -1628,12 +1634,13 @@ export function registerEditorTools(
           try {
             const payload = commandEvent.payloadJson ? JSON.parse(commandEvent.payloadJson) as Record<string, unknown> : null;
             if (payload?.status === "injected") {
-              await runScreenEditorEscapeCleanup(
+              await runEditorEscapeCleanup(
                 commandQueue,
                 eventStore,
                 playerId,
                 cleanupTimeoutMs,
-                options?.defaultAhkPath ?? null
+                options?.defaultAhkPath ?? null,
+                targetKind
               );
             }
           } catch {

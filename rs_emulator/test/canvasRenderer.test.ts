@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { DrawBuffer, renderBuffer } from "../src/emulator";
+import { DEFAULT_SCREEN } from "../src/emulator/types";
 
 function createMockContext() {
   return {
@@ -208,5 +209,36 @@ describe("canvasRenderer text rendering", () => {
 
     expect(context.fillRect).toHaveBeenCalledWith(10, 20, 160, 60);
     expect(context.fillText).toHaveBeenCalledWith("Images disabled", 90, 50);
+  });
+
+  it("draws through a back buffer before presenting a completed frame on the visible canvas", () => {
+    const buffer = new DrawBuffer();
+    const layer = buffer.CreateLayer();
+    const { width, height } = DEFAULT_SCREEN;
+
+    buffer.SetBackgroundColor(0.31, 0, 0.03);
+    buffer.AddBox(layer, 0, 0, 20, 20);
+
+    const screenContext = createMockContext();
+    const backBufferContext = createMockContext();
+    const backBufferCanvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn(() => backBufferContext),
+    } as unknown as HTMLCanvasElement;
+    const canvas = {
+      width: 0,
+      height: 0,
+      ownerDocument: {
+        createElement: vi.fn(() => backBufferCanvas),
+      },
+      getContext: vi.fn(() => screenContext),
+    } as unknown as HTMLCanvasElement;
+
+    renderBuffer(canvas, buffer);
+
+    expect(backBufferContext.fillRect).toHaveBeenCalledWith(0, 0, width, height);
+    expect(screenContext.fillRect).not.toHaveBeenCalled();
+    expect(screenContext.drawImage).toHaveBeenCalledWith(backBufferCanvas, 0, 0, width, height);
   });
 });

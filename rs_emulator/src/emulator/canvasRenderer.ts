@@ -4,6 +4,7 @@ import type { DrawCommand, RGBA, LayerStyle } from "./types";
 import { getFontString, measureFontMetrics } from "./textMetrics";
 
 type RenderableCommand = Extract<DrawCommand, { style: LayerStyle }>;
+type RenderTargetCanvas = Pick<HTMLCanvasElement, "width" | "height" | "getContext">;
 
 const SHAPE_RENDER_ORDER: Record<RenderableCommand["op"], number> = {
   AddImage: 0,
@@ -92,13 +93,39 @@ function drawImagePlaceholder(ctx: CanvasRenderingContext2D, text: string, x: nu
   ctx.restore();
 }
 
-export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
+const BACK_BUFFER_CANVASES = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+
+function ensureCanvasSize(canvas: RenderTargetCanvas, width: number, height: number) {
+  if (canvas.width !== width) {
+    canvas.width = width;
+  }
+  if (canvas.height !== height) {
+    canvas.height = height;
+  }
+}
+
+function getBackBuffer(canvas: HTMLCanvasElement): HTMLCanvasElement | null {
+  const ownerDocument = canvas.ownerDocument ?? (typeof document !== "undefined" ? document : null);
+  if (!ownerDocument?.createElement) {
+    return null;
+  }
+
+  const existing = BACK_BUFFER_CANVASES.get(canvas);
+  if (existing) {
+    return existing;
+  }
+
+  const backBuffer = ownerDocument.createElement("canvas");
+  BACK_BUFFER_CANVASES.set(canvas, backBuffer);
+  return backBuffer;
+}
+
+function renderBufferToCanvas(canvas: RenderTargetCanvas, buffer: DrawBuffer) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
   const [w, h] = buffer.GetResolution();
-  canvas.width = w;
-  canvas.height = h;
+  ensureCanvasSize(canvas, w, h);
 
   // clear
   const bg = buffer.screen.backgroundColor;
@@ -246,7 +273,7 @@ export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
           const fontSize = font?.size ?? 16;
           const fontStr = getFontString(fontName, fontSize);
           ctx.font = fontStr;
-          ctx.textAlign = alignToCanvas(style.textAlign.hor, style.textAlign.ver);
+          ctx.textAlign = alignToCanvas(style.textAlign.hor);
           ctx.textBaseline = verToBaseline(RSAlignVer.Baseline);
           ctx.lineJoin = "round";
           const textY = resolveTextY(fontName, fontSize, style.textAlign.ver, cmd.y);
@@ -307,4 +334,25 @@ export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
 
     ctx.restore();
   }
+}
+
+export function renderBuffer(canvas: HTMLCanvasElement, buffer: DrawBuffer) {
+  const [w, h] = buffer.GetResolution();
+  const backBuffer = getBackBuffer(canvas);
+
+  if (!backBuffer) {
+    renderBufferToCanvas(canvas, buffer);
+    return;
+  }
+
+  renderBufferToCanvas(backBuffer, buffer);
+  ensureCanvasSize(canvas, w, h);
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return;
+  }
+
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(backBuffer, 0, 0, w, h);
 }

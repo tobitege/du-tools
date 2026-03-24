@@ -5,7 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, loadEnv, type Connect, type Plugin } from "vite";
 
 type ResolvedSourceReference = {
-  kind: "project" | "du";
+  kind: "project" | "du" | "manual";
   root: string;
   relativePath: string;
   absolutePath: string;
@@ -96,6 +96,10 @@ function createSourceRef(kind: "project" | "du", relativePath: string): string {
   return `${kind}:${normalizePath(relativePath)}`;
 }
 
+function createManualSourceRef(root: string, relativePath: string): string {
+  return `manual:${encodeURIComponent(normalizePath(root))}::${normalizePath(relativePath)}`;
+}
+
 function createDuSourceRef(relativePath: string, rootIndex?: number): string {
   const normalizedPath = normalizePath(relativePath);
   return rootIndex === undefined ? `du:${normalizedPath}` : `du[${rootIndex}]:${normalizedPath}`;
@@ -161,6 +165,20 @@ export async function resolveSourceReference(projectRoot: string, duLuaRoots: st
       return null;
     }
     return await resolveDuSourcePath(duLuaRoots, relativePath);
+  }
+
+  const manualMatch = normalized.match(/^manual:([^:]+)::(.+)$/);
+  if (manualMatch) {
+    const root = path.resolve(decodeURIComponent(manualMatch[1]));
+    const relativePath = manualMatch[2];
+    if (!isSafeModuleName(relativePath)) {
+      return null;
+    }
+    const absolutePath = path.join(root, relativePath);
+    if (!(await fileExists(absolutePath))) {
+      return null;
+    }
+    return { kind: "manual", root, relativePath, absolutePath };
   }
 
   if (normalized.includes("/")) {
@@ -261,10 +279,24 @@ export async function readLuaModuleRelativeToSource(projectRoot: string, duLuaRo
         source: await fs.readFile(filePath, "utf8"),
         resolvedRef: resolvedSource.kind === "du"
           ? createDuSourceRef(relativePath, resolvedSource.rootIndex)
+          : resolvedSource.kind === "manual"
+            ? createManualSourceRef(resolvedSource.root, relativePath)
           : createSourceRef(resolvedSource.kind, relativePath),
       };
     } catch {
       // try next candidate
+    }
+  }
+
+  if (resolvedSource.kind === "project" || resolvedSource.kind === "manual") {
+    const rootModule = await readLuaModuleFromRoot(resolvedSource.root, moduleName);
+    if (rootModule) {
+      return {
+        source: rootModule.source,
+        resolvedRef: resolvedSource.kind === "manual"
+          ? createManualSourceRef(resolvedSource.root, rootModule.resolvedPath)
+          : createSourceRef("project", rootModule.resolvedPath),
+      };
     }
   }
 
@@ -288,6 +320,10 @@ function duLuaPlugin(duLuaRoots: string[]): Plugin {
       res.end(JSON.stringify({
         configured: duLuaRoots.length > 0,
         rootPath: duLuaRoots.length > 0 ? duLuaRoots.map((root) => normalizePath(root)).join(" ; ") : null,
+        searchRoots: duLuaRoots.map((root, rootIndex) => ({
+          rootIndex,
+          path: normalizePath(root),
+        })),
       }));
       return;
     }
@@ -316,6 +352,89 @@ function duLuaPlugin(duLuaRoots: string[]): Plugin {
 
     const moduleName = url.searchParams.get("name")?.trim() ?? "";
     const fromSource = url.searchParams.get("from")?.trim() ?? "";
+    const scope = url.searchParams.get("scope")?.trim() ?? "";
+    const rootIndex = url.searchParams.get("rootIndex");
+    const rootPath = url.searchParams.get("rootPath")?.trim() ?? "";
+    const preferredRootIndex = rootIndex !== null ? Number.parseInt(rootIndex, 10) : Number.NaN;
+
+    if (scope === "relative") {
+      const relativeSource = fromSource
+        ? await readLuaModuleRelativeToSource(projectRoot, duLuaRoots, fromSource, moduleName)
+        : null;
+      if (!relativeSource) {
+        res.statusCode = 404;
+        res.end(`Relative module not found: ${moduleName}`);
+        return;
+      }
+
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({
+        source: relativeSource.source,
+        resolvedPath: relativeSource.resolvedRef,
+      }));
+      return;
+    }
+
+    if (scope === "project") {
+      const projectModule = await readLuaModuleFromRoot(projectRoot, moduleName);
+      if (!projectModule) {
+        res.statusCode = 404;
+        res.end(`Project module not found: ${moduleName}`);
+        return;
+      }
+
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({
+        source: projectModule.source,
+        resolvedPath: createSourceRef("project", projectModule.resolvedPath),
+      }));
+      return;
+    }
+
+    if (scope === "du") {
+      if (!Number.isInteger(preferredRootIndex) || preferredRootIndex < 0 || preferredRootIndex >= duLuaRoots.length) {
+        res.statusCode = 404;
+        res.end(`DU root not found: ${rootIndex ?? "unknown"}`);
+        return;
+      }
+
+      const source = await readLuaModuleFromRoot(duLuaRoots[preferredRootIndex], moduleName);
+      if (!source) {
+        res.statusCode = 404;
+        res.end(`DU module not found: ${moduleName}`);
+        return;
+      }
+
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({
+        source: source.source,
+        resolvedPath: createDuSourceRef(source.resolvedPath, preferredRootIndex),
+      }));
+      return;
+    }
+
+    if (scope === "manual") {
+      if (!rootPath) {
+        res.statusCode = 404;
+        res.end("Manual root path is missing");
+        return;
+      }
+
+      const manualRoot = path.resolve(rootPath);
+      const source = await readLuaModuleFromRoot(manualRoot, moduleName);
+      if (!source) {
+        res.statusCode = 404;
+        res.end(`Manual module not found: ${moduleName}`);
+        return;
+      }
+
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({
+        source: source.source,
+        resolvedPath: createManualSourceRef(manualRoot, source.resolvedPath),
+      }));
+      return;
+    }
 
     if (fromSource) {
       const relativeSource = await readLuaModuleRelativeToSource(projectRoot, duLuaRoots, fromSource, moduleName);
@@ -327,6 +446,16 @@ function duLuaPlugin(duLuaRoots: string[]): Plugin {
         }));
         return;
       }
+    }
+
+    const projectModule = await readLuaModuleFromRoot(projectRoot, moduleName);
+    if (projectModule) {
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({
+        source: projectModule.source,
+        resolvedPath: createSourceRef("project", projectModule.resolvedPath),
+      }));
+      return;
     }
 
     if (duLuaRoots.length === 0) {

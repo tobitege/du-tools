@@ -33,7 +33,7 @@
 - Added `examples/SilverZero/` with local copies of selected DU-Screen-Flair source files plus a `convert-ideas.md` plan for RenderScript conversions built around a future shared helper library.
 - Added `examples/SilverZero/SimpleSignXS.lua` as the next converted static sign and updated runtime tests to execute SilverZero library-backed examples (`SimpleSignS`, `SimpleSignXS`).
 - Added `examples/SilverZero/WelcomeScreenM.lua` static conversion and expanded test coverage for SilverZero examples.
-- Verified conversion order from `convert-ideas.md` remains on track: `SilverZeroRsLib.lua`, `SimpleSignS`, `SimpleSignXS`, then `WelcomeScreenM`.
+- Verified conversion order from `convert-ideas.md` remains on track: `lib/SilverZeroRsLib.lua`, `SimpleSignS`, `SimpleSignXS`, then `WelcomeScreenM`.
 - Added static conversions for `ShipFrameM` and `DispenserSignS`; both are now runnable and use the shared helper library.
 - Added static conversions for `HubPanelS` and `HubPanelL` and expanded Lua runtime tests to cover SilverZero examples `ShipStatsS`, `ShipFrameM`, `DispenserSignS`, `HubPanelS`, and `HubPanelL`.
 - Added static conversion for `ContainerSignM` with a table-style manifest layout and added runtime coverage in `luaRuntime.test.ts`.
@@ -44,17 +44,17 @@
 - Added bundled-example module resolution relative to the calling script path, and applied the same path-based lookup to both `require(...)` and `include(...)`.
 - Added a Reload action with a custom confirmation modal so sessions can be refreshed safely from bundled example sources or linked local files without using browser-native prompts.
 - Updated the editor header to show the active session name instead of a hard-coded `RenderScript.lua` title.
-- Tuned `SilverZeroRsLib.lua` font scaling and added shared animation helpers (`time`, `animLoop`, `pulse`, `wave`, `saw`, `breatheColor`) for RenderScript-side motion work.
+- Tuned `lib/SilverZeroRsLib.lua` font scaling and added shared animation helpers (`time`, `animLoop`, `pulse`, `wave`, `saw`, `breatheColor`) for RenderScript-side motion work.
 - Switched the converted SilverZero example scripts from one-shot static execution to frame-based rerendering and updated Lua runtime tests to expect `requestAnimationFrame(1)` for those examples.
 - Reworked `examples/SilverZero/WelcomeScreenM.lua` away from the earlier static mockup and toward the original HTML intent, including the right-side helix/perlenketten motion, revised panel composition, and a first pass at the original circuit-style backdrop.
 - Updated `README.md` to reflect multi-file import, reload behavior, and bundled example-relative `require(...)` / `include(...)` resolution.
 - Reworked `examples/SilverZero/OreExplorerM.lua` toward the original `OreExplorerM.json` intent: subdued left-offset sun, aligned planet row without invented drift animation, and Alioth-focused ore cards instead of the previous sector-table mockup.
 - Verified the updated `OreExplorerM.lua` in the browser via reload/run screenshot workflow and kept the remaining simplifications explicit (no sprite textures, no photographic background assets).
 - Confirmed the SilverZero regression still passes with `npm run test -- test/luaRuntime.test.ts` (`16` tests green).
-- Added new shared SilverZero helper methods in `examples/SilverZero/SilverZeroRsLib.lua` for generic layout-space lines, generic boxes, and scaled colors.
+- Added new shared SilverZero helper methods in `lib/SilverZeroRsLib.lua` for generic layout-space lines, generic boxes, and scaled colors.
 - Replaced duplicated local helper logic in `examples/SilverZero/OreExplorerM.lua` and `examples/SilverZero/WelcomeScreenM.lua` with the shared library methods.
 - Fixed `WelcomeScreenM.lua` line drawing so repeated line segments no longer rely on stale `setNextStroke*` state across multiple `addLine(...)` calls.
-- Added a shared `namedSymbolRow(...)` helper in `examples/SilverZero/SilverZeroRsLib.lua` for labeled entries with size-scaled symbols and `linear` / `log` / `auto` scaling modes.
+- Added a shared `namedSymbolRow(...)` helper in `lib/SilverZeroRsLib.lua` for labeled entries with size-scaled symbols and `linear` / `log` / `auto` scaling modes.
 - Reworked the `OreExplorerM.lua` planet strip to use `namedSymbolRow(...)` with explicit entry data (`name`, `shape`, `size`, color, meta label, selected state) instead of hard-coded per-planet drawing logic.
 - Removed `.lua` files from the production bundle and switched the app bootstrap back to empty temp sessions.
 - Restored relative `require(...)` / `include(...)` lookup for source-backed scripts by resolving bare module names against the current source file directory first, then falling back to `DU_LUA_ROOT`.

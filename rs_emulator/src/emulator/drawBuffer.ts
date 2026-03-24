@@ -98,6 +98,7 @@ export class DrawBuffer {
     this.layerStyles.clear();
     this.nextOverrides.clear();
     this.layerTransforms.clear();
+    this.nextLayerId = 1;
     this.renderCost = 0;
     this.output = "";
     this.logs = [];
@@ -367,6 +368,11 @@ export class DrawBuffer {
 
   // --- fonts & images ---
   LoadFont(name: string, size: number): number {
+    const existing = this.fonts.find((font) => font.name === name && font.size === size);
+    if (existing) {
+      return existing.id;
+    }
+
     const id = this.nextFontId++;
     this.fonts.push({ id, name, size });
     return id;

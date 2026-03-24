@@ -41,6 +41,19 @@ describe("DU_LUA_ROOT resolution", () => {
     expect(resolved?.source).toContain("second root");
   });
 
+  it("resolves dotted module names to nested Lua files", async () => {
+    const root = await makeTempDir();
+
+    await fs.mkdir(path.join(root, "lib"), { recursive: true });
+    await fs.writeFile(path.join(root, "lib", "SilverZeroRsLib.lua"), "-- dotted module", "utf8");
+
+    const resolved = await readLuaModule([root], "lib.SilverZeroRsLib");
+
+    expect(resolved).not.toBeNull();
+    expect(resolved?.resolvedPath).toBe("lib/SilverZeroRsLib.lua");
+    expect(resolved?.source).toContain("dotted module");
+  });
+
   it("keeps relative requires on the DU root that supplied the source file", async () => {
     const projectRoot = await makeTempDir();
     const firstRoot = await makeTempDir();
@@ -57,6 +70,53 @@ describe("DU_LUA_ROOT resolution", () => {
     expect(relative).not.toBeNull();
     expect(relative?.resolvedRef).toBe("du[1]:pkg/helper.lua");
     expect(relative?.source).toContain("correct root");
+  });
+
+  it("resolves dotted project modules relative to the project root", async () => {
+    const projectRoot = await makeTempDir();
+    const duRoot = await makeTempDir();
+
+    await fs.mkdir(path.join(projectRoot, "examples", "SilverZero"), { recursive: true });
+    await fs.mkdir(path.join(projectRoot, "lib"), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, "examples", "SilverZero", "SimpleSignS.lua"), "-- source", "utf8");
+    await fs.writeFile(path.join(projectRoot, "lib", "SvgParser.lua"), "-- parser", "utf8");
+
+    const relative = await readLuaModuleRelativeToSource(
+      projectRoot,
+      [duRoot],
+      "project:examples/SilverZero/SimpleSignS.lua",
+      "lib.SvgParser",
+    );
+
+    expect(relative).not.toBeNull();
+    expect(relative?.resolvedRef).toBe("project:lib/SvgParser.lua");
+    expect(relative?.source).toContain("parser");
+  });
+
+  it("resolves modules from a manual root and keeps relative requires inside that root", async () => {
+    const projectRoot = await makeTempDir();
+    const manualRoot = await makeTempDir();
+
+    await fs.mkdir(path.join(manualRoot, "pkg"), { recursive: true });
+    await fs.writeFile(path.join(manualRoot, "pkg", "main.lua"), "-- source", "utf8");
+    await fs.writeFile(path.join(manualRoot, "pkg", "helper.lua"), "return 'manual root'", "utf8");
+
+    const encodedRoot = encodeURIComponent(manualRoot.replace(/\\/g, "/"));
+    const relative = await readLuaModuleRelativeToSource(
+      projectRoot,
+      [],
+      `manual:${encodedRoot}::pkg/main.lua`,
+      "helper",
+    );
+
+    expect(relative).not.toBeNull();
+    expect(relative?.resolvedRef).toBe(`manual:${encodedRoot}::pkg/helper.lua`);
+    expect(relative?.source).toContain("manual root");
+
+    const resolved = await resolveSourceReference(projectRoot, [], `manual:${encodedRoot}::pkg/helper.lua`);
+    expect(resolved).not.toBeNull();
+    expect(resolved?.kind).toBe("manual");
+    expect(resolved?.absolutePath).toBe(path.join(manualRoot, "pkg", "helper.lua"));
   });
 
   it("resolves legacy du: references across all configured roots", async () => {

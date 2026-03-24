@@ -17,6 +17,7 @@ export interface LuaExecuteOptions {
 }
 
 const LUA_HOST_IO_DISABLED_ERROR = "Lua host I/O is disabled. Enable VITE_RS_ENABLE_LUA_HOST_IO=true to allow it.";
+const LUA_EXECUTION_TIMEOUT_MS = 1000;
 
 let factoryPromise: Promise<LuaFactory> | null = null;
 const UTF8_BOM = "\uFEFF";
@@ -107,6 +108,15 @@ function formatExecutionError(error: unknown): string {
   }
 
   return `${message}\n${stackLocation}`;
+}
+
+function isLuaThreadTimeoutError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return message.includes("thread timeout exceeded") || message.includes("lua timeout");
 }
 
 async function installRuntime(lua: LuaEngine, buffer: DrawBuffer, runtimeFlags?: RuntimeFlags): Promise<void> {
@@ -849,16 +859,44 @@ async function preloadExternalModules(lua: LuaEngine, modules: Map<string, strin
 export function createLuaEnvironment(buffer: DrawBuffer, resolveModule?: LuaModuleResolver, runtimeFlags?: RuntimeFlags) {
   let enginePromise: Promise<LuaEngine> | null = null;
 
+  function disposeEngine(): void {
+    const pendingEngine = enginePromise;
+    enginePromise = null;
+
+    if (!pendingEngine) {
+      return;
+    }
+
+    void pendingEngine.then((engine) => {
+      engine.global.close();
+    }).catch(() => {
+      // ignore teardown failures while replacing the environment
+    });
+  }
+
   async function getEngine(): Promise<LuaEngine> {
     if (!enginePromise) {
       enginePromise = (async () => {
         const factory = await getFactory();
-        const engine = await factory.createEngine();
+        const engine = await factory.createEngine({ functionTimeout: LUA_EXECUTION_TIMEOUT_MS });
         await installRuntime(engine, buffer, runtimeFlags);
         return engine;
       })();
     }
     return enginePromise;
+  }
+
+  async function executeWithTimeout(lua: LuaEngine, script: string): Promise<void> {
+    const thread = lua.global.newThread();
+    const threadIndex = lua.global.getTop();
+
+    try {
+      thread.loadString(script);
+      await thread.run(0, { timeout: LUA_EXECUTION_TIMEOUT_MS });
+    } finally {
+      thread.close();
+      lua.global.remove(threadIndex);
+    }
   }
 
   async function execute(code: string, options?: LuaExecuteOptions): Promise<LuaExecResult> {
@@ -874,7 +912,7 @@ export function createLuaEnvironment(buffer: DrawBuffer, resolveModule?: LuaModu
       await lua.doString('package.loaded["RenderScript"] = nil');
       lua.global.set("__rsUserCode", normalizedCode);
       lua.global.set("__rsUserChunkName", chunkLabel);
-      await lua.doString(`
+      await executeWithTimeout(lua, `
         do
           local chunk, err = load(__rsUserCode, __rsUserChunkName, "t", _ENV)
           if not chunk then
@@ -890,9 +928,14 @@ export function createLuaEnvironment(buffer: DrawBuffer, resolveModule?: LuaModu
         requestAnimFrames: buffer.requestAnimFrames,
       };
     } catch (error: unknown) {
+      if (isLuaThreadTimeoutError(error)) {
+        disposeEngine();
+      }
       return {
         success: false,
-        error: formatExecutionError(error),
+        error: isLuaThreadTimeoutError(error)
+          ? `Lua execution timed out after ${LUA_EXECUTION_TIMEOUT_MS}ms`
+          : formatExecutionError(error),
         logs: [...buffer.logs],
         output: buffer.output,
         requestAnimFrames: buffer.requestAnimFrames,
@@ -900,5 +943,10 @@ export function createLuaEnvironment(buffer: DrawBuffer, resolveModule?: LuaModu
     }
   }
 
-  return { execute };
+  return {
+    execute,
+    dispose: async () => {
+      disposeEngine();
+    },
+  };
 }

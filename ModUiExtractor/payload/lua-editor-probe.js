@@ -4466,10 +4466,51 @@
   }
 
   function cancelChangesForProbeTarget(targetKind) {
-    if (normalizeProbeTargetKind(targetKind) === "screen_editor") {
+    var normalized = normalizeProbeTargetKind(targetKind);
+    if (normalized === "screen_editor") {
       return cancelScreenEditorChanges();
     }
-    throw new Error("unsupported_method_for_target:" + normalizeProbeTargetKind(targetKind) + ":cancel");
+    if (normalized === "lua_editor") {
+      return cancelLuaEditorChanges();
+    }
+    throw new Error("unsupported_method_for_target:" + normalized + ":cancel");
+  }
+
+  function cancelLuaEditorChanges() {
+    var root = getLuaEditorRoot();
+    function waitForLuaEditorClosedAsync(resultValue) {
+      return pollUntilAsync(
+        function() {
+          var currentRoot = getLuaEditorRoot();
+          if (!isElementVisible(currentRoot || root)) {
+            return resultValue;
+          }
+          return null;
+        },
+        40,
+        25,
+        function() {
+          return new Error("lua_editor_cancel_failed");
+        }
+      );
+    }
+    if (!isElementVisible(root)) {
+      throw new Error("lua_editor_not_visible");
+    }
+    var cancelNode = null;
+    if (root && root.querySelector) {
+      try {
+        cancelNode = root.querySelector(".btn_bar .lua_editor_cancel_button");
+      } catch (_ignore) {}
+    }
+    if (cancelNode && typeof cancelNode.click === "function") {
+      cancelNode.click();
+      return waitForLuaEditorClosedAsync({
+        cancelled: true,
+        editorClosed: !isElementVisible(getLuaEditorRoot())
+      });
+    }
+    throw new Error("lua_editor_cancel_button_not_found");
   }
 
   var MAX_OUTER_HTML_CHARS = 350000;

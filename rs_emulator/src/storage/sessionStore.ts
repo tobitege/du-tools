@@ -35,6 +35,7 @@ const CONTENT_STORE = "session-content";
 const HANDLE_STORE = "session-handles";
 const TEMP_DIR = "rs-sessions";
 const DU_LUA_ROOT_HANDLE_KEY = "du-lua-root-handle";
+const LUA_MODULE_SEARCH_PATH_HANDLE_PREFIX = "lua-module-search-path:";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -361,6 +362,31 @@ export async function getDuLuaRootHandle(): Promise<FileSystemDirectoryHandle | 
 export async function setDuLuaRootHandle(handle: FileSystemDirectoryHandle): Promise<void> {
   await withStore(HANDLE_STORE, "readwrite", async (store) => {
     store.put(handle, DU_LUA_ROOT_HANDLE_KEY);
+    return undefined;
+  });
+}
+
+function luaModuleSearchPathHandleKey(id: string): string {
+  return `${LUA_MODULE_SEARCH_PATH_HANDLE_PREFIX}${id}`;
+}
+
+export async function getLuaModuleSearchPathHandle(id: string): Promise<FileSystemDirectoryHandle | null> {
+  return withStore(HANDLE_STORE, "readonly", async (store) => {
+    const handle = await requestToPromise(store.get(luaModuleSearchPathHandleKey(id))) as FileSystemDirectoryHandle | undefined;
+    return handle ?? null;
+  });
+}
+
+export async function setLuaModuleSearchPathHandle(id: string, handle: FileSystemDirectoryHandle): Promise<void> {
+  await withStore(HANDLE_STORE, "readwrite", async (store) => {
+    store.put(handle, luaModuleSearchPathHandleKey(id));
+    return undefined;
+  });
+}
+
+export async function deleteLuaModuleSearchPathHandle(id: string): Promise<void> {
+  await withStore(HANDLE_STORE, "readwrite", async (store) => {
+    store.delete(luaModuleSearchPathHandleKey(id));
     return undefined;
   });
 }

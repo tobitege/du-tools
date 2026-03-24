@@ -102,8 +102,8 @@ export interface ScreenConfig {
 }
 
 export const DEFAULT_SCREEN: ScreenConfig = {
-  width: 1024,
-  height: 1024,
+  width: 1920,
+  height: 1080,
   backgroundColor: [0, 0, 0, 1],
   renderCostMax: 10000,
 };

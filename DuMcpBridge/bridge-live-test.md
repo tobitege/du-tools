@@ -61,33 +61,65 @@ Pass criteria:
 
 - opens one supported editor
 - follow with `du_ui_describe(...)` to confirm which editor opened
+- **Recommended**: Use an external screenshot tool (e.g., ScreenShotNet `capture_window_screenshot`) to visually confirm the editor is visible on screen - this provides a human-verifiable confirmation that the native input was received correctly.
 
-## 3. Screen Editor Read Path
+## 3. Lua Editor Read Path (and screen_editor adaptation)
 
-Use this section only when `screen_editor` is already open.
+Use this section when `lua_editor` (or `screen_editor`) is open. The editor requires both a slot AND a filter with actual code to be selected before the code editor is populated.
 
-1. `du_ui_describe(uiKind = screen_editor, playerId = <playerId>)`
+### 3a. Confirm editor is open
+
+1. `du_ui_describe(uiKind = lua_editor, playerId = <playerId>)`
 Pass criteria:
 
 - `visible = true`
-- title is populated
-- `mode` is populated
-- `codeLength > 0`
+- `title` is populated
+- `slots` array contains available slots (e.g., library, system, construct, unit, etc.)
+- `selectedSlot` is `null` (no slot selected yet)
+- `filters` array is empty or contains filter entries
+- `selectedFilter` is `null` (no filter selected yet)
+- `codeLength = 0` (no code loaded because nothing selected)
 
-1. `du_ui_wait(uiKind = screen_editor, playerId = <playerId>, requireVisible = true)`
+### 3b. Select a slot
+
+1. `du_ui_invoke(uiKind = lua_editor, method = select_slot, slotName = "unit", playerId = <playerId>)`
+Pass criteria:
+
+- `selectedSlot` is now "unit"
+- `filters` array populates with available filter entries (e.g., onTimer, onStart)
+- `codeLength` is still `0` (no filter selected yet)
+
+### 3c. Select a filter with existing code
+
+1. `du_ui_invoke(uiKind = lua_editor, method = select_filter_index, filterIndex = 0, playerId = <playerId>)`
+Pass criteria:
+
+- `selectedFilter` is populated (e.g., "onStart()")
+- `codeLength > 0` (code is now loaded)
+- verify via `du_ui_describe(...)` that codeLength reflects actual code size
+
+### 3d. Wait for editor to be ready
+
+1. `du_ui_wait(uiKind = lua_editor, playerId = <playerId>, requireVisible = true)`
 Pass criteria:
 
 - `ready = true`
 
-1. `du_ui_invoke(uiKind = screen_editor, method = outer_html, selector = ".CodeMirror")`
+### 3e. Read DOM content
+
+1. `du_ui_invoke(uiKind = lua_editor, method = outer_html, selector = ".CodeMirror", playerId = <playerId>)`
 Pass criteria:
 
-- returns a successful DOM snapshot
+- returns a successful DOM snapshot of the CodeMirror editor
+- contains actual Lua code lines
 
-1. `du_ui_invoke(uiKind = screen_editor, method = raw_eval, functionBody = ...)`
+### 3f. Raw eval (debug)
+
+1. `du_ui_invoke(uiKind = lua_editor, method = raw_eval, functionBody = "return { debug = 'test', timestamp = system.getTime() }", playerId = <playerId>)`
 Pass criteria:
 
-- returns a successful structured debug result
+- returns a structured debug result from the runtime
+- Note: requires slot AND filter to be selected first
 
 ## 4. Screen Editor Close Path via Cancel
 

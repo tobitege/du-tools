@@ -27,6 +27,14 @@ export interface FpsLimitOption {
   label: string;
 }
 
+export type LuaModuleSearchPathKind = "project" | "env" | "local" | "manual";
+
+export interface LuaModuleSearchPathEntry {
+  id: string;
+  kind: LuaModuleSearchPathKind;
+  label: string;
+}
+
 export const RESOLUTION_PRESETS: ResolutionPreset[] = [
   { id: "hd-landscape", label: "HD 16:9", width: 1280, height: 720 },
   { id: "hd-portrait", label: "HD 9:16", width: 720, height: 1280 },
@@ -40,11 +48,11 @@ export function getResolutionPreset(id: string): ResolutionPreset | undefined {
 }
 
 export const THEME_OPTIONS: ThemeOption[] = [
-  { id: "night", label: "Night", mode: "dark" },
   { id: "business", label: "Business", mode: "dark" },
   { id: "corporate", label: "Corporate", mode: "light" },
   { id: "cupcake", label: "Cupcake", mode: "light" },
   { id: "forest", label: "Forrest", mode: "dark" },
+  { id: "night", label: "Night", mode: "dark" },
   { id: "retro", label: "Retro", mode: "light" },
   { id: "synthwave", label: "Synthwave", mode: "dark" },
 ];
@@ -54,6 +62,8 @@ export function getThemeOption(id: string): ThemeOption | undefined {
 }
 
 export const DEFAULT_MAX_FPS = 60;
+export const MIN_SIDEBAR_WIDTH = 150;
+export const MAX_SIDEBAR_WIDTH = 500;
 
 export const FPS_LIMIT_OPTIONS: FpsLimitOption[] = [
   { value: 24, label: "24 FPS" },
@@ -74,6 +84,7 @@ export function normalizeMaxFps(value: unknown): number {
 }
 
 export interface Settings {
+  sidebarWidth: number;
   resolutionPreset: string;
   canvasWidth: number;
   canvasHeight: number;
@@ -87,13 +98,14 @@ export interface Settings {
   themeId: string;
   darkEditor: boolean;
   autoRun: boolean;
-  duLuaRootName: string;
+  luaModuleSearchPaths: LuaModuleSearchPathEntry[] | null;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  resolutionPreset: "hd-landscape",
-  canvasWidth: 1280,
-  canvasHeight: 720,
+  sidebarWidth: MIN_SIDEBAR_WIDTH,
+  resolutionPreset: "fhd-landscape",
+  canvasWidth: 1920,
+  canvasHeight: 1080,
   layoutOrientation: "horizontal",
   horizontalSplit: 0.5,
   verticalSplit: 0.5,
@@ -104,5 +116,5 @@ export const DEFAULT_SETTINGS: Settings = {
   themeId: "night",
   darkEditor: true,
   autoRun: false,
-  duLuaRootName: "",
+  luaModuleSearchPaths: null,
 };

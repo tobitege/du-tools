@@ -1,6 +1,6 @@
-# rs_emulator
+# RScript Emulator
 
-`rs_emulator` is a browser-based RenderScript playground for Dual Universe screen code.
+`RScript Emulator` is the browser-based RenderScript playground in the `rs_emulator` repository for Dual Universe screen code.
 
 It is meant to make RenderScript development faster outside the game: write Lua, run it in a canvas preview, keep sessions around, and save scripts as normal `.lua` files.
 However, it is a script emulator, not a debugger!
@@ -14,7 +14,7 @@ However, it is a script emulator, not a debugger!
 - local file save and reload when browser file handles are supported
 - horizontal/vertical editor-canvas layouts with draggable split
 - canvas rotation controls for portrait-oriented scripts
-- optional DU Lua include resolution for helpers such as `require("rslib")`
+- configurable Lua module search paths for helpers such as `require("rslib")` and project modules like `require("lib.SvgParser")`
 - Monaco editor with RenderScript-oriented completions
 
 ## Requirements
@@ -59,9 +59,13 @@ Preview build:
 npm run preview
 ```
 
-## Optional DU Include Setup
+## Lua Module Search Paths
 
-If you want scripts to resolve vanilla or neighboring DU helper modules such as `require("rslib")`, configure include roots in `.env.local`.
+The emulator uses an ordered list of module search paths. The first matching module wins.
+
+In the UI you can open `Settings` -> `Edit Paths` to inspect, reorder, add, or remove search paths. The defaults can come from `.env.local`, but they are shown in the dialog instead of staying implicit.
+
+If you want scripts to resolve vanilla DU helpers such as `require("rslib")`, configure additional default search roots in `.env.local`.
 
 1. Copy `.env.example` to `.env.local`
 2. Set `DU_LUA_ROOT`
@@ -69,12 +73,18 @@ If you want scripts to resolve vanilla or neighboring DU helper modules such as 
 Example:
 
 ```text
-DU_LUA_ROOT=D:/MyDualUniverse/Game/data/lua;./examples/du-mocks
+DU_LUA_ROOT=C:/Program Files/NQ/DualUniverse/Game/data/lua;./
 VITE_RS_ENABLE_IMAGE_LOADING=false
 VITE_RS_ENABLE_LUA_HOST_IO=false
 ```
 
 Use `;` between roots. Relative paths are resolved from the `rs_emulator` project folder.
+
+With the example above:
+
+- `require("rslib")` can resolve from the Dual Universe Lua folder
+- `require("lib.SilverZeroRsLib")` resolves from `./lib/SilverZeroRsLib.lua`
+- `require("examples.SilverZero.SimpleSignS_html")` resolves from `./examples/SilverZero/SimpleSignS_html.lua`
 
 Optional runtime flags stay disabled unless you explicitly enable them:
 
@@ -195,3 +205,8 @@ npm run build
 ## License
 
 MIT licensed.
+
+## Resources
+
+[luapower/svg_parser](https://github.com/luapower/svg_parser)
+[d6rks1lv3rz3r0/DU-Screen-Flair](https://github.com/d6rks1lv3rz3r0/DU-Screen-Flair)

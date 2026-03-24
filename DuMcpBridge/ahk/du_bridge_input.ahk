@@ -179,6 +179,7 @@ SendCtrlL(windowTitle, activateWindow := true, sendEscapeFirst := false) {
         try {
             WinActivate(targetSpec)
             WinWaitActive(targetSpec, , 1)
+            Sleep(50)  ; Give the game window time to fully activate
         } catch as err {
             result.error := "activate_failed:" . err.Message
         }
@@ -186,21 +187,24 @@ SendCtrlL(windowTitle, activateWindow := true, sendEscapeFirst := false) {
 
     result.activeAfter := !!WinActive(targetSpec)
 
-    ctrlLSequence := "{LCtrl down}l{LCtrl up}"
+    ctrlLSequence := "{LCtrl down}l{LCtrl up}"  ; Explicit modifier syntax for ControlSend
 
     if (result.activeAfter) {
         try {
             if (sendEscapeFirst) {
-                SendEvent("{Escape}")
+                ControlSend("{Escape}", , targetSpec)
                 Sleep(120)
             }
-            SendEvent(ctrlLSequence)
-            result.sendMode := sendEscapeFirst ? "send_event_escape_then_lctrl" : "send_event_active_lctrl"
+            ; Try with a small delay before and after to ensure modifier is processed
+            Sleep(20)
+            ControlSend(ctrlLSequence, , targetSpec)
+            Sleep(20)
+            result.sendMode := sendEscapeFirst ? "control_send_escape_then_lctrl" : "control_send_lctrl"
             result.ok := true
             result.error := ""
             return result
         } catch as err {
-            result.error := "send_event_failed:" . err.Message
+            result.error := "control_send_failed:" . err.Message
         }
     }
 
@@ -209,7 +213,9 @@ SendCtrlL(windowTitle, activateWindow := true, sendEscapeFirst := false) {
             ControlSend("{Escape}", , targetSpec)
             Sleep(120)
         }
+        Sleep(20)
         ControlSend(ctrlLSequence, , targetSpec)
+        Sleep(20)
         result.sendMode := sendEscapeFirst ? "control_send_escape_then_lctrl" : "control_send_lctrl"
         result.ok := true
         result.error := ""

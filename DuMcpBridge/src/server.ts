@@ -82,7 +82,6 @@ async function main(): Promise<void> {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`DuMcpBridge running on stdio. Commands: ${config.paths.commandsDir}`);
 }
 
 main().catch((error: unknown) => {

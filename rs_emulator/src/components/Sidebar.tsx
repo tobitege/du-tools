@@ -1,5 +1,14 @@
-import { useEffect, useRef, useState, type DragEvent as ReactDragEvent } from "react";
-import { FPS_LIMIT_OPTIONS, getResolutionPreset, getThemeOption, RESOLUTION_PRESETS, THEME_OPTIONS, type SessionEntry, type Settings } from "./sidebarConfig";
+import { useEffect, useRef, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  FPS_LIMIT_OPTIONS,
+  getResolutionPreset,
+  getThemeOption,
+  RESOLUTION_PRESETS,
+  THEME_OPTIONS,
+  type LuaModuleSearchPathEntry,
+  type SessionEntry,
+  type Settings,
+} from "./sidebarConfig";
 import type { SessionDropPlacement } from "../sessionOrdering";
 
 interface SidebarProps {
@@ -15,8 +24,10 @@ interface SidebarProps {
   onReorderSessions: (draggedId: string, targetId: string, placement: SessionDropPlacement) => void;
   settings: Settings;
   onSettingsChange: (s: Settings) => void;
-  duLuaRootStatus: string;
-  onPickDuLuaRoot: () => void;
+  luaModuleSearchPaths: LuaModuleSearchPathEntry[];
+  onOpenLuaModuleSearchPaths: () => void;
+  width: number;
+  onResizePointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
   collapsed: boolean;
   onToggle: () => void;
 }
@@ -27,7 +38,7 @@ function SidebarToggleIcon({ collapsed }: { collapsed: boolean }) {
       <rect x="1.5" y="2" width="13" height="12" rx="2" stroke="currentColor" fill="none" strokeWidth="1.25" />
       <path d="M5.5 2.75V13.25" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
       <path
-        d={collapsed ? "M9.5 5.25L11.75 8L9.5 10.75" : "M10.75 5.25L8.5 8L10.75 10.75"}
+        d={collapsed ? "M9.5 5.25L11.75 8L9.5 10.75" : "M11.75 5.25L9.5 8L11.75 10.75"}
         stroke="currentColor"
         strokeWidth="1.4"
         strokeLinecap="round"
@@ -76,6 +87,29 @@ function GitHubIcon() {
   );
 }
 
+function SettingsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        d="M8 2.2L9.1 2.45L9.45 3.45C9.78 3.58 10.08 3.75 10.35 3.98L11.38 3.65L12.18 4.45L11.86 5.47C12.09 5.75 12.26 6.05 12.39 6.38L13.4 6.73V7.87L12.39 8.22C12.26 8.55 12.09 8.85 11.86 9.13L12.18 10.15L11.38 10.95L10.35 10.62C10.08 10.85 9.78 11.02 9.45 11.15L9.1 12.15L8 12.4L6.9 12.15L6.55 11.15C6.22 11.02 5.92 10.85 5.65 10.62L4.62 10.95L3.82 10.15L4.14 9.13C3.91 8.85 3.74 8.55 3.61 8.22L2.6 7.87V6.73L3.61 6.38C3.74 6.05 3.91 5.75 4.14 5.47L3.82 4.45L4.62 3.65L5.65 3.98C5.92 3.75 6.22 3.58 6.55 3.45L6.9 2.45L8 2.2Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.25"
+        strokeLinejoin="round"
+      />
+      <circle
+        cx="8"
+        cy="7.3"
+        r="2.1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.25"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function classNames(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(" ");
 }
@@ -106,8 +140,10 @@ export function Sidebar({
   onReorderSessions,
   settings,
   onSettingsChange,
-  duLuaRootStatus,
-  onPickDuLuaRoot,
+  luaModuleSearchPaths,
+  onOpenLuaModuleSearchPaths,
+  width,
+  onResizePointerDown,
   collapsed,
   onToggle,
 }: SidebarProps) {
@@ -181,7 +217,7 @@ export function Sidebar({
 
   if (collapsed) {
     return (
-      <div className="flex h-full w-10 min-w-10 justify-center border-r border-base-300 bg-base-200 pt-3">
+      <div className="flex h-full w-10 min-w-10 flex-col items-center justify-between border-r border-base-300 bg-base-200 pt-3 pb-3">
         <button
           type="button"
           onClick={onToggle}
@@ -191,14 +227,26 @@ export function Sidebar({
         >
           <SidebarToggleIcon collapsed />
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            setSection("settings");
+            onToggle();
+          }}
+          className="btn btn-ghost btn-sm btn-square"
+          title="Open settings"
+          aria-label="Open settings"
+        >
+          <SettingsIcon />
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full min-w-[280px] w-[280px] flex-col border-r border-base-300 bg-base-200 text-base-content">
-      <div className="flex items-center border-b border-base-300 px-6 py-5">
-        <div className="flex min-w-0 items-center gap-3">
+    <div className="relative flex h-full flex-col border-r border-base-300 bg-base-200 text-base-content" style={{ width, minWidth: width }}>
+      <div className="flex items-center border-b border-base-300 pr-3 pt-3 pb-5">
+        <div className="flex w-10 shrink-0 justify-center border-r border-transparent">
           <button
             type="button"
             onClick={onToggle}
@@ -208,7 +256,9 @@ export function Sidebar({
           >
             <SidebarToggleIcon collapsed={false} />
           </button>
-          <span className="min-w-0 truncate text-[1.05rem] font-semibold tracking-wide text-base-content">RS Emulator</span>
+        </div>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="min-w-0 truncate text-[1.05rem] font-semibold tracking-wide text-base-content">RScript Emulator</span>
         </div>
       </div>
 
@@ -245,7 +295,7 @@ export function Sidebar({
             </button>
           </div>
           <div
-            className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto rounded-2xl pr-0.5"
+            className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto px-0.5 pt-0.5"
           >
             {sessions.map((s) => (
               <div
@@ -356,6 +406,20 @@ export function Sidebar({
                             >
                               <button
                                 type="button"
+                                className="btn btn-ghost btn-xs btn-square text-error"
+                                role="menuitem"
+                                title="Delete"
+                                aria-label="Delete"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setOpenMenuId(null);
+                                  onDeleteSession(s.id);
+                                }}
+                              >
+                                {"\u2715"}
+                              </button>
+                              <button
+                                type="button"
                                 className="btn btn-ghost btn-xs btn-square"
                                 role="menuitem"
                                 title="Rename"
@@ -368,20 +432,6 @@ export function Sidebar({
                                 }}
                               >
                                 {"\u270E"}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn-xs btn-square text-error"
-                                role="menuitem"
-                                title="Delete"
-                                aria-label="Delete"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setOpenMenuId(null);
-                                  onDeleteSession(s.id);
-                                }}
-                              >
-                                {"\u2715"}
                               </button>
                             </div>
                           ) : (
@@ -570,17 +620,38 @@ export function Sidebar({
           </label>
           <div className="flex flex-wrap items-start gap-x-4 gap-y-1.5 border-b border-base-300 py-2">
             <div className="flex min-w-0 flex-[1_1_100%] flex-col gap-1">
-              <span className="text-[0.9rem] font-medium leading-5">DU Lua includes</span>
-              <span className="text-[0.77rem] leading-4 text-base-content/60 [overflow-wrap:anywhere]">{duLuaRootStatus}</span>
+              <span className="text-[0.9rem] font-medium leading-5">Module Search Paths</span>
+              <span className="text-[0.77rem] leading-4 text-base-content/60">Ordered list. First matching module wins.</span>
+              <div className="mt-1 flex flex-col gap-1.5">
+                {luaModuleSearchPaths.length > 0 ? luaModuleSearchPaths.map((entry) => (
+                  <div key={entry.id} className="flex items-center gap-2 text-[0.77rem] leading-4 text-base-content/60 [overflow-wrap:anywhere]">
+                    <span className="badge badge-outline badge-xs min-w-14 justify-center">
+                      {entry.kind === "project" ? "Project" : entry.kind === "env" ? "Default" : entry.kind === "manual" ? "Manual" : "Local"}
+                    </span>
+                    <span>{entry.label}</span>
+                  </div>
+                )) : (
+                  <span className="text-[0.77rem] leading-4 text-base-content/60">No module search paths configured.</span>
+                )}
+              </div>
             </div>
             <div className="flex w-full flex-wrap justify-end gap-1.5">
-              <button type="button" className="btn btn-outline btn-xs" onClick={onPickDuLuaRoot} title="Pick the Dual Universe Lua folder">
-                Pick Folder
+              <button type="button" className="btn btn-outline btn-xs" onClick={onOpenLuaModuleSearchPaths} title="Edit the ordered Lua module search paths">
+                Edit Paths
               </button>
             </div>
           </div>
         </div>
       )}
+
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize sidebar"
+        onPointerDown={onResizePointerDown}
+        className="absolute right-0 top-0 h-full w-2 cursor-col-resize select-none touch-none"
+        title="Drag to resize sidebar"
+      />
     </div>
   );
 }
