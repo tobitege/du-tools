@@ -109,9 +109,14 @@ local function writeShapeOverlay(out, shape)
     local color = kindColors[shape.kind] or "#ffffff"
     local geometry = shape.geometry or {}
     local strokeWidth = (shape.kind == "outline_path" and 0.85) or 1.2
+    local subpaths = geometry.subpaths or {}
 
-    if shape.kind == "compound_path" then
-        for _, subpath in ipairs(geometry.subpaths or {}) do
+    if
+        shape.kind == "compound_path" or
+        shape.kind == "polygon_ring" or
+        shape.kind == "hex_ring"
+    then
+        for _, subpath in ipairs(subpaths) do
             if subpath.closed then
                 out:write(string.format(
                     '<polygon points="%s" fill="none" stroke="%s" stroke-width="%.3f" opacity="0.95"/>\n',
@@ -325,13 +330,26 @@ local function writePreview(outputSvgPath, outputSummaryPath)
         summaryOut:write(shapeCountSummary(panel.shapes) .. "\n")
         for shapeIndex, shape in ipairs(panel.shapes) do
             local bounds = shape.geometry and shape.geometry.bounds
+            local groupHints = shape.groupHints
+            local groupSuffix = ""
+            local roleSuffix = shape.role and (" role=" .. shape.role) or ""
+            if groupHints and groupHints.sameCluster then
+                local neighbors = groupHints.neighbors or {}
+                groupSuffix = string.format(
+                    " cluster=%s size=%d neighbors=%s",
+                    groupHints.sameCluster,
+                    groupHints.clusterSize or 0,
+                    #neighbors > 0 and table.concat(neighbors, ",") or "-"
+                )
+            end
             summaryOut:write(string.format(
-                "  #%02d  %-14s subpaths=%d points=%d bounds=%s\n",
+                "  #%02d  %-14s subpaths=%d points=%d bounds=%s%s\n",
                 shapeIndex,
-                shape.kind,
+                shape.kind .. roleSuffix,
                 shape.analysis and shape.analysis.subpathCount or 0,
                 shape.analysis and shape.analysis.pointCount or 0,
-                bounds and string.format("(%.3f, %.3f, %.3f, %.3f)", bounds.x, bounds.y, bounds.w, bounds.h) or "(nil)"
+                bounds and string.format("(%.3f, %.3f, %.3f, %.3f)", bounds.x, bounds.y, bounds.w, bounds.h) or "(nil)",
+                groupSuffix
             ))
         end
         summaryOut:write("\n")

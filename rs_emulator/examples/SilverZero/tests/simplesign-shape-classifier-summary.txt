@@ -2,20 +2,20 @@ SimpleSignS classifier preview
 ==============================
 
 SVG 1 | width=20vw
-outline_path=1, closed_polygon=5, compound_path=4
-  #01  closed_polygon subpaths=1 points=10 bounds=(151.973, 224.606, 68.291, 45.846)
-  #02  closed_polygon subpaths=1 points=11 bounds=(151.973, 16.143, 68.291, 45.844)
-  #03  compound_path  subpaths=2 points=17 bounds=(34.334, 39.735, 179.396, 207.149)
+outline_path=1, closed_polygon=5, hex_ring=3, compound_path=1
+  #01  closed_polygon role=logo_segment subpaths=1 points=10 bounds=(151.973, 224.606, 68.291, 45.846)
+  #02  closed_polygon role=logo_segment subpaths=1 points=11 bounds=(151.973, 16.143, 68.291, 45.844)
+  #03  hex_ring       subpaths=2 points=17 bounds=(34.334, 39.735, 179.396, 207.149)
   #04  closed_polygon subpaths=1 points=7 bounds=(0.045, 103.945, 11.139, 78.727)
-  #05  closed_polygon subpaths=1 points=9 bounds=(27.923, 16.115, 68.294, 45.845)
-  #06  closed_polygon subpaths=1 points=10 bounds=(27.901, 224.593, 68.294, 45.847)
-  #07  outline_path   subpaths=1 points=9 bounds=(237.045, 103.922, 11.135, 78.725)
-  #08  compound_path  subpaths=2 points=12 bounds=(95.541, 110.269, 57.139, 65.984)
-  #09  compound_path  subpaths=2 points=13 bounds=(57.288, 66.169, 133.549, 154.200)
-  #10  compound_path  subpaths=2 points=541 bounds=(0.026, -0.011, 248.173, 286.556)
+  #05  closed_polygon role=logo_segment subpaths=1 points=9 bounds=(27.923, 16.115, 68.294, 45.845)
+  #06  closed_polygon role=logo_segment subpaths=1 points=10 bounds=(27.901, 224.593, 68.294, 45.847)
+  #07  outline_path role=edge_decal subpaths=1 points=9 bounds=(237.045, 103.922, 11.135, 78.725)
+  #08  hex_ring       subpaths=2 points=12 bounds=(95.541, 110.269, 57.139, 65.984)
+  #09  hex_ring       subpaths=2 points=13 bounds=(57.288, 66.169, 133.549, 154.200)
+  #10  compound_path role=frame_outline subpaths=2 points=541 bounds=(0.026, -0.011, 248.173, 286.556)
 
 SVG 2 | id=master-artboard | width=100vw
-closed_polygon=98, quad=1, trapezoid=2, compound_path=23
+closed_polygon=98, quad=1, trapezoid=2, polygon_ring=23
   #01  quad           subpaths=1 points=4 bounds=(0.000, -0.000, 1400.000, 980.000)
   #02  closed_polygon subpaths=1 points=8 bounds=(116.000, -1.000, 410.000, 512.000)
   #03  closed_polygon subpaths=1 points=8 bounds=(876.000, 0.000, 402.000, 490.000)
@@ -46,7 +46,7 @@ closed_polygon=98, quad=1, trapezoid=2, compound_path=23
   #28  closed_polygon subpaths=1 points=31 bounds=(1256.369, 173.800, 143.631, 227.742)
   #29  closed_polygon subpaths=1 points=50 bounds=(1212.369, 66.458, 153.262, 153.085)
   #30  closed_polygon subpaths=1 points=28 bounds=(1220.369, 134.800, 179.631, 181.742)
-  #31  closed_polygon subpaths=1 points=28 bounds=(41.458, 934.369, 47.742, 45.631)
+  #31  closed_polygon subpaths=1 points=28 bounds=(41.458, 934.369, 47.742, 45.631) cluster=closed_polygon_cluster_01 size=2 neighbors=54
   #32  closed_polygon subpaths=1 points=8 bounds=(0.000, 884.000, 134.200, 96.200)
   #33  closed_polygon subpaths=1 points=32 bounds=(28.800, -0.000, 214.200, 402.542)
   #34  closed_polygon subpaths=1 points=10 bounds=(0.000, 676.000, 356.000, 305.000)
@@ -69,12 +69,12 @@ closed_polygon=98, quad=1, trapezoid=2, compound_path=23
   #51  closed_polygon subpaths=1 points=30 bounds=(382.800, -0.000, 227.600, 326.600)
   #52  closed_polygon subpaths=1 points=41 bounds=(479.000, -0.000, 162.400, 326.600)
   #53  closed_polygon subpaths=1 points=33 bounds=(708.600, -0.000, 269.400, 326.600)
-  #54  closed_polygon subpaths=1 points=28 bounds=(633.458, 934.369, 47.742, 45.631)
-  #55  closed_polygon subpaths=1 points=28 bounds=(862.458, 854.369, 126.742, 124.631)
+  #54  closed_polygon subpaths=1 points=28 bounds=(633.458, 934.369, 47.742, 45.631) cluster=closed_polygon_cluster_01 size=2 neighbors=31
+  #55  closed_polygon subpaths=1 points=28 bounds=(862.458, 854.369, 126.742, 124.631) cluster=closed_polygon_cluster_02 size=2 neighbors=59
   #56  closed_polygon subpaths=1 points=30 bounds=(0.000, 206.000, 105.631, 70.200)
   #57  closed_polygon subpaths=1 points=31 bounds=(475.458, 642.369, 405.742, 337.631)
   #58  closed_polygon subpaths=1 points=31 bounds=(558.458, 651.369, 353.742, 328.631)
-  #59  closed_polygon subpaths=1 points=28 bounds=(810.458, 854.369, 126.742, 124.631)
+  #59  closed_polygon subpaths=1 points=28 bounds=(810.458, 854.369, 126.742, 124.631) cluster=closed_polygon_cluster_02 size=2 neighbors=55
   #60  closed_polygon subpaths=1 points=31 bounds=(450.458, 716.369, 364.742, 263.631)
   #61  closed_polygon subpaths=1 points=54 bounds=(130.458, 712.369, 197.085, 151.262)
   #62  closed_polygon subpaths=1 points=32 bounds=(1.000, 239.458, 136.631, 187.742)
@@ -117,50 +117,50 @@ closed_polygon=98, quad=1, trapezoid=2, compound_path=23
   #99  closed_polygon subpaths=1 points=32 bounds=(329.800, 1.000, 197.742, 265.631)
   #100  closed_polygon subpaths=1 points=8 bounds=(0.000, 261.000, 33.000, 98.600)
   #101  closed_polygon subpaths=1 points=57 bounds=(455.458, 179.369, 96.542, 119.631)
-  #102  compound_path  subpaths=2 points=48 bounds=(355.800, 421.400, 17.200, 17.200)
-  #103  compound_path  subpaths=2 points=48 bounds=(278.800, 444.400, 17.200, 17.200)
-  #104  compound_path  subpaths=2 points=48 bounds=(71.000, 553.400, 17.200, 17.200)
-  #105  compound_path  subpaths=2 points=48 bounds=(121.400, 280.000, 17.200, 17.200)
-  #106  compound_path  subpaths=2 points=48 bounds=(168.800, 210.400, 17.200, 17.200)
-  #107  compound_path  subpaths=2 points=48 bounds=(142.800, 179.400, 17.200, 17.200)
-  #108  compound_path  subpaths=2 points=48 bounds=(438.800, 179.400, 17.200, 17.200)
-  #109  compound_path  subpaths=2 points=48 bounds=(749.800, 192.400, 17.200, 17.200)
-  #110  compound_path  subpaths=2 points=48 bounds=(559.400, 17.800, 17.200, 17.200)
-  #111  compound_path  subpaths=2 points=48 bounds=(982.800, 113.400, 17.200, 17.200)
-  #112  compound_path  subpaths=2 points=48 bounds=(1287.800, 676.400, 17.200, 17.200)
-  #113  compound_path  subpaths=2 points=48 bounds=(834.000, 765.400, 17.200, 17.200)
-  #114  compound_path  subpaths=2 points=48 bounds=(1296.800, 870.400, 17.200, 17.200)
-  #115  compound_path  subpaths=2 points=48 bounds=(1240.000, 724.400, 17.200, 17.200)
-  #116  compound_path  subpaths=2 points=48 bounds=(377.400, 724.800, 17.200, 17.200)
-  #117  compound_path  subpaths=2 points=48 bounds=(246.800, 827.400, 17.200, 17.200)
-  #118  compound_path  subpaths=2 points=48 bounds=(523.400, 943.000, 17.200, 17.200)
-  #119  compound_path  subpaths=2 points=48 bounds=(377.400, 790.800, 17.200, 17.200)
-  #120  compound_path  subpaths=2 points=48 bounds=(62.800, 755.400, 17.200, 17.200)
-  #121  compound_path  subpaths=2 points=48 bounds=(833.800, 819.400, 17.200, 17.200)
-  #122  compound_path  subpaths=2 points=48 bounds=(917.800, 316.400, 17.200, 17.200)
-  #123  compound_path  subpaths=2 points=48 bounds=(986.000, 309.400, 17.200, 17.200)
-  #124  compound_path  subpaths=2 points=48 bounds=(92.000, 309.400, 17.200, 17.200)
+  #102  polygon_ring   subpaths=2 points=48 bounds=(355.800, 421.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=103,108,105,106,124,116,104,107,119,117,120,110,109,118,122,113,121,123,111,115,112,114
+  #103  polygon_ring   subpaths=2 points=48 bounds=(278.800, 444.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=102,105,124,104,106,116,107,108,119,120,117,110,109,118,113,122,121,123,111,115,112,114
+  #104  polygon_ring   subpaths=2 points=48 bounds=(71.000, 553.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=120,103,124,105,102,117,116,106,107,119,108,118,110,109,113,121,122,123,111,115,112,114
+  #105  polygon_ring   subpaths=2 points=48 bounds=(121.400, 280.000, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=124,106,107,103,102,104,108,120,110,116,117,119,109,118,122,113,123,111,121,115,112,114
+  #106  polygon_ring   subpaths=2 points=48 bounds=(168.800, 210.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=107,105,124,103,108,102,104,110,116,120,109,119,117,122,118,111,123,113,121,115,112,114
+  #107  polygon_ring   subpaths=2 points=48 bounds=(142.800, 179.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=106,105,124,108,103,102,104,110,120,116,109,119,117,122,111,123,118,113,121,115,112,114
+  #108  polygon_ring   subpaths=2 points=48 bounds=(438.800, 179.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=110,102,106,107,103,109,105,124,122,104,111,116,123,119,117,120,113,121,118,115,112,114
+  #109  polygon_ring   subpaths=2 points=48 bounds=(749.800, 192.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=122,111,110,123,108,102,103,113,106,107,121,105,116,124,119,115,112,104,118,117,114,120
+  #110  polygon_ring   subpaths=2 points=48 bounds=(559.400, 17.800, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=108,109,111,106,107,102,122,105,103,123,124,104,116,119,113,121,117,120,118,115,112,114
+  #111  polygon_ring   subpaths=2 points=48 bounds=(982.800, 113.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=123,122,109,110,108,112,115,113,102,121,103,114,106,107,116,105,119,124,118,104,117,120
+  #112  polygon_ring   subpaths=2 points=48 bounds=(1287.800, 676.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=115,114,113,123,121,122,111,109,118,116,119,102,110,108,103,117,106,104,120,105,107,124
+  #113  polygon_ring   subpaths=2 points=48 bounds=(834.000, 765.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=121,118,115,122,119,116,112,114,123,109,102,117,103,111,108,120,104,110,105,106,124,107
+  #114  polygon_ring   subpaths=2 points=48 bounds=(1296.800, 870.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=115,112,121,113,123,122,118,111,109,119,116,102,117,108,103,110,120,104,106,105,124,107
+  #115  polygon_ring   subpaths=2 points=48 bounds=(1240.000, 724.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=112,114,113,121,123,122,111,109,118,116,119,102,108,110,117,103,120,104,106,105,124,107
+  #116  polygon_ring   subpaths=2 points=48 bounds=(377.400, 724.800, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=119,117,118,103,102,120,104,113,121,124,105,108,106,107,109,122,110,123,111,115,112,114
+  #117  polygon_ring   subpaths=2 points=48 bounds=(246.800, 827.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=119,116,120,118,104,103,102,124,105,121,113,106,107,108,109,122,110,123,115,111,114,112
+  #118  polygon_ring   subpaths=2 points=48 bounds=(523.400, 943.000, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=119,116,117,121,113,120,102,103,104,122,115,124,108,105,114,109,123,112,106,107,110,111
+  #119  polygon_ring   subpaths=2 points=48 bounds=(377.400, 790.800, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=116,117,118,120,103,102,104,121,113,124,105,108,106,107,109,122,123,110,115,111,112,114
+  #120  polygon_ring   subpaths=2 points=48 bounds=(62.800, 755.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=117,104,116,119,103,102,124,105,118,106,107,108,113,121,109,110,122,123,111,115,112,114
+  #121  polygon_ring   subpaths=2 points=48 bounds=(833.800, 819.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=113,118,115,119,114,116,112,122,123,117,102,109,103,111,108,120,104,110,105,124,106,107
+  #122  polygon_ring   subpaths=2 points=48 bounds=(917.800, 316.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=123,109,111,113,110,108,121,112,115,102,103,114,116,119,118,106,107,105,124,117,104,120
+  #123  polygon_ring   subpaths=2 points=48 bounds=(986.000, 309.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=122,111,109,112,113,115,110,121,108,102,114,103,116,119,118,106,107,105,124,117,104,120
+  #124  polygon_ring   subpaths=2 points=48 bounds=(92.000, 309.400, 17.200, 17.200) cluster=polygon_ring_cluster_03 size=23 neighbors=105,106,107,103,104,102,108,120,116,117,110,119,109,118,122,113,123,121,111,115,112,114
 
 SVG 3 | width=80vw
 outline_path=4, closed_polygon=1, quad=4, trapezoid=8, compound_path=3
-  #01  closed_polygon subpaths=1 points=32 bounds=(0.227, 0.611, 230.267, 154.604)
-  #02  trapezoid      subpaths=1 points=4 bounds=(5.889, 149.338, 32.340, 2.548)
-  #03  compound_path  subpaths=2 points=15 bounds=(5.701, 149.239, 32.521, 2.745)
-  #04  trapezoid      subpaths=1 points=4 bounds=(191.991, 149.338, 32.340, 2.548)
-  #05  compound_path  subpaths=2 points=15 bounds=(190.624, 149.240, 32.542, 2.755)
-  #06  trapezoid      subpaths=1 points=4 bounds=(76.253, 149.338, 62.524, 3.430)
-  #07  trapezoid      subpaths=1 points=4 bounds=(192.187, 2.240, 34.300, 2.058)
-  #08  trapezoid      subpaths=1 points=4 bounds=(5.301, 2.240, 34.300, 2.058)
-  #09  trapezoid      subpaths=1 points=4 bounds=(5.301, 2.240, 34.300, 2.058)
-  #10  trapezoid      subpaths=1 points=4 bounds=(0.303, 108.962, 1.960, 34.398)
-  #11  trapezoid      subpaths=1 points=4 bounds=(0.205, 13.804, 2.058, 29.890)
-  #12  quad           subpaths=1 points=4 bounds=(226.095, 13.314, 2.842, 7.056)
-  #13  quad           subpaths=1 points=4 bounds=(226.095, 5.866, 2.842, 7.056)
-  #14  outline_path   subpaths=1 points=4 bounds=(226.095, 20.762, 2.842, 7.056)
-  #15  quad           subpaths=1 points=4 bounds=(226.193, 134.344, 2.842, 7.056)
-  #16  quad           subpaths=1 points=4 bounds=(226.193, 126.896, 2.842, 7.056)
-  #17  outline_path   subpaths=1 points=4 bounds=(226.095, 141.792, 2.842, 7.056)
-  #18  outline_path   subpaths=1 points=4 bounds=(1.871, 143.066, 2.842, 7.056)
-  #19  outline_path   subpaths=1 points=4 bounds=(1.871, 5.180, 2.842, 7.056)
-  #20  compound_path  subpaths=2 points=98 bounds=(0.205, -0.076, 230.446, 155.746)
+  #01  closed_polygon role=frame_cap subpaths=1 points=32 bounds=(0.227, 0.611, 230.267, 154.604)
+  #02  trapezoid role=edge_decal subpaths=1 points=4 bounds=(5.889, 149.338, 32.340, 2.548) cluster=trapezoid_cluster_01 size=2 neighbors=4
+  #03  compound_path role=edge_decal subpaths=2 points=15 bounds=(5.701, 149.239, 32.521, 2.745) cluster=compound_path_cluster_02 size=2 neighbors=5
+  #04  trapezoid role=edge_decal subpaths=1 points=4 bounds=(191.991, 149.338, 32.340, 2.548) cluster=trapezoid_cluster_01 size=2 neighbors=2
+  #05  compound_path role=edge_decal subpaths=2 points=15 bounds=(190.624, 149.240, 32.542, 2.755) cluster=compound_path_cluster_02 size=2 neighbors=3
+  #06  trapezoid role=edge_decal subpaths=1 points=4 bounds=(76.253, 149.338, 62.524, 3.430)
+  #07  trapezoid role=edge_decal subpaths=1 points=4 bounds=(192.187, 2.240, 34.300, 2.058) cluster=trapezoid_cluster_03 size=3 neighbors=8,9
+  #08  trapezoid role=edge_decal subpaths=1 points=4 bounds=(5.301, 2.240, 34.300, 2.058) cluster=trapezoid_cluster_03 size=3 neighbors=9,7
+  #09  trapezoid role=edge_decal subpaths=1 points=4 bounds=(5.301, 2.240, 34.300, 2.058) cluster=trapezoid_cluster_03 size=3 neighbors=8,7
+  #10  trapezoid role=edge_decal subpaths=1 points=4 bounds=(0.303, 108.962, 1.960, 34.398)
+  #11  trapezoid role=edge_decal subpaths=1 points=4 bounds=(0.205, 13.804, 2.058, 29.890)
+  #12  quad role=edge_decal subpaths=1 points=4 bounds=(226.095, 13.314, 2.842, 7.056) cluster=quad_cluster_04 size=4 neighbors=13,16,15
+  #13  quad role=edge_decal subpaths=1 points=4 bounds=(226.095, 5.866, 2.842, 7.056) cluster=quad_cluster_04 size=4 neighbors=12,16,15
+  #14  outline_path role=edge_decal subpaths=1 points=4 bounds=(226.095, 20.762, 2.842, 7.056) cluster=outline_path_cluster_05 size=4 neighbors=17,19,18
+  #15  quad role=edge_decal subpaths=1 points=4 bounds=(226.193, 134.344, 2.842, 7.056) cluster=quad_cluster_04 size=4 neighbors=16,12,13
+  #16  quad role=edge_decal subpaths=1 points=4 bounds=(226.193, 126.896, 2.842, 7.056) cluster=quad_cluster_04 size=4 neighbors=15,12,13
+  #17  outline_path role=edge_decal subpaths=1 points=4 bounds=(226.095, 141.792, 2.842, 7.056) cluster=outline_path_cluster_05 size=4 neighbors=14,18,19
+  #18  outline_path role=edge_decal subpaths=1 points=4 bounds=(1.871, 143.066, 2.842, 7.056) cluster=outline_path_cluster_05 size=4 neighbors=19,17,14
+  #19  outline_path role=edge_decal subpaths=1 points=4 bounds=(1.871, 5.180, 2.842, 7.056) cluster=outline_path_cluster_05 size=4 neighbors=18,14,17
+  #20  compound_path role=frame_outline subpaths=2 points=98 bounds=(0.205, -0.076, 230.446, 155.746)
 

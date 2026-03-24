@@ -2,98 +2,133 @@
 
 ## Session: 2026-03-24
 
-### Phase 1: Requirements & Discovery
+## Summary
 
-- **Status:** complete
-- **Started:** 2026-03-24
-- Actions taken:
-  - Nutzerziel fuer zwei fehlende Endprodukte aufgenommen
-  - bestehende Session-Ergebnisse in `svg-work-patches.md` gesichtet
-  - aktuelle Parser- und Render-Lib-Situation gegen die neue Planungsaufgabe gespiegelt
-- Files created/modified:
-  - [svg-work-patches.md](/d:/github/du-tobi/rs_emulator/svg-work-patches.md) als Ausgangsbasis verwendet
+Der `SvgShapeClassifier` bleibt in dieser Runde unveraendert. Die shape-library / porting-Anbindung deckt jetzt zusaetzlich auch einen ersten `compound_path`-Fall ab. Damit laufen jetzt `hex_ring`, `polygon_ring`, vierpunktige Fill-Shapes, `closed_polygon`-Flaechen und geeignete `compound_path`-Fragmente ueber gemeinsame classifier->library-Regeln statt ueber lokale Sondertabellen.
 
-### Phase 2: Planning Workspace
+## Phase Snapshot
 
-- **Status:** complete
-- Actions taken:
-  - `planning-with-files`-Skill verwendet
-  - separates Verzeichnis `rs_emulator/planning` vorbereitet
-  - die drei Arbeitsdateien fuer den Planungsprozess angelegt
-- Files created/modified:
-  - [task_plan.md](/d:/github/du-tobi/rs_emulator/planning/task_plan.md)
-  - [findings.md](/d:/github/du-tobi/rs_emulator/planning/findings.md)
-  - [progress.md](/d:/github/du-tobi/rs_emulator/planning/progress.md)
+### Phase 1-4: Planning
 
-### Phase 3: Classifier Planning
-
-- **Status:** complete
-- Actions taken:
-  - Zielbild, Pipeline, Klassifikationsstufen und Risiken fuer ein SVG-Fragment-Klassifikationsmodul ausgearbeitet
-- Files created/modified:
-  - [svg-classifier-plan.md](/d:/github/du-tobi/rs_emulator/planning/svg-classifier-plan.md)
-
-### Phase 4: Shape Library Planning
-
-- **Status:** complete
-- Actions taken:
-  - Zielbild, Shape-Kategorien, API-Vorschlaege und Migrationspfad fuer eine Lua-Shape-Bibliothek ausgearbeitet
-- Files created/modified:
-  - [svg-shape-library-plan.md](/d:/github/du-tobi/rs_emulator/planning/svg-shape-library-plan.md)
+- Anforderungen, Zielbild, Risiken und Einfuehrungsstrategie fuer Classifier und Shape-Library ausgearbeitet.
+- Arbeitsunterlagen in `rs_emulator/planning` angelegt.
 
 ### Phase 5: First Classifier Implementation
 
-- **Status:** complete
-- Actions taken:
-  - neues Modul `lib/SvgShapeClassifier.lua` fuer geometrische SVG-Analyse angelegt
-  - Path-Flattening auf Basis von `SvgParser.parsePath(...)` implementiert
-  - Subpaths, explizite und implizite Schliessung, Bounds und approximierte Polygonpunkte aufgebaut
-  - erste Primitive-Erkennung fuer `outline_path`, `closed_polygon`, `triangle`, `quad`, `trapezoid` und `compound_path` umgesetzt
-  - neue Lua-Runtime-Tests fuer offene Pfade, Trapeze, Compound-Paths und ein reales `SimpleSignS`-Board-Decal ergaenzt
-  - Nachreview gemacht und die erste Iteration geglaettet:
-    - Optionen werden jetzt sauber durch `classifySvg(...)` und `classify(...)` bis `classifyItem(...)` weitergereicht
-    - die Reflexionslogik fuer `S`-Kurven wurde vereinfacht, damit sie dem tatsaechlich benoetigten Verhalten entspricht statt auf redundanter Bedingungslogik zu beruhen
-- Files created/modified:
-  - [SvgShapeClassifier.lua](/d:/github/du-tobi/rs_emulator/lib/SvgShapeClassifier.lua)
-  - [luaRuntime.test.ts](/d:/github/du-tobi/rs_emulator/test/luaRuntime.test.ts)
-  - [module-require-smoke.lua](/d:/github/du-tobi/rs_emulator/examples/SilverZero/tests/module-require-smoke.lua)
-  - [task_plan.md](/d:/github/du-tobi/rs_emulator/planning/task_plan.md)
-  - [findings.md](/d:/github/du-tobi/rs_emulator/planning/findings.md)
-  - [progress.md](/d:/github/du-tobi/rs_emulator/planning/progress.md)
+- Grundlegende SVG-Analyse aufgebaut: Path-Flattening, Subpaths, Bounds, offene vs. geschlossene Pfade, erste Primitive.
+
+### Phase 6-7: Ring Classification
+
+- `polygon_ring` und danach `hex_ring` auf realen `SimpleSignS`-Faellen eingefuehrt.
+
+### Phase 8: Group Hints
+
+- erste geometrische Clustering-Hinweise mit `sameCluster`, `clusterSize` und `neighbors` umgesetzt.
+
+### Phase 9-11: First Role Hints
+
+- `frame_outline`, `edge_decal` und `frame_cap` produktiv aus realen `SimpleSignS`-Geometrien abgeleitet.
+
+### Phase 12: Review Hardening
+
+- Rollen- und Clusterlogik gegen Fehlklassifikationen gehaertet.
+- `frame_outline` verlangt echte oder effektiv geschlossene Konturen.
+- `frame_cap` verlangt passenden Rahmenkontext.
+- `groupHints` sind rollenbewusst.
+
+### Phase 13: Logo Segment
+
+- `logo_segment` fuer quadranten-gespiegelte `closed_polygon`-Familien innerhalb eines gemeinsamen `frame_outline` umgesetzt.
+- Rahmenkontext in `findCenteredFrameOutline(...)` und `findEnclosingFrameOutline(...)` getrennt.
+- Reale `SimpleSignS`-Ecksegmente `SVG 1 #01`, `#02`, `#05`, `#06` tragen jetzt `role=logo_segment`.
+
+### Phase 14: First Shape-Library Handoff
+
+- erster classifier-getriebener Library-Adapter in `SilverZeroRsLib.lua` umgesetzt: `drawClassifiedShape(...)` und `drawClassifiedHexRing(...)`
+- `hex_ring` wird jetzt aus klassifizierter Geometrie auf den bestehenden `hexRing(...)`-Renderer abgebildet
+- `SimpleSignS-svg.lua` nutzt fuer den realen Logo-Ring jetzt diese classifier->library Strecke statt lokaler Ring-Konstanten und Transform-Sonderlogik
+
+### Phase 15: Four-Point Board Fills
+
+- `SilverZeroRsLib.lua` zeichnet jetzt auch klassifizierte vierpunktige Shapes (`quad`, `trapezoid`, geeignete `outline_path`-Faelle) ueber `drawClassifiedFourPointShape(...)`
+- `SimpleSignS-svg.lua` klassifiziert das Board-SVG einmal und versucht fuer gefuellte Items zuerst den neuen classified-shape-Adapter
+- die lokale `skipBoardPath`-Stringliste sowie die handgeschriebenen Board-Quad-Tabellen sind damit entfernt
+
+### Phase 16: Closed Polygon Fill Path
+
+- `SilverZeroRsLib.lua` trianguliert jetzt klassifizierte `closed_polygon`- und `triangle`-Shapes ueber `drawClassifiedClosedPolygon(...)`
+- der reale `frame_cap`-Fall im `SimpleSignS`-Board laeuft dadurch jetzt ueber classifier->library->triangle rendering statt ueber den alten Path-Fallback
+- der End-to-End-Render von `SimpleSignS-svg.lua` enthaelt jetzt auch `AddTriangle`-Kommandos aus diesem Porting-Pfad
+
+### Phase 17: Logo Segment Porting Cleanup
+
+- `SimpleSignS-svg.lua` nutzt jetzt auch im Logo dieselbe Regel wie im Board: gefuellte Items versuchen zuerst `drawClassifiedShape(...)`, erst danach folgt der Path-Fallback
+- die lokale `logoSegmentQuads`-Tabelle und ihre Sonderzeichenlogik sind entfernt
+- reale `logo_segment`-Fragmente laufen jetzt ueber denselben classifier->library-Pfad wie `frame_cap` und die vierpunktigen Board-Fills
+
+### Phase 18: Polygon Ring Path
+
+- `SilverZeroRsLib.lua` zeichnet jetzt klassifizierte `polygon_ring`-Shapes ueber einen allgemeinen Ringsegment-Adapter
+- der `master-artboard`-Branch in `SimpleSignS-svg.lua` klassifiziert jetzt ebenfalls einmal und versucht fuer gefuellte Items zuerst `drawClassifiedShape(...)`
+- die realen `SimpleSignS`-Marker-Ringe werden dadurch nicht mehr nur als Pfadkonturen, sondern als explizite Ringsegmente aus der Shape-Library gerendert
+
+### Phase 19: Compound Path Geometry Path
+
+- `SilverZeroRsLib.lua` zeichnet jetzt `compound_path`-Shapes ueber ihre extrahierten Teilpfade als Liniensegmente
+- der reale `SimpleSignS`-Board-Fall `compound_path role=edge_decal` laeuft dadurch jetzt ueber classifier->library statt ueber den frueheren `firstSubpathOnly(...)`-Fallback
+- die Porter geben den bisherigen Stroke-Kontext (`strokeWidth`) jetzt ebenfalls in den classifier-basierten Library-Pfad weiter
+
+### Phase 20: SimpleSignS SVG Regression Guard
+
+- nach einem sichtbaren Rueckschritt bei `SimpleSignS-svg.lua` bleiben `master-artboard` und Logo vorerst auf dem bekannten Renderpfad statt auf dem weiter ausgedehnten classifier-first-Porting
+- die produktiven Library-Adapter fuer `hex_ring`, `polygon_ring`, vierpunktige Fills, `closed_polygon` und `compound_path` bleiben erhalten; aktiv produktiv genutzt wird im End-to-End-Port aktuell vor allem der Board-Pfad
+- fuer das Logo gilt jetzt eine engere Regel: fill-faehige klassifizierte Shapes gehen ueber `drawClassifiedShape(...)`, reine Outline-Faelle bleiben auf `drawPath(...)`
+- `luaRuntime.test.ts` prueft fuer `SimpleSignS-svg.lua` jetzt die aktuelle Add-Op-Verteilung (`5438` Render-Calls insgesamt, davon `5335` `AddLine`, `34` `AddQuad`, `67` `AddTriangle`) und verankert den Logo-Layer auf `675` Linien, `18` Quads und `37` Dreiecken statt auf dem zwischenzeitlichen Outline-only-Pfad
+
+### Phase 21: Fill-Only Adapter Rule
+
+- `SilverZeroRsLib.lua` bietet jetzt mit `drawClassifiedFillShape(...)` eine wiederverwendbare Regel fuer classifier-getriebene Fill-Familien, ohne Outline- oder Compound-Faelle implizit mitzuziehen
+- `SimpleSignS-svg.lua` nutzt diese Library-Regel jetzt im Logo statt einer lokalen Kind-Whitelist
+- neue Runtime-Tests pruefen die reale Logo-Nutzung direkt: `logo_segment` wird ueber den Fill-Adapter gezeichnet, `outline_path role=edge_decal` wird dort bewusst ausgelassen
+
+### Phase 22: Free-Form Adapter Probe
+
+- mit `examples/SilverZero/ShapeAdapterProbe.lua` gibt es jetzt ein freies, von `SimpleSign*` unabhaengiges Sichtpruef-Skript fuer die aktuelle Shape-Library-Anbindung
+- der Probe zeigt beschriftete Beispielzellen fuer `hex_ring`, `polygon_ring`, `trapezoid`, `closed_polygon`, `compound_path` und `outline_path`
+- `luaRuntime.test.ts` fuehrt den Probe ebenfalls aus und prueft sowohl die textuelle Zusammenfassung der Adapter-Ergebnisse als auch das Vorhandensein von Text-, Linien-, Quad- und Triangle-Render-Calls
+
+### Phase 23: Stroke Adapter Rule
+
+- `SilverZeroRsLib.lua` bietet jetzt mit `drawClassifiedStrokeShape(...)` eine wiederverwendbare Regel fuer stroke-lastige classifier-Familien
+- der erste produktive Umfang davon ist bewusst klein und geometrisch: `outline_path` und `compound_path`
+- der freie `ShapeAdapterProbe.lua` nutzt diese Stroke-Regel jetzt direkt fuer die beiden unteren rechten Zellen statt eines impliziten Fallbacks
+- neue Runtime-Tests pruefen den Stroke-Adapter direkt fuer ein synthetisches `outline_path`- und `compound_path`-Beispiel
+
+### Phase 24: Classified Path-Item Porter Helper
+
+- `SilverZeroRsLib.lua` bietet jetzt mit `drawClassifiedPathItem(...)` eine wiederverwendbare Porter-Hilfe, die classifier-getriebene Library-Adapter und den bisherigen `drawPath(...)`-Fallback unter einer gemeinsamen Regel zusammenfasst
+- `SimpleSignS-svg.lua` nutzt diese Library-Hilfe jetzt sowohl fuer den Board-Branch (`classifiedMode = "shape"` plus `fallbackFirstSubpathOnly`) als auch fuer den Logo-Branch (`classifiedMode = "fill"`)
+- die reale Board-Regel bleibt dabei bewusst erhalten: `outline_path`-Decals duerfen weiter als gefuellte Vierpunkt-Shapes ueber den generischen Adapter laufen, waehrend Outline-Only-Logo-Teile im Fill-Modus weiter sauber auf den Pfad-Fallback gehen
+- neue Runtime-Tests pruefen die Porter-Hilfe direkt fuer einen realen Board-Decal-Fall und einen realen Outline-Only-Logo-Fall
+
+## Files Touched In The Latest Iteration
+
+- [SilverZeroRsLib.lua](/d:/github/du-tobi/rs_emulator/lib/SilverZeroRsLib.lua)
+- [SimpleSignS-svg.lua](/d:/github/du-tobi/rs_emulator/examples/SilverZero/SimpleSignS-svg.lua)
+- [luaRuntime.test.ts](/d:/github/du-tobi/rs_emulator/test/luaRuntime.test.ts)
+- [progress.md](/d:/github/du-tobi/rs_emulator/planning/progress.md)
+
+## Current Verification
+
+Stand nach der letzten inhaltlichen Code-Aenderung:
+
+| Check | Result |
+|-------|--------|
+| `npm test -- luaRuntime.test.ts` | 77/77 tests passed |
+| `npm test` | 130/130 tests passed |
+| `npm run build` | succeeded |
 
 ## Open Follow-Ups
 
-- `polygon_ring` ist geplant, aber noch nicht implementiert
-- `hex_ring` ist geplant, aber noch nicht implementiert
-- Rollenhinweise wie `logo_segment`, `edge_decal`, `frame_cap`, `ornament` und `frame_outline` sind geplant, aber noch nicht implementiert
-- Gruppierung mehrerer Fragmente und `groupHints` sind geplant, aber noch nicht implementiert
-- Die Anbindung der Classifier-Ausgabe an den eigentlichen Render-/Porting-Schritt ist geplant, aber noch nicht implementiert
-
-## Test Results
-
-| Test | Input | Expected | Actual | Status |
-|------|-------|----------|--------|--------|
-| Planning structure created | New planning directory and files | All requested planning docs exist in `rs_emulator/planning` | Created successfully | ✓ |
-| `npm test -- luaRuntime.test.ts` | Lua runtime integration suite incl. classifier tests | New classifier behavior and existing runtime tests pass | 44/44 tests passed | ✓ |
-| `npm test` | Full Vitest suite in `rs_emulator` | Existing and new tests pass together | 97/97 tests passed | ✓ |
-| `npm run build` | TypeScript build + Vite production build | Build stays green after classifier addition | Build completed successfully | ✓ |
-| `npm test -- luaRuntime.test.ts` after review pass | Verify classifier cleanup changes | Updated classifier still passes incl. option propagation | 45/45 tests passed | ✓ |
-| `npm test` after review pass | Full suite after cleanup | Full suite stays green | 98/98 tests passed | ✓ |
-| `npm run build` after review pass | Build after cleanup | Build completed successfully | ✓ |
-
-## Error Log
-
-| Timestamp | Error | Attempt | Resolution |
-|-----------|-------|---------|------------|
-| 2026-03-24 | None in this planning session | 1 | No resolution needed |
-| 2026-03-24 | `compound` board decals were first classified as `outline_path` | 1 | Explicit `Z` handling and implicit closure detection for start/end-equal paths added to `SvgShapeClassifier.lua` |
-
-## 5-Question Reboot Check
-
-| Question | Answer |
-|----------|--------|
-| Where am I? | Erste produktive `SvgShapeClassifier`-Iteration ist umgesetzt und verifiziert |
-| Where am I going? | Naechster sinnvoller Schritt ist die Nutzung der Classifier-Ausgabe im Porter oder in einer Shape-Library |
-| What's the goal? | SVG-Fragmente ueber geometrische Shape-Objekte statt ueber rohe `d`-Strings behandelbar machen |
-| What have I learned? | Implizit geschlossene SVG-Pfade sind fuer reale kleine Flaechen ein Pflichtfall |
-| What have I done? | Classifier-Modul gebaut, Tests ergaenzt und die Gesamtverifikation grün gehalten |
+- Rollenhinweis `ornament` ist noch offen.
+- Weitere Primitive und Rollen ausser `hex_ring`, `polygon_ring`, vierpunktigen Fill-Shapes, `closed_polygon`-Flaechen und dem ersten `compound_path`-Linienpfad sind noch nicht an den eigentlichen Render-/Porting-Schritt angebunden.

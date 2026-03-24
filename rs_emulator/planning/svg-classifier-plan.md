@@ -146,7 +146,8 @@ Regeln:
 Regeln koennen sein:
 - klein + Randnaehe + Highlight-Fill -> `edge_decal`
 - mittig + regelmaessig + ringfoermig -> `logo_ring`
-- grosser geschlossener Rahmenbereich -> `frame_cap` oder `frame_segment`
+- grosser, nahezu viewBox-deckender `compound_path` mit zwei echten oder effektiv geschlossenen Konturen -> `frame_outline`
+- grosse, zentrierte Innenflaeche nur im Kontext eines passenden `frame_outline` -> `frame_cap`
 
 ### Stufe 4: Gruppierungskandidaten
 
@@ -158,6 +159,10 @@ groupHints = {
   neighbors = { 3, 4, 5 },
 }
 ```
+
+Wichtig:
+- `groupHints` sollen kuenftig nicht nur Geometrie, sondern auch vergebene Rollen respektieren.
+- Geometrisch aehnliche Fragmente mit unterschiedlicher Rolle sollen nicht im selben Cluster landen.
 
 ## Wo die Logik leben koennte
 
@@ -251,9 +256,11 @@ Gegenmassnahme:
 
 ### Phase D: Rollenheuristiken
 
+- `frame_outline`
 - `edge_decal`
 - `logo_segment`
 - `frame_cap`
+- `ornament`
 
 ## Aktueller Implementierungsstand
 
@@ -271,18 +278,18 @@ Bereits umgesetzt:
   - `triangle`
   - `quad`
   - `trapezoid`
+  - `polygon_ring`
+  - `hex_ring`
   - `compound_path`
-
-Noch offen und weiterhin Teil des Plans:
-- `polygon_ring`
-- `hex_ring`
 - Rollenhinweise:
   - `logo_segment`
+  - `frame_outline`
   - `edge_decal`
   - `frame_cap`
+
+Noch offen und weiterhin Teil des Plans:
+- Rollenhinweise:
   - `ornament`
-  - `frame_outline`
-- Gruppierung mehrerer Fragmente bzw. `groupHints`
 - Nutzung der Classifier-Ausgabe im eigentlichen Render-/Porting-Schritt
 
 Wichtig:

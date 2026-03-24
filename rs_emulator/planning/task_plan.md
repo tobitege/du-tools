@@ -53,10 +53,15 @@ Phase 5
 
 ## Offene Umsetzungspunkte Nach Der Ersten Iteration
 
-- [ ] `polygon_ring` implementieren
-- [ ] `hex_ring` implementieren
-- [ ] Rollenhinweise wie `logo_segment`, `edge_decal`, `frame_cap`, `ornament` und `frame_outline` implementieren
-- [ ] Gruppierung mehrerer Fragmente bzw. `groupHints` implementieren
+- [x] `polygon_ring` implementieren
+- [x] `hex_ring` implementieren
+- [x] `frame_outline` als ersten Rollenhinweis implementieren
+- [x] `edge_decal` als zweiten Rollenhinweis implementieren
+- [x] `frame_cap` als dritten Rollenhinweis implementieren
+- [x] Review-Fixes fuer `frame_outline`, `frame_cap` und rollenbewusste `groupHints` nachziehen
+- [x] `logo_segment` als weiteren Rollenhinweis implementieren
+- [ ] Weiteren Rollenhinweis `ornament` implementieren
+- [x] Gruppierung mehrerer Fragmente bzw. `groupHints` implementieren
 - [ ] Classifier-Ausgabe an den eigentlichen Render-/Porting-Schritt anbinden
 
 ## Decisions Made
@@ -67,12 +72,6 @@ Phase 5
 | Zwei Themen werden in getrennten Fachpapieren ausgearbeitet | Klassifikation und Shape-Library sind eng verwandt, aber als Umsetzungsstreams getrennt planbar |
 | `svg-work-patches.md` ist die Ausgangsbasis | Diese Datei enthaelt bereits die faktisch bekannten Shape-Typen und Root-Causes |
 | Die erste produktive Umsetzung startet mit dem `SvgShapeClassifier` | Der Nutzer hat den geometrischen Track fuer die erste Iteration explizit priorisiert |
-
-## Errors Encountered
-
-| Error | Attempt | Resolution |
-|-------|---------|------------|
-| Keine | 1 | Kein Blocker in dieser Planungsrunde |
 
 ## Notes
 

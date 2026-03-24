@@ -973,6 +973,25 @@ function Library.drawPath(layer, layout, pathData, color, strokeWidth, transform
     end
 end
 
+function Library.firstSubpathPathData(pathData)
+    if not pathData or pathData == "" then
+        return pathData
+    end
+
+    local moveCount = 0
+    for i = 1, #pathData do
+        local c = pathData:sub(i, i)
+        if c == "M" or c == "m" then
+            moveCount = moveCount + 1
+            if moveCount == 2 then
+                return pathData:sub(1, i - 1)
+            end
+        end
+    end
+
+    return pathData
+end
+
 function Library.drawDot(layer, layout, cx, cy, radius, color)
     local scx = Library.toScreenX(layout, cx)
     local scy = Library.toScreenY(layout, cy)
@@ -1050,6 +1069,656 @@ function Library.hexRing(layer, layout, cx, cy, size, thickness, color)
         sx + math.cos(a2) * r_in * s, sy + math.sin(a2) * r_in * s
       )
     end
+end
+
+local function shapeBoundsCenter(bounds)
+    if not bounds then
+        return nil, nil
+    end
+    return bounds.x + bounds.w * 0.5, bounds.y + bounds.h * 0.5
+end
+
+local function averagePointDistance(points, cx, cy)
+    if not points or #points == 0 or cx == nil or cy == nil then
+        return nil
+    end
+
+    local total = 0
+    for i = 1, #points do
+        local dx = points[i].x - cx
+        local dy = points[i].y - cy
+        total = total + math.sqrt(dx * dx + dy * dy)
+    end
+
+    return total / #points
+end
+
+local function ringSubpathArea(subpath)
+    if subpath and subpath.area then
+        return math.abs(subpath.area)
+    end
+
+    local bounds = subpath and subpath.bounds or nil
+    if bounds then
+        return math.abs(bounds.w * bounds.h)
+    end
+
+    return 0
+end
+
+local function resolveShapeColor(shape, options)
+    if options and type(options.color) == "table" then
+        return options.color
+    end
+
+    local style = shape and shape.style or nil
+    if style and type(style.resolvedFill) == "table" then
+        return style.resolvedFill
+    end
+
+    if style and type(style.fill) == "table" then
+        return style.fill
+    end
+
+    return nil
+end
+
+local function drawPointQuad(layer, layout, points, color)
+    setNextFillColor(layer, color[1], color[2], color[3], color[4] or 1)
+    addQuad(
+        layer,
+        Library.toScreenX(layout, points[1].x),
+        Library.toScreenY(layout, points[1].y),
+        Library.toScreenX(layout, points[2].x),
+        Library.toScreenY(layout, points[2].y),
+        Library.toScreenX(layout, points[3].x),
+        Library.toScreenY(layout, points[3].y),
+        Library.toScreenX(layout, points[4].x),
+        Library.toScreenY(layout, points[4].y)
+    )
+end
+
+local function drawPointTriangle(layer, layout, a, b, c, color)
+    setNextFillColor(layer, color[1], color[2], color[3], color[4] or 1)
+    addTriangle(
+        layer,
+        Library.toScreenX(layout, a.x),
+        Library.toScreenY(layout, a.y),
+        Library.toScreenX(layout, b.x),
+        Library.toScreenY(layout, b.y),
+        Library.toScreenX(layout, c.x),
+        Library.toScreenY(layout, c.y)
+    )
+end
+
+local function extractFourPointShapePoints(shape)
+    if not shape or not shape.geometry then
+        return nil
+    end
+
+    local points = shape.geometry.points or nil
+    if not points or #points ~= 4 then
+        return nil
+    end
+
+    local analysis = shape.analysis or nil
+    if analysis and analysis.subpathCount and analysis.subpathCount ~= 1 then
+        return nil
+    end
+
+    return points
+end
+
+local function extractClosedPolygonPoints(shape)
+    if not shape or not shape.geometry then
+        return nil
+    end
+
+    local points = shape.geometry.points or nil
+    if not points or #points < 3 then
+        return nil
+    end
+
+    local analysis = shape.analysis or nil
+    if analysis and analysis.subpathCount and analysis.subpathCount ~= 1 then
+        return nil
+    end
+
+    if analysis and analysis.closed == false then
+        return nil
+    end
+
+    return points
+end
+
+local function extractImplicitFillPolygonPoints(shape)
+    if not shape or not shape.geometry then
+        return nil
+    end
+
+    local points = shape.geometry.points or nil
+    if not points or #points < 3 then
+        return nil
+    end
+
+    local analysis = shape.analysis or nil
+    if analysis and analysis.subpathCount and analysis.subpathCount ~= 1 then
+        return nil
+    end
+
+    return points
+end
+
+local function polygonSignedArea(points)
+    local area = 0
+    for i = 1, #points do
+        local current = points[i]
+        local nextPoint = points[i % #points + 1]
+        area = area + (current.x * nextPoint.y - nextPoint.x * current.y)
+    end
+    return area * 0.5
+end
+
+local function triangleCross(a, b, c)
+    return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+end
+
+local function pointInTriangle(point, a, b, c, epsilon)
+    epsilon = epsilon or 1e-6
+    local c1 = triangleCross(a, b, point)
+    local c2 = triangleCross(b, c, point)
+    local c3 = triangleCross(c, a, point)
+    local hasNegative = c1 < -epsilon or c2 < -epsilon or c3 < -epsilon
+    local hasPositive = c1 > epsilon or c2 > epsilon or c3 > epsilon
+    return not (hasNegative and hasPositive)
+end
+
+local function triangulatePolygon(points)
+    if not points or #points < 3 then
+        return nil
+    end
+
+    if #points == 3 then
+        return {
+            { points[1], points[2], points[3] },
+        }
+    end
+
+    local epsilon = 1e-6
+    local indices = {}
+    for i = 1, #points do
+        indices[i] = i
+    end
+
+    local isClockwise = polygonSignedArea(points) < 0
+    local triangles = {}
+    local safety = #points * #points
+
+    while #indices > 3 and safety > 0 do
+        local earFound = false
+
+        for i = 1, #indices do
+            local prevIndex = indices[(i - 2 + #indices) % #indices + 1]
+            local currentIndex = indices[i]
+            local nextIndex = indices[i % #indices + 1]
+            local a = points[prevIndex]
+            local b = points[currentIndex]
+            local c = points[nextIndex]
+            local cross = triangleCross(a, b, c)
+
+            if (not isClockwise and cross > epsilon) or (isClockwise and cross < -epsilon) then
+                local containsOtherPoint = false
+                for j = 1, #indices do
+                    local candidateIndex = indices[j]
+                    if candidateIndex ~= prevIndex and candidateIndex ~= currentIndex and candidateIndex ~= nextIndex then
+                        if pointInTriangle(points[candidateIndex], a, b, c, epsilon) then
+                            containsOtherPoint = true
+                            break
+                        end
+                    end
+                end
+
+                if not containsOtherPoint then
+                    triangles[#triangles + 1] = { a, b, c }
+                    table.remove(indices, i)
+                    earFound = true
+                    break
+                end
+            end
+        end
+
+        if not earFound then
+            return nil
+        end
+
+        safety = safety - 1
+    end
+
+    if #indices == 3 then
+        triangles[#triangles + 1] = {
+            points[indices[1]],
+            points[indices[2]],
+            points[indices[3]],
+        }
+    end
+
+    return triangles
+end
+
+local function reversePoints(points)
+    local reversed = {}
+    for i = #points, 1, -1 do
+        reversed[#reversed + 1] = points[i]
+    end
+    return reversed
+end
+
+local function averageAlignedRingDistance(outerPoints, innerPoints, offset)
+    local total = 0
+    local count = #outerPoints
+    for i = 1, count do
+        local outerPoint = outerPoints[i]
+        local innerPoint = innerPoints[((i + offset - 2) % count) + 1]
+        local dx = outerPoint.x - innerPoint.x
+        local dy = outerPoint.y - innerPoint.y
+        total = total + math.sqrt(dx * dx + dy * dy)
+    end
+    return total / count
+end
+
+local function alignRingPoints(outerPoints, innerPoints)
+    if not outerPoints or not innerPoints or #outerPoints ~= #innerPoints or #outerPoints < 3 then
+        return nil
+    end
+
+    local bestInnerPoints = innerPoints
+    local bestOffset = 0
+    local bestDistance = averageAlignedRingDistance(outerPoints, innerPoints, 0)
+
+    local reversedInnerPoints = reversePoints(innerPoints)
+    local reversedDistance = averageAlignedRingDistance(outerPoints, reversedInnerPoints, 0)
+    if reversedDistance < bestDistance then
+        bestInnerPoints = reversedInnerPoints
+        bestDistance = reversedDistance
+    end
+
+    for offset = 1, #outerPoints - 1 do
+        local distance = averageAlignedRingDistance(outerPoints, bestInnerPoints, offset)
+        if distance < bestDistance then
+            bestDistance = distance
+            bestOffset = offset
+        end
+    end
+
+    local alignedInnerPoints = {}
+    for i = 1, #outerPoints do
+        alignedInnerPoints[i] = bestInnerPoints[((i + bestOffset - 2) % #bestInnerPoints) + 1]
+    end
+
+    return alignedInnerPoints
+end
+
+local function drawSubpathSegments(layer, layout, subpath, color, strokeWidth)
+    local points = subpath and subpath.points or nil
+    if not points or #points < 2 then
+        return false
+    end
+
+    setNextStrokeColor(layer, color[1], color[2], color[3], color[4] or 1)
+    setNextStrokeWidth(layer, (strokeWidth or 1) * layout.scale)
+
+    for i = 1, #points - 1 do
+        addLine(
+            layer,
+            Library.toScreenX(layout, points[i].x),
+            Library.toScreenY(layout, points[i].y),
+            Library.toScreenX(layout, points[i + 1].x),
+            Library.toScreenY(layout, points[i + 1].y)
+        )
+    end
+
+    if subpath.closed then
+        addLine(
+            layer,
+            Library.toScreenX(layout, points[#points].x),
+            Library.toScreenY(layout, points[#points].y),
+            Library.toScreenX(layout, points[1].x),
+            Library.toScreenY(layout, points[1].y)
+        )
+    end
+
+    return true
+end
+
+--- Zeichnet einen klassifizierten hex_ring ueber die bestehende hexRing-Hilfsfunktion.
+function Library.drawClassifiedHexRing(layer, layout, shape, options)
+    if not shape or shape.kind ~= "hex_ring" then
+        return false
+    end
+
+    local subpaths = shape.geometry and shape.geometry.subpaths or nil
+    if not subpaths or #subpaths ~= 2 then
+        return false
+    end
+
+    local first = subpaths[1]
+    local second = subpaths[2]
+    local outer = ringSubpathArea(first) >= ringSubpathArea(second) and first or second
+    local inner = outer == first and second or first
+
+    local center = shape.geometry and shape.geometry.center or nil
+    local centerX = center and center.x or nil
+    local centerY = center and center.y or nil
+    if centerX == nil or centerY == nil then
+        centerX, centerY = shapeBoundsCenter(outer and outer.bounds or nil)
+    end
+
+    local outerRadius = averagePointDistance(outer and outer.points or nil, centerX, centerY)
+    local innerRadius = averagePointDistance(inner and inner.points or nil, centerX, centerY)
+    if not outerRadius or not innerRadius or innerRadius <= 0 or outerRadius <= innerRadius then
+        return false
+    end
+
+    local color = resolveShapeColor(shape, options)
+    if not color then
+        return false
+    end
+
+    Library.hexRing(layer, layout, centerX, centerY, outerRadius, outerRadius - innerRadius, color)
+    return true
+end
+
+--- Zeichnet ein klassifiziertes 4-Punkt-Shape als gefuelltes Quad.
+function Library.drawClassifiedFourPointShape(layer, layout, shape, options)
+    local points = extractFourPointShapePoints(shape)
+    if not points then
+        return false
+    end
+
+    local color = resolveShapeColor(shape, options)
+    if not color then
+        return false
+    end
+
+    drawPointQuad(layer, layout, points, color)
+    return true
+end
+
+--- Zeichnet ein klassifiziertes geschlossenes Polygon ueber Dreiecks-Triangulation.
+function Library.drawClassifiedClosedPolygon(layer, layout, shape, options)
+    local points = extractClosedPolygonPoints(shape)
+    if not points then
+        return false
+    end
+
+    local color = resolveShapeColor(shape, options)
+    if not color then
+        return false
+    end
+
+    if #points == 3 then
+        drawPointTriangle(layer, layout, points[1], points[2], points[3], color)
+        return true
+    end
+
+    local triangles = triangulatePolygon(points)
+    if not triangles or #triangles == 0 then
+        return false
+    end
+
+    for i = 1, #triangles do
+        local triangle = triangles[i]
+        drawPointTriangle(layer, layout, triangle[1], triangle[2], triangle[3], color)
+    end
+
+    return true
+end
+
+function Library.drawClassifiedImplicitFillPolygon(layer, layout, shape, options)
+    local points = extractImplicitFillPolygonPoints(shape)
+    if not points then
+        return false
+    end
+
+    local color = resolveShapeColor(shape, options)
+    if not color then
+        return false
+    end
+
+    if #points == 3 then
+        drawPointTriangle(layer, layout, points[1], points[2], points[3], color)
+        return true
+    end
+
+    local triangles = triangulatePolygon(points)
+    if not triangles or #triangles == 0 then
+        return false
+    end
+
+    for i = 1, #triangles do
+        local triangle = triangles[i]
+        drawPointTriangle(layer, layout, triangle[1], triangle[2], triangle[3], color)
+    end
+
+    return true
+end
+
+--- Zeichnet einen klassifizierten polygon_ring ueber korrespondierende Ringsegmente.
+function Library.drawClassifiedPolygonRing(layer, layout, shape, options)
+    if not shape or shape.kind ~= "polygon_ring" then
+        return false
+    end
+
+    local subpaths = shape.geometry and shape.geometry.subpaths or nil
+    if not subpaths or #subpaths ~= 2 then
+        return false
+    end
+
+    local first = subpaths[1]
+    local second = subpaths[2]
+    local outer = ringSubpathArea(first) >= ringSubpathArea(second) and first or second
+    local inner = outer == first and second or first
+    local outerPoints = outer and outer.points or nil
+    local innerPoints = inner and inner.points or nil
+    if not outerPoints or not innerPoints or #outerPoints ~= #innerPoints or #outerPoints < 3 then
+        return false
+    end
+
+    local color = resolveShapeColor(shape, options)
+    if not color then
+        return false
+    end
+
+    local alignedInnerPoints = alignRingPoints(outerPoints, innerPoints)
+    if not alignedInnerPoints then
+        return false
+    end
+
+    for i = 1, #outerPoints do
+        local nextIndex = i % #outerPoints + 1
+        drawPointQuad(
+            layer,
+            layout,
+            {
+                alignedInnerPoints[i],
+                outerPoints[i],
+                outerPoints[nextIndex],
+                alignedInnerPoints[nextIndex],
+            },
+            color
+        )
+    end
+
+    return true
+end
+
+--- Zeichnet einen klassifizierten compound_path ueber seine bereits extrahierten Teilpfade.
+function Library.drawClassifiedCompoundPath(layer, layout, shape, options)
+    if not shape or shape.kind ~= "compound_path" then
+        return false
+    end
+
+    local subpaths = shape.geometry and shape.geometry.subpaths or nil
+    if not subpaths or #subpaths < 2 then
+        return false
+    end
+
+    local color = resolveShapeColor(shape, options)
+    if not color then
+        return false
+    end
+
+    local strokeWidth = options and options.strokeWidth or 1
+
+    for i = 1, #subpaths do
+        local subpath = subpaths[i]
+        if not subpath.points or #subpath.points < 2 then
+            return false
+        end
+        if not drawSubpathSegments(layer, layout, subpath, color, strokeWidth) then
+            return false
+        end
+    end
+
+    return true
+end
+
+--- Zeichnet einen klassifizierten outline_path ueber seine extrahierten Linienpunkte.
+function Library.drawClassifiedOutlinePath(layer, layout, shape, options)
+    if not shape or shape.kind ~= "outline_path" then
+        return false
+    end
+
+    local subpaths = shape.geometry and shape.geometry.subpaths or nil
+    if not subpaths or #subpaths ~= 1 then
+        return false
+    end
+
+    local color = resolveShapeColor(shape, options)
+    if not color then
+        return false
+    end
+
+    local strokeWidth = options and options.strokeWidth or 1
+    return drawSubpathSegments(layer, layout, subpaths[1], color, strokeWidth)
+end
+
+--- Zeichnet nur klassifizierte Stroke-Shapes und laesst Fill-Faelle aus.
+function Library.drawClassifiedStrokeShape(layer, layout, shape, options)
+    if not shape or not shape.kind then
+        return false
+    end
+
+    if shape.kind == "outline_path" then
+        return Library.drawClassifiedOutlinePath(layer, layout, shape, options)
+    end
+
+    if shape.kind == "compound_path" then
+        return Library.drawClassifiedCompoundPath(layer, layout, shape, options)
+    end
+
+    return false
+end
+
+--- Zeichnet die erste produktiv angebundene Teilmenge klassifizierter SVG-Shapes.
+function Library.drawClassifiedShape(layer, layout, shape, options)
+    if not shape or not shape.kind then
+        return false
+    end
+
+    if shape.kind == "hex_ring" then
+        return Library.drawClassifiedHexRing(layer, layout, shape, options)
+    end
+
+    if shape.kind == "polygon_ring" then
+        return Library.drawClassifiedPolygonRing(layer, layout, shape, options)
+    end
+
+    if shape.kind == "compound_path" then
+        return Library.drawClassifiedStrokeShape(layer, layout, shape, options)
+    end
+
+    if shape.kind == "quad" or shape.kind == "trapezoid" or shape.kind == "outline_path" then
+        return Library.drawClassifiedFourPointShape(layer, layout, shape, options)
+    end
+
+    if shape.kind == "triangle" or shape.kind == "closed_polygon" then
+        return Library.drawClassifiedClosedPolygon(layer, layout, shape, options)
+    end
+
+    return false
+end
+
+--- Zeichnet nur klassifizierte Fill-Shapes und laesst reine Linien-/Outline-Faelle aus.
+function Library.drawClassifiedFillShape(layer, layout, shape, options)
+    if not shape or not shape.kind then
+        return false
+    end
+
+    if shape.kind == "hex_ring" then
+        return Library.drawClassifiedHexRing(layer, layout, shape, options)
+    end
+
+    if shape.kind == "polygon_ring" then
+        return Library.drawClassifiedPolygonRing(layer, layout, shape, options)
+    end
+
+    if shape.kind == "quad" or shape.kind == "trapezoid" then
+        return Library.drawClassifiedFourPointShape(layer, layout, shape, options)
+    end
+
+    if shape.kind == "outline_path" then
+        if Library.drawClassifiedFourPointShape(layer, layout, shape, options) then
+            return true
+        end
+
+        if Library.drawClassifiedClosedPolygon(layer, layout, shape, options) then
+            return true
+        end
+
+        return Library.drawClassifiedImplicitFillPolygon(layer, layout, shape, options)
+    end
+
+    if shape.kind == "triangle" or shape.kind == "closed_polygon" then
+        return Library.drawClassifiedClosedPolygon(layer, layout, shape, options)
+    end
+
+    return false
+end
+
+function Library.drawClassifiedPathItem(layer, layout, item, shape, options)
+    if not item or not item.d then
+        return false
+    end
+
+    options = options or {}
+    local hasFill = item.fill and item.fill ~= "" and item.fill ~= "none"
+    local drewClassified = false
+
+    if hasFill and shape then
+        if options.classifiedMode == "fill" then
+            drewClassified = Library.drawClassifiedFillShape(layer, layout, shape, options)
+        else
+            drewClassified = Library.drawClassifiedShape(layer, layout, shape, options)
+        end
+    end
+
+    if drewClassified then
+        return true
+    end
+
+    local pathData = item.d
+    if hasFill and options.fallbackFirstSubpathOnly then
+        pathData = Library.firstSubpathPathData(pathData)
+    end
+
+    local color = options.color or resolveShapeColor(shape, options)
+    if not color then
+        return false
+    end
+
+    Library.drawPath(layer, layout, pathData, color, options.strokeWidth, item.transform)
+    return true
 end
 
 --- Zeichnet einen hexagonalen Rahmen mit "Zähnen" (Einkerbungen) an den Ecken.

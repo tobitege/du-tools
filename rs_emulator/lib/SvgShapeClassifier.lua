@@ -83,6 +83,64 @@ local function boundsCenter(bounds)
     return bounds.x + bounds.w * 0.5, bounds.y + bounds.h * 0.5
 end
 
+local function parseViewBoxBounds(viewBox)
+    local values = {}
+    for number in tostring(viewBox or ""):gmatch("[%+%-%d%.eE]+") do
+        values[#values + 1] = tonumber(number) or 0
+    end
+    if #values >= 4 then
+        return {
+            x = values[1],
+            y = values[2],
+            w = values[3],
+            h = values[4],
+        }
+    end
+    return nil
+end
+
+local function colorsEqual(a, b, epsilon)
+    if not a or not b then
+        return false
+    end
+    epsilon = epsilon or 1e-6
+    for i = 1, 4 do
+        local aValue = a[i]
+        local bValue = b[i]
+        if i == 4 then
+            aValue = aValue == nil and 1 or aValue
+            bValue = bValue == nil and 1 or bValue
+        end
+        if aValue == nil or bValue == nil or math.abs(aValue - bValue) > epsilon then
+            return false
+        end
+    end
+    return true
+end
+
+local function isHighlightFill(shape, options)
+    local fill = shape and shape.style and shape.style.fill or nil
+    if fill == "var(--highlight-color)" then
+        return true
+    end
+
+    local resolvedFill = shape and shape.style and shape.style.resolvedFill or nil
+    local highlightFill = SvgParser.parseColor("var(--highlight-color)", options and options.vars or nil)
+    return colorsEqual(resolvedFill, highlightFill)
+end
+
+local function boundsInset(innerBounds, outerBounds)
+    if not innerBounds or not outerBounds then
+        return nil
+    end
+    return math.min(
+        innerBounds.x - outerBounds.x,
+        innerBounds.y - outerBounds.y,
+        (outerBounds.x + outerBounds.w) - (innerBounds.x + innerBounds.w),
+        (outerBounds.y + outerBounds.h) - (innerBounds.y + innerBounds.h)
+    )
+end
+
 local function pointEquals(a, b, epsilon)
     epsilon = epsilon or 1e-6
     return math.abs(a.x - b.x) <= epsilon and math.abs(a.y - b.y) <= epsilon
@@ -598,6 +656,83 @@ local function segmentVector(points, index)
     return b.x - a.x, b.y - a.y
 end
 
+local function polygonPerimeter(points)
+    if not points or #points < 2 then
+        return 0
+    end
+    local total = 0
+    for i = 1, #points do
+        total = total + pointDistance(points[i], points[(i % #points) + 1])
+    end
+    return total
+end
+
+local function atan2(y, x)
+    if x > 0 then
+        return math.atan(y / x)
+    elseif x < 0 and y >= 0 then
+        return math.atan(y / x) + math.pi
+    elseif x < 0 and y < 0 then
+        return math.atan(y / x) - math.pi
+    elseif x == 0 and y > 0 then
+        return math.pi * 0.5
+    elseif x == 0 and y < 0 then
+        return -math.pi * 0.5
+    end
+    return 0
+end
+
+local function boundsContain(outer, inner, epsilon)
+    if not outer or not inner then
+        return false
+    end
+    epsilon = epsilon or 1e-6
+    return
+        inner.x >= outer.x - epsilon and
+        inner.y >= outer.y - epsilon and
+        (inner.x + inner.w) <= (outer.x + outer.w) + epsilon and
+        (inner.y + inner.h) <= (outer.y + outer.h) + epsilon
+end
+
+local function pointOnSegment(point, a, b, epsilon)
+    epsilon = epsilon or 1e-6
+    local cross = math.abs((point.y - a.y) * (b.x - a.x) - (point.x - a.x) * (b.y - a.y))
+    if cross > epsilon then
+        return false
+    end
+
+    local minX = math.min(a.x, b.x) - epsilon
+    local maxX = math.max(a.x, b.x) + epsilon
+    local minY = math.min(a.y, b.y) - epsilon
+    local maxY = math.max(a.y, b.y) + epsilon
+    return point.x >= minX and point.x <= maxX and point.y >= minY and point.y <= maxY
+end
+
+local function pointInPolygon(point, polygon, epsilon)
+    epsilon = epsilon or 1e-6
+    if not polygon or #polygon < 3 then
+        return false
+    end
+
+    local inside = false
+    for i = 1, #polygon do
+        local a = polygon[i]
+        local b = polygon[(i % #polygon) + 1]
+        if pointOnSegment(point, a, b, epsilon) then
+            return true
+        end
+
+        local intersects = ((a.y > point.y) ~= (b.y > point.y))
+        if intersects then
+            local edgeX = (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x
+            if edgeX >= point.x - epsilon then
+                inside = not inside
+            end
+        end
+    end
+    return inside
+end
+
 local function isParallel(points, firstIndex, secondIndex, tolerance)
     local ax, ay = segmentVector(points, firstIndex)
     local bx, by = segmentVector(points, secondIndex)
@@ -663,6 +798,173 @@ local function primarySubpath(subpaths)
     return bestIndex
 end
 
+local function canonicalRingPoints(points)
+    if not points or #points < 3 then
+        return {}
+    end
+
+    local bounds = boundsFromPoints(points)
+    local maxDim = bounds and math.max(bounds.w, bounds.h, 1) or 1
+    local epsilon = math.max(1e-4, maxDim * 1e-3)
+    local canonical = removeConsecutiveDuplicates(points, epsilon)
+    canonical = stripClosedDuplicate(canonical, true, epsilon)
+    return canonical
+end
+
+local function regularHexScore(points, bounds, centerX, centerY, options)
+    local canonical = canonicalRingPoints(points)
+    if #canonical ~= 6 then
+        return nil
+    end
+
+    local perimeter = polygonPerimeter(canonical)
+    if perimeter == 0 then
+        return nil
+    end
+
+    local radiusMin = nil
+    local radiusMax = nil
+    local angles = {}
+    for i = 1, #canonical do
+        local point = canonical[i]
+        local dx = point.x - centerX
+        local dy = point.y - centerY
+        local radius = math.sqrt(dx * dx + dy * dy)
+        if radiusMin == nil or radius < radiusMin then radiusMin = radius end
+        if radiusMax == nil or radius > radiusMax then radiusMax = radius end
+        angles[i] = atan2(dy, dx)
+    end
+
+    if not radiusMin or radiusMin == 0 then
+        return nil
+    end
+
+    local radiusRatioTolerance = options.hexRadiusRatioTolerance or 1.12
+    if (radiusMax / radiusMin) > radiusRatioTolerance then
+        return nil
+    end
+
+    table.sort(angles)
+    local angleTolerance = math.rad(options.hexAngleToleranceDegrees or 18)
+    local expected = (2 * math.pi) / 6
+    for i = 1, #angles do
+        local nextAngle = angles[(i % #angles) + 1]
+        local delta = nextAngle - angles[i]
+        if delta <= 0 then
+            delta = delta + 2 * math.pi
+        end
+        if math.abs(delta - expected) > angleTolerance then
+            return nil
+        end
+    end
+
+    return canonical
+end
+
+local function classifySpecificRing(outer, inner, options)
+    local outerBounds = outer.bounds
+    local innerBounds = inner.bounds
+    local centerX, centerY = boundsCenter(outerBounds)
+    local innerCenterX, innerCenterY = boundsCenter(innerBounds)
+    if not centerX or not innerCenterX then
+        return nil
+    end
+
+    local centerDelta = math.sqrt((centerX - innerCenterX) ^ 2 + (centerY - innerCenterY) ^ 2)
+    local maxDim = math.max(outerBounds.w, outerBounds.h, 1)
+    local centerTolerance = options.hexCenterTolerance or math.max(0.35, maxDim * 0.02)
+    if centerDelta > centerTolerance then
+        return nil
+    end
+
+    local outerHex = regularHexScore(outer.points, outerBounds, centerX, centerY, options)
+    if not outerHex then
+        return nil
+    end
+    local innerHex = regularHexScore(inner.points, innerBounds, centerX, centerY, options)
+    if not innerHex then
+        return nil
+    end
+
+    return "hex_ring", 0.99
+end
+
+local function classifyRing(subpaths, options)
+    if #subpaths ~= 2 then
+        return nil
+    end
+
+    local first = subpaths[1]
+    local second = subpaths[2]
+    if
+        not first.closed or
+        not second.closed or
+        first.pointCount < 3 or
+        second.pointCount < 3
+    then
+        return nil
+    end
+
+    local firstArea = math.abs(first.area or 0)
+    local secondArea = math.abs(second.area or 0)
+    if firstArea == 0 or secondArea == 0 then
+        return nil
+    end
+
+    local outer = firstArea >= secondArea and first or second
+    local inner = outer == first and second or first
+    local outerBounds = outer.bounds
+    local innerBounds = inner.bounds
+    if not outerBounds or not innerBounds then
+        return nil
+    end
+
+    local maxDim = math.max(outerBounds.w, outerBounds.h, 1)
+    local boundsTolerance = options.ringBoundsTolerance or math.max(1e-4, maxDim * 1e-4)
+    if not boundsContain(outerBounds, innerBounds, boundsTolerance) then
+        return nil
+    end
+
+    local centerTolerance = options.ringCenterTolerance or math.max(0.5, maxDim * 0.03)
+    local outerCx, outerCy = boundsCenter(outerBounds)
+    local innerCx, innerCy = boundsCenter(innerBounds)
+    if
+        not outerCx or
+        not innerCx or
+        math.abs(outerCx - innerCx) > centerTolerance or
+        math.abs(outerCy - innerCy) > centerTolerance
+    then
+        return nil
+    end
+
+    local minInset = options.ringInsetTolerance or math.max(0.1, maxDim * 0.01)
+    local leftInset = innerBounds.x - outerBounds.x
+    local topInset = innerBounds.y - outerBounds.y
+    local rightInset = (outerBounds.x + outerBounds.w) - (innerBounds.x + innerBounds.w)
+    local bottomInset = (outerBounds.y + outerBounds.h) - (innerBounds.y + innerBounds.h)
+    if
+        leftInset < minInset or
+        topInset < minInset or
+        rightInset < minInset or
+        bottomInset < minInset
+    then
+        return nil
+    end
+
+    for i = 1, #(inner.points or {}) do
+        if not pointInPolygon(inner.points[i], outer.points, boundsTolerance) then
+            return nil
+        end
+    end
+
+    local specificKind, specificConfidence = classifySpecificRing(outer, inner, options)
+    if specificKind then
+        return specificKind, specificConfidence
+    end
+
+    return "polygon_ring", 0.97
+end
+
 function M.analyzePath(pathData, transform, options)
     options = options or {}
     local subpaths = flattenPath(pathData, transform, options)
@@ -704,6 +1006,10 @@ local function classifyAnalysis(analysis, options)
     end
 
     if #subpaths > 1 then
+        local ringKind, ringConfidence = classifyRing(subpaths, options or {})
+        if ringKind then
+            return ringKind, ringConfidence
+        end
         return "compound_path", 0.9
     end
 
@@ -757,6 +1063,441 @@ local function buildItemOptions(options, overrides)
     return merged
 end
 
+local function roundToStep(value, step)
+    if value == nil then
+        return 0
+    end
+    step = step or 0.01
+    return math.floor((value / step) + 0.5) * step
+end
+
+local function stringifyResolvedFill(resolvedFill)
+    if not resolvedFill then
+        return ""
+    end
+    return string.format(
+        "%.3f,%.3f,%.3f,%.3f",
+        resolvedFill[1] or 0,
+        resolvedFill[2] or 0,
+        resolvedFill[3] or 0,
+        resolvedFill[4] or 0
+    )
+end
+
+local function subpathSignature(shape)
+    local parts = {}
+    for _, subpath in ipairs(shape.geometry and shape.geometry.subpaths or {}) do
+        parts[#parts + 1] = string.format(
+            "%s%d",
+            subpath.closed and "c" or "o",
+            subpath.pointCount or 0
+        )
+    end
+    table.sort(parts)
+    return table.concat(parts, ",")
+end
+
+local function clusterKey(shape)
+    local bounds = shape.geometry and shape.geometry.bounds or nil
+    local fillSignature = stringifyResolvedFill(shape.style and shape.style.resolvedFill or nil)
+    local fillValue = shape.style and shape.style.fill or ""
+    return table.concat({
+        shape.kind or "",
+        shape.role or "",
+        tostring(shape.analysis and shape.analysis.subpathCount or 0),
+        tostring(shape.analysis and shape.analysis.pointCount or 0),
+        subpathSignature(shape),
+        bounds and string.format("%.2f", roundToStep(bounds.w, 0.25)) or "0",
+        bounds and string.format("%.2f", roundToStep(bounds.h, 0.25)) or "0",
+        fillValue,
+        fillSignature,
+    }, "|")
+end
+
+local function shapeCenter(shape)
+    local center = shape.geometry and shape.geometry.center or nil
+    if center then
+        return center.x, center.y
+    end
+    local bounds = shape.geometry and shape.geometry.bounds or nil
+    return boundsCenter(bounds)
+end
+
+local function assignGroupHints(shapes)
+    local clusters = {}
+    local clusterOrder = {}
+
+    for index, shape in ipairs(shapes or {}) do
+        local key = clusterKey(shape)
+        if not clusters[key] then
+            clusters[key] = { indices = {}, kind = shape.kind }
+            clusterOrder[#clusterOrder + 1] = key
+        end
+        clusters[key].indices[#clusters[key].indices + 1] = index
+    end
+
+    local clusterIdByKey = {}
+    local nextClusterId = 1
+    for _, key in ipairs(clusterOrder) do
+        local cluster = clusters[key]
+        if #cluster.indices > 1 then
+            clusterIdByKey[key] = string.format("%s_cluster_%02d", cluster.kind or "shape", nextClusterId)
+            nextClusterId = nextClusterId + 1
+        end
+    end
+
+    for _, key in ipairs(clusterOrder) do
+        local cluster = clusters[key]
+        if #cluster.indices > 1 then
+            local clusterId = clusterIdByKey[key]
+            for _, shapeIndex in ipairs(cluster.indices) do
+                local baseShape = shapes[shapeIndex]
+                local baseX, baseY = shapeCenter(baseShape)
+                local distances = {}
+                for _, otherIndex in ipairs(cluster.indices) do
+                    if otherIndex ~= shapeIndex then
+                        local otherShape = shapes[otherIndex]
+                        local otherX, otherY = shapeCenter(otherShape)
+                        local distance = math.huge
+                        if baseX and otherX then
+                            local dx = otherX - baseX
+                            local dy = otherY - baseY
+                            distance = math.sqrt(dx * dx + dy * dy)
+                        end
+                        distances[#distances + 1] = {
+                            index = otherIndex,
+                            distance = distance,
+                        }
+                    end
+                end
+                table.sort(distances, function(a, b)
+                    if a.distance == b.distance then
+                        return a.index < b.index
+                    end
+                    return a.distance < b.distance
+                end)
+
+                local neighbors = {}
+                for i = 1, #distances do
+                    neighbors[i] = distances[i].index
+                end
+
+                baseShape.groupHints = {
+                    sameCluster = clusterId,
+                    clusterSize = #cluster.indices,
+                    neighbors = neighbors,
+                }
+            end
+        end
+    end
+
+    return shapes
+end
+
+local function isEffectivelyClosedSubpath(subpath)
+    if not subpath or (subpath.pointCount or 0) < 4 then
+        return false
+    end
+
+    if subpath.closed then
+        return true
+    end
+
+    local points = subpath.points or {}
+    if #points < 2 then
+        return false
+    end
+
+    local bounds = subpath.bounds or boundsFromPoints(points)
+    local maxDim = bounds and math.max(bounds.w, bounds.h, 1) or 1
+    local closureTolerance = math.max(0.25, maxDim * 0.005)
+    return pointDistance(points[1], points[#points]) <= closureTolerance
+end
+
+local function contourSubpathCount(shape)
+    local count = 0
+    for _, subpath in ipairs(shape.geometry and shape.geometry.subpaths or {}) do
+        if isEffectivelyClosedSubpath(subpath) then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+local function matchesFrameOutlineRole(shape, options)
+    if shape.kind ~= "compound_path" or (shape.analysis and shape.analysis.subpathCount or 0) ~= 2 then
+        return false
+    end
+
+    if contourSubpathCount(shape) ~= 2 then
+        return false
+    end
+
+    local svgBounds = options and options.svgBounds or nil
+    local bounds = shape.geometry and shape.geometry.bounds or nil
+    if not svgBounds or not bounds then
+        return false
+    end
+
+    local widthCoverage = svgBounds.w > 0 and (bounds.w / svgBounds.w) or 0
+    local heightCoverage = svgBounds.h > 0 and (bounds.h / svgBounds.h) or 0
+    local shapeCx, shapeCy = shapeCenter(shape)
+    local svgCx, svgCy = boundsCenter(svgBounds)
+    local maxDim = math.max(svgBounds.w, svgBounds.h, 1)
+    local centerTolerance = math.max(0.75, maxDim * 0.03)
+    return
+        widthCoverage >= 0.92 and
+        heightCoverage >= 0.92 and
+        shapeCx and svgCx and
+        math.abs(shapeCx - svgCx) <= centerTolerance and
+        math.abs(shapeCy - svgCy) <= centerTolerance
+end
+
+local function findEnclosingFrameOutline(shape, shapes, options)
+    local svgBounds = options and options.svgBounds or nil
+    local bounds = shape.geometry and shape.geometry.bounds or nil
+    if not svgBounds or not bounds then
+        return nil
+    end
+
+    local maxDim = math.max(svgBounds.w, svgBounds.h, 1)
+    local containTolerance = math.max(0.25, maxDim * 0.002)
+    local minOutlineDelta = math.max(0.1, maxDim * 0.001)
+
+    for _, other in ipairs(shapes or {}) do
+        if other ~= shape and other.role == "frame_outline" then
+            local otherBounds = other.geometry and other.geometry.bounds or nil
+            if
+                otherBounds and
+                boundsContain(otherBounds, bounds, containTolerance) and
+                (
+                    (otherBounds.w - bounds.w) >= minOutlineDelta or
+                    (otherBounds.h - bounds.h) >= minOutlineDelta
+                )
+            then
+                return other
+            end
+        end
+    end
+
+    return nil
+end
+
+local function findCenteredFrameOutline(shape, shapes, options)
+    local svgBounds = options and options.svgBounds or nil
+    if not svgBounds then
+        return nil
+    end
+
+    local frameOutline = findEnclosingFrameOutline(shape, shapes, options)
+    if not frameOutline then
+        return nil
+    end
+
+    local shapeCx, shapeCy = shapeCenter(shape)
+    local frameCx, frameCy = shapeCenter(frameOutline)
+    local maxDim = math.max(svgBounds.w, svgBounds.h, 1)
+    local centerTolerance = math.max(0.75, maxDim * 0.03)
+    if
+        shapeCx and frameCx and
+        math.abs(shapeCx - frameCx) <= centerTolerance and
+        math.abs(shapeCy - frameCy) <= centerTolerance
+    then
+        return frameOutline
+    end
+
+    return nil
+end
+
+local function quadrantKey(dx, dy, epsilon)
+    epsilon = epsilon or 1e-6
+    if math.abs(dx) <= epsilon or math.abs(dy) <= epsilon then
+        return nil
+    end
+    return string.format("%d:%d", dx > 0 and 1 or -1, dy > 0 and 1 or -1)
+end
+
+local function isQuadrantMirroredLogoFamily(shape, shapes, options)
+    if
+        shape.kind ~= "closed_polygon" or
+        (shape.analysis and shape.analysis.subpathCount or 0) ~= 1
+    then
+        return false
+    end
+
+    local svgBounds = options and options.svgBounds or nil
+    local bounds = shape.geometry and shape.geometry.bounds or nil
+    local shapeCx, shapeCy = shapeCenter(shape)
+    if not svgBounds or not bounds or not shapeCx then
+        return false
+    end
+
+    local frameOutline = findEnclosingFrameOutline(shape, shapes, options)
+    if not frameOutline then
+        return false
+    end
+
+    local frameCx, frameCy = shapeCenter(frameOutline)
+    if not frameCx or not frameCy then
+        return false
+    end
+
+    local widthCoverage = svgBounds.w > 0 and (bounds.w / svgBounds.w) or 0
+    local heightCoverage = svgBounds.h > 0 and (bounds.h / svgBounds.h) or 0
+    local pointCount = shape.analysis and shape.analysis.pointCount or 0
+    if
+        widthCoverage < 0.18 or
+        widthCoverage > 0.38 or
+        heightCoverage < 0.12 or
+        heightCoverage > 0.22 or
+        pointCount < 6 or
+        pointCount > 16
+    then
+        return false
+    end
+
+    local dx = shapeCx - frameCx
+    local dy = shapeCy - frameCy
+    local axisThresholdX = math.max(bounds.w * 0.35, svgBounds.w * 0.12)
+    local axisThresholdY = math.max(bounds.h * 0.45, svgBounds.h * 0.18)
+    if math.abs(dx) < axisThresholdX or math.abs(dy) < axisThresholdY then
+        return false
+    end
+
+    local family = {}
+    local quadrants = {}
+    local dxAbs = math.abs(dx)
+    local dyAbs = math.abs(dy)
+    local maxDim = math.max(svgBounds.w, svgBounds.h, 1)
+    local dxTolerance = math.max(bounds.w * 0.25, maxDim * 0.03)
+    local dyTolerance = math.max(bounds.h * 0.25, maxDim * 0.03)
+    local widthTolerance = math.max(bounds.w * 0.12, 0.5)
+    local heightTolerance = math.max(bounds.h * 0.12, 0.5)
+    local quadrantEpsilon = math.max(0.5, maxDim * 0.01)
+
+    for _, other in ipairs(shapes or {}) do
+        if
+            other.kind == shape.kind and
+            (other.analysis and other.analysis.subpathCount or 0) == 1
+        then
+            local otherBounds = other.geometry and other.geometry.bounds or nil
+            local otherCx, otherCy = shapeCenter(other)
+            local otherFrameOutline = findEnclosingFrameOutline(other, shapes, options)
+            if
+                otherBounds and
+                otherCx and
+                otherFrameOutline == frameOutline and
+                math.abs(otherBounds.w - bounds.w) <= widthTolerance and
+                math.abs(otherBounds.h - bounds.h) <= heightTolerance and
+                math.abs(math.abs(otherCx - frameCx) - dxAbs) <= dxTolerance and
+                math.abs(math.abs(otherCy - frameCy) - dyAbs) <= dyTolerance
+            then
+                local quadrant = quadrantKey(otherCx - frameCx, otherCy - frameCy, quadrantEpsilon)
+                if quadrant then
+                    family[#family + 1] = other
+                    quadrants[quadrant] = true
+                end
+            end
+        end
+    end
+
+    return
+        #family >= 4 and
+        quadrants["1:1"] and
+        quadrants["1:-1"] and
+        quadrants["-1:1"] and
+        quadrants["-1:-1"]
+end
+
+local function classifyRole(shape, options)
+    local svgBounds = options and options.svgBounds or nil
+    local bounds = shape.geometry and shape.geometry.bounds or nil
+    if not svgBounds or not bounds then
+        return nil
+    end
+
+    if matchesFrameOutlineRole(shape, options) then
+        return "frame_outline"
+    end
+
+    if shape.kind == "closed_polygon" and (shape.analysis and shape.analysis.subpathCount or 0) == 1 then
+        local widthCoverage = svgBounds.w > 0 and (bounds.w / svgBounds.w) or 0
+        local heightCoverage = svgBounds.h > 0 and (bounds.h / svgBounds.h) or 0
+        local pointCount = shape.analysis and shape.analysis.pointCount or 0
+        local shapeCx, shapeCy = shapeCenter(shape)
+        local svgCx, svgCy = boundsCenter(svgBounds)
+        local maxDim = math.max(svgBounds.w, svgBounds.h, 1)
+        local centerTolerance = math.max(0.75, maxDim * 0.03)
+        if
+            widthCoverage >= 0.95 and
+            heightCoverage >= 0.95 and
+            pointCount >= 8 and
+            shapeCx and svgCx and
+            math.abs(shapeCx - svgCx) <= centerTolerance and
+            math.abs(shapeCy - svgCy) <= centerTolerance and
+            findCenteredFrameOutline(shape, options and options.shapes or nil, options)
+        then
+            return "frame_cap"
+        end
+    end
+
+    if isQuadrantMirroredLogoFamily(shape, options and options.shapes or nil, options) then
+        return "logo_segment"
+    end
+
+    if isHighlightFill(shape, options) then
+        local widthCoverage = svgBounds.w > 0 and (bounds.w / svgBounds.w) or 0
+        local heightCoverage = svgBounds.h > 0 and (bounds.h / svgBounds.h) or 0
+        local areaCoverage = widthCoverage * heightCoverage
+        local minCoverage = math.min(widthCoverage, heightCoverage)
+        local maxCoverage = math.max(widthCoverage, heightCoverage)
+        local edgeInset = boundsInset(bounds, svgBounds)
+        local maxDim = math.max(svgBounds.w, svgBounds.h, 1)
+        local edgeThreshold = math.max(4, maxDim * 0.02)
+        local edgeTolerance = math.max(0.75, maxDim * 0.003)
+        local pointCount = shape.analysis and shape.analysis.pointCount or 0
+        local subpathCount = shape.analysis and shape.analysis.subpathCount or 0
+        if
+            edgeInset and
+            edgeInset >= -edgeTolerance and
+            edgeInset <= edgeThreshold and
+            minCoverage <= 0.05 and
+            maxCoverage <= 0.35 and
+            areaCoverage <= 0.03 and
+            pointCount <= 16 and
+            subpathCount <= 2
+        then
+            return "edge_decal"
+        end
+    end
+
+    return nil
+end
+
+local function assignRoles(shapes, options)
+    for _, shape in ipairs(shapes or {}) do
+        shape.role = nil
+    end
+
+    local roleOptions = buildItemOptions(options, {
+        shapes = shapes,
+    })
+
+    for _, shape in ipairs(shapes or {}) do
+        if matchesFrameOutlineRole(shape, roleOptions) then
+            shape.role = "frame_outline"
+        end
+    end
+
+    for _, shape in ipairs(shapes or {}) do
+        if not shape.role then
+            shape.role = classifyRole(shape, roleOptions)
+        end
+    end
+
+    return shapes
+end
+
 function M.classifyItem(item, options)
     options = options or {}
     local analysis = M.analyzePath(item and item.d or nil, item and item.transform or nil, options)
@@ -773,7 +1514,7 @@ function M.classifyItem(item, options)
         svgClass = options.svgClass,
     }
 
-    return {
+    local shape = {
         kind = kind,
         role = nil,
         confidence = confidence,
@@ -799,6 +1540,9 @@ function M.classifyItem(item, options)
         },
         source = source,
     }
+
+    shape.role = classifyRole(shape, options)
+    return shape
 end
 
 function M.classifyItems(items, options)
@@ -808,7 +1552,8 @@ function M.classifyItems(items, options)
             itemIndex = itemIndex,
         }))
     end
-    return result
+    assignRoles(result, options)
+    return assignGroupHints(result)
 end
 
 function M.classifySvg(svgEntry, options)
@@ -816,6 +1561,7 @@ function M.classifySvg(svgEntry, options)
     return M.classifyItems(svgEntry and svgEntry.items or {}, buildItemOptions(options, {
         svgId = svgEntry and svgEntry.id or nil,
         svgClass = svgEntry and svgEntry.class or nil,
+        svgBounds = parseViewBoxBounds(svgEntry and svgEntry.viewBox or nil),
     }))
 end
 

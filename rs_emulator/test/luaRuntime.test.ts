@@ -6,6 +6,7 @@ import renderScriptSource from "../examples/du-mocks/RenderScript.lua?raw";
 import simpleSignSSource from "../examples/SilverZero/SimpleSignS.lua?raw";
 import simpleSignSvgScriptSource from "../examples/SilverZero/SimpleSignS-svg.lua?raw";
 import simpleSignXSSource from "../examples/SilverZero/SimpleSignXS.lua?raw";
+import shapeAdapterProbeSource from "../examples/SilverZero/ShapeAdapterProbe.lua?raw";
 import welcomeScreenMSource from "../examples/SilverZero/WelcomeScreenM.lua?raw";
 import shipStatsSSource from "../examples/SilverZero/ShipStatsS.lua?raw";
 import shipFrameMSource from "../examples/SilverZero/ShipFrameM.lua?raw";
@@ -148,6 +149,7 @@ const silverZeroFileSources = {
   "examples/SilverZero/SimpleSignS.lua": simpleSignSSource,
   "examples/SilverZero/SimpleSignS-svg.lua": simpleSignSvgScriptSource,
   "examples/SilverZero/SimpleSignXS.lua": simpleSignXSSource,
+  "examples/SilverZero/ShapeAdapterProbe.lua": shapeAdapterProbeSource,
   "examples/SilverZero/WelcomeScreenM.lua": welcomeScreenMSource,
   "examples/SilverZero/ShipStatsS.lua": shipStatsSSource,
   "examples/SilverZero/ShipFrameM.lua": shipFrameMSource,
@@ -482,7 +484,7 @@ describe("lua runtime example integration", () => {
     expect(result.output).toBe("trapezoid|true|4|10.000|6.000");
   });
 
-  it("marks multiple closed subpaths as compound_path", async () => {
+  it("keeps separated closed subpaths as compound_path", async () => {
     const buffer = new DrawBuffer();
     const env = createLuaEnvironment(buffer, createLuaFileResolver({
       "lib/SvgParser.lua": svgParserSource,
@@ -490,7 +492,7 @@ describe("lua runtime example integration", () => {
       "examples/SilverZero/tests/classifier-compound.lua": `
         local Classifier = require("lib.SvgShapeClassifier")
         local shape = Classifier.classifyItem({
-          d = "M0 0 L10 0 L10 10 L0 10 z M2 2 L8 2 L8 8 L2 8 z",
+          d = "M0 0 L4 0 L4 4 L0 4 z M8 0 L12 0 L12 4 L8 4 z",
           fill = "#fff",
         })
         setOutput(table.concat({
@@ -506,6 +508,58 @@ describe("lua runtime example integration", () => {
 
     expect(result.success).toBe(true);
     expect(result.output).toBe("compound_path|2|4|4");
+  });
+
+  it("classifies nested closed subpaths as polygon_ring", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/tests/classifier-polygon-ring.lua": `
+        local Classifier = require("lib.SvgShapeClassifier")
+        local shape = Classifier.classifyItem({
+          d = "M0 0 L10 0 L10 10 L0 10 z M3 3 L7 3 L7 7 L3 7 z",
+          fill = "#fff",
+        })
+        setOutput(table.concat({
+          shape.kind,
+          tostring(shape.analysis.subpathCount),
+          tostring(shape.geometry.subpaths[1] and shape.geometry.subpaths[1].pointCount or 0),
+          tostring(shape.geometry.subpaths[2] and shape.geometry.subpaths[2].pointCount or 0)
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/classifier-polygon-ring.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("polygon_ring|2|4|4");
+  });
+
+  it("classifies nested hexagons as hex_ring", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/tests/classifier-hex-ring.lua": `
+        local Classifier = require("lib.SvgShapeClassifier")
+        local shape = Classifier.classifyItem({
+          d = "M0 -10 L8.660 -5 L8.660 5 L0 10 L-8.660 5 L-8.660 -5 z M0 -6 L5.196 -3 L5.196 3 L0 6 L-5.196 3 L-5.196 -3 z",
+          fill = "#fff",
+        })
+        setOutput(table.concat({
+          shape.kind,
+          tostring(shape.analysis.subpathCount),
+          tostring(shape.geometry.subpaths[1] and shape.geometry.subpaths[1].pointCount or 0),
+          tostring(shape.geometry.subpaths[2] and shape.geometry.subpaths[2].pointCount or 0)
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/classifier-hex-ring.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("hex_ring|2|6|6");
   });
 
   it("passes classifier options through classifySvg and classify", async () => {
@@ -540,6 +594,382 @@ describe("lua runtime example integration", () => {
 
     expect(result.success).toBe(true);
     expect(result.output).toBe("quad|quad");
+  });
+
+  it("assigns group hints to repeated shapes within the same SVG", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/tests/classifier-group-hints.lua": `
+        local Classifier = require("lib.SvgShapeClassifier")
+
+        local svgEntry = {
+          id = "group-test",
+          items = {
+            { d = "M0 0 L10 0 L10 10 L0 10 z", fill = "#fff" },
+            { d = "M20 0 L30 0 L30 10 L20 10 z", fill = "#fff" },
+            { d = "M0 20 L8 20 L8 28 L0 28 z", fill = "#fff" },
+          }
+        }
+
+        local shapes = Classifier.classifySvg(svgEntry)
+        local first = shapes[1].groupHints
+        local second = shapes[2].groupHints
+        local third = shapes[3].groupHints
+
+        setOutput(table.concat({
+          first and first.sameCluster or "nil",
+          tostring(first and first.clusterSize or 0),
+          first and table.concat(first.neighbors or {}, ",") or "nil",
+          second and second.sameCluster or "nil",
+          tostring(second and second.clusterSize or 0),
+          second and table.concat(second.neighbors or {}, ",") or "nil",
+          third and third.sameCluster or "nil"
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/classifier-group-hints.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("quad_cluster_01|2|2|quad_cluster_01|2|1|nil");
+  });
+
+  it("assigns frame_outline role to a real SimpleSign board frame compound path", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/classifier-frame-outline.lua": `
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local targetRole
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width and string.find(svg.width, "80vw", 1, true) then
+            local shapes = Classifier.classifySvg(svg, { vars = doc.vars })
+            targetRole = shapes[20] and shapes[20].role
+            break
+          end
+        end
+
+        setOutput(tostring(targetRole))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/classifier-frame-outline.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("frame_outline");
+  });
+
+  it("does not assign frame_outline to large open two-subpath border traces", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/tests/classifier-open-frame-trace.lua": `
+        local Classifier = require("lib.SvgShapeClassifier")
+        local shape = Classifier.classifyItem({
+          d = "M0 0 L100 0 L100 100 M0 0 L0 100 L100 100",
+          fill = "#fff"
+        }, {
+          svgBounds = { x = 0, y = 0, w = 100, h = 100 }
+        })
+
+        setOutput(table.concat({
+          shape.kind or "nil",
+          tostring(shape.role)
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/classifier-open-frame-trace.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("compound_path|nil");
+  });
+
+  it("assigns edge_decal role to real SimpleSign border highlight fragments", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/classifier-edge-decal.lua": `
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local svg1Role = "nil"
+        local svg3Roles = {}
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width == "20vw" then
+            local shapes = Classifier.classifySvg(svg, { vars = doc.vars })
+            svg1Role = shapes[7] and shapes[7].role or "nil"
+          elseif svg.width == "80vw" then
+            local shapes = Classifier.classifySvg(svg, { vars = doc.vars })
+            svg3Roles = {
+              shapes[3] and shapes[3].role or "nil",
+              shapes[10] and shapes[10].role or "nil",
+              shapes[14] and shapes[14].role or "nil"
+            }
+          end
+        end
+
+        setOutput(table.concat({
+          svg1Role,
+          table.concat(svg3Roles, ",")
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/classifier-edge-decal.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("edge_decal|edge_decal,edge_decal,edge_decal");
+  });
+
+  it("does not assign frame_cap without a containing frame_outline", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/tests/classifier-frame-cap-context.lua": `
+        local Classifier = require("lib.SvgShapeClassifier")
+        local svgEntry = {
+          viewBox = "0 0 100 100",
+          items = {
+            {
+              d = "M15 0 L85 0 L100 15 L100 85 L85 100 L15 100 L0 85 L0 15 z",
+              fill = "#000c"
+            }
+          }
+        }
+
+        local shapes = Classifier.classifySvg(svgEntry)
+        setOutput(tostring(shapes[1] and shapes[1].role))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/classifier-frame-cap-context.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("nil");
+  });
+
+  it("assigns frame_cap role to a real SimpleSign board face polygon", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/classifier-frame-cap.lua": `
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local targetRole
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width == "80vw" then
+            local shapes = Classifier.classifySvg(svg, { vars = doc.vars })
+            targetRole = shapes[1] and shapes[1].role
+            break
+          end
+        end
+
+        setOutput(tostring(targetRole))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/classifier-frame-cap.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("frame_cap");
+  });
+
+  it("assigns logo_segment to quadrant-mirrored polygon families inside a frame outline", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/tests/classifier-logo-segment-family.lua": `
+        local Classifier = require("lib.SvgShapeClassifier")
+        local svgEntry = {
+          viewBox = "0 0 100 100",
+          items = {
+            {
+              d = "M0 0 L100 0 L100 100 L0 100 L0 0.1 M15 15 L85 15 L85 85 L15 85 L15 15.1",
+              fill = "#555"
+            },
+            {
+              d = "M10 10 L30 10 L30 12 L28 24 L12 24 L10 12 z",
+              fill = "#c00"
+            },
+            {
+              d = "M70 10 L90 10 L90 12 L88 24 L72 24 L70 12 z",
+              fill = "#fff"
+            },
+            {
+              d = "M10 90 L10 88 L12 76 L28 76 L30 88 L30 90 z",
+              fill = "#fff"
+            },
+            {
+              d = "M70 90 L70 88 L72 76 L88 76 L90 88 L90 90 z",
+              fill = "#c00"
+            }
+          }
+        }
+
+        local shapes = Classifier.classifySvg(svgEntry)
+        setOutput(table.concat({
+          tostring(shapes[1] and shapes[1].role or "nil"),
+          tostring(shapes[2] and shapes[2].role or "nil"),
+          tostring(shapes[3] and shapes[3].role or "nil"),
+          tostring(shapes[4] and shapes[4].role or "nil"),
+          tostring(shapes[5] and shapes[5].role or "nil")
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/classifier-logo-segment-family.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("frame_outline|logo_segment|logo_segment|logo_segment|logo_segment");
+  });
+
+  it("does not assign logo_segment when the mirrored quadrant family is incomplete", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/tests/classifier-logo-segment-incomplete.lua": `
+        local Classifier = require("lib.SvgShapeClassifier")
+        local svgEntry = {
+          viewBox = "0 0 100 100",
+          items = {
+            {
+              d = "M0 0 L100 0 L100 100 L0 100 L0 0.1 M15 15 L85 15 L85 85 L15 85 L15 15.1",
+              fill = "#555"
+            },
+            {
+              d = "M10 10 L30 10 L30 12 L28 24 L12 24 L10 12 z",
+              fill = "#c00"
+            },
+            {
+              d = "M70 10 L90 10 L90 12 L88 24 L72 24 L70 12 z",
+              fill = "#fff"
+            },
+            {
+              d = "M70 90 L70 88 L72 76 L88 76 L90 88 L90 90 z",
+              fill = "#c00"
+            }
+          }
+        }
+
+        local shapes = Classifier.classifySvg(svgEntry)
+        setOutput(table.concat({
+          tostring(shapes[2] and shapes[2].role or "nil"),
+          tostring(shapes[3] and shapes[3].role or "nil"),
+          tostring(shapes[4] and shapes[4].role or "nil")
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/classifier-logo-segment-incomplete.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("nil|nil|nil");
+  });
+
+  it("keeps groupHints split when identical geometry has different roles", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/tests/classifier-role-aware-groups.lua": `
+        local Classifier = require("lib.SvgShapeClassifier")
+        local svgEntry = {
+          viewBox = "0 0 100 100",
+          items = {
+            {
+              d = "M0 0 L100 0 L100 100 L0 100 L0 0.1 M20 20 L80 20 L80 80 L20 80 L20 20.1",
+              fill = "#888"
+            },
+            {
+              d = "M10 2 L90 2 L98 10 L98 90 L90 98 L10 98 L2 90 L2 10 z",
+              fill = "#000c"
+            },
+            {
+              d = "M0 2 L80 2 L88 10 L88 90 L80 98 L0 98 L-8 90 L-8 10 z",
+              fill = "#000c"
+            }
+          }
+        }
+
+        local shapes = Classifier.classifySvg(svgEntry)
+        local second = shapes[2]
+        local third = shapes[3]
+
+        setOutput(table.concat({
+          tostring(second.role),
+          tostring(second.groupHints and second.groupHints.sameCluster),
+          tostring(third.role),
+          tostring(third.groupHints and third.groupHints.sameCluster)
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/classifier-role-aware-groups.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("frame_cap|nil|nil|nil");
+  });
+
+  it("assigns logo_segment to the mirrored SimpleSign corner fragments without sweeping in the rings", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/classifier-logo-segment-simplesign.lua": `
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local targetOutput = "missing"
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width == "20vw" then
+            local shapes = Classifier.classifySvg(svg, { vars = doc.vars })
+            targetOutput = table.concat({
+              tostring(shapes[1] and shapes[1].role or "nil"),
+              tostring(shapes[2] and shapes[2].role or "nil"),
+              tostring(shapes[3] and shapes[3].role or "nil"),
+              tostring(shapes[4] and shapes[4].role or "nil"),
+              tostring(shapes[5] and shapes[5].role or "nil"),
+              tostring(shapes[6] and shapes[6].role or "nil"),
+              tostring(shapes[8] and shapes[8].role or "nil"),
+              tostring(shapes[9] and shapes[9].role or "nil")
+            }, "|")
+            break
+          end
+        end
+
+        setOutput(targetOutput)
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/classifier-logo-segment-simplesign.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("logo_segment|logo_segment|nil|nil|logo_segment|logo_segment|nil|nil");
   });
 
   it("applies SVG transforms before classifying real SimpleSign board decals", async () => {
@@ -587,6 +1017,1156 @@ describe("lua runtime example integration", () => {
 
     expect(result.success).toBe(true);
     expect(result.output).toBe("quad|1|226.095|16.646|228.937|13.314|228.937|17.038|226.095|20.370");
+  });
+
+  it("classifies real SimpleSign marker rings as polygon_ring", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/classifier-marker-ring.lua": `
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local target
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.id == "master-artboard" then
+            for _, item in ipairs(svg.items or {}) do
+              if item.d == "m373 430c0-4.8-3.9-8.6-8.6-8.6s-8.6 3.9-8.6 8.6 3.9 8.6 8.6 8.6 8.6-3.8 8.6-8.6zm-14 0c0-3.1 2.5-5.6 5.6-5.6s5.6 2.5 5.6 5.6-2.5 5.6-5.6 5.6-5.6-2.5-5.6-5.6z" then
+                target = item
+                break
+              end
+            end
+          end
+        end
+
+        local shape = Classifier.classifyItem(target)
+        setOutput(table.concat({
+          shape.kind,
+          tostring(shape.analysis.subpathCount),
+          string.format("%.3f", shape.geometry.bounds.w),
+          string.format("%.3f", shape.geometry.bounds.h)
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/classifier-marker-ring.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("polygon_ring|2|17.200|17.200");
+  });
+
+  it("assigns group hints to repeated real SimpleSign marker rings", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/classifier-group-hints-simplesign.lua": `
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local targetHints
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.id == "master-artboard" then
+            local shapes = Classifier.classifySvg(svg, { vars = doc.vars })
+            targetHints = shapes[102] and shapes[102].groupHints
+            break
+          end
+        end
+
+        setOutput(table.concat({
+          targetHints and tostring(string.find(targetHints.sameCluster or "", "polygon_ring_cluster_", 1, true) == 1) or "false",
+          tostring(targetHints and targetHints.clusterSize or 0),
+          targetHints and tostring(targetHints.neighbors and targetHints.neighbors[1] or 0) or "nil",
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/classifier-group-hints-simplesign.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|23|103");
+  });
+
+  it("classifies real SimpleSign hex rings as hex_ring", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/classifier-simplesign-hex-ring.lua": `
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local target
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width and string.find(svg.width, "20vw", 1, true) then
+            for _, item in ipairs(svg.items or {}) do
+              if item.d == "m15804 11308-495.6-286.4v-572.3l495.6-286.4 496 286.4v572.3l-496 286.4m0-61.2 442.9-255.8v-511l-442.9-255.8-442.6 255.7v511.1l442.6 255.8" then
+                target = item
+                break
+              end
+            end
+          end
+        end
+
+        local shape = Classifier.classifyItem(target)
+        setOutput(table.concat({
+          shape.kind,
+          tostring(shape.analysis.subpathCount),
+          tostring(shape.geometry.subpaths[1] and shape.geometry.subpaths[1].pointCount or 0),
+          tostring(shape.geometry.subpaths[2] and shape.geometry.subpaths[2].pointCount or 0)
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/classifier-simplesign-hex-ring.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("hex_ring|2|6|6");
+  });
+
+  it("draws a classified SimpleSign hex_ring through the SilverZero adapter", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/draw-classified-simplesign-hex-ring.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local targetSvg
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width and string.find(svg.width, "20vw", 1, true) then
+            targetSvg = svg
+            break
+          end
+        end
+
+        local shapes = Classifier.classifySvg(targetSvg, { vars = doc.vars })
+        local targetShape
+        for _, shape in ipairs(shapes) do
+          if shape.kind == "hex_ring" then
+            targetShape = shape
+            break
+          end
+        end
+
+        local layer = createLayer()
+        local layout = {
+          screenW = 300,
+          screenH = 300,
+          sourceW = 248.17,
+          sourceH = 286.55,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedShape(layer, layout, targetShape, {
+          color = { 1, 1, 1, 1 }
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          targetShape and targetShape.kind or "nil"
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-simplesign-hex-ring.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|hex_ring");
+    const quads = buffer.commands.filter((command) => command.op === "AddQuad");
+    expect(quads).toHaveLength(6);
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
+  });
+
+  it("draws a classified SimpleSign board edge decal through the SilverZero adapter", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/draw-classified-simplesign-board-edge.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local target
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width and string.find(svg.width, "80vw", 1, true) then
+            for _, item in ipairs(svg.items or {}) do
+              if item.d == "m2330 1473 29 34v-38l-29-34v38" then
+                target = item
+                break
+              end
+            end
+          end
+        end
+
+        local shape = Classifier.classifyItem(target)
+        local layer = createLayer()
+        local layout = {
+          screenW = 300,
+          screenH = 300,
+          sourceW = 231,
+          sourceH = 156,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedShape(layer, layout, shape, {
+          color = { 1, 1, 1, 1 }
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          shape and shape.kind or "nil",
+          shape and shape.role or "nil"
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-simplesign-board-edge.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|quad|nil");
+    const quads = buffer.commands.filter((command) => command.op === "AddQuad");
+    expect(quads).toHaveLength(1);
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
+  });
+
+  it("draws a classified SimpleSign board highlight trapezoid through the SilverZero adapter", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/draw-classified-simplesign-board-cap.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local target
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width and string.find(svg.width, "80vw", 1, true) then
+            for _, item in ipairs(svg.items or {}) do
+              if item.d == "m836 84h566l37 35h-638l35-35" then
+                target = item
+                break
+              end
+            end
+          end
+        end
+
+        local shape = Classifier.classifyItem(target)
+        local layer = createLayer()
+        local layout = {
+          screenW = 300,
+          screenH = 300,
+          sourceW = 231,
+          sourceH = 156,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedShape(layer, layout, shape, {
+          color = { 1, 1, 1, 1 }
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          shape and shape.kind or "nil",
+          tostring(shape and shape.analysis and shape.analysis.pointCount or "nil")
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-simplesign-board-cap.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|trapezoid|4");
+    const quads = buffer.commands.filter((command) => command.op === "AddQuad");
+    expect(quads).toHaveLength(1);
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
+  });
+
+  it("draws a classified SimpleSign frame_cap polygon through the SilverZero adapter", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/draw-classified-simplesign-frame-cap.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local target
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width and string.find(svg.width, "80vw", 1, true) then
+            target = svg.items and svg.items[1] or nil
+            break
+          end
+        end
+
+        local shape = Classifier.classifyItem(target)
+        local layer = createLayer()
+        local layout = {
+          screenW = 300,
+          screenH = 300,
+          sourceW = 231,
+          sourceH = 156,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedShape(layer, layout, shape, {
+          color = { 1, 0, 0, 1 }
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          shape and shape.kind or "nil",
+          tostring(shape and shape.analysis and shape.analysis.pointCount or "nil")
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-simplesign-frame-cap.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|closed_polygon|32");
+    const triangles = buffer.commands.filter((command) => command.op === "AddTriangle");
+    expect(triangles).toHaveLength(30);
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
+  });
+
+  it("draws a classified SimpleSign logo_segment polygon through the SilverZero adapter", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/draw-classified-simplesign-logo-segment.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local targetShape
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width == "20vw" then
+            local shapes = Classifier.classifySvg(svg, { vars = doc.vars })
+            for _, shape in ipairs(shapes) do
+              if shape.role == "logo_segment" then
+                targetShape = shape
+                break
+              end
+            end
+            break
+          end
+        end
+
+        local layer = createLayer()
+        local layout = {
+          screenW = 300,
+          screenH = 300,
+          sourceW = 248.17,
+          sourceH = 286.55,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedShape(layer, layout, targetShape, {
+          color = { 1, 1, 1, 1 }
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          targetShape and targetShape.kind or "nil",
+          targetShape and targetShape.role or "nil",
+          tostring(targetShape and targetShape.analysis and targetShape.analysis.pointCount or "nil")
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-simplesign-logo-segment.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|closed_polygon|logo_segment|10");
+    const triangles = buffer.commands.filter((command) => command.op === "AddTriangle");
+    expect(triangles).toHaveLength(8);
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
+  });
+
+  it("draws a fill-capable SimpleSign logo shape through the fill-only adapter", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/draw-classified-fill-logo-segment.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local targetShape
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width == "20vw" then
+            local shapes = Classifier.classifySvg(svg, { vars = doc.vars })
+            for _, shape in ipairs(shapes) do
+              if shape.role == "logo_segment" then
+                targetShape = shape
+                break
+              end
+            end
+            break
+          end
+        end
+
+        local layer = createLayer()
+        local layout = {
+          screenW = 300,
+          screenH = 300,
+          sourceW = 248.17,
+          sourceH = 286.55,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedFillShape(layer, layout, targetShape, {
+          color = { 1, 1, 1, 1 }
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          targetShape and targetShape.kind or "nil",
+          targetShape and targetShape.role or "nil"
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-fill-logo-segment.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|closed_polygon|logo_segment");
+    const triangles = buffer.commands.filter((command) => command.op === "AddTriangle");
+    expect(triangles).toHaveLength(8);
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
+  });
+
+  it("fills implicitly closed SimpleSign logo outline shapes in the fill-only adapter", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/draw-classified-fill-logo-outline.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local targetShape
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width == "20vw" then
+            local shapes = Classifier.classifySvg(svg, { vars = doc.vars })
+            for _, shape in ipairs(shapes) do
+              if shape.kind == "outline_path" then
+                targetShape = shape
+                break
+              end
+            end
+            break
+          end
+        end
+
+        local layer = createLayer()
+        local layout = {
+          screenW = 300,
+          screenH = 300,
+          sourceW = 248.17,
+          sourceH = 286.55,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedFillShape(layer, layout, targetShape, {
+          color = { 1, 1, 1, 1 },
+          strokeWidth = 2.0,
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          targetShape and targetShape.kind or "nil",
+          targetShape and targetShape.role or "nil"
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-fill-logo-outline.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|outline_path|edge_decal");
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
+    expect(
+      buffer.commands.some((command) => command.op === "AddQuad")
+      || buffer.commands.some((command) => command.op === "AddTriangle"),
+    ).toBe(true);
+  });
+
+  it("fills the right-side SimpleSign logo highlight bar through the fill-only adapter", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/draw-classified-fill-logo-right-bar.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local targetShape
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width == "20vw" then
+            local shapes = Classifier.classifySvg(svg, { vars = doc.vars })
+            for itemIndex, item in ipairs(svg.items or {}) do
+              if item.d == "m16295 10363-169.8-98.1-0.6-519.94-0.2-519.45 0.8-0.6 169.8-98.08 4.8-2.71v1240.1l-4.8-1.2" then
+                targetShape = shapes[itemIndex]
+                break
+              end
+            end
+            break
+          end
+        end
+
+        local layer = createLayer()
+        local layout = {
+          screenW = 300,
+          screenH = 300,
+          sourceW = 248.17,
+          sourceH = 286.55,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedFillShape(layer, layout, targetShape, {
+          color = { 1, 1, 1, 1 },
+          strokeWidth = 2.0,
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          targetShape and targetShape.kind or "nil",
+          targetShape and targetShape.role or "nil"
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-fill-logo-right-bar.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|outline_path|edge_decal");
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
+    expect(
+      buffer.commands.some((command) => command.op === "AddQuad")
+      || buffer.commands.some((command) => command.op === "AddTriangle"),
+    ).toBe(true);
+  });
+
+  it("draws an outline_path through the stroke-only adapter", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/tests/draw-classified-stroke-outline.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local shape = Classifier.classifyItem({
+          d = "M-14 10 L-8 -8 L0 -2 L8 -12 L14 -4",
+          fill = "#fff",
+        })
+        local layer = createLayer()
+        local layout = {
+          screenW = 100,
+          screenH = 100,
+          sourceW = 100,
+          sourceH = 100,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedStrokeShape(layer, layout, shape, {
+          color = { 1, 1, 1, 1 },
+          strokeWidth = 2,
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          shape and shape.kind or "nil",
+          tostring(shape and shape.analysis and shape.analysis.pointCount or 0)
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-stroke-outline.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|outline_path|5");
+    const lines = buffer.commands.filter((command) => command.op === "AddLine");
+    expect(lines).toHaveLength(4);
+    expect(buffer.commands.some((command) => command.op === "AddQuad")).toBe(false);
+    expect(buffer.commands.some((command) => command.op === "AddTriangle")).toBe(false);
+  });
+
+  it("draws the left SimpleSign board edge decal through the generic adapter as a filled quad", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/draw-classified-left-board-edge.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local target
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width and string.find(svg.width, "80vw", 1, true) then
+            for _, item in ipairs(svg.items or {}) do
+              if item.d == "m42 111v38l29 34v-38" then
+                target = item
+                break
+              end
+            end
+          end
+        end
+
+        local shape = Classifier.classifyItem(target)
+        local layer = createLayer()
+        local layout = {
+          screenW = 300,
+          screenH = 300,
+          sourceW = 231,
+          sourceH = 156,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedShape(layer, layout, shape, {
+          color = { 1, 1, 1, 1 },
+          strokeWidth = 2.5,
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          shape and shape.kind or "nil",
+          shape and shape.role or "nil"
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-left-board-edge.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|outline_path|nil");
+    const quads = buffer.commands.filter((command) => command.op === "AddQuad");
+    expect(quads).toHaveLength(1);
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
+  });
+
+  it("draws the left SimpleSign board edge decal through the classified path-item helper", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/draw-classified-path-item-board-edge.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local targetItem
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width and string.find(svg.width, "80vw", 1, true) then
+            for _, item in ipairs(svg.items or {}) do
+              if item.d == "m42 111v38l29 34v-38" then
+                targetItem = item
+                break
+              end
+            end
+          end
+        end
+
+        local shape = Classifier.classifyItem(targetItem)
+        local layer = createLayer()
+        local layout = {
+          screenW = 300,
+          screenH = 300,
+          sourceW = 231,
+          sourceH = 156,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedPathItem(layer, layout, targetItem, shape, {
+          classifiedMode = "shape",
+          color = { 1, 1, 1, 1 },
+          strokeWidth = 2.5,
+          fallbackFirstSubpathOnly = true,
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          shape and shape.kind or "nil"
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-path-item-board-edge.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|outline_path");
+    const quads = buffer.commands.filter((command) => command.op === "AddQuad");
+    expect(quads).toHaveLength(1);
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
+  });
+
+  it("fills implicitly closed logo outline shapes through the classified path-item helper", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/draw-classified-path-item-logo-outline.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local targetItem
+        local targetShape
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width == "20vw" then
+            local shapes = Classifier.classifySvg(svg, { vars = doc.vars })
+            for itemIndex, shape in ipairs(shapes) do
+              if shape.kind == "outline_path" then
+                targetItem = svg.items[itemIndex]
+                targetShape = shape
+                break
+              end
+            end
+            break
+          end
+        end
+
+        local layer = createLayer()
+        local layout = {
+          screenW = 300,
+          screenH = 300,
+          sourceW = 248.17,
+          sourceH = 286.55,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedPathItem(layer, layout, targetItem, targetShape, {
+          classifiedMode = "fill",
+          color = { 1, 1, 1, 1 },
+          strokeWidth = 2.0,
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          targetShape and targetShape.kind or "nil",
+          targetShape and targetShape.role or "nil"
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-path-item-logo-outline.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|outline_path|edge_decal");
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
+    expect(
+      buffer.commands.some((command) => command.op === "AddQuad")
+      || buffer.commands.some((command) => command.op === "AddTriangle"),
+    ).toBe(true);
+  });
+
+  it("draws a real master-artboard polygon_ring through the classified path-item helper", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/draw-classified-path-item-master-ring.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local targetItem
+        local targetShape
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.id == "master-artboard" then
+            local shapes = Classifier.classifySvg(svg, { vars = doc.vars })
+            for itemIndex, shape in ipairs(shapes) do
+              if shape.kind == "polygon_ring" then
+                targetItem = svg.items[itemIndex]
+                targetShape = shape
+                break
+              end
+            end
+            break
+          end
+        end
+
+        local layer = createLayer()
+        local layout = {
+          screenW = 1400,
+          screenH = 980,
+          sourceW = 1400,
+          sourceH = 980,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedPathItem(layer, layout, targetItem, targetShape, {
+          classifiedMode = "fill",
+          color = { 1, 1, 1, 1 },
+          strokeWidth = 1.8,
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          targetShape and targetShape.kind or "nil",
+          tostring(targetShape and targetShape.analysis and targetShape.analysis.pointCount or "nil")
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-path-item-master-ring.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|polygon_ring|48");
+    const quads = buffer.commands.filter((command) => command.op === "AddQuad");
+    expect(quads).toHaveLength(24);
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
+  });
+
+  it("draws a compound_path through the stroke-only adapter", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/tests/draw-classified-stroke-compound.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local shape = Classifier.classifyItem({
+          d = "M0 0 L4 0 L4 4 L0 4 z M8 0 L12 0 L12 4 L8 4 z",
+          fill = "#fff",
+        })
+        local layer = createLayer()
+        local layout = {
+          screenW = 100,
+          screenH = 100,
+          sourceW = 100,
+          sourceH = 100,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedStrokeShape(layer, layout, shape, {
+          color = { 1, 1, 1, 1 },
+          strokeWidth = 1,
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          shape and shape.kind or "nil",
+          tostring(shape and shape.analysis and shape.analysis.subpathCount or 0)
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-stroke-compound.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|compound_path|2");
+    const lines = buffer.commands.filter((command) => command.op === "AddLine");
+    expect(lines).toHaveLength(8);
+  });
+
+  it("draws a classified polygon_ring through the SilverZero adapter", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/tests/draw-classified-polygon-ring.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local shape = Classifier.classifyItem({
+          d = "M0 0 L10 0 L10 10 L0 10 z M3 3 L7 3 L7 7 L3 7 z",
+          fill = "#fff",
+        })
+        local layer = createLayer()
+        local layout = {
+          screenW = 100,
+          screenH = 100,
+          sourceW = 100,
+          sourceH = 100,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedShape(layer, layout, shape, {
+          color = { 1, 1, 1, 1 }
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          shape.kind,
+          tostring(shape.analysis.subpathCount)
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-polygon-ring.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|polygon_ring|2");
+    const quads = buffer.commands.filter((command) => command.op === "AddQuad");
+    expect(quads).toHaveLength(4);
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
+  });
+
+  it("draws a classified SimpleSign marker polygon_ring through the SilverZero adapter", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/draw-classified-simplesign-marker-ring.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local targetShape
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.id == "master-artboard" then
+            local shapes = Classifier.classifySvg(svg, { vars = doc.vars })
+            for _, shape in ipairs(shapes) do
+              if shape.kind == "polygon_ring" then
+                targetShape = shape
+                break
+              end
+            end
+            break
+          end
+        end
+
+        local layer = createLayer()
+        local layout = {
+          screenW = 1400,
+          screenH = 980,
+          sourceW = 1400,
+          sourceH = 980,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedShape(layer, layout, targetShape, {
+          color = { 1, 1, 1, 1 }
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          targetShape and targetShape.kind or "nil",
+          tostring(targetShape and targetShape.analysis and targetShape.analysis.pointCount or "nil")
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-simplesign-marker-ring.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|polygon_ring|48");
+    const quads = buffer.commands.filter((command) => command.op === "AddQuad");
+    expect(quads).toHaveLength(24);
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
+  });
+
+  it("draws a disjoint closed compound_path through the SilverZero adapter", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/tests/draw-classified-compound-disjoint.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local shape = Classifier.classifyItem({
+          d = "M0 0 L4 0 L4 4 L0 4 z M8 0 L12 0 L12 4 L8 4 z",
+          fill = "#fff",
+        })
+        local layer = createLayer()
+        local layout = {
+          screenW = 100,
+          screenH = 100,
+          sourceW = 100,
+          sourceH = 100,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local expectedLines = 0
+        for _, subpath in ipairs(shape.geometry and shape.geometry.subpaths or {}) do
+          expectedLines = expectedLines + math.max(0, #(subpath.points or {}) - 1)
+          if subpath.closed then
+            expectedLines = expectedLines + 1
+          end
+        end
+
+        local drew = SZ.drawClassifiedShape(layer, layout, shape, {
+          color = { 1, 1, 1, 1 },
+          strokeWidth = 1,
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          shape.kind,
+          tostring(shape.analysis.subpathCount),
+          tostring(expectedLines)
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-compound-disjoint.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|compound_path|2|8");
+    const lines = buffer.commands.filter((command) => command.op === "AddLine");
+    expect(lines).toHaveLength(8);
+  });
+
+  it("draws a classified SimpleSign board compound edge decal through the SilverZero adapter", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/draw-classified-simplesign-board-compound-edge.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local targetShape
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.width and string.find(svg.width, "80vw", 1, true) then
+            local shapes = Classifier.classifySvg(svg, { vars = doc.vars })
+            for _, shape in ipairs(shapes) do
+              if shape.kind == "compound_path" and shape.role == "edge_decal" then
+                targetShape = shape
+                break
+              end
+            end
+            break
+          end
+        end
+
+        local expectedLines = 0
+        for _, subpath in ipairs(targetShape and targetShape.geometry and targetShape.geometry.subpaths or {}) do
+          expectedLines = expectedLines + math.max(0, #(subpath.points or {}) - 1)
+          if subpath.closed then
+            expectedLines = expectedLines + 1
+          end
+        end
+
+        local layer = createLayer()
+        local layout = {
+          screenW = 300,
+          screenH = 300,
+          sourceW = 231,
+          sourceH = 156,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedShape(layer, layout, targetShape, {
+          color = { 1, 1, 1, 1 },
+          strokeWidth = 2.5,
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          targetShape and targetShape.kind or "nil",
+          targetShape and targetShape.role or "nil",
+          tostring(expectedLines)
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-simplesign-board-compound-edge.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|compound_path|edge_decal|14");
+    const lines = buffer.commands.filter((command) => command.op === "AddLine");
+    expect(lines).toHaveLength(14);
   });
 
   it("reports runtime errors with the provided chunk label and line number", async () => {
@@ -730,9 +2310,19 @@ describe("lua runtime example integration", () => {
     const env = createLuaEnvironment(buffer, createLuaFileResolver(silverZeroFileSources));
 
     const result = await executeLuaFile(env, "examples/SilverZero/SimpleSignS.lua");
+    const logoLayer = buffer.layerOrder[2];
+    const logoCommandCounts = buffer.commands.reduce<Record<string, number>>((counts, command) => {
+      if (command.layer === logoLayer) {
+        counts[command.op] = (counts[command.op] ?? 0) + 1;
+      }
+      return counts;
+    }, {});
 
     expect(result.success).toBe(true);
     expect(result.requestAnimFrames).toBe(0);
+    expect(logoCommandCounts.AddLine ?? 0).toBe(99);
+    expect(logoCommandCounts.AddQuad ?? 0).toBe(0);
+    expect(logoCommandCounts.AddTriangle ?? 0).toBe(0);
     expect(buffer.commands.some((command) => command.op === "AddText")).toBe(true);
     expect(buffer.commands.some((command) => command.op === "AddBox")).toBe(true);
   });
@@ -742,12 +2332,34 @@ describe("lua runtime example integration", () => {
     const env = createLuaEnvironment(buffer, createLuaFileResolver(silverZeroFileSources));
 
     const result = await executeLuaFile(env, "examples/SilverZero/SimpleSignS-svg.lua");
+    const commandCounts = buffer.commands.reduce<Record<string, number>>((counts, command) => {
+      counts[command.op] = (counts[command.op] ?? 0) + 1;
+      return counts;
+    }, {});
+    const renderCommandCount = buffer.commands.filter((command) => command.op.startsWith("Add")).length;
+    const logoLayer = buffer.layerOrder[2];
+    const logoCommandCounts = buffer.commands.reduce<Record<string, number>>((counts, command) => {
+      if (command.layer === logoLayer) {
+        counts[command.op] = (counts[command.op] ?? 0) + 1;
+      }
+      return counts;
+    }, {});
 
     expect(result.success).toBe(true);
     expect(result.requestAnimFrames).toBe(0);
+    expect(renderCommandCount).toBe(5437);
+    expect(commandCounts.AddBox ?? 0).toBe(1);
+    expect(commandCounts.AddLine ?? 0).toBe(5327);
+    expect(commandCounts.AddQuad ?? 0).toBe(34);
+    expect(commandCounts.AddTriangle ?? 0).toBe(74);
+    expect(commandCounts.AddText ?? 0).toBe(1);
+    expect(logoCommandCounts.AddLine ?? 0).toBe(667);
+    expect(logoCommandCounts.AddQuad ?? 0).toBe(18);
+    expect(logoCommandCounts.AddTriangle ?? 0).toBe(44);
     expect(buffer.commands.some((command) => command.op === "AddText")).toBe(true);
     expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(true);
     expect(buffer.commands.some((command) => command.op === "AddQuad")).toBe(true);
+    expect(buffer.commands.some((command) => command.op === "AddTriangle")).toBe(true);
   });
 
   it("renders SimpleSignXS with SilverZero shared library", async () => {
@@ -760,6 +2372,24 @@ describe("lua runtime example integration", () => {
     expect(result.requestAnimFrames).toBe(1);
     expect(buffer.commands.some((command) => command.op === "AddText")).toBe(true);
     expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(true);
+  });
+
+  it("renders ShapeAdapterProbe with labeled classified adapter coverage", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver(silverZeroFileSources));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/ShapeAdapterProbe.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.requestAnimFrames).toBe(0);
+    expect(result.output).toBe(
+      "hex_fill=hex_ring|fill|true;poly_fill=polygon_ring|fill|true;trap_fill=trapezoid|fill|true;poly_closed=closed_polygon|fill|true;compound_stroke=compound_path|stroke|true;outline_stroke=outline_path|stroke|true",
+    );
+    const textCommands = buffer.commands.filter((command) => command.op === "AddText");
+    expect(textCommands.length).toBeGreaterThanOrEqual(8);
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(true);
+    expect(buffer.commands.some((command) => command.op === "AddQuad")).toBe(true);
+    expect(buffer.commands.some((command) => command.op === "AddTriangle")).toBe(true);
   });
 
   it("renders WelcomeScreenM with SilverZero shared library", async () => {
