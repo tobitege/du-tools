@@ -5,8 +5,6 @@ local resolutionX, resolutionY = getResolution()
 local layout = SZ.layoutForScreen(resolutionX, resolutionY, 231, 156, 0.06)
 local now = SZ.time()
 
-SZ.animLoop(1)
-
 setBackgroundColor(theme.background[1], theme.background[2], theme.background[3])
 
 local panelFont = SZ.font("Arial", SZ.scaleFontSize(16, layout))
@@ -153,3 +151,4 @@ SZ.withClip(layers.fx, layout, {
     end
   end
 end)
+SZ.animLoop(1)

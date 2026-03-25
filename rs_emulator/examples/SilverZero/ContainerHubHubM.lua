@@ -1,337 +1,407 @@
--- RenderScript conversion of SilverZero ContainerHubHubM.json (static)
+-- RenderScript conversion of SilverZero ContainerHubHubM.json
 
 local SZ = require("lib.SilverZeroRsLib")
+local SvgParser = require("lib.SvgParser")
+local SvgShapeClassifier = require("lib.SvgShapeClassifier")
 
 local theme = SZ.Themes.SilverZero
 local resolutionX, resolutionY = getResolution()
-local layout = SZ.layoutForScreen(resolutionX, resolutionY, 231, 156, 0.05)
-local now = SZ.time()
 
-SZ.animLoop(1)
+local SOURCE_W = 231
+local SOURCE_H = 156
+local CARD_SOURCE_W = 504.98
+local CARD_SOURCE_H = 268.68
+local CARD_VW_W = 12.25 * 1.8795
+local CARD_VW_H = 12.25
 
+local function vw(value)
+  return SOURCE_W * value / 100
+end
+
+local function vh(value)
+  return SOURCE_H * value / 100
+end
+
+local function cardCssX(value)
+  return CARD_SOURCE_W * value / CARD_VW_W
+end
+
+local function cardCssY(value)
+  return CARD_SOURCE_H * value / CARD_VW_H
+end
+
+local layout = SZ.layoutForScreen(resolutionX, resolutionY, SOURCE_W, SOURCE_H, 0)
 setBackgroundColor(theme.background[1], theme.background[2], theme.background[3])
 
-local titleFont = SZ.font("Arial", SZ.scaleFontSize(18, layout))
-local headingFont = SZ.font("Arial", SZ.scaleFontSize(11, layout))
-local valueFont = SZ.font("Arial", SZ.scaleFontSize(8, layout))
-local tinyFont = SZ.font("Arial", SZ.scaleFontSize(6, layout))
+local function topMetricFontSize(baseSize)
+  return math.max(1, math.floor(baseSize * math.sqrt(layout.scale) + 0.5))
+end
 
-local layers = SZ.createLayers("base", "bars", "browser", "meta", "fx")
+local percentFont = SZ.font("Arial", topMetricFontSize(26))
+local capacityFont = SZ.font("Arial", topMetricFontSize(26))
+local weightFont = SZ.font("Arial", topMetricFontSize(26))
+local cardNameFont = SZ.font("Arial", SZ.fontSizeVw(layout, 1.6))
+local cardAmountFont = SZ.font("Arial", SZ.fontSizeVw(layout, 2.0))
+local iconFont = SZ.font("Arial", SZ.fontSizeVw(layout, 1.0))
+
+local layers = SZ.createLayers("frame", "bar", "separator", "cards", "text")
+
+local hubPalette = {
+  A = {
+    hex = "#eb8934",
+    color = { 0.92, 0.54, 0.20, 0.88 },
+  },
+  B = {
+    hex = "#31bfeb",
+    color = { 0.19, 0.75, 0.92, 0.88 },
+  },
+  C = {
+    hex = "#37ed4c",
+    color = { 0.22, 0.93, 0.30, 0.88 },
+  },
+  D = {
+    hex = "#eb3498",
+    color = { 0.92, 0.20, 0.60, 0.88 },
+  },
+}
 
 local hubs = {
-  {
-    name = "A",
-    color = { 0.92, 0.45, 0.17, 0.72 },
-    loaded = 186,
-    max = 300,
-  },
-  {
-    name = "B",
-    color = { 0.30, 0.84, 0.96, 0.70 },
-    loaded = 98,
-    max = 220,
-  },
-  {
-    name = "C",
-    color = { 0.58, 0.22, 0.95, 0.70 },
-    loaded = 124,
-    max = 220,
-  },
-  {
-    name = "D",
-    color = { 0.93, 0.41, 0.66, 0.70 },
-    loaded = 70,
-    max = 160,
-  },
+  { name = "A", loaded = 186, max = 300 },
+  { name = "B", loaded = 98, max = 220 },
+  { name = "C", loaded = 124, max = 220 },
+  { name = "D", loaded = 70, max = 160 },
 }
 
 local items = {
-  { name = "Titanium Alloy", amount = 1240, unit = "L", color = "#", hub = "A", selected = true },
-  { name = "Carbon", amount = 540, unit = "kg", color = "#", hub = "B" },
-  { name = "Copper", amount = 88, unit = "kL", color = "#", hub = "C" },
-  { name = "Nitride", amount = 330, unit = "L", color = "#", hub = "D" },
-  { name = "Hydrogen", amount = 620, unit = "L", color = "#", hub = "A" },
-  { name = "Scrap", amount = 44, unit = "kg", color = "#", hub = "B" },
-  { name = "Electrons", amount = 12, unit = "U", color = "#", hub = "C" },
-  { name = "Warp Cell", amount = 19, unit = "kL", color = "#", hub = "D" },
-  { name = "Titanium", amount = 90, unit = "kg", color = "#", hub = "A" },
-  { name = "Silicon", amount = 160, unit = "L", color = "#", hub = "C" },
-  { name = "Aluminum", amount = 700, unit = "L", color = "#", hub = "B" },
-  { name = "Ore Dust", amount = 33, unit = "U", color = "#", hub = "A" },
+  { name = "Titanium Alloy", amount = "1240 L", code = "TA", hub = "A", selected = true },
+  { name = "Carbon", amount = "540 kg", code = "C", hub = "B" },
+  { name = "Copper", amount = "88 kL", code = "Cu", hub = "C" },
+  { name = "Nitride", amount = "330 L", code = "Ni", hub = "D" },
+  { name = "Hydrogen", amount = "620 L", code = "H2", hub = "A" },
+  { name = "Scrap", amount = "44 kg", code = "Sc", hub = "B" },
+  { name = "Electrons", amount = "12 U", code = "El", hub = "C" },
+  { name = "Warp Cell", amount = "19 kL", code = "WC", hub = "D" },
+  { name = "Titanium", amount = "90 kg", code = "Ti", hub = "A" },
+  { name = "Silicon", amount = "160 L", code = "Si", hub = "C" },
+  { name = "Aluminum", amount = "700 L", code = "Al", hub = "B" },
+  { name = "Ore Dust", amount = "33 U", code = "OD", hub = "A" },
 }
 
-local function drawTopFrame(layer)
-  SZ.panel(layer, layout, {
-    x = 3,
-    y = 3,
-    w = 225,
-    h = 150,
-  }, theme, {
-    radius = 8,
-    strokeWidth = 2,
-    fillColor = theme.panelFill,
-    strokeColor = theme.panelStroke,
-    innerInset = 3,
-    innerColor = theme.panelInset,
-  })
+local FRAME_SVG = [[
+<svg width="100vw" height="100vh" version="1.1" viewBox="0 0 231 156" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+<g transform="translate(156,-71)">
+<g transform="matrix(.98 0 0 -.98 -159 232)">
+<g transform="scale(.1)">
+<g transform="translate(7.7)" fill="#bbb">
+<path d="m413 119-30-26h-300l25 26h305"/>
+<path d="m85 94h297l28 24h-302l-23-24m297-2h-300l-0.91 0.61 0.2 1.1 25 26 0.72 0.3h305l0.93-0.66-0.29-1.1-30-26-0.64-0.24"/>
+<path d="m2312 93h-300l-30 26h305l25-26"/>
+<path d="m2e3 94h297l-23 24h-302l28-24m299-2h-300l-0.65 0.24-30 26-0.29 1.1 0.94 0.66h305l0.71-0.3 25-26 0.41-0.81-1-1"/>
+<path d="m836 84h566l37 35h-638l35-35"/>
+<path d="m2309 1620h-300l-25-21h350l-25 21"/>
+<path d="m402 1620h-300l-25-21h350l-25 21"/>
+<path d="m402 1620h-300l-25-21h350l-25 21"/>
+<path d="m46 195-20-15v351l20-16v-320"/>
+<path d="m46 1215-21-18v305l21-25v-262"/>
+<path d="m2330 1473 29 34v-38l-29-34v38"/>
+<path d="m2330 1549 29 34v-38l-29-34v38"/>
+<path d="m2330 1359v38l29 34v-38"/>
+<path d="m2360 238-29 34v-38l29-34v38"/>
+<path d="m2360 314-29 34v-38l29-34v38"/>
+<path d="m2330 158v38l29-34v-38"/>
+<path d="m42 111v38l29 34v-38"/>
+<path d="m42 1552v38l29-34v-38"/>
+</g>
+<g transform="translate(7.7)" fill="#b41010">
+<path d="m840 59h560l64 61 1.7 0.7h491l1.6-0.61 47-41h327l40 33v260l-42 36-0.86 1.9v905l0.59 1.6 43 50v237l-40 33h-327l-47-41-1.6-0.62h-1504l-1.6 0.6-48 41h-335l-39-33v-82l33-40 0.57-1.6v-268l-0.88-1.9-33-28v-635l35-29 0.91-1.9v-322l-0.68-1.7-35-37v-44l36-32h326l47 41 1.6 0.62h334l1.7-0.7 64-61m561-5h-562l-1.7 0.69-64 61h-332l-47-41-1.6-0.62h-328l-1.7 0.65-37 34-0.82 1.9v46l0.68 1.7 35 37v320l-35 29-0.91 1.9v638l0.88 1.9 33 28v266l-33 40-0.57 1.6v84l0.87 1.9 40 35 1.6 0.61h336l1.6-0.61 48-41h1502l47 41 1.6 0.62h329l1.6-0.58 41-34 0.91-1.9v-239l-0.6-1.6-43-50v-903l42-36 0.87-1.9v-263l-0.91-1.9-41-34-1.6-0.57h-329l-1.6 0.62-47 41h-489l-64-61-1.7-0.69"/>
+</g>
+</g>
+</g>
+</g>
+</svg>
+]]
 
-  SZ.frame(layer, layout, {
-    x = 9,
-    y = 9,
-    w = 213,
-    h = 140,
-  }, theme, {
-    color = theme.accentStrong,
-    strokeWidth = 1,
-    cross = 2,
-  })
+local SEPARATOR_SVG = [[
+<svg id="master-artboard" width="1vw" height="23vh" enable-background="new 0 0 1400 980" version="1.1" viewBox="0 0 13 231">
+    <g transform="translate(-1084 -709)" fill="#bbb">
+        <g fill="#f00">
+            <path d="m1097 748-9.6-8.7v-30h-3.1v231h3.1v-102l9.6-10z" fill="#bbb"/>
+        </g>
+    </g>
+</svg>
+]]
 
-  SZ.text(layer, layout, titleFont, "CONTAINER HUB HUB", 116, 15, theme, {
+local ITEM_CARD_SVG = [[
+<style>
+:root {
+  --card-color: #b41010;
+}
+</style>
+<svg width="calc(12.25*1.8795vw)" height="12.25vw" enable-background="new" version="1.1" viewBox="0 0 504.98 268.68">
+ <g transform="translate(147 2.1)" fill="var(--card-color)" stroke="var(--card-color)" stroke-width=".15">
+  <path d="m63-2.1-12 13h-76l-12-13h-30l3.5 3.7h25l12 13h79l16-17zm-209 0.0036c1.2 1.2 2.3 2.5 3.5 3.7h78l-3.5-3.7c-26-9.7e-5 -52 1.4e-4 -78-2e-5zm212 3.7c263 0.6 205-0.31 263 0.15l26 24v132l-11 12v35c3.7 3.9 7.3 7.7 11 12v27l-6.9 7.3-127-9e-3 -3.7 3.7 132 9e-3 9-9.5v-30c-3.7-3.9-7.3-7.7-11-12v-32l11-12c-0.017-136 0.017 0 0-136l-27-25-263-0.15zm-212 2.9v175c2 2.1 4 4.2 5.9 6.3v75l3.5-3.6v-73c-2-2.1-4-4.2-5.9-6.3v-65c2-2.1 4-4.2 5.9-6.3v-92c-3.1-3.3-6.3-6.6-9.4-10zm288 245-0.013 0.014h-180c-3.1 3.3-6.2 6.6-9.3 9.8-1 1.1-2.1 2.2-3.1 3.3h-86l-3.5 3.7h90l3.1-3.3h26l3.1 3.3h148l16-17zm4.9-1e-5c-5.4-0.014-23 3-8.5 3.8 23-0.012 56-0.067 79-0.067l3.7-3.7c-21-2e-3 -53-9e-3 -74-0.014zm-184 3.8h175l-8.9 9.4h-145l-3.1-3.3h-24z"/>
+  <path d="m339 217v23h-79l20-23h59"/>
+  <path d="m89 25h-215v215h215v-215m-3 4v207h-209v-207h209"/>
+ </g>
+ <g transform="translate(147 2.1)" fill="#bbb">
+  <path d="m-139 5.5 6.9 7.3h98l-6.9-7.3z"/>
+  <path d="m275 217-20 23h-154v-23h175"/>
+  <path d="m-147 183v8.4l3.5 3.7v-8.4l-3.5-3.7zm0 11v8.4l3.5 3.7v-8.4zm0 11v8.4l3.5 3.7v-8.4zm0 11v8.4l3.5 3.7v-8.4l-3.5-3.7zm0 11v38l3.5-3.6v-31z"/>
+  <path d="m-17 257 3.3 3.3h47l-3.1-3.3zm50 0 3.3 3.3h47l-3-3.3zm50 0 3.3 3.3h41l3-3.2-0.07-0.074z"/>
+ </g>
+</svg>
+]]
+
+_G.__containerHubHubM_cache = _G.__containerHubHubM_cache or {}
+local cache = _G.__containerHubHubM_cache
+
+if not cache.frameDoc then
+  cache.frameDoc = SvgParser.parse(FRAME_SVG)
+  cache.separatorDoc = SvgParser.parse(SEPARATOR_SVG)
+  cache.itemCardDoc = SvgParser.parse(ITEM_CARD_SVG)
+  cache.frameSvg = cache.frameDoc.svgs[1]
+  cache.separatorSvg = cache.separatorDoc.svgs[1]
+  cache.itemCardSvg = cache.itemCardDoc.svgs[1]
+  cache.frameShapes = SvgShapeClassifier.classifySvg(cache.frameSvg, { vars = cache.frameDoc.vars })
+  cache.separatorShapes = SvgShapeClassifier.classifySvg(cache.separatorSvg, { vars = cache.separatorDoc.vars })
+  cache.itemCardShapes = SvgShapeClassifier.classifySvg(cache.itemCardSvg, { vars = cache.itemCardDoc.vars })
+end
+
+local function drawSkewedPanel(layer, bounds, skewDegrees, fillColor, strokeColor, strokeWidth)
+  local x = SZ.toScreenX(layout, bounds.x)
+  local y = SZ.toScreenY(layout, bounds.y)
+  local w = SZ.toScreenW(layout, bounds.w)
+  local h = SZ.toScreenH(layout, bounds.h)
+  local skewOffset = bounds.h * math.tan(math.rad(math.abs(skewDegrees or 30)))
+  local skewPx = SZ.toScreenW(layout, skewOffset)
+
+  setNextFillColor(layer, fillColor[1], fillColor[2], fillColor[3], fillColor[4] or 1)
+  addQuad(
+    layer,
+    x + skewPx, y,
+    x + w, y,
+    x + w - skewPx, y + h,
+    x, y + h
+  )
+
+  if strokeColor then
+    setNextStrokeColor(layer, strokeColor[1], strokeColor[2], strokeColor[3], strokeColor[4] or 1)
+    setNextStrokeWidth(layer, math.max(0.5, (strokeWidth or 1) * layout.scale))
+    addLine(layer, x + skewPx, y, x + w, y)
+    addLine(layer, x + w, y, x + w - skewPx, y + h)
+    addLine(layer, x + w - skewPx, y + h, x, y + h)
+    addLine(layer, x, y + h, x + skewPx, y)
+  end
+end
+
+local totalLoaded = 0
+local totalMax = 0
+for _, hub in ipairs(hubs) do
+  totalLoaded = totalLoaded + hub.loaded
+  totalMax = totalMax + hub.max
+end
+
+local capacityPercent = math.floor((totalLoaded / totalMax) * 1000 + 0.5) / 10
+local loadedMass = 478
+local maxWeight = 800
+
+local selectedItem = items[1]
+local selectedHubColor = hubPalette[selectedItem.hub]
+
+local function drawFrame()
+  local fillInsetX = vw(1.8)
+  local fillInsetY = vh(1.8)
+
+  setNextFillColor(layers.frame, 0.19, 0.05, 0.06, 0.92)
+  addBox(
+    layers.frame,
+    SZ.toScreenX(layout, fillInsetX),
+    SZ.toScreenY(layout, fillInsetY),
+    SZ.toScreenW(layout, SOURCE_W - fillInsetX * 2),
+    SZ.toScreenH(layout, SOURCE_H - fillInsetY * 2)
+  )
+
+  SZ.drawSvgEntry(layers.frame, layout, cache.frameSvg, {
+    vars = cache.frameDoc.vars,
+    classifiedShapes = cache.frameShapes,
+    classifiedMode = "fill",
+    strokeWidth = 1.4,
+  })
+end
+
+local function drawTopBar()
+  local frameBounds = {
+    x = vw(5.0),
+    y = vh(5.0),
+    w = vw(53.4),
+    h = vh(11.5),
+  }
+  local segmentX = vw(6.5)
+  local segmentY = vh(5.25)
+  local segmentH = vh(11.0)
+  local segmentW = frameBounds.w * (totalLoaded / totalMax)
+
+  drawSkewedPanel(
+    layers.bar,
+    frameBounds,
+    30,
+    { 0.16, 0.06, 0.08, 0.36 },
+    { 0.71, 0.06, 0.06, 0.92 },
+    0.28
+  )
+
+  local currentX = segmentX
+  for _, hub in ipairs(hubs) do
+    local hubWidth = segmentW * (hub.loaded / totalLoaded)
+    local isSelectedHub = hub.name == selectedItem.hub
+    local fillColor = isSelectedHub and selectedHubColor.color or { 0.34, 0.34, 0.38, 0.85 }
+    local strokeColor = isSelectedHub and selectedHubColor.color or { 0.63, 0.63, 0.68, 0.32 }
+
+    drawSkewedPanel(layers.bar, {
+      x = currentX,
+      y = segmentY,
+      w = hubWidth,
+      h = segmentH,
+    }, 30, fillColor, strokeColor, 0.12)
+
+    currentX = currentX + hubWidth + vw(0.098)
+  end
+
+  SZ.text(layers.text, layout, percentFont, string.format("%.1f%%", capacityPercent), vw(31.7), vh(8.5), theme, {
     alignX = AlignH_Center,
     alignY = AlignV_Middle,
     color = theme.textPrimary,
   })
 
-  SZ.text(layer, layout, valueFont, "MULTI HUB CONTAINER OVERVIEW", 116, 25, theme, {
+  SZ.text(layers.text, layout, capacityFont, string.format("%d / %d KL", totalLoaded, totalMax), vw(61.5), vh(25.4), theme, {
+    alignX = AlignH_Right,
+    alignY = AlignV_Bottom,
+    color = theme.textPrimary,
+  })
+
+  SZ.text(layers.text, layout, weightFont, string.format("%dt", loadedMass), vw(95.0), vh(13.0), theme, {
+    alignX = AlignH_Right,
+    alignY = AlignV_Bottom,
+    color = theme.textPrimary,
+  })
+
+  SZ.text(layers.text, layout, weightFont, string.format("%dt", maxWeight), vw(95.0), vh(25.4), theme, {
+    alignX = AlignH_Right,
+    alignY = AlignV_Bottom,
+    color = theme.textPrimary,
+  })
+
+  setNextStrokeColor(layers.bar, theme.textPrimary[1], theme.textPrimary[2], theme.textPrimary[3], 0.82)
+  setNextStrokeWidth(layers.bar, math.max(0.5, 0.18 * layout.scale))
+  addLine(
+    layers.bar,
+    SZ.toScreenX(layout, vw(80)),
+    SZ.toScreenY(layout, vh(16)),
+    SZ.toScreenX(layout, vw(95)),
+    SZ.toScreenY(layout, vh(16))
+  )
+
+  local separatorLayout = SZ.relativeLayout(layout, {
+    x = vw(64),
+    y = vh(5),
+    w = vw(1),
+    h = vh(23),
+  }, 13, 231)
+
+  SZ.drawSvgEntry(layers.separator, separatorLayout, cache.separatorSvg, {
+    vars = cache.separatorDoc.vars,
+    classifiedShapes = cache.separatorShapes,
+    classifiedMode = "fill",
+    strokeWidth = 0.8,
+  })
+end
+
+local function drawItemCard(item, index)
+  local browserX = vw(2)
+  local browserY = vh(29)
+  local margin = vw(0.5)
+  local cardW = vw(CARD_VW_W)
+  local cardH = vw(12.25)
+  local stepX = cardW + margin * 2
+  local stepY = cardH + margin * 2
+  local slot = index - 1
+  local row = math.floor(slot / 4)
+  local col = slot % 4
+  local cardBounds = {
+    x = browserX + margin + col * stepX,
+    y = browserY + margin + row * stepY,
+    w = cardW,
+    h = cardH,
+  }
+  local accentHex = item.selected and hubPalette[item.hub].hex or "#b41010"
+  local cardLayout = SZ.relativeLayout(layout, cardBounds, CARD_SOURCE_W, CARD_SOURCE_H)
+  local iconAccent = hubPalette[item.hub].color
+  local iconBounds = {
+    x = cardCssX(1.3),
+    y = cardCssY(1.7),
+    w = cardCssX(9.0),
+    h = cardCssY(9.0),
+  }
+  local iconCenterX = iconBounds.x + iconBounds.w * 0.5
+  local iconCenterY = iconBounds.y + iconBounds.h * 0.5
+
+  SZ.drawSvgEntry(layers.cards, cardLayout, cache.itemCardSvg, {
+    vars = {
+      ["card-color"] = accentHex,
+    },
+    classifiedShapes = cache.itemCardShapes,
+    classifiedMode = "fill",
+    strokeWidth = 1.0,
+  })
+
+  SZ.box(layers.cards, cardLayout, iconBounds, {
+    fillColor = { 0.10, 0.08, 0.11, 0.45 },
+    strokeColor = { 0.90, 0.90, 0.94, item.selected and 0.58 or 0.28 },
+    strokeWidth = item.selected and 1.4 or 0.9,
+    radius = 10,
+  })
+
+  SZ.hexagon(layers.cards, cardLayout, iconCenterX, iconCenterY+10, iconBounds.w * 0.26, {
+    iconAccent[1],
+    iconAccent[2],
+    iconAccent[3],
+    item.selected and 0.84 or 0.48,
+  })
+
+  SZ.text(layers.text, cardLayout, iconFont, item.code, iconCenterX, iconCenterY, theme, {
     alignX = AlignH_Center,
     alignY = AlignV_Middle,
-    color = theme.textMuted,
+    color = theme.textPrimary,
   })
 
-  for i = 1, 10 do
-    local y = 33 + i * 7
-    setNextStrokeColor(layer, theme.panelStroke[1], theme.panelStroke[2], theme.panelStroke[3], 0.06 + i * 0.012 + SZ.pulse(0.02, 0.09, 1.1, i * 0.15))
-    setNextStrokeWidth(layer, 0.45)
-    addLine(layer, SZ.toScreenX(layout, 10), SZ.toScreenY(layout, y), SZ.toScreenX(layout, 221), SZ.toScreenY(layout, y))
-  end
+  SZ.text(layers.text, cardLayout, cardNameFont, item.name, cardCssX(16.75), cardCssY(3.0), theme, {
+    alignX = AlignH_Center,
+    alignY = AlignV_Middle,
+    color = theme.textPrimary,
+  })
+
+  SZ.text(layers.text, cardLayout, cardAmountFont, item.amount, cardCssX(16.75), cardCssY(7.0), theme, {
+    alignX = AlignH_Center,
+    alignY = AlignV_Middle,
+    color = theme.textPrimary,
+  })
 end
 
-local function drawSummaryBars(layer)
-  local totalLoaded = 0
-  local totalMax = 0
-  for _, hub in ipairs(hubs) do
-    totalLoaded = totalLoaded + hub.loaded
-    totalMax = totalMax + hub.max
-  end
+local function drawBrowser()
+  local browserBounds = {
+    x = vw(2),
+    y = vh(29),
+    w = vw(96.2),
+    h = vh(69),
+  }
 
-  setNextFillColor(layer, 0.16, 0.06, 0.08, 0.6)
-  setNextStrokeColor(layer, theme.accent[1], theme.accent[2], theme.accent[3], 0.55)
-  setNextStrokeWidth(layer, 1)
-  addBoxRounded(layer, SZ.toScreenX(layout, 5), SZ.toScreenY(layout, 37), SZ.toScreenW(layout, 127), SZ.toScreenH(layout, 12), SZ.toScreenW(layout, 2))
-
-  local barWidth = 120
-  local barHeight = 9
-  local barStartX = 8
-  local barStartY = 40
-  local fillTotal = math.floor(totalLoaded / totalMax * barWidth + 0.5)
-  local capacityPercent = math.floor(totalLoaded / totalMax * 100 + 0.5)
-
-  setNextFillColor(layer, 0.9, 0.9, 1, 0.85)
-  addLine(layer, SZ.toScreenX(layout, barStartX), SZ.toScreenY(layout, barStartY + 4.5), SZ.toScreenX(layout, barStartX + barWidth), SZ.toScreenY(layout, barStartY + 4.5))
-
-  local x = barStartX
-  local remaining = fillTotal
-
-  for _, hub in ipairs(hubs) do
-    local portion = math.floor((hub.loaded / totalMax) * barWidth)
-    local seg = math.min(portion, remaining)
-    if seg > 0 then
-      local c = hub.color
-      setNextFillColor(layer, c[1], c[2], c[3], 0.52 + SZ.pulse(0.04, 0.18, 1.2, _))
-      setNextStrokeColor(layer, c[1], c[2], c[3], 0.95)
-      setNextStrokeWidth(layer, 0.7)
-      addBox(layer, SZ.toScreenX(layout, x), SZ.toScreenY(layout, barStartY), SZ.toScreenW(layout, seg), SZ.toScreenH(layout, barHeight))
-      x = x + seg
-      remaining = remaining - seg
-    end
-  end
-
-  if remaining < barWidth - fillTotal then
-    addLine(layer, SZ.toScreenX(layout, barStartX + fillTotal), SZ.toScreenY(layout, barStartY), SZ.toScreenX(layout, barStartX + fillTotal), SZ.toScreenY(layout, barStartY + barHeight))
-  end
-
-  SZ.text(layer, layout, valueFont, "CAPACITY", 136, 36, theme, {
-    alignX = AlignH_Left,
-    alignY = AlignV_Middle,
-    color = theme.textDim,
-  })
-  SZ.text(layer, layout, headingFont, tostring(capacityPercent) .. "%", 136, 46, theme, {
-    alignX = AlignH_Left,
-    alignY = AlignV_Middle,
-    color = theme.accentStrong,
-  })
-
-  SZ.text(layer, layout, tinyFont, tostring(totalLoaded) .. " / " .. tostring(totalMax) .. " kl", 130, 38, theme, {
-    alignX = AlignH_Right,
-    alignY = AlignV_Middle,
-    color = theme.textDim,
-  })
-  SZ.text(layer, layout, tinyFont, "MAX MASS: 800t", 130, 46, theme, {
-    alignX = AlignH_Right,
-    alignY = AlignV_Middle,
-    color = theme.textDim,
-  })
-
-  setNextStrokeColor(layer, theme.textPrimary[1], theme.textPrimary[2], theme.textPrimary[3], 0.8)
-  setNextStrokeWidth(layer, 0.8)
-  addLine(layer, SZ.toScreenX(layout, 12), SZ.toScreenY(layout, 52), SZ.toScreenX(layout, 120), SZ.toScreenY(layout, 52))
-
-  for idx, hub in ipairs(hubs) do
-    local offsetY = 30 + idx * 6
-    local swatchY = 62 + idx * 6
-    setNextFillColor(layer, hub.color[1], hub.color[2], hub.color[3], 0.6)
-    setNextStrokeColor(layer, theme.textPrimary[1], theme.textPrimary[2], theme.textPrimary[3], 0.6)
-    setNextStrokeWidth(layer, 0.6)
-    addBoxRounded(layer, SZ.toScreenX(layout, 124), SZ.toScreenY(layout, swatchY), SZ.toScreenW(layout, 10), SZ.toScreenH(layout, 3), SZ.toScreenW(layout, 0.6))
-
-    SZ.text(layer, layout, tinyFont, "HUB " .. hub.name .. " " .. hub.loaded .. "/" .. hub.max, 136, offsetY, theme, {
-      alignX = AlignH_Left,
-      alignY = AlignV_Middle,
-      color = theme.textPrimary,
-    })
-  end
-end
-
-local function drawItemBadge(layer, x, y, w, h, isSelected)
-  setNextFillColor(layer, 0.12, 0.05, 0.08, isSelected and 0.72 or 0.18)
-  setNextStrokeColor(layer, isSelected and theme.accentStrong[1] or theme.textDim[1], isSelected and theme.accentStrong[2] or theme.textDim[2], isSelected and theme.accentStrong[3] or theme.textDim[3], isSelected and 0.9 or 0.5)
-  setNextStrokeWidth(layer, isSelected and 1 or 0.8)
-  addBoxRounded(layer, x, y, w, h, SZ.toScreenW(layout, 1.8))
-
-  setNextFillColor(layer, 0.2, 0.2, 0.2, 0.35)
-  setNextStrokeColor(layer, 1, 1, 1, 0.35)
-  setNextStrokeWidth(layer, 0.6)
-  addBoxRounded(layer, x + SZ.toScreenW(layout, 1), y + SZ.toScreenH(layout, 1.2), SZ.toScreenW(layout, 8.8), SZ.toScreenH(layout, 8.8), SZ.toScreenW(layout, 0.4))
-
-  local cx = x + SZ.toScreenW(layout, 1.8)
-  local cy = y + SZ.toScreenH(layout, 5.6)
-  local px = SZ.toScreenW(layout, 2)
-  setNextStrokeColor(layer, theme.textPrimary[1], theme.textPrimary[2], theme.textPrimary[3], 0.45)
-  setNextStrokeWidth(layer, 0.7)
-  addLine(layer, cx - px, cy, cx + px, cy)
-  addLine(layer, cx, cy - px, cx + px * 0.15, cy - px)
-  addLine(layer, cx, cy + px, cx + px * 0.15, cy + px)
-end
-
-local function drawItems(layer)
-  local rowHeight = 20
-  local colWidth = 53
-  local x0 = 8
-  local y0 = 31
-
-  SZ.withClip(layer, layout, {
-    x = 3,
-    y = 58,
-    w = 223,
-    h = 84,
-  }, function()
+  SZ.withClip(layers.cards, layout, browserBounds, function()
     for index, item in ipairs(items) do
-      local localIndex = index - 1
-      local row = math.floor(localIndex / 4)
-      local col = localIndex % 4
-
-      if row >= 3 then
-        break
-      end
-
-      local x = SZ.toScreenX(layout, x0 + col * (colWidth + 2))
-      local y = SZ.toScreenY(layout, y0 + row * (rowHeight + 1.6))
-      local w = SZ.toScreenW(layout, colWidth)
-      local h = SZ.toScreenH(layout, rowHeight)
-
-      drawItemBadge(layer, x, y, w, h, item.selected)
-
-      SZ.text(layer, layout, valueFont, item.name,  x0 + col * (colWidth + 2) + 16, y0 + row * (rowHeight + 1.6) + 3.5, theme, {
-        alignX = AlignH_Left,
-        alignY = AlignV_Middle,
-        color = theme.textPrimary,
-      })
-
-      SZ.text(layer, layout, headingFont, item.hub .. " HUB",  x0 + col * (colWidth + 2) + 16, y0 + row * (rowHeight + 1.6) + 9.2, theme, {
-        alignX = AlignH_Left,
-        alignY = AlignV_Middle,
-        color = theme.textMuted,
-      })
-
-      SZ.text(layer, layout, tinyFont, tostring(item.amount) .. " " .. item.unit, x0 + col * (colWidth + 2) + 16, y0 + row * (rowHeight + 1.6) + 14.4, theme, {
-        alignX = AlignH_Left,
-        alignY = AlignV_Middle,
-        color = theme.textDim,
-      })
-
-      if item.selected then
-        setNextStrokeColor(layer, theme.accentStrong[1], theme.accentStrong[2], theme.accentStrong[3], 0.55 + SZ.pulse(0.08, 0.25, 2.0, index * 0.3))
-        setNextStrokeWidth(layer, 1)
-        addLine(layer, SZ.toScreenX(layout, x0 + col * (colWidth + 2) + 13), SZ.toScreenY(layout, y0 + row * (rowHeight + 1.6) + 18), SZ.toScreenX(layout, x0 + col * (colWidth + 2) + colWidth + 11), SZ.toScreenY(layout, y0 + row * (rowHeight + 1.6) + 18))
-      end
+      drawItemCard(item, index)
     end
   end)
-
-  SZ.text(layer, layout, valueFont, "SCROLL", 218, 140, theme, {
-    alignX = AlignH_Right,
-    alignY = AlignV_Bottom,
-    color = theme.textDim,
-  })
-  SZ.text(layer, layout, valueFont, ">", 222, 140, theme, {
-    alignX = AlignH_Left,
-    alignY = AlignV_Bottom,
-    color = theme.accentStrong,
-  })
-
-  setNextStrokeColor(layer, theme.accent[1], theme.accent[2], theme.accent[3], 0.6)
-  setNextStrokeWidth(layer, 1)
-  addLine(layer, SZ.toScreenX(layout, 6), SZ.toScreenY(layout, 141.5), SZ.toScreenX(layout, 223), SZ.toScreenY(layout, 141.5))
 end
 
-local function drawSideDecor(layer)
-  setNextFillColor(layer, 0.08, 0.05, 0.08, 0.7)
-  addBoxRounded(layer, SZ.toScreenX(layout, 4), SZ.toScreenY(layout, 56), SZ.toScreenW(layout, 2), SZ.toScreenH(layout, 84), SZ.toScreenW(layout, 0.5))
-
-  setNextFillColor(layer, theme.textPrimary[1], theme.textPrimary[2], theme.textPrimary[3], 0.82)
-  SZ.badge(layer, layout, {
-    x = 5,
-    y = 61,
-    w = 1.5,
-    h = 2,
-  }, tinyFont, ">", theme, {
-    fill = { 0.15, 0.07, 0.10, 0.5 },
-    stroke = theme.accent,
-    textColor = theme.textPrimary,
-    align = {
-      x = "Center",
-      y = "Middle",
-    },
-  })
-
-  for i = 0, 10 do
-    local y = 58 + i * 7.2
-    setNextStrokeColor(layer, 0.6, 0.16, 0.20, 0.14 + i * 0.03 + SZ.pulse(0.02, 0.10, 1.6, i * 0.25))
-    setNextStrokeWidth(layer, 0.7)
-    addLine(layer, SZ.toScreenX(layout, 5), SZ.toScreenY(layout, y), SZ.toScreenX(layout, 6), SZ.toScreenY(layout, y))
-  end
-end
-
-SZ.withClip(layers.fx, layout, {
-  x = 3,
-  y = 57,
-  w = 225,
-  h = 86,
-}, function()
-  for i = 0, 180 do
-    local px = 8 + i * 1.2
-    setNextStrokeColor(layers.fx, 1, 1, 1, 0.05 + (i % 3) * 0.03 + SZ.pulse(0.01, 0.05, 1.7, i * 0.08))
-    setNextStrokeWidth(layers.fx, 0.6)
-    addLine(
-      layers.fx,
-      SZ.toScreenX(layout, px),
-      SZ.toScreenY(layout, 141),
-      SZ.toScreenX(layout, 8 + px * 0.03),
-      SZ.toScreenY(layout, 57 + (i % 11) * 1.2)
-    )
-  end
-end)
-
-drawTopFrame(layers.base)
-drawSummaryBars(layers.bars)
-drawSideDecor(layers.meta)
-drawItems(layers.browser)
+drawFrame()
+drawTopBar()
+drawBrowser()

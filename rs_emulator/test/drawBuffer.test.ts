@@ -203,6 +203,18 @@ describe("drawBuffer style snapshotting", () => {
     expect(buffer.fonts).toHaveLength(1);
   });
 
+  it("keeps separate font handles for repeated font families with different sizes", () => {
+    const buffer = new DrawBuffer();
+
+    const firstId = buffer.LoadFont("RobotoMono", 24);
+    const secondId = buffer.LoadFont("RobotoMono", 48);
+
+    expect(secondId).not.toBe(firstId);
+    expect(buffer.fonts).toHaveLength(2);
+    expect(buffer.GetFontSize(firstId)).toBe(24);
+    expect(buffer.GetFontSize(secondId)).toBe(48);
+  });
+
   it("exposes the DU font catalog in the documented order", () => {
     const buffer = new DrawBuffer();
 
@@ -213,7 +225,7 @@ describe("drawBuffer style snapshotting", () => {
     expect(() => buffer.GetAvailableFontName(13)).toThrow("out-of-bounds font index");
   });
 
-  it("limits loaded fonts to eight unique handles", () => {
+  it("limits loaded fonts to eight unique font families", () => {
     const buffer = new DrawBuffer();
     const names = [
       "FiraMono",
@@ -259,69 +271,69 @@ describe("drawBuffer style snapshotting", () => {
     expect(descender).toBeLessThan(0);
   });
 
-  it("uses DU render cost max and createLayer cost", () => {
+  it("uses the practical render cost max and keeps createLayer free", () => {
     const buffer = new DrawBuffer();
 
-    expect(buffer.GetRenderCostMax()).toBe(4_000_000);
+    expect(buffer.GetRenderCostMax()).toBe(10_000);
     expect(buffer.GetRenderCost()).toBe(0);
 
     buffer.CreateLayer();
 
-    expect(buffer.GetRenderCost()).toBe(75_000);
+    expect(buffer.GetRenderCost()).toBe(0);
   });
 
-  it("uses DU addBox render cost formulas", () => {
+  it("charges one render-cost unit per box draw", () => {
     const buffer = new DrawBuffer();
     const layer = buffer.CreateLayer();
 
     let before = buffer.GetRenderCost();
     buffer.AddBox(layer, 0, 0, 10, 10);
-    expect(buffer.GetRenderCost() - before).toBe(100);
+    expect(buffer.GetRenderCost() - before).toBe(1);
 
     buffer.SetNextStrokeWidth(layer, 1);
     before = buffer.GetRenderCost();
     buffer.AddBox(layer, 0, 0, 10, 10);
-    expect(buffer.GetRenderCost() - before).toBe(144);
+    expect(buffer.GetRenderCost() - before).toBe(1);
 
     buffer.SetNextStrokeWidth(layer, 5);
     buffer.SetNextShadow(layer, 5, 1, 1, 1, 1);
     before = buffer.GetRenderCost();
     buffer.AddBox(layer, 0, 0, 10, 10);
-    expect(buffer.GetRenderCost() - before).toBe(900);
+    expect(buffer.GetRenderCost() - before).toBe(1);
   });
 
-  it("uses deterministic DU addText render cost formulas", () => {
+  it("charges one render-cost unit per text draw", () => {
     const buffer = new DrawBuffer();
     const layer = buffer.CreateLayer();
     const font = buffer.LoadFont("RobotoMono", 30);
 
     let before = buffer.GetRenderCost();
     buffer.AddText(layer, font, ".", 0, 0);
-    expect(buffer.GetRenderCost() - before).toBe(111);
+    expect(buffer.GetRenderCost() - before).toBe(1);
 
     before = buffer.GetRenderCost();
     buffer.AddText(layer, font, "%", 0, 0);
-    expect(buffer.GetRenderCost() - before).toBe(815);
+    expect(buffer.GetRenderCost() - before).toBe(1);
 
     before = buffer.GetRenderCost();
     buffer.AddText(layer, font, "%%%", 0, 0);
-    expect(buffer.GetRenderCost() - before).toBe(2211);
+    expect(buffer.GetRenderCost() - before).toBe(1);
 
     buffer.SetFontSize(font, 20);
     before = buffer.GetRenderCost();
     buffer.AddText(layer, font, "%", 0, 0);
-    expect(buffer.GetRenderCost() - before).toBe(362);
+    expect(buffer.GetRenderCost() - before).toBe(1);
 
     buffer.SetNextStrokeWidth(layer, 1);
     before = buffer.GetRenderCost();
     buffer.AddText(layer, font, "%", 0, 0);
-    expect(buffer.GetRenderCost() - before).toBe(442);
+    expect(buffer.GetRenderCost() - before).toBe(1);
 
     buffer.SetNextStrokeWidth(layer, 5);
     buffer.SetNextShadow(layer, 5, 1, 1, 1, 1);
     before = buffer.GetRenderCost();
     buffer.AddText(layer, font, "%", 0, 0);
-    expect(buffer.GetRenderCost() - before).toBe(1525);
+    expect(buffer.GetRenderCost() - before).toBe(1);
   });
 
   it("rejects image URLs outside the allowed Novaquark asset host", () => {

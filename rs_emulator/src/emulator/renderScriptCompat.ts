@@ -29,7 +29,7 @@ export interface DUFontMetadata {
 }
 
 export const DU_RS_VERSION = 2;
-export const DU_RENDER_COST_MAX = 4_000_000;
+export const DU_RENDER_COST_MAX = 10_000;
 export const DU_MAX_LOADED_FONTS = 8;
 
 export const DU_SHAPE = {
@@ -267,19 +267,13 @@ export function getDUTextBoundsOverride(name: string, size: number, text: string
 }
 
 export function costCreateLayer(): number {
-  return 75_000;
+  return 0;
 }
 
-export function renderCostSizeBump(strokeWidth: number, shadowRadius: number): number {
-  return (Math.max(0, shadowRadius) + Math.max(0, strokeWidth)) * 2;
+export function costAddBox(_width: number, _height: number, _strokeWidth = 0, _shadowRadius = 0): number {
+  return 1;
 }
 
-export function costAddBox(width: number, height: number, strokeWidth = 0, shadowRadius = 0): number {
-  const sizeBump = renderCostSizeBump(strokeWidth, shadowRadius);
-  return Math.max(16, (width + sizeBump) * (height + sizeBump));
-}
-
-export function costAddText(textWidth: number, textHeight: number, strokeWidth = 0, shadowRadius = 0): number {
-  const sizeBump = renderCostSizeBump(strokeWidth, shadowRadius);
-  return Math.floor((textWidth + sizeBump) * (textHeight + sizeBump));
+export function costAddText(_textWidth: number, _textHeight: number, _strokeWidth = 0, _shadowRadius = 0): number {
+  return 1;
 }

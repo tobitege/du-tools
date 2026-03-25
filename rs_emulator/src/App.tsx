@@ -848,6 +848,12 @@ export default function App() {
     const executionLabel = activeChunkLabel;
 
     try {
+      void envRef.current.dispose();
+      buffer.resetRuntimeState();
+      envRef.current = createLuaEnvironment(buffer, resolveLuaModule, runtimeFlags);
+      buffer.screen.width = settings.canvasWidth;
+      buffer.screen.height = settings.canvasHeight;
+
       const firstResult = await envRef.current.execute(codeToRun, { chunkLabel: executionLabel });
       if (executionTokenRef.current !== executionToken) {
         return;
@@ -858,7 +864,7 @@ export default function App() {
       if (firstResult.success) {
         const animationInfo = firstResult.requestAnimFrames > 0 ? `, anim ${firstResult.requestAnimFrames}f` : "";
         const logInfo = firstResult.logs.length > 0 ? `, ${firstResult.logs.length} log(s)` : "";
-        showStatus(`OK: ${buffer.GetRenderCost()} draw call(s)${animationInfo}${logInfo}`);
+        showStatus(`OK: ${buffer.GetRenderCost()} render cost${animationInfo}${logInfo}`);
       } else {
         showStatus(`Error: ${(firstResult.error ?? "unknown error").slice(0, 140)}`);
       }

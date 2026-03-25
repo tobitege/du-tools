@@ -63,3 +63,20 @@
 
 - Fix layer compositing so interleaved commands render by layer order instead of raw insertion order.
 - After that, tighten `RequestAnimationFrame(frames)` countdown semantics to match DU expectations more closely.
+
+## 2026-03-25
+
+- Started a focused `ContainerHubHubM` fix pass after a screenshot showed the current conversion is visually far off from the original.
+- Confirmed the worst diagonal line cloud is self-inflicted by the current Lua mock (`layers.fx`) rather than by the SVG parser/runtime.
+- Extracted the original `updateScreen()` HTML/CSS structure from `examples/SilverZero/ContainerHubHubM.json` to drive a closer RenderScript-side rebuild.
+- Rebuilt `ContainerHubHubM.lua` around the original frame SVG, separator SVG, slanted top bar, and item-card SVG instead of the previous freehand dashboard mock.
+- Added a small shared SVG-entry renderer in `lib/SilverZeroRsLib.lua`, tightened `luaRuntime.test.ts`, and spot-checked the result in the browser after loading the example through the dev server.
+- Fixed font caching so repeated `loadFont(...)` calls with the same family but different sizes no longer collapse onto one handle and shrink unrelated text.
+- Added viewport-based font-size helpers in `lib/SilverZeroRsLib.lua` and switched `ContainerHubHubM.lua` to CSS-like `vw`/`vh` sizing for the top metrics and card labels.
+- Matched the top loading-bar quads to the original `skew(-30deg)` angle and moved/resized the item icon plate from the original CSS geometry instead of the earlier smaller mock box.
+- Verified the follow-up with `npm run test -- test/drawBuffer.test.ts test/luaRuntime.test.ts` (`104` tests green).
+- Reduced the top metric fonts in `ContainerHubHubM.lua` again after visual review showed the first follow-up overshot; verified with `npm run test -- test/luaRuntime.test.ts` (`81` tests green).
+- Replaced the mock `DispenserSignS.lua` layout with a single-frame port driven by the original HTML/CSS structure: SimpleSign circuit background + board SVG, original four-line description, right-aligned price block, and the lower-left SilverZero logo.
+- Removed the invented `DISPENSER` / `MARKET PRICE` / `SALE` promo text and the animation loop from `DispenserSignS.lua`; the script now returns a one-shot render.
+- Extended `test/luaRuntime.test.ts` so the Dispenser test checks for the original text set, missing mock labels, the moved `ħ`, multiple font sizes, and the right-side image-slot box.
+- Verified the Dispenser port with `npm run test -- test/luaRuntime.test.ts -t "DispenserSignS"` (`81` tests green because Vitest ran the full file with the filter argument style used here).

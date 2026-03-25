@@ -6,8 +6,6 @@ local theme = SZ.Themes.SilverZero
 local resolutionX, resolutionY = getResolution()
 local layout = SZ.layoutForScreen(resolutionX, resolutionY, 231, 156, 0.04)
 
-SZ.animLoop(1)
-
 setBackgroundColor(theme.background[1], theme.background[2], theme.background[3])
 
 local headingFont = SZ.font("Arial", SZ.scaleFontSize(10, layout))
@@ -283,7 +281,7 @@ local function drawOreCard(layer, cardX, cardY, oreName, range)
     color = theme.textMuted,
   })
 
-  SZ.text(layer, layout, microFont, range, cardX + 10.25, cardY + 11.3, theme, {
+  SZ.text(layer, layout, tinyFont, range, cardX + 10.25, cardY + 10.9, theme, {
     alignX = AlignH_Center,
     alignY = AlignV_Bottom,
     color = tierColor,

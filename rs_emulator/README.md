@@ -117,6 +117,16 @@ Optional runtime flags stay disabled unless you explicitly enable them:
 - editor font size can be adjusted from the toolbar
 - the canvas preview can be rotated left, right, or reset without modifying the script
 
+### Animation Ordering
+
+If a script schedules its next frame with `requestAnimationFrame(...)` or `SZ.animLoop(...)`, that call must be the last statement of the frame/script.
+
+- put `SZ.animLoop(1)` at the very end
+- do not schedule the next frame near the top of the script
+- otherwise the emulator can render immediately with incomplete draw state
+- if a screen is static, do not call `requestAnimationFrame(...)` or `SZ.animLoop(...)` at all
+- a static script that redraws itself in a loop is a common source of visible flicker
+
 ### Empty Session Import
 
 When a session is empty, the editor shows an import overlay:

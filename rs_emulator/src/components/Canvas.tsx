@@ -27,7 +27,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
     const lastRenderAtRef = useRef<number | null>(null);
     const resizeFrameRef = useRef<number>(0);
     const [shellSize, setShellSize] = useState({ width: 0, height: 0 });
-    const [stats, setStats] = useState({ drawCalls: 0, textCalls: 0, frameMs: 0, fps: 0 });
+    const [stats, setStats] = useState({ renderCost: 0, textCalls: 0, frameMs: 0, fps: 0 });
     const normalizedRotation = normalizeRotation(rotationDegrees);
     const rotatedByQuarterTurn = normalizedRotation % 180 !== 0;
     const rotatedWidth = rotatedByQuarterTurn ? height : width;
@@ -132,7 +132,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
         }
 
         setStats({
-          drawCalls: buffer.GetRenderCost(),
+          renderCost: buffer.GetRenderCost(),
           textCalls: buffer.commands.filter((command) => command.op === "AddText").length,
           frameMs,
           fps: frameMs > 0 ? 1000 / frameMs : 0,
@@ -270,7 +270,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
           >
             <div>{stats.fps > 0 ? Math.round(stats.fps) : "-"} fps</div>
             <div>{stats.frameMs > 0 ? stats.frameMs.toFixed(1) : "-"} ms frame</div>
-            <div>{stats.drawCalls} draw calls</div>
+            <div>{stats.renderCost} render cost</div>
             <div>{stats.textCalls} text calls</div>
           </div>
         )}

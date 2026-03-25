@@ -2479,9 +2479,19 @@ describe("lua runtime example integration", () => {
     const env = createLuaEnvironment(buffer, createLuaFileResolver(silverZeroFileSources));
 
     const result = await executeLuaFile(env, "examples/SilverZero/SimpleSignXS.lua");
+    const commandCounts = buffer.commands.reduce<Record<string, number>>((counts, command) => {
+      counts[command.op] = (counts[command.op] ?? 0) + 1;
+      return counts;
+    }, {});
+    const renderCommandCount = buffer.commands.filter((command) => command.op.startsWith("Add")).length;
 
     expect(result.success).toBe(true);
     expect(result.requestAnimFrames).toBe(0);
+    expect(renderCommandCount).toBe(142);
+    expect(commandCounts.AddBox ?? 0).toBe(1);
+    expect(commandCounts.AddLine ?? 0).toBe(124);
+    expect(commandCounts.AddQuad ?? 0).toBe(16);
+    expect(commandCounts.AddText ?? 0).toBe(1);
     expect(buffer.commands.some((command) => command.op === "AddText")).toBe(true);
     expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(true);
   });
@@ -2495,10 +2505,10 @@ describe("lua runtime example integration", () => {
     expect(result.success).toBe(true);
     expect(result.requestAnimFrames).toBe(0);
     expect(result.output).toBe(
-      "hex_fill=hex_ring|fill|true;poly_fill=polygon_ring|fill|true;trap_fill=trapezoid|fill|true;poly_closed=closed_polygon|fill|true;compound_stroke=compound_path|stroke|true;outline_stroke=outline_path|stroke|true",
+      "hex_fill=hex_ring|fill|adapter;poly_fill=polygon_ring|fill|adapter;trap_fill=trapezoid|fill|adapter;poly_closed=closed_polygon|fill|adapter;compound_stk=compound_path|stroke|adapter;outline_stk=outline_path|stroke|adapter;board_trap=trapezoid|fill|adapter;board_quad=quad|fill|adapter;board_ofill=outline_path|fill|adapter;board_ostrk=outline_path|stroke|adapter;board_cshape=compound_path|shape|adapter;board_cfill=compound_path|fill|fallback",
     );
     const textCommands = buffer.commands.filter((command) => command.op === "AddText");
-    expect(textCommands.length).toBeGreaterThanOrEqual(8);
+    expect(textCommands.length).toBeGreaterThanOrEqual(14);
     expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(true);
     expect(buffer.commands.some((command) => command.op === "AddQuad")).toBe(true);
     expect(buffer.commands.some((command) => command.op === "AddTriangle")).toBe(true);
@@ -2546,11 +2556,37 @@ describe("lua runtime example integration", () => {
     const env = createLuaEnvironment(buffer, createLuaFileResolver(silverZeroFileSources));
 
     const result = await executeLuaFile(env, "examples/SilverZero/DispenserSignS.lua");
+    const textCommands = buffer.commands.filter((command) => command.op === "AddText");
+    const findText = (text: string) => textCommands.find((command) => command.text === text);
+    const largestBox = buffer.commands
+      .filter((command) => command.op === "AddBox")
+      .sort((a, b) => (b.w * b.h) - (a.w * a.h))[0];
+    const titleTexts = ["Terran", "Battlecruiser", "\"Hyperion\"", "MK1"]
+      .map((text) => findText(text))
+      .filter((command): command is NonNullable<typeof command> => command != null);
+    const uniqueFontSizes = new Set(buffer.fonts.map((font) => font.size));
 
     expect(result.success).toBe(true);
-    expect(result.requestAnimFrames).toBe(1);
+    expect(result.requestAnimFrames).toBe(0);
     expect(buffer.commands.some((command) => command.op === "AddText")).toBe(true);
     expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(true);
+    expect(buffer.commands.some((command) => command.op === "AddQuad")).toBe(true);
+    expect(buffer.commands.some((command) => command.op === "AddTriangle")).toBe(true);
+    expect(titleTexts).toHaveLength(4);
+    expect(Math.max(...titleTexts.map((command) => command.x)) - Math.min(...titleTexts.map((command) => command.x))).toBeLessThan(2);
+    expect(titleTexts.map((command) => command.y)).toEqual([...titleTexts.map((command) => command.y)].sort((a, b) => a - b));
+    expect(findText("10,000,000")).toBeDefined();
+    expect(findText("ħ")).toBeDefined();
+    expect(findText("ħ")?.x).toBeGreaterThan(findText("10,000,000")!.x);
+    expect(findText("ħ")?.y).toBeLessThan(findText("10,000,000")!.y);
+    expect(findText("DISPENSER")).toBeUndefined();
+    expect(findText("Static promotional layout")).toBeUndefined();
+    expect(findText("SALE")).toBeUndefined();
+    expect(uniqueFontSizes.size).toBeGreaterThanOrEqual(2);
+    expect(largestBox?.w).toBeGreaterThan(200);
+    expect(largestBox?.h).toBeGreaterThan(200);
+    expect(largestBox?.x).toBeGreaterThan(findText("\"Hyperion\"")!.x);
+    expect(largestBox?.y).toBeLessThan(findText("\"Hyperion\"")!.y);
   });
 
   it("renders HubPanelS with SilverZero shared library", async () => {
@@ -2583,12 +2619,23 @@ describe("lua runtime example integration", () => {
     const env = createLuaEnvironment(buffer, createLuaFileResolver(silverZeroFileSources));
 
     const result = await executeLuaFile(env, "examples/SilverZero/ContainerSignM.lua");
+    const textCommands = buffer.commands.filter((command) => command.op === "AddText");
+    const findText = (text: string) => textCommands.find((command) => command.text === text);
+    const uniqueFontSizes = new Set(buffer.fonts.map((font) => font.size));
 
     expect(result.success).toBe(true);
-    expect(result.requestAnimFrames).toBe(1);
-    expect(buffer.commands.some((command) => command.op === "AddText")).toBe(true);
+    expect(result.requestAnimFrames).toBe(0);
+    expect(textCommands.length).toBeGreaterThan(0);
     expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(true);
-    expect(buffer.commands.some((command) => command.op === "AddBoxRounded")).toBe(true);
+    expect(buffer.commands.some((command) => command.op === "AddCircle")).toBe(true);
+    expect(findText("Item")).toBeDefined();
+    expect(findText("Amount")).toBeDefined();
+    expect(findText("64%")).toBeDefined();
+    expect(findText("CONTAINER SIGN")).toBeUndefined();
+    expect(findText("STATE: LINKED")).toBeUndefined();
+    expect(findText("SCROLL")).toBeUndefined();
+    expect(findText("64%")?.x).toBeGreaterThan(findText("Amount")!.x);
+    expect(uniqueFontSizes.size).toBeGreaterThanOrEqual(3);
   });
 
   it("renders ContainerHubHubM with SilverZero shared library", async () => {
@@ -2596,12 +2643,41 @@ describe("lua runtime example integration", () => {
     const env = createLuaEnvironment(buffer, createLuaFileResolver(silverZeroFileSources));
 
     const result = await executeLuaFile(env, "examples/SilverZero/ContainerHubHubM.lua");
+    const textCommands = buffer.commands.filter((command) => command.op === "AddText");
+    const topBarQuads = buffer.commands.filter(
+      (command) => command.op === "AddQuad" && command.layer === 2 && Math.abs(command.y4 - command.y1) > 60,
+    );
+    const iconBoxes = buffer.commands.filter(
+      (command) => command.op === "AddBoxRounded" && command.w > 120 && command.h > 120,
+    );
+    const findText = (text: string) => textCommands.find((command) => command.text === text);
+    const fontSizeFor = (text: string) => {
+      const command = findText(text);
+      const font = buffer.fonts.find((entry) => entry.id === command?.fontId);
+      return font?.size ?? 0;
+    };
 
     expect(result.success).toBe(true);
-    expect(result.requestAnimFrames).toBe(1);
-    expect(buffer.commands.some((command) => command.op === "AddText")).toBe(true);
+    expect(result.requestAnimFrames).toBe(0);
+    expect(textCommands.length).toBeGreaterThan(0);
     expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(true);
+    expect(buffer.commands.some((command) => command.op === "AddQuad")).toBe(true);
     expect(buffer.commands.some((command) => command.op === "AddBoxRounded")).toBe(true);
+    expect(textCommands.some((command) => command.text.includes("HUB"))).toBe(false);
+    expect(textCommands.some((command) => command.text.includes("SCROLL"))).toBe(false);
+    expect(fontSizeFor("53.1%")).toBeGreaterThanOrEqual(24);
+    expect(fontSizeFor("478 / 900 KL")).toBeGreaterThanOrEqual(36);
+    expect(fontSizeFor("478t")).toBeGreaterThanOrEqual(30);
+    expect(fontSizeFor("800t")).toBeGreaterThanOrEqual(30);
+    expect(topBarQuads.length).toBeGreaterThanOrEqual(5);
+
+    const skewRatios = topBarQuads.map((command) => Math.abs((command.x1 - command.x4) / (command.y4 - command.y1)));
+    expect(Math.min(...skewRatios)).toBeGreaterThan(0.45);
+    expect(Math.max(...skewRatios) - Math.min(...skewRatios)).toBeLessThan(0.08);
+
+    expect(iconBoxes.length).toBeGreaterThan(0);
+    expect(findText("TA")?.x).toBeCloseTo(iconBoxes[0]!.x + iconBoxes[0]!.w * 0.5, 1);
+    expect(findText("TA")?.y).toBeCloseTo(iconBoxes[0]!.y + iconBoxes[0]!.h * 0.5, 1);
   });
 
   it("renders IndustrySelectorM with SilverZero shared library", async () => {
@@ -2624,7 +2700,7 @@ describe("lua runtime example integration", () => {
     const result = await executeLuaFile(env, "examples/SilverZero/OreExplorerM.lua");
 
     expect(result.success).toBe(true);
-    expect(result.requestAnimFrames).toBe(1);
+    expect(result.requestAnimFrames).toBe(0);
     expect(buffer.commands.some((command) => command.op === "AddText")).toBe(true);
     expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(true);
     expect(buffer.commands.some((command) => command.op === "AddCircle")).toBe(true);

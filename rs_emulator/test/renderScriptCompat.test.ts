@@ -16,7 +16,7 @@ import { RSAlignHor, RSAlignVer, RSShape, buildDefaultLayerStyles } from "../src
 describe("renderScriptCompat core contract", () => {
   it("keeps DU constants aligned across compat and exported types", () => {
     expect(DU_RS_VERSION).toBe(2);
-    expect(DU_RENDER_COST_MAX).toBe(4_000_000);
+    expect(DU_RENDER_COST_MAX).toBe(10_000);
 
     expect(RSShape).toEqual(DU_SHAPE);
     expect(RSAlignHor).toEqual(DU_ALIGN_H);
@@ -74,14 +74,14 @@ describe("renderScriptCompat core contract", () => {
     });
   });
 
-  it("uses the DU render cost helpers for validated primitives", () => {
-    expect(costCreateLayer()).toBe(75_000);
-    expect(costAddBox(10, 10)).toBe(100);
-    expect(costAddBox(10, 10, 1)).toBe(144);
-    expect(costAddBox(10, 10, 5, 5)).toBe(900);
-    expect(costAddText(5.39, 20.63)).toBe(111);
-    expect(costAddText(17.55, 20.63)).toBe(362);
-    expect(costAddText(17.55, 20.63, 1)).toBe(442);
-    expect(costAddText(17.55, 20.63, 5, 5)).toBe(1525);
+  it("uses the emulator's lightweight render cost helpers", () => {
+    expect(costCreateLayer()).toBe(0);
+    expect(costAddBox(10, 10)).toBe(1);
+    expect(costAddBox(10, 10, 1)).toBe(1);
+    expect(costAddBox(10, 10, 5, 5)).toBe(1);
+    expect(costAddText(5.39, 20.63)).toBe(1);
+    expect(costAddText(17.55, 20.63)).toBe(1);
+    expect(costAddText(17.55, 20.63, 1)).toBe(1);
+    expect(costAddText(17.55, 20.63, 5, 5)).toBe(1);
   });
 });

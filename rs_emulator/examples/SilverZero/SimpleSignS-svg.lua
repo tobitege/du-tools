@@ -68,15 +68,24 @@ for _, svgEntry in ipairs(doc.svgs or {}) do
         layout.x = 0
         layout.y = 0
         layout.scale = math.max(resolutionX / srcW, resolutionY / srcH)
+        local classifiedMasterShapes = SvgShapeClassifier.classifySvg(svgEntry, {
+            vars = doc.vars,
+        })
 
-        for _, item in ipairs(svgEntry.items or {}) do
+        for itemIndex, item in ipairs(svgEntry.items or {}) do
             local fill = theme.circuitC
             if item.fill then
                 local resolved = SvgParser.parseColor(item.fill, doc.vars)
                 if resolved then fill = resolved end
             end
             if item.d then
-                SZ.drawPath(masterLayer, layout, item.d, fill, 1.8, item.transform)
+                local classifiedShape = classifiedMasterShapes[itemIndex]
+                SZ.drawClassifiedPathItem(masterLayer, layout, item, classifiedShape, {
+                    classifiedMode = "fill",
+                    classifiedKinds = { "polygon_ring", "quad", "trapezoid" },
+                    color = fill,
+                    strokeWidth = 1.8,
+                })
             end
         end
 
@@ -162,7 +171,7 @@ local textLayer = layers.text
 local textFontSize = math.floor(resolutionX * 0.07)
 local textFont = SZ.font("Georgia", textFontSize)
 local textX = resolutionX * 0.36 + (resolutionX * 0.49) * 0.5
-local textY = contentCenterY
+local textY = contentCenterY - 50
 
 setNextTextAlign(textLayer, AlignH_Center, AlignV_Middle)
 setNextFillColor(textLayer, theme.textColor[1], theme.textColor[2], theme.textColor[3], theme.textColor[4])

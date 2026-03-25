@@ -2,7 +2,7 @@ local SZ = require("lib.SilverZeroRsLib")
 local Classifier = require("lib.SvgShapeClassifier")
 
 local resolutionX, resolutionY = getResolution()
-local layout = SZ.layoutForScreen(resolutionX, resolutionY, 240, 160, 0.04)
+local layout = SZ.layoutForScreen(resolutionX, resolutionY, 240, 238, 0.04)
 
 local colors = {
     background = { 0.08, 0.03, 0.04, 1.0 },
@@ -18,12 +18,10 @@ local bgLayer = layers.bg
 local shapeLayer = layers.shapes
 local textLayer = layers.text
 
-local titleFont = SZ.font("Arial", SZ.scaleFontSize(11, layout))
-local bodyFont = SZ.font("Arial", SZ.scaleFontSize(5, layout))
+local titleFont = SZ.font("Arial", SZ.scaleFontSize(10, layout))
+local bodyFont = SZ.font("Arial", SZ.scaleFontSize(4, layout))
 
-local function translatedScale(scale, tx, ty)
-    return { scale, 0, 0, scale, tx, ty }
-end
+local boardProbe = SZ.simpleSignBoardProbeItems()
 
 local function drawCard(x, y, w, h)
     setNextFillColor(bgLayer, colors.card[1], colors.card[2], colors.card[3], colors.card[4])
@@ -42,116 +40,229 @@ local function drawText(font, text, x, y, color)
     addText(textLayer, font, text, SZ.toScreenX(layout, x), SZ.toScreenY(layout, y))
 end
 
-local function drawFallbackStrokePreview(shape, color, strokeWidth)
-    local subpaths = shape and shape.geometry and shape.geometry.subpaths or nil
-    if not subpaths then
-        return false
-    end
+local function cardProbeLayout(cardX, cardY, cardW, cardH, shape, sourceW, sourceH)
+    local insetX = 2
+    local insetTop = 8
+    local insetBottom = 13
+    local availableW = math.max(1, cardW - insetX * 2)
+    local availableH = math.max(1, cardH - insetTop - insetBottom)
+    local availableScreenW = SZ.toScreenW(layout, availableW)
+    local availableScreenH = SZ.toScreenH(layout, availableH)
+    local bounds = shape and shape.geometry and shape.geometry.bounds or {
+        x = 0,
+        y = 0,
+        w = sourceW,
+        h = sourceH,
+    }
+    local maxDim = math.max(bounds.w or 0, bounds.h or 0, 1)
+    local minExtent = maxDim * 0.42
+    local pad = maxDim * 0.20
+    local boxW = math.max(bounds.w or 0, minExtent, 1) + pad * 2
+    local boxH = math.max(bounds.h or 0, minExtent, 1) + pad * 2
+    local scale = math.min(availableScreenW / boxW, availableScreenH / boxH)
+    local scaledW = boxW * scale
+    local scaledH = boxH * scale
+    local sourceX = (bounds.x or 0) - pad - (boxW - math.max(bounds.w or 0, minExtent, 1)) * 0.5
+    local sourceY = (bounds.y or 0) - pad - (boxH - math.max(bounds.h or 0, minExtent, 1)) * 0.5
+    local screenX = SZ.toScreenX(layout, cardX + insetX)
+    local screenY = SZ.toScreenY(layout, cardY + insetTop)
 
-    local drew = false
-    for _, subpath in ipairs(subpaths) do
-        local points = subpath.points or {}
-        if #points >= 2 then
-            setNextStrokeColor(shapeLayer, color[1], color[2], color[3], color[4] or 1)
-            setNextStrokeWidth(shapeLayer, strokeWidth * layout.scale)
-            for i = 1, #points - 1 do
-                addLine(
-                    shapeLayer,
-                    SZ.toScreenX(layout, points[i].x),
-                    SZ.toScreenY(layout, points[i].y),
-                    SZ.toScreenX(layout, points[i + 1].x),
-                    SZ.toScreenY(layout, points[i + 1].y)
-                )
-                drew = true
-            end
-        end
-    end
-
-    return drew
+    return {
+        screenW = layout.screenW,
+        screenH = layout.screenH,
+        sourceW = boxW,
+        sourceH = boxH,
+        scale = scale,
+        x = screenX + (availableScreenW - scaledW) * 0.5 - sourceX * scale,
+        y = screenY + (availableScreenH - scaledH) * 0.5 - sourceY * scale,
+    }
 end
+
+local function drawFallback(probeLayout, probe)
+    local pathData = probe.item.d
+    if probe.fallbackFirstSubpathOnly then
+        pathData = SZ.firstSubpathPathData(pathData)
+    end
+
+    SZ.drawPath(shapeLayer, probeLayout, pathData, probe.color, probe.strokeWidth, probe.item.transform)
+    return true
+end
+
+local function drawProbeCase(probeLayout, probe, shape)
+    local beforeCost = getRenderCost()
+    local adapterHit = false
+
+    if probe.mode == "fill" then
+        adapterHit = SZ.drawClassifiedFillShape(shapeLayer, probeLayout, shape, {
+            color = probe.color,
+            strokeWidth = probe.strokeWidth,
+        })
+    elseif probe.mode == "stroke" then
+        adapterHit = SZ.drawClassifiedStrokeShape(shapeLayer, probeLayout, shape, {
+            color = probe.color,
+            strokeWidth = probe.strokeWidth,
+        })
+    else
+        adapterHit = SZ.drawClassifiedShape(shapeLayer, probeLayout, shape, {
+            color = probe.color,
+            strokeWidth = probe.strokeWidth,
+        })
+    end
+
+    local status = "adapter"
+    if not adapterHit then
+        drawFallback(probeLayout, probe)
+        status = "fallback"
+    end
+
+    return status, getRenderCost() - beforeCost
+end
+
+local syntheticSourceW = 40
+local syntheticSourceH = 40
 
 local probes = {
     {
         id = "hex_fill",
-        label = "hex_ring",
-        adapter = "fill",
-        fill = colors.accent,
+        mode = "fill",
+        color = colors.accent,
+        strokeWidth = 1.6,
+        sourceW = syntheticSourceW,
+        sourceH = syntheticSourceH,
         item = {
-            d = "M0 -10 L8.66 -5 L8.66 5 L0 10 L-8.66 5 L-8.66 -5 z M0 -6 L5.2 -3 L5.2 3 L0 6 L-5.2 3 L-5.2 -3 z",
+            d = "M20 4 L33 12 L33 28 L20 36 L7 28 L7 12 z M20 10 L28 15 L28 25 L20 30 L12 25 L12 15 z",
             fill = "#f00",
-            transform = translatedScale(1.45, 45, 54),
         },
     },
     {
         id = "poly_fill",
-        label = "polygon_ring",
-        adapter = "fill",
-        fill = colors.highlight,
+        mode = "fill",
+        color = colors.highlight,
+        strokeWidth = 1.6,
+        sourceW = syntheticSourceW,
+        sourceH = syntheticSourceH,
         item = {
-            d = "M-10 -10 L10 -10 L10 10 L-10 10 z M-5 -5 L5 -5 L5 5 L-5 5 z",
+            d = "M6 6 L34 6 L34 34 L6 34 z M13 13 L27 13 L27 27 L13 27 z",
             fill = "#fff",
-            transform = translatedScale(1.05, 120, 54),
         },
     },
     {
         id = "trap_fill",
-        label = "trapezoid",
-        adapter = "fill",
-        fill = colors.accent,
+        mode = "fill",
+        color = colors.accent,
+        strokeWidth = 1.6,
+        sourceW = syntheticSourceW,
+        sourceH = syntheticSourceH,
         item = {
-            d = "M-12 -7 L12 -7 L8 7 L-8 7 z",
+            d = "M5 9 L35 9 L29 31 L11 31 z",
             fill = "#f00",
-            transform = translatedScale(1.0, 195, 54),
         },
     },
     {
         id = "poly_closed",
-        label = "closed_polygon",
-        adapter = "fill",
-        fill = colors.highlight,
+        mode = "fill",
+        color = colors.highlight,
+        strokeWidth = 1.6,
+        sourceW = syntheticSourceW,
+        sourceH = syntheticSourceH,
         item = {
-            d = "M0 -14 L12 -4 L8 10 L-8 10 L-12 -4 z",
+            d = "M20 4 L34 15 L29 34 L11 34 L6 15 z",
             fill = "#fff",
-            transform = translatedScale(1.0, 45, 118),
         },
     },
     {
-        id = "compound_stroke",
-        label = "compound_path",
-        adapter = "stroke",
-        fill = colors.highlight,
+        id = "compound_stk",
+        mode = "stroke",
+        color = colors.highlight,
+        strokeWidth = 1.6,
+        sourceW = syntheticSourceW,
+        sourceH = syntheticSourceH,
         item = {
-            d = "M-14 -8 L-4 -8 L-4 8 L-14 8 z M4 -8 L14 -8 L14 8 L4 8 z",
+            d = "M5 8 L16 8 L16 32 L5 32 z M24 8 L35 8 L35 32 L24 32 z",
             fill = "#fff",
-            transform = translatedScale(1.0, 120, 118),
         },
     },
     {
-        id = "outline_stroke",
-        label = "outline_path",
-        adapter = "stroke",
-        fill = colors.accent,
+        id = "outline_stk",
+        mode = "stroke",
+        color = colors.accent,
+        strokeWidth = 1.6,
+        sourceW = syntheticSourceW,
+        sourceH = syntheticSourceH,
         item = {
-            d = "M-14 10 L-8 -8 L0 -2 L8 -12 L14 -4",
+            d = "M5 30 L13 8 L20 14 L28 4 L35 12",
             fill = "#f00",
-            transform = translatedScale(1.0, 195, 118),
         },
+    },
+    {
+        id = "board_trap",
+        mode = "fill",
+        color = colors.highlight,
+        strokeWidth = 1.6,
+        sourceW = boardProbe.sourceW,
+        sourceH = boardProbe.sourceH,
+        item = boardProbe.items.topTrapezoid,
+    },
+    {
+        id = "board_quad",
+        mode = "fill",
+        color = colors.highlight,
+        strokeWidth = 1.6,
+        sourceW = boardProbe.sourceW,
+        sourceH = boardProbe.sourceH,
+        item = boardProbe.items.rightMidQuad,
+    },
+    {
+        id = "board_ofill",
+        mode = "fill",
+        color = colors.highlight,
+        strokeWidth = 1.6,
+        sourceW = boardProbe.sourceW,
+        sourceH = boardProbe.sourceH,
+        item = boardProbe.items.leftUpperOutline,
+    },
+    {
+        id = "board_ostrk",
+        mode = "stroke",
+        color = colors.highlight,
+        strokeWidth = 1.6,
+        sourceW = boardProbe.sourceW,
+        sourceH = boardProbe.sourceH,
+        item = boardProbe.items.leftUpperOutline,
+    },
+    {
+        id = "board_cshape",
+        mode = "shape",
+        color = colors.highlight,
+        strokeWidth = 1.6,
+        sourceW = boardProbe.sourceW,
+        sourceH = boardProbe.sourceH,
+        item = boardProbe.items.topEdgeCompound,
+    },
+    {
+        id = "board_cfill",
+        mode = "fill",
+        color = colors.highlight,
+        strokeWidth = 1.6,
+        sourceW = boardProbe.sourceW,
+        sourceH = boardProbe.sourceH,
+        item = boardProbe.items.topEdgeCompound,
     },
 }
 
 local summaries = {}
 local cardW = 68
-local cardH = 54
+local cardH = 50
 local startX = 11
 local startY = 27
 local stepX = 75
-local stepY = 64
+local stepY = 52
 
 setNextFillColor(bgLayer, colors.background[1], colors.background[2], colors.background[3], colors.background[4])
 addBox(bgLayer, 0, 0, resolutionX, resolutionY)
 
-drawText(titleFont, "Shape Adapter Probe", 120, 12, colors.highlight)
-drawText(bodyFont, "free-form classified geometry", 120, 20, colors.muted)
+drawText(titleFont, "Shape Adapter Probe", 120, 10, colors.highlight)
+drawText(bodyFont, "synthetic + real board families", 120, 18, colors.muted)
 
 for index, probe in ipairs(probes) do
     local col = (index - 1) % 3
@@ -159,47 +270,28 @@ for index, probe in ipairs(probes) do
     local cardX = startX + col * stepX
     local cardY = startY + row * stepY
     local cardCenterX = cardX + cardW * 0.5
+    local shape = Classifier.classifyItem(probe.item)
+    local probeLayout = cardProbeLayout(cardX, cardY, cardW, cardH, shape, probe.sourceW, probe.sourceH)
 
     drawCard(cardX, cardY, cardW, cardH)
+    local status, costDelta = drawProbeCase(probeLayout, probe, shape)
 
-    local shape = Classifier.classifyItem(probe.item)
-    local drew = false
-    local fallbackPreview = false
-    if probe.adapter == "fill" then
-        drew = SZ.drawClassifiedFillShape(shapeLayer, layout, shape, {
-            color = probe.fill,
-            strokeWidth = 1.6,
-        })
-    elseif probe.adapter == "stroke" then
-        drew = SZ.drawClassifiedStrokeShape(shapeLayer, layout, shape, {
-            color = probe.fill,
-            strokeWidth = 1.6,
-        })
-    else
-        drew = SZ.drawClassifiedShape(shapeLayer, layout, shape, {
-            color = probe.fill,
-            strokeWidth = 1.6,
-        })
-    end
-
-    if not drew and probe.adapter == "stroke" then
-        fallbackPreview = drawFallbackStrokePreview(shape, colors.accentSoft, 2.2)
-    end
-
-    drawText(bodyFont, probe.id, cardCenterX, cardY + 6, colors.muted)
-    drawText(bodyFont, shape and shape.kind or "nil", cardCenterX, cardY + 44, colors.highlight)
-    local statusText = (drew and "adapter" or "fallback") .. ":" .. probe.adapter
-    if fallbackPreview then
-        statusText = "preview:fallback"
-    end
-    drawText(bodyFont, statusText, cardCenterX, cardY + 50, drew and colors.accentSoft or colors.muted)
+    drawText(bodyFont, probe.id, cardCenterX, cardY + 5, colors.muted)
+    drawText(bodyFont, shape and shape.kind or "nil", cardCenterX, cardY + 40, colors.highlight)
+    drawText(
+        bodyFont,
+        string.format("%s:%s c%d", status, probe.mode, costDelta),
+        cardCenterX,
+        cardY + 46,
+        status == "adapter" and colors.accentSoft or colors.muted
+    )
 
     summaries[#summaries + 1] = string.format(
         "%s=%s|%s|%s",
         probe.id,
         shape and shape.kind or "nil",
-        probe.adapter,
-        tostring(drew)
+        probe.mode,
+        status
     )
 end
 

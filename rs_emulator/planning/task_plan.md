@@ -2,78 +2,83 @@
 
 ## Goal
 
-Die zwei fehlenden Endprodukte fuer den SVG-Porting-Workflow im `rs_emulator` fachlich ausarbeiten: ein SVG-Fragment-Klassifikationsmodul und eine Lua-Shape-Bibliothek, jeweils mit Zielbild, Datenmodell, Phasen, Risiken und konkreten Einstiegsaufgaben.
+Define the two missing end products for the SVG porting workflow in `rs_emulator`:
+
+- an SVG fragment classification module
+- a Lua shape library
+
+The planning work should describe the target architecture, data model, phases, risks, and practical entry points for implementation.
 
 ## Current Phase
 
-Phase 5
+Planning is complete. Ongoing implementation follow-up is tracked in [progress.md](/d:/github/du-tobi/rs_emulator/planning/progress.md).
 
 ## Phases
 
-### Phase 1: Requirements & Discovery
+### Phase 1: Requirements and Discovery
 
-- [x] Nutzerziel fuer die zwei Endprodukte erfassen
-- [x] Bestehende SVG-Arbeitspatches sichten
-- [x] Aktuelle technische Grenzen im Parser und in der Render-Lib festhalten
+- [x] Capture the user goal for the two end products
+- [x] Review the existing SVG work patches
+- [x] Record the current technical limits in the parser and render library
 - **Status:** complete
 
 ### Phase 2: Planning Workspace
 
-- [x] Eigenes Verzeichnis `rs_emulator/planning` anlegen
-- [x] File-based planning Unterlagen in diesem Verzeichnis anlegen
-- [x] Ausgangslage und Folgedokumente verlinken
+- [x] Create the dedicated `rs_emulator/planning` directory
+- [x] Add file-based planning documents in that directory
+- [x] Link the baseline material and follow-up documents
 - **Status:** complete
 
 ### Phase 3: Classifier Planning
 
-- [x] Zielbild fuer ein `SvgShapeClassifier` beschreiben
-- [x] Klassifikationsstufen und Ausgabeformat definieren
-- [x] Risiken und Einfuehrungsstrategie festhalten
+- [x] Describe the target shape of a future `SvgShapeClassifier`
+- [x] Define classification stages and output format
+- [x] Record risks and an introduction strategy
 - **Status:** complete
 
 ### Phase 4: Shape Library Planning
 
-- [x] Zielbild fuer eine Lua-Shape-Bibliothek beschreiben
-- [x] Shape-Kategorien und API-Vorschlaege definieren
-- [x] Migrationsstrategie aus ad-hoc-Patches herausarbeiten
+- [x] Describe the target shape of a Lua shape library
+- [x] Define shape categories and candidate APIs
+- [x] Outline a migration strategy away from ad-hoc patches
 - **Status:** complete
 
 ### Phase 5: Delivery
 
-- [x] Ergebnisse in Planungsdateien zusammenfassen
-- [x] Nächste sinnvolle Umsetzungsschritte benennen
-- [x] Mit dem Nutzer entscheiden, welcher Track zuerst umgesetzt wird
+- [x] Summarize the results in planning documents
+- [x] Identify the next sensible implementation steps
+- [x] Align with the user on which track to implement first
 - **Status:** complete
 
 ## Key Questions
 
-1. Welche Fragment-Typen koennen wir robust geometrisch erkennen, ohne sofort semantische Wunder zu erwarten?
-2. Wie sollte das Shape-Datenmodell aussehen, damit Klassifikation und Lua-Rendering dieselben Begriffe sprechen?
-3. Welche bestehenden Workarounds lassen sich spaeter komplett entfernen, wenn Classifier und Shape-Library vorhanden sind?
+1. Which fragment types can be recognized robustly from geometry alone, without overpromising semantic understanding?
+2. What should the shared shape data model look like so classifier output and Lua rendering use the same vocabulary?
+3. Which existing workarounds can eventually be removed entirely once the classifier and shape library are in place?
 
-## Offene Umsetzungspunkte Nach Der Ersten Iteration
+## Open Implementation Items After The First Iteration
 
-- [x] `polygon_ring` implementieren
-- [x] `hex_ring` implementieren
-- [x] `frame_outline` als ersten Rollenhinweis implementieren
-- [x] `edge_decal` als zweiten Rollenhinweis implementieren
-- [x] `frame_cap` als dritten Rollenhinweis implementieren
-- [x] Review-Fixes fuer `frame_outline`, `frame_cap` und rollenbewusste `groupHints` nachziehen
-- [x] `logo_segment` als weiteren Rollenhinweis implementieren
-- [ ] Weiteren Rollenhinweis `ornament` implementieren
-- [x] Gruppierung mehrerer Fragmente bzw. `groupHints` implementieren
-- [ ] Classifier-Ausgabe an den eigentlichen Render-/Porting-Schritt anbinden
+- [x] Implement `polygon_ring`
+- [x] Implement `hex_ring`
+- [x] Implement `frame_outline` as the first role hint
+- [x] Implement `edge_decal` as the second role hint
+- [x] Implement `frame_cap` as the third role hint
+- [x] Apply review fixes for `frame_outline`, `frame_cap`, and role-aware `groupHints`
+- [x] Implement `logo_segment` as another role hint
+- [ ] Implement the remaining role hint `ornament`
+- [x] Implement grouping for repeated fragments via `groupHints`
+- [ ] Connect classifier output to the full render/porting path
 
 ## Decisions Made
 
 | Decision | Rationale |
 |----------|-----------|
-| Planungsdateien liegen in `rs_emulator/planning` statt im Repo-Root | Entspricht dem Nutzerwunsch und trennt Architekturarbeit von allgemeinem Projektmaterial |
-| Zwei Themen werden in getrennten Fachpapieren ausgearbeitet | Klassifikation und Shape-Library sind eng verwandt, aber als Umsetzungsstreams getrennt planbar |
-| `svg-work-patches.md` ist die Ausgangsbasis | Diese Datei enthaelt bereits die faktisch bekannten Shape-Typen und Root-Causes |
-| Die erste produktive Umsetzung startet mit dem `SvgShapeClassifier` | Der Nutzer hat den geometrischen Track fuer die erste Iteration explizit priorisiert |
+| Planning files live in `rs_emulator/planning` instead of the repo root | This matches the user request and keeps the architecture work separate from general project material |
+| The two topics are documented separately | The classifier and shape library are tightly related, but they are still distinct implementation tracks |
+| `svg-work-patches.md` is the baseline source | That file already captures the real shape types and root causes discovered in practice |
+| The first production track starts with `SvgShapeClassifier` | The user explicitly prioritized the geometry-first path for the first implementation round |
 
 ## Notes
 
-- Primäre Ausgangsdatei: [svg-work-patches.md](/d:/github/du-tobi/rs_emulator/svg-work-patches.md)
-- Fachpapiere: [svg-classifier-plan.md](/d:/github/du-tobi/rs_emulator/planning/svg-classifier-plan.md) und [svg-shape-library-plan.md](/d:/github/du-tobi/rs_emulator/planning/svg-shape-library-plan.md)
+- Primary baseline file: [svg-work-patches.md](/d:/github/du-tobi/rs_emulator/svg-work-patches.md)
+- Planning papers: [svg-classifier-plan.md](/d:/github/du-tobi/rs_emulator/planning/svg-classifier-plan.md) and [svg-shape-library-plan.md](/d:/github/du-tobi/rs_emulator/planning/svg-shape-library-plan.md)

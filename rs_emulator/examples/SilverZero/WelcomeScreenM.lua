@@ -5,7 +5,6 @@ local resolutionX, resolutionY = getResolution()
 local layout = SZ.layoutForScreen(resolutionX, resolutionY, 231, 156, 0.055)
 local now = SZ.time()
 
-SZ.animLoop(1)
 setBackgroundColor(0.31, 0.03, 0.03) -- #5008 (approximate)
 
 local titleFont = SZ.font("Georgia", SZ.scaleFontSize(26, layout))
@@ -266,3 +265,4 @@ drawPanel(layers.panel)
 drawLogo(layers.logo)
 drawHelix(layers.helix)
 drawText(layers.text)
+SZ.animLoop(1)

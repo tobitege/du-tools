@@ -6,6 +6,7 @@ local samples = {
   { name = "RobotoCondensed", size = 32, text = "RobotoCondensed - Clean UI text and readable labels" },
   { name = "Play", size = 40, text = "Play - Heading sample with crisp display shapes" },
   { name = "Montserrat-Light", size = 40, text = "Montserrat-Light - Lighter body copy sample" },
+  { name = "RefrigeratorDeluxe", size = 34, text = "RefrigeratorDeluxe - Futuristic display sample" },
   { name = "FiraMono", size = 30, text = "FiraMono - Monospace diagnostics and logs" },
   { name = "FiraMono-Bold", size = 30, text = "FiraMono-Bold - DU-style mono emphasis sample" },
 }
@@ -14,7 +15,7 @@ setBackgroundColor(0.04, 0.05, 0.08)
 
 local layer = createLayer()
 local rx, ry = getResolution()
-local y = 42
+local y = 50
 local margin = 34
 
 setNextFillColor(layer, 0.82, 0.88, 1, 1)

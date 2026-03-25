@@ -7,8 +7,6 @@ local resolutionX, resolutionY = getResolution()
 local layout = SZ.layoutForScreen(resolutionX, resolutionY, 231, 156, 0.06)
 local now = SZ.time()
 
-SZ.animLoop(1)
-
 setBackgroundColor(theme.background[1], theme.background[2], theme.background[3])
 
 local titleFont = SZ.font("Arial", SZ.scaleFontSize(13, layout))
@@ -208,3 +206,4 @@ SZ.text(layers.text, layout, detailFont, "ROUTE STABLE | POWER: OK | LINK: GOOD"
   alignY = AlignV_Middle,
   color = theme.textPrimary,
 })
+SZ.animLoop(1)

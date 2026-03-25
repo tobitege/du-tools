@@ -1,101 +1,108 @@
-# Findings & Decisions
+# Findings and Decisions
 
 ## Requirements
 
-- Die zwei bereits identifizierten Endprodukte sollen vor einer konkreten Implementierung sauber ausgearbeitet werden.
-- Die Ergebnisse sollen in `rs_emulator/planning` liegen.
-- Das Material soll als Grundlage fuer spaetere Architektur- und Umsetzungsentscheidungen dienen.
-- Die neue Planung soll auf den realen SVG-Arbeitspatches dieser Session aufsetzen, nicht auf abstrakten Annahmen.
+- The two already-identified end products should be properly defined before further implementation work continues.
+- The results should live in `rs_emulator/planning`.
+- The material should support later architecture and implementation decisions.
+- The planning should be grounded in the real SVG patch work from this repository, not in abstract assumptions.
 
 ## Research Findings
 
-- [svg-work-patches.md](/d:/github/du-tobi/rs_emulator/svg-work-patches.md) zeigt bereits mehrere implizite Shape-Typen:
-  - Logo-Aussensegmente als Quads
-  - rechte und linke Edge-Decals als Quads
-  - unteres mittleres Frame-Segment als Quad
-  - innerer Hex-Ring als eigene Render-Form
-- [SvgParser.lua](/d:/github/du-tobi/rs_emulator/lib/SvgParser.lua) liefert derzeit vor allem `d`, `fill`, `transform` und etwas SVG-Kontext, aber keine reichere Shape-Semantik.
-- [SilverZeroRsLib.lua](/d:/github/du-tobi/rs_emulator/lib/SilverZeroRsLib.lua#L596) zeichnet SVG-Pfade aktuell im Kern als Liniensegmente mit `addLine(...)`; echte Pfadflaechen sind kein generischer Teil des aktuellen Transfers.
-- [SilverZeroRsLib.lua](/d:/github/du-tobi/rs_emulator/lib/SilverZeroRsLib.lua#L990) bis [SilverZeroRsLib.lua](/d:/github/du-tobi/rs_emulator/lib/SilverZeroRsLib.lua#L1123) enthaelt bereits mehrere shape-artige Primitive wie `hexagon`, `hexRing`, `notchedHex`, `circularSegments`.
-- Das bedeutet: Die Bibliothek hat bereits ein erstes Shape-Vokabular, aber es ist noch nicht an einen SVG-Klassifikations- oder Porting-Workflow angeschlossen.
-- Die erste Classifier-Iteration kann stabil aus `path d`-Daten geometrische Struktur ableiten:
-  - mehrere Subpaths erkennen
-  - explizit und implizit geschlossene Pfade unterscheiden
-  - transformierte Polygonpunktlisten approximieren
-  - Bounds und primaeren Teilpfad bestimmen
-  - `outline_path`, `closed_polygon`, `triangle`, `quad`, `trapezoid` und `compound_path` klassifizieren
-- Das Board-Decal `m2330 1473 29 34v-38l-29-34v38` aus `SimpleSignS_html.lua` wird mit angewendetem SVG-Transform als `quad` mit den erwarteten vier Punkten erkannt. Das bestaetigt, dass die neue Analyse nicht nur auf synthetischen Testpfaden funktioniert.
-- Viele kleine SVG-Flaechen nutzen implizite Schliessung ohne explizites `z`. Diese Form muss der Classifier selbst erkennen, sonst fallen reale Decals faelschlich in `outline_path`.
-- Die neu exportierte `SimpleSignS`-Preview zeigt eine klar wiederkehrende reale Geometrieklasse: zwei geschlossene, ineinanderliegende Subpaths mit gemeinsamem Zentrum.
-  - Im kleinen Preview-SVG sind das drei bisher als `compound_path` gefuehrte Ringformen.
-  - Im `master-artboard` sind das 23 kleine Marker-Ringe mit Bounds `17.2 x 17.2`, die zuvor ebenfalls nur als `compound_path` auftauchten.
-- Diese Formen lassen sich rein geometrisch ueber Verschachtelung, Zentrum und Innenkontur erkennen; dafuer ist keine semantische Sonderlogik im Beispielskript noetig.
-- Innerhalb dieser Ringformen gibt es in `SimpleSignS` nochmals eine echte Untergruppe:
-  - Die drei grossen Ringformen im oberen SVG verhalten sich geometrisch wie sechseckige Doppelkonturen und lassen sich robust zu `hex_ring` verfeinern.
-  - Die 23 kleinen Marker im `master-artboard` bleiben dagegen bewusst generische `polygon_ring`, weil ihre approximierten Kurven mit `24+24` Punkten rund und nicht hexagonal sind.
-- Nach der Gruppierungsrunde zeigt die Preview zusaetzlich wiederkehrende Formfamilien:
-  - die 23 Marker-Ringe im `master-artboard` bilden einen gemeinsamen `polygon_ring`-Cluster
-  - die vier offenen Kantenfragmente in `SVG 3` bilden einen gemeinsamen `outline_path`-Cluster
-  - die vier kleinen Rand-Quads in `SVG 3` bilden einen gemeinsamen `quad`-Cluster
-  - die beiden oberen bzw. unteren Doppelstrips in `SVG 3` werden als zusammengehoerige `compound_path`-Paare sichtbar
-- Zwei der verbliebenen grossen `compound_path`-Faelle verhalten sich ebenfalls auffaellig konsistent:
-  - `SVG 1 #10` deckt die komplette kleine Sign-ViewBox fast vollstaendig ab und besteht aus genau zwei echten oder effektiv geschlossenen Konturen
-  - `SVG 3 #20` zeigt dasselbe Muster fuer den grossen Rahmen des breiten Schilds
-- Diese beiden Realfaelle lassen sich rein geometrisch als `frame_outline` markieren, ohne semantische Sonderfaelle aus dem Beispielskript zu brauchen.
-- Der Review-Fix hat gezeigt, dass "effektiv geschlossen" hier wichtig ist:
-  - die realen Rahmenkonturen in `SimpleSignS` sind nicht immer formal mit `z` geschlossen
-  - fuer `frame_outline` reicht aber ein sehr kleiner Start/End-Abstand innerhalb derselben Kontur
-  - grosse offene Linienbuendel duerfen dadurch trotzdem nicht faelschlich als Rahmen gelten
-- Der naechste groessere Restblock besteht aus vielen kleinen Highlight-Fragmenten direkt an den Aussenraendern:
-  - in `SVG 3` betrifft das die Fragmente `#02` bis `#19` in mehreren Primitive-Klassen (`trapezoid`, `compound_path`, `quad`, `outline_path`)
-  - in `SVG 1` bleibt ausserdem `#07` als schmaler, randnaher `outline_path` uebrig
-- Diese Formen teilen dieselbe robuste Geometrie: sehr schlanke Bounds, geringe Flaechenabdeckung, klare Randnaehe und Highlight-Fill. Das reicht fuer einen ersten Rollenhinweis `edge_decal`.
-- Nach `frame_outline` und `edge_decal` bleibt im breiten Schild noch genau eine grosse, zentrierte und fast viewBox-deckende Innenflaeche ohne Rolle uebrig:
-  - `SVG 3 #01` ist ein `closed_polygon` mit 32 Punkten und Bounds `230.267 x 154.604` bei einer ViewBox von `231 x 156`
-  - die Form ist klar groesser als die Rand-Decals, aber zugleich keine Doppelkontur wie `frame_outline`
-- Diese Geometrie eignet sich als erster belastbarer `frame_cap`-Fall.
-- Der Review-Fix hat die Regel enger gemacht:
-  - `frame_cap` wird nicht mehr nur aus Groesse und Zentrierung abgeleitet
-  - die Flaeche braucht jetzt einen passenden umschliessenden `frame_outline` im selben SVG-Kontext
-  - dadurch werden generische Backdrops oder isolierte grosse Polygone nicht vorschnell als Rahmenflaeche markiert
-
-- Fuer `groupHints` gilt nach dem Review ebenfalls eine neue Erkenntnis:
-  - reine Geometrie-Fingerprints reichen fuer spaetere Porting-Entscheidungen nicht immer aus
-  - Rollen wie `frame_cap` und andere spaetere Rollen muessen beim Clustering mitberuecksichtigt werden
-  - sonst koennen semantisch verschiedene, aber geometrisch aehnliche Fragmente im selben Cluster landen
-- Nach `frame_outline`, `frame_cap` und `edge_decal` bleibt im kleinen `SVG 1` eine klare Restfamilie uebrig:
-  - die vier grossen Eck-Polygone `#01`, `#02`, `#05` und `#06`
-  - alle vier liegen innerhalb desselben `frame_outline`
-  - alle vier haben sehr aehnliche Bounds
-  - ihre Mittelpunkte sind ueber beide Achsen um denselben Rahmenmittelpunkt gespiegelt
-- Wichtig fuer diese Familie:
-  - der Fill ist nicht das tragende Merkmal
-  - die reale `SimpleSignS`-Familie mischt Primaerfarbe und Highlight-Fill
-  - ein Fill-basierter Ausschluss verliert echte Logo-Segmente
-- Fuer spaetere Rollenlogik brauchten wir deshalb zwei Rahmen-Kontexte:
-  - `findCenteredFrameOutline(...)` fuer zentrierte Innenflaechen wie `frame_cap`
-  - `findEnclosingFrameOutline(...)` fuer umschlossene, aber absichtlich exzentrische Fragmente wie `logo_segment`
-- Daraus ergibt sich ein belastbarer neuer Rollenhinweis:
-  - `logo_segment` fuer einzelne `closed_polygon`-Fragmente, die innerhalb eines `frame_outline` eine vollstaendige, vierfach gespiegelte Quadrantenfamilie mit aehnlicher Groesse bilden
-  - im aktuellen `SimpleSignS` betrifft das genau die vier Eckfragmente des kleinen Logos
-  - die zentralen `hex_ring`-Formen und der seitliche Steg bleiben dabei bewusst ohne diese Rolle
+- [svg-work-patches.md](/d:/github/du-tobi/rs_emulator/svg-work-patches.md) already implies several recurring shape types:
+  - logo outer segments as quads
+  - right and left edge decals as quads
+  - the lower middle frame segment as a quad
+  - the inner logo hex ring as a dedicated render shape
+- [SvgParser.lua](/d:/github/du-tobi/rs_emulator/lib/SvgParser.lua) currently provides mostly `d`, `fill`, `transform`, and some SVG context, but no richer shape semantics.
+- [SilverZeroRsLib.lua](/d:/github/du-tobi/rs_emulator/lib/SilverZeroRsLib.lua#L596) still renders SVG paths primarily as line segments via `addLine(...)`; generic path fills are not yet a first-class part of the transfer path.
+- [SilverZeroRsLib.lua](/d:/github/du-tobi/rs_emulator/lib/SilverZeroRsLib.lua#L990) to [SilverZeroRsLib.lua](/d:/github/du-tobi/rs_emulator/lib/SilverZeroRsLib.lua#L1123) already contains several shape-oriented primitives such as `hexagon`, `hexRing`, `notchedHex`, and `circularSegments`.
+- That means the library already has a first shape vocabulary, but it was not originally connected to an SVG classification or porting workflow.
+- The first classifier iteration can derive stable geometric structure from `path d` data:
+  - detect multiple subpaths
+  - distinguish explicit and implicit closure
+  - approximate transformed polygon point lists
+  - determine bounds and the primary subpath
+  - classify `outline_path`, `closed_polygon`, `triangle`, `quad`, `trapezoid`, and `compound_path`
+- The board decal `m2330 1473 29 34v-38l-29-34v38` from `SimpleSignS_html.lua` is recognized as a `quad` with the expected four points after applying the SVG transform. That confirmed the analysis works on real inputs, not just synthetic tests.
+- Many small SVG fill shapes rely on implicit closure without an explicit `z`. The classifier has to detect that, or real decals fall back incorrectly to `outline_path`.
+- The exported `SimpleSignS` preview revealed a recurring real geometry class: two closed nested subpaths with a shared center.
+  - in the small preview SVG, three former `compound_path` cases belong to this family
+  - in `master-artboard`, 23 small marker rings with bounds `17.2 x 17.2` also belonged to it
+- These shapes can be recognized purely from geometry through nesting, center alignment, and inner contour structure, without example-specific semantic logic.
+- Within that ring family, `SimpleSignS` contains a real sub-group:
+  - the three larger ring shapes in the upper SVG behave like nested hexagons and can be refined to `hex_ring`
+  - the 23 small `master-artboard` markers remain intentionally generic `polygon_ring` because their approximated curves are round (`24+24` points), not hexagonal
+- After grouping was introduced, the preview showed additional repeated families:
+  - the 23 `master-artboard` marker rings form a shared `polygon_ring` cluster
+  - the four open edge fragments in `SVG 3` form a shared `outline_path` cluster
+  - the four small edge quads in `SVG 3` form a shared `quad` cluster
+  - the upper and lower double-strip shapes in `SVG 3` appear as related `compound_path` pairs
+- Two remaining large `compound_path` cases also behaved consistently:
+  - `SVG 1 #10` covers almost the full small sign viewBox and consists of exactly two real or effectively closed contours
+  - `SVG 3 #20` shows the same pattern for the large frame of the wide sign
+- Those two real cases can be marked geometrically as `frame_outline` without adding semantic special cases in the example script.
+- The review pass showed that “effectively closed” matters here:
+  - real frame contours in `SimpleSignS` are not always formally closed with `z`
+  - `frame_outline` can still be recognized if the start and end points are very close
+  - large open line bundles must still be excluded
+- The next large remainder consisted of many small highlight fragments near outer edges:
+  - in `SVG 3`, this affected fragments `#02` through `#19` across several primitive classes (`trapezoid`, `compound_path`, `quad`, `outline_path`)
+  - in `SVG 1`, fragment `#07` remained as a narrow edge-adjacent `outline_path`
+- These shapes share the same robust geometry: narrow bounds, low area coverage, clear edge proximity, and highlight fill. That was enough for a first `edge_decal` role hint.
+- After `frame_outline` and `edge_decal`, one large centered inner area remained in the wide sign without a role:
+  - `SVG 3 #01` is a `closed_polygon` with 32 points and bounds `230.267 x 154.604` inside a `231 x 156` viewBox
+  - it is larger than the edge decals, but not a double contour like `frame_outline`
+- That geometry was a good first `frame_cap` case.
+- The review pass tightened that rule:
+  - `frame_cap` is no longer inferred from size and centering alone
+  - the shape now also requires an enclosing `frame_outline` in the same SVG context
+  - that avoids over-classifying generic backdrops or isolated large polygons as frame fills
+- A second review finding affected `groupHints`:
+  - pure geometry fingerprints are not always enough for later porting decisions
+  - roles such as `frame_cap` and future roles also need to affect clustering
+  - otherwise semantically different fragments can end up in the same cluster
+- After `frame_outline`, `frame_cap`, and `edge_decal`, a clear remainder family was left in small `SVG 1`:
+  - the four large corner polygons `#01`, `#02`, `#05`, and `#06`
+  - all four live inside the same `frame_outline`
+  - all four have very similar bounds
+  - their centers mirror each other across both axes around the frame midpoint
+- The important observation for that family:
+  - fill is not the defining feature
+  - the real `SimpleSignS` family mixes primary-color and highlight fills
+  - a fill-based exclusion would lose valid logo segments
+- That led to two separate frame-context helpers:
+  - `findCenteredFrameOutline(...)` for centered inner areas such as `frame_cap`
+  - `findEnclosingFrameOutline(...)` for enclosed but intentionally off-center fragments such as `logo_segment`
+- From that came a durable new role hint:
+  - `logo_segment` for `closed_polygon` fragments that form a complete four-quadrant mirrored family inside the same `frame_outline`
+  - in the current `SimpleSignS`, this applies to the four corner fragments of the small logo
+  - the central `hex_ring` forms and the side bar remain intentionally outside this role
+- For the next production `master-artboard` step, a narrow porter filter was safer than another broad classifier-first rollout:
+  - the 23 marker rings could be reconnected through `polygon_ring`
+  - a generic kind filter in the porter was enough; classifier heuristics did not need to change
+  - other `master-artboard` families can now be enabled later one by one without repeating the same large regression risk
+- The next small `master-artboard` expansion could be done in the same way without touching the classifier:
+  - besides `polygon_ring`, there are only three additional well-understood four-point cases there (`1` `quad`, `2` `trapezoid`)
+  - those can be routed safely through the existing four-point adapter via the same kind filter
+  - the large remaining `closed_polygon` block can therefore stay isolated instead of being enabled too early as one large batch
 
 ## Technical Decisions
 
 | Decision | Rationale |
 |----------|-----------|
-| Classifier und Shape-Library werden als getrennte, aber gekoppelte Architekturthemen beschrieben | Der Classifier produziert Shape-Wissen; die Library konsumiert dieses Wissen |
-| Es wird zunaechst auf geometrische Klassifikation fokussiert | Das ist deutlich realistischer und stabiler als sofortige semantische Vollautomatik |
-| Bestehende Workarounds gelten als Beweis fuer benoetigte Shape-Klassen | Das aktuelle Skript zeigt bereits, welche Formtypen in der Praxis gebraucht werden |
-| Die bestehende `SilverZeroRsLib.lua` wird als wahrscheinliche Heimat der ersten Shape-Bausteine betrachtet | Dort existieren bereits passende geometrische Hilfen und Layout-Konventionen |
-| Die erste produktive API bleibt rein analytisch (`analyzePath`, `classifyItem`, `classifyItems`, `classify`) | So entsteht sofort wiederverwendbare Shape-Logik, ohne das Beispielskript mit neuen Sonderfaellen zu vermischen |
+| Treat the classifier and shape library as separate but coupled architecture topics | The classifier produces shape knowledge; the library consumes it |
+| Focus the first iteration on geometric classification | That is much more realistic and stable than trying to jump directly to full semantic automation |
+| Treat the existing workarounds as evidence for needed shape classes | The current scripts already show which shape families matter in practice |
+| Use `SilverZeroRsLib.lua` as the likely home for the first shape-level building blocks | The library already contains matching geometry helpers and layout conventions |
+| Keep the first production API analytical (`analyzePath`, `classifyItem`, `classifyItems`, `classify`) | That creates reusable shape logic immediately without forcing new example-specific logic into the scripts |
 
 ## Issues Encountered
 
 | Issue | Resolution |
 |-------|------------|
-| `planning-with-files` ist standardmaessig auf Root-Dateien ausgelegt | Planungsdateien wurden bewusst in `rs_emulator/planning` angelegt, wie vom Nutzer gewuenscht |
-| Aktuelle Codebasis enthaelt Workarounds, aber noch kein explizites Shape-System | Diese Luecke wird in den Fachpapieren direkt adressiert |
+| `planning-with-files` is designed around root-level files by default | The planning files were intentionally kept under `rs_emulator/planning`, per the user request |
+| The current codebase contained workarounds but no explicit shape system | The planning papers and subsequent implementation work address that gap directly |
 
 ## Resources
 
@@ -106,17 +113,27 @@
 - [SilverZeroRsLib.lua](/d:/github/du-tobi/rs_emulator/lib/SilverZeroRsLib.lua)
 - [convert-ideas.md](/d:/github/du-tobi/rs_emulator/examples/SilverZero/convert-ideas.md)
 
-## Visual/Browser Findings
+## Visual Findings
 
-- Die Session hat mehrfach gezeigt, dass kleine gefuellte SVG-Formen visuell scheitern, wenn sie nur als Outline-Pfade uebertragen werden.
-- Dagegen waren Quads und gezielte Shape-Helfer fuer dieselben Bereiche stabil und visuell korrekt.
-- Der innere Hex-Ring war der erste erfolgreiche Fall, in dem eine visuell zusammenhaengende SVG-Form bewusst in eine eigene Geometrie-Funktion ueberfuehrt wurde.
-- Die aktualisierte Shape-Preview macht sichtbar, dass mehrere reale `compound_path`-Faelle eigentlich Ringformen sind und in der Overlay-Ausgabe als `polygon_ring` deutlich lesbarer werden.
-- Nach der zweiten Verfeinerung unterscheidet die Preview jetzt sichtbar zwischen echten `hex_ring`-Formen im oberen Sign-SVG und den runden `polygon_ring`-Markern im Artboard.
-- Die Summary zeigt jetzt auch `groupHints`, sodass sich wiederkehrende Fragmente ohne manuelle String-Suche als Familien lesen lassen.
-- Die naechste Verfeinerung macht in der Summary jetzt auch die grossen Schildrahmen explizit sichtbar: `SVG 1 #10` und `SVG 3 #20` tragen dort `role=frame_outline`.
-- Nach der aktuellen Verfeinerung sind die randnahen Highlight-Fragmente im breiten Schild und der schmale Seitenstreifen in `SVG 1` explizit als `role=edge_decal` sichtbar.
-- Die aktuelle Preview trennt im breiten Schild jetzt drei Ebenen klar voneinander: `frame_outline` fuer den aeusseren Rahmen, `frame_cap` fuer die grosse Innenflaeche und `edge_decal` fuer die kleinen Randfragmente.
-- Nach dem Review-Fix sind diese drei Ebenen auch intern sauberer abgesichert: `frame_outline` verlangt echte oder effektiv geschlossene Konturen, `frame_cap` einen Rahmenkontext, und `groupHints` respektieren jetzt die vergebene Rolle.
-- Die aktuelle Summary weist jetzt auch die vier grossen Eckfragmente in `SVG 1` explizit als `role=logo_segment` aus.
-- Die zugehoerige Regel greift nicht auf die `hex_ring`-Zentralformen oder den einseitigen Seitensteg ueber; die Restmenge wird dadurch sichtbar kleiner und zugleich sauberer abgegrenzt.
+- The session repeatedly showed that small filled SVG shapes fail visually when transferred only as outline paths.
+- Quads and dedicated shape helpers were stable and visually correct for the same regions.
+- The inner hex ring was the first successful case where one visually coherent SVG form was deliberately converted into a dedicated geometry function.
+- The updated shape preview made it obvious that several real `compound_path` cases were actually ring shapes and became much easier to read once shown as `polygon_ring`.
+- After the second refinement, the preview clearly separated true `hex_ring` cases in the upper sign SVG from the round `polygon_ring` markers in the artboard.
+- The summary now also shows `groupHints`, making repeated families visible without manual string searches.
+- A later refinement made the large sign frames explicit as well: `SVG 1 #10` and `SVG 3 #20` now appear as `role=frame_outline`.
+- The current preview also marks the edge-adjacent highlight fragments in the wide sign and the narrow side strip in `SVG 1` as `role=edge_decal`.
+- The preview now separates three layers in the wide sign cleanly:
+  - `frame_outline` for the outer frame
+  - `frame_cap` for the large inner area
+  - `edge_decal` for the smaller edge fragments
+- After the review hardening, those layers are also safer internally: `frame_outline` requires real or effectively closed contours, `frame_cap` requires frame context, and `groupHints` respect the assigned role.
+- The summary now also marks the four large corner fragments in `SVG 1` as `role=logo_segment`.
+- That rule does not spill onto the central `hex_ring` shapes or the one-sided side bar, so the remainder is both smaller and more clearly bounded.
+- The current `master-artboard` state now uses the same porter path as the board and logo, but only for selected families:
+  - the 23 marker rings go through `drawClassifiedPathItem(...)` with a generic kind filter for `polygon_ring`
+  - the remaining `master-artboard` paths initially stayed on the known raw-path fallback
+- The next small `master-artboard` expansion used the same pattern:
+  - besides `polygon_ring`, there are only three additional well-understood four-point cases there (`1` `quad`, `2` `trapezoid`)
+  - those can be routed safely through the same kind filter into the existing four-point adapter
+  - the large `closed_polygon` remainder therefore stays separate and does not need to be enabled prematurely as a full batch

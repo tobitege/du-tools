@@ -112,6 +112,14 @@ function Library.scaleFontSize(fontBaseSize, layout)
     return math.max(1, clamp(math.floor(fontBaseSize * fontScale + 0.5), 1, 500))
 end
 
+function Library.fontSizeVw(layout, value)
+    return math.max(1, math.floor(layout.screenW * (value / 100) + 0.5))
+end
+
+function Library.fontSizeVh(layout, value)
+    return math.max(1, math.floor(layout.screenH * (value / 100) + 0.5))
+end
+
 function Library.time()
     return getTime()
 end
@@ -600,6 +608,61 @@ function Library.withClip(layer, layout, bounds, callback)
     setLayerClipRect(layer, 0, 0, layout.screenW, layout.screenH)
 end
 
+function Library.relativeLayout(layout, bounds, sourceW, sourceH, options)
+    options = options or {}
+
+    local screenX = Library.toScreenX(layout, bounds.x or 0)
+    local screenY = Library.toScreenY(layout, bounds.y or 0)
+    local screenW = Library.toScreenW(layout, bounds.w or sourceW)
+    local screenH = Library.toScreenH(layout, bounds.h or sourceH)
+    local scaleX = screenW / math.max(sourceW, 0.0001)
+    local scaleY = screenH / math.max(sourceH, 0.0001)
+
+    if options.preserveAspect then
+        local scale = math.min(scaleX, scaleY)
+        local drawW = sourceW * scale
+        local drawH = sourceH * scale
+        local alignX = options.alignX or "center"
+        local alignY = options.alignY or "center"
+
+        if alignX == "center" then
+            screenX = screenX + (screenW - drawW) * 0.5
+        elseif alignX == "right" then
+            screenX = screenX + (screenW - drawW)
+        end
+
+        if alignY == "center" then
+            screenY = screenY + (screenH - drawH) * 0.5
+        elseif alignY == "bottom" then
+            screenY = screenY + (screenH - drawH)
+        end
+
+        return {
+            screenW = layout.screenW,
+            screenH = layout.screenH,
+            sourceW = sourceW,
+            sourceH = sourceH,
+            scale = scale,
+            scaleX = scale,
+            scaleY = scale,
+            x = screenX,
+            y = screenY,
+        }
+    end
+
+    return {
+        screenW = layout.screenW,
+        screenH = layout.screenH,
+        sourceW = sourceW,
+        sourceH = sourceH,
+        scale = math.min(scaleX, scaleY),
+        scaleX = scaleX,
+        scaleY = scaleY,
+        x = screenX,
+        y = screenY,
+    }
+end
+
 function Library.drawPath(layer, layout, pathData, color, strokeWidth, transform)
     local scale = layout.scale
     local function applyTransform(x, y)
@@ -1065,6 +1128,40 @@ local function simpleSignBoardClassifiedShapes()
     end
 
     return SIMPLE_SIGN_BOARD_CLASSIFIED_SHAPES
+end
+
+local function cloneSimpleSignBoardItem(item)
+    local cloned = {
+        d = item.d,
+        fill = item.fill,
+    }
+
+    if item.transform then
+        cloned.transform = {
+            item.transform[1],
+            item.transform[2],
+            item.transform[3],
+            item.transform[4],
+            item.transform[5],
+            item.transform[6],
+        }
+    end
+
+    return cloned
+end
+
+function Library.simpleSignBoardProbeItems()
+    return {
+        sourceW = 231,
+        sourceH = 156,
+        items = {
+            outline = cloneSimpleSignBoardItem(SIMPLE_SIGN_BOARD_ITEMS[1]),
+            topTrapezoid = cloneSimpleSignBoardItem(SIMPLE_SIGN_BOARD_ITEMS[2]),
+            topEdgeCompound = cloneSimpleSignBoardItem(SIMPLE_SIGN_BOARD_ITEMS[3]),
+            rightMidQuad = cloneSimpleSignBoardItem(SIMPLE_SIGN_BOARD_ITEMS[13]),
+            leftUpperOutline = cloneSimpleSignBoardItem(SIMPLE_SIGN_BOARD_ITEMS[17]),
+        },
+    }
 end
 
 function Library.simpleSignBoard(layer, layout, bounds, options)
@@ -1852,6 +1949,56 @@ function Library.drawClassifiedPathItem(layer, layout, item, shape, options)
 
     Library.drawPath(layer, layout, pathData, color, options.strokeWidth, item.transform)
     return true
+end
+
+function Library.drawSvgEntry(layer, layout, svgEntry, options)
+    if not svgEntry then
+        return false
+    end
+
+    options = options or {}
+
+    local SvgParser = require("lib.SvgParser")
+    local SvgShapeClassifier = require("lib.SvgShapeClassifier")
+    local classifiedShapes = options.classifiedShapes
+
+    if classifiedShapes == nil and options.classify ~= false then
+        classifiedShapes = SvgShapeClassifier.classifySvg(svgEntry, {
+            vars = options.vars,
+        })
+    end
+
+    local drewAny = false
+    for itemIndex, item in ipairs(svgEntry.items or {}) do
+        local shape = classifiedShapes and classifiedShapes[itemIndex] or nil
+        local color = nil
+
+        if options.colorResolver then
+            color = options.colorResolver(item, shape, itemIndex)
+        end
+
+        if not color and options.useSvgFill ~= false then
+            color = SvgParser.parseColor(item.fill, options.vars)
+        end
+
+        if not color then
+            color = options.color or options.defaultColor
+        end
+
+        if color then
+            if Library.drawClassifiedPathItem(layer, layout, item, shape, {
+                classifiedMode = options.classifiedMode or "fill",
+                classifiedKinds = options.classifiedKinds,
+                color = color,
+                strokeWidth = options.strokeWidth or 1,
+                fallbackFirstSubpathOnly = options.fallbackFirstSubpathOnly,
+            }) then
+                drewAny = true
+            end
+        end
+    end
+
+    return drewAny
 end
 
 --- Zeichnet einen hexagonalen Rahmen mit "Zähnen" (Einkerbungen) an den Ecken.

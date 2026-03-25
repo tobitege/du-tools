@@ -9,8 +9,6 @@ local now = SZ.time()
 
 setBackgroundColor(theme.background[1], theme.background[2], theme.background[3])
 
-SZ.animLoop(1)
-
 local titleFont = SZ.font("Arial", SZ.scaleFontSize(18, layout))
 local headingFont = SZ.font("Arial", SZ.scaleFontSize(10, layout))
 local valueFont = SZ.font("Arial", SZ.scaleFontSize(8, layout))
@@ -323,3 +321,4 @@ drawFrame(layers.base)
 drawStatusBar(layers.status)
 drawControlPad(layers.controls)
 drawItems(layers.cards)
+SZ.animLoop(1)

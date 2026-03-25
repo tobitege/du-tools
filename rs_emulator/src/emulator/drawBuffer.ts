@@ -5,9 +5,6 @@ import { normalizeAnimationFrameCount } from "./frameTiming";
 import { measureCompatFontMetrics, measureTextBounds } from "./textMetrics";
 import { normalizeImageSource } from "../security/inputGuards";
 import {
-  costAddBox,
-  costAddText,
-  costCreateLayer,
   DU_FONT_CATALOG,
   DU_MAX_LOADED_FONTS,
   isDUFontName,
@@ -148,6 +145,7 @@ export class DrawBuffer {
 
     if (this.isRenderableCommand(cmd)) {
       this.getLayerRenderCommands(cmd.layer).push(cmd);
+      this.renderCost += 1;
     }
   }
 
@@ -219,7 +217,6 @@ export class DrawBuffer {
     this.layerOrder.push(id);
     this.layerRenderCommands.set(id, []);
     this.layerStyles.set(id, buildDefaultLayerStyles());
-    this.renderCost += costCreateLayer();
     return id;
   }
 
@@ -238,7 +235,6 @@ export class DrawBuffer {
   AddBox(layer: number, x: number, y: number, w: number, h: number) {
     const style = this.getResolvedStyle(layer, RSShape.Box);
     this.push({ op: "AddBox", layer, style, x, y, w, h });
-    this.renderCost += costAddBox(w, h, style.strokeWidth, style.shadow.radius);
     this.consumeNextOverride(layer);
   }
   AddBoxRounded(layer: number, x: number, y: number, w: number, h: number, radius: number) {
@@ -263,10 +259,8 @@ export class DrawBuffer {
   }
   AddText(layer: number, fontId: number, text: string, x: number, y: number) {
     const style = this.getResolvedStyle(layer, RSShape.Text);
-    const font = this.getFontEntry(fontId);
-    const bounds = measureTextBounds(font.name, font.size, text ?? "");
+    this.getFontEntry(fontId);
     this.push({ op: "AddText", layer, style, fontId, text, x, y });
-    this.renderCost += costAddText(bounds.width, bounds.height, style.strokeWidth, style.shadow.radius);
     this.consumeNextOverride(layer);
   }
   AddImage(layer: number, imageId: number, x: number, y: number, w: number, h: number) {
