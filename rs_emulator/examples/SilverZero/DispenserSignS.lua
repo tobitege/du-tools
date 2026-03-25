@@ -1,24 +1,7 @@
 -- RenderScript conversion of SilverZero DispenserSignS.html
 
 local SZ = require("lib.SilverZeroRsLib")
-local SvgParser = require("lib.SvgParser")
-local SvgShapeClassifier = require("lib.SvgShapeClassifier")
-local simpleSignHtml = require("examples.SilverZero.SimpleSignS_html")
-
-local CSS_VARS = [[
-<style>
-:root {
-  --primary-color: #f00;
-  --highlight-color: #fff;
-  --text-color: #FFF;
-  --price-color: rgb(250,212,122);
-
-  --circuit-color-A: #5008;
-  --circuit-color-B: #4008;
-  --circuit-color-C: #f008;
-}
-</style>
-]]
+local SimpleSignSharedAssets = require("examples.SilverZero.SimpleSignSharedAssets")
 
 local DESCRIPTION_LINES = {
   "Terran",
@@ -101,33 +84,7 @@ local priceFont = loadFont("Montserrat-Light", math.max(1, math.floor(SZ.toScree
 local currencyFont = loadFont("Montserrat-Light", math.max(1, math.floor(SZ.toScreenW(backgroundLayout, cssVw(5.8)) + 0.5)))
 
 local layers = SZ.createLayers("background", "board", "image", "logo", "text")
-
-_G.__dispenserSignS_cache = _G.__dispenserSignS_cache or {}
-local cache = _G.__dispenserSignS_cache
-
-if not cache.doc then
-  cache.doc = SvgParser.parse(CSS_VARS .. simpleSignHtml)
-
-  for _, svgEntry in ipairs(cache.doc.svgs or {}) do
-    if svgEntry.id == "master-artboard" then
-      cache.masterSvg = svgEntry
-    elseif svgEntry.width and string.find(svgEntry.width, "80vw", 1, true) then
-      cache.boardSvg = svgEntry
-    elseif svgEntry.width and string.find(svgEntry.width, "20vw", 1, true) then
-      cache.logoSvg = svgEntry
-    end
-  end
-
-  cache.masterShapes = SvgShapeClassifier.classifySvg(cache.masterSvg, {
-    vars = cache.doc.vars,
-  })
-  cache.boardShapes = SvgShapeClassifier.classifySvg(cache.boardSvg, {
-    vars = cache.doc.vars,
-  })
-  cache.logoShapes = SvgShapeClassifier.classifySvg(cache.logoSvg, {
-    vars = cache.doc.vars,
-  })
-end
+local sharedAssets = SimpleSignSharedAssets.get()
 
 local function drawDescription()
   local boxX = SZ.toScreenX(backgroundLayout, cssVw(15))
@@ -154,7 +111,7 @@ local function drawDescription()
   local baseTotalHeight = maxLineHeight + baseCenterStep * (#DESCRIPTION_LINES - 1)
   local fitScale = math.min(1, (boxW * 0.95) / math.max(1, maxLineWidth), (boxH * 0.92) / math.max(1, baseTotalHeight))
   local finalFontSize = math.max(1, math.floor(titleBaseFontSize * fitScale + 0.5))
-  local titleFont = finalFontSize == baseFontSize and baseFont or loadFont("Montserrat-Bold", finalFontSize)
+  local titleFont = finalFontSize == titleBaseFontSize and baseFont or loadFont("Montserrat-Bold", finalFontSize)
   maxLineHeight = 0
   for _, line in ipairs(DESCRIPTION_LINES) do
     local _, height = getTextBounds(titleFont, line)
@@ -239,16 +196,16 @@ local function drawImagePlaceholder()
   )
 end
 
-SZ.drawSvgEntry(layers.background, backgroundLayout, cache.masterSvg, {
-  vars = cache.doc.vars,
-  classifiedShapes = cache.masterShapes,
+SZ.drawSvgEntry(layers.background, backgroundLayout, sharedAssets.masterSvg, {
+  vars = sharedAssets.vars,
+  classifiedShapes = sharedAssets.masterShapes,
   classifiedMode = "fill",
   strokeWidth = 1.8,
 })
 
-SZ.drawSvgEntry(layers.board, boardLayout, cache.boardSvg, {
-  vars = cache.doc.vars,
-  classifiedShapes = cache.boardShapes,
+SZ.drawSvgEntry(layers.board, boardLayout, sharedAssets.boardSvg, {
+  vars = sharedAssets.vars,
+  classifiedShapes = sharedAssets.boardShapes,
   classifiedMode = "shape",
   strokeWidth = 2.5,
   fallbackFirstSubpathOnly = true,
@@ -256,9 +213,9 @@ SZ.drawSvgEntry(layers.board, boardLayout, cache.boardSvg, {
 
 drawImagePlaceholder()
 
-SZ.drawSvgEntry(layers.logo, logoLayout, cache.logoSvg, {
-  vars = cache.doc.vars,
-  classifiedShapes = cache.logoShapes,
+SZ.drawSvgEntry(layers.logo, logoLayout, sharedAssets.logoSvg, {
+  vars = sharedAssets.vars,
+  classifiedShapes = sharedAssets.logoShapes,
   classifiedMode = "fill",
   strokeWidth = 2.0,
 })

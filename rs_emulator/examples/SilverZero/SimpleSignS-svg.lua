@@ -4,21 +4,7 @@
 
 local SZ = require("lib.SilverZeroRsLib")
 local SvgParser = require("lib.SvgParser")
-local SvgShapeClassifier = require("lib.SvgShapeClassifier")
-local SimpleSignS_svgContent = require("examples.SilverZero.SimpleSignS_html")
-
-local FirstCSS_snippet = [[
-<style>
-:root {
-  --primary-color: #f00;
-  --highlight-color: #fff;
-  --text-color: #FFF;
-
-  --circuit-color-A: #5008;
-  --circuit-color-B: #4008;
-  --circuit-color-C: #f008;
-}
-</style>]]
+local SimpleSignSharedAssets = require("examples.SilverZero.SimpleSignSharedAssets")
 
 local resolutionX, resolutionY = getResolution()
 
@@ -33,8 +19,7 @@ local theme = {
 
 local messageText = "SilverZero's Lab"
 
-_G.__simpleSignS_svgDoc = _G.__simpleSignS_svgDoc or SvgParser.parse(FirstCSS_snippet .. SimpleSignS_svgContent)
-local doc = _G.__simpleSignS_svgDoc
+local sharedAssets = SimpleSignSharedAssets.get()
 
 local layers = SZ.createLayers("master", "board", "logo", "text")
 
@@ -48,122 +33,92 @@ local logoSourceH = 286.55
 setNextFillColor(masterLayer, theme.background[1], theme.background[2], theme.background[3], theme.background[4])
 addBox(masterLayer, 0, 0, masterW, masterH)
 
-for _, svgEntry in ipairs(doc.svgs or {}) do
-    local id = svgEntry.id or ""
-    local cls = svgEntry.class or ""
+local masterSvg = sharedAssets.masterSvg
+local masterLayout = SZ.layoutForScreen(resolutionX, resolutionY, 1400, 980, 0)
+masterLayout.x = 0
+masterLayout.y = 0
+masterLayout.scale = math.max(resolutionX / 1400, resolutionY / 980)
 
-    if id == "master-artboard" then
-        local vb = svgEntry.viewBox
-        local srcW, srcH = 1400, 980
-        if vb then
-            local parts = {}
-            for num in vb:gmatch("[%d%.e%+%-]+") do
-                table.insert(parts, tonumber(num) or 0)
-            end
-            if #parts >= 4 then
-                srcW, srcH = parts[3], parts[4]
-            end
-        end
-        local layout = SZ.layoutForScreen(resolutionX, resolutionY, srcW, srcH, 0)
-        layout.x = 0
-        layout.y = 0
-        layout.scale = math.max(resolutionX / srcW, resolutionY / srcH)
-        local classifiedMasterShapes = SvgShapeClassifier.classifySvg(svgEntry, {
-            vars = doc.vars,
+for itemIndex, item in ipairs(masterSvg.items or {}) do
+    local fill = theme.circuitC
+    if item.fill then
+        local resolved = SvgParser.parseColor(item.fill, sharedAssets.vars)
+        if resolved then fill = resolved end
+    end
+    if item.d then
+        local classifiedShape = sharedAssets.masterShapes[itemIndex]
+        SZ.drawClassifiedPathItem(masterLayer, masterLayout, item, classifiedShape, {
+            classifiedMode = "fill",
+            classifiedKinds = { "polygon_ring", "quad", "trapezoid" },
+            color = fill,
+            strokeWidth = 1.8,
         })
+    end
+end
 
-        for itemIndex, item in ipairs(svgEntry.items or {}) do
-            local fill = theme.circuitC
-            if item.fill then
-                local resolved = SvgParser.parseColor(item.fill, doc.vars)
-                if resolved then fill = resolved end
-            end
-            if item.d then
-                local classifiedShape = classifiedMasterShapes[itemIndex]
-                SZ.drawClassifiedPathItem(masterLayer, layout, item, classifiedShape, {
-                    classifiedMode = "fill",
-                    classifiedKinds = { "polygon_ring", "quad", "trapezoid" },
-                    color = fill,
-                    strokeWidth = 1.8,
-                })
-            end
-        end
+local boardLayer = layers.board
+local boardScaleX = (resolutionX * 0.8) / 231
+local boardScaleY = (resolutionY * 0.8) / 156
+local boardX = resolutionX * 0.1
+local boardY = resolutionY * 0.1
+local scaledLayout = {
+    screenW = resolutionX,
+    screenH = resolutionY,
+    sourceW = 231,
+    sourceH = 156,
+    scale = math.min(boardScaleX, boardScaleY),
+    scaleX = boardScaleX,
+    scaleY = boardScaleY,
+    x = boardX,
+    y = boardY,
+}
 
-    elseif id == "" and cls == "" and svgEntry.width and svgEntry.width:find("80vw") then
-        local boardLayer = layers.board
-        local boardScaleX = (resolutionX * 0.8) / 231
-        local boardScaleY = (resolutionY * 0.8) / 156
-        local boardX = resolutionX * 0.1
-        local boardY = resolutionY * 0.1
-
-        local scaledLayout = {
-            screenW = resolutionX,
-            screenH = resolutionY,
-            sourceW = 231,
-            sourceH = 156,
-            scale = math.min(boardScaleX, boardScaleY),
-            scaleX = boardScaleX,
-            scaleY = boardScaleY,
-            x = boardX,
-            y = boardY,
-        }
-        local classifiedBoardShapes = SvgShapeClassifier.classifySvg(svgEntry, {
-            vars = doc.vars,
+for itemIndex, item in ipairs(sharedAssets.boardSvg.items or {}) do
+    local fill = theme.primary
+    if item.fill then
+        local resolved = SvgParser.parseColor(item.fill, sharedAssets.vars)
+        if resolved then fill = resolved end
+    end
+    if item.d then
+        local classifiedShape = sharedAssets.boardShapes[itemIndex]
+        SZ.drawClassifiedPathItem(boardLayer, scaledLayout, item, classifiedShape, {
+            classifiedMode = "shape",
+            color = fill,
+            strokeWidth = 2.5,
+            fallbackFirstSubpathOnly = true,
         })
+    end
+end
 
-        for itemIndex, item in ipairs(svgEntry.items or {}) do
-            local fill = theme.primary
-            if item.fill then
-                local resolved = SvgParser.parseColor(item.fill, doc.vars)
-                if resolved then fill = resolved end
-            end
-            if item.d then
-                local classifiedShape = classifiedBoardShapes[itemIndex]
-                SZ.drawClassifiedPathItem(boardLayer, scaledLayout, item, classifiedShape, {
-                    classifiedMode = "shape",
-                    color = fill,
-                    strokeWidth = 2.5,
-                    fallbackFirstSubpathOnly = true,
-                })
-            end
-        end
+local logoLayer = layers.logo
+local logoX = resolutionX * 0.14
+local logoY = contentCenterY
+local logoSize = resolutionX * 0.20
+local logoScale = logoSize / logoSourceW
+local logoRenderH = logoSourceH * logoScale
+local logoLayout = {
+    screenW = resolutionX,
+    screenH = resolutionY,
+    sourceW = logoSourceW,
+    sourceH = logoSourceH,
+    scale = logoScale,
+    x = logoX,
+    y = logoY - logoRenderH * 0.5,
+}
 
-    elseif svgEntry.width and svgEntry.width:find("20vw") then
-        local logoLayer = layers.logo
-        local logoX = resolutionX * 0.14
-        local logoY = contentCenterY
-        local logoSize = resolutionX * 0.20
-        local logoScale = logoSize / logoSourceW
-        local logoRenderH = logoSourceH * logoScale
-
-        local logoLayout = {
-            screenW = resolutionX,
-            screenH = resolutionY,
-            sourceW = logoSourceW,
-            sourceH = logoSourceH,
-            scale = logoScale,
-            x = logoX,
-            y = logoY - logoRenderH * 0.5,
-        }
-        local classifiedLogoShapes = SvgShapeClassifier.classifySvg(svgEntry, {
-            vars = doc.vars,
+for itemIndex, item in ipairs(sharedAssets.logoSvg.items or {}) do
+    local fill = theme.primary
+    if item.fill then
+        local resolved = SvgParser.parseColor(item.fill, sharedAssets.vars)
+        if resolved then fill = resolved end
+    end
+    if item.d then
+        local classifiedShape = sharedAssets.logoShapes[itemIndex]
+        SZ.drawClassifiedPathItem(logoLayer, logoLayout, item, classifiedShape, {
+            classifiedMode = "fill",
+            color = fill,
+            strokeWidth = 2.0,
         })
-
-        for itemIndex, item in ipairs(svgEntry.items or {}) do
-            local fill = theme.primary
-            if item.fill then
-                local resolved = SvgParser.parseColor(item.fill, doc.vars)
-                if resolved then fill = resolved end
-            end
-            if item.d then
-                local classifiedShape = classifiedLogoShapes[itemIndex]
-                SZ.drawClassifiedPathItem(logoLayer, logoLayout, item, classifiedShape, {
-                    classifiedMode = "fill",
-                    color = fill,
-                    strokeWidth = 2.0,
-                })
-            end
-        end
     end
 end
 
