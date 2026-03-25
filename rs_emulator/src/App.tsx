@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent as ReactDragEvent, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { CodeEditor, type CodeEditorHandle } from "./components/CodeEditor";
-import { Canvas, type CanvasHandle } from "./components/Canvas";
+import { Canvas, type CanvasHandle, type CanvasPointerInteraction } from "./components/Canvas";
 import { Sidebar } from "./components/Sidebar";
 import {
   DEFAULT_SETTINGS,
@@ -488,6 +488,7 @@ export default function App() {
   const statusTimerRef = useRef<number>(0);
   const persistTimerRef = useRef<number>(0);
   const autoRunTimerRef = useRef<number>(0);
+  const interactiveRunTimerRef = useRef<number>(0);
   const displayRefreshRateRef = useRef<number | null>(null);
   const executionTokenRef = useRef(0);
   const sessionListRequestRef = useRef(0);
@@ -504,6 +505,10 @@ export default function App() {
   const activeSessionIdRef = useRef("");
   const activeLuaModuleSearchPathsRef = useRef<LuaModuleSearchPathEntry[]>([]);
   const resolvedModulePathsRef = useRef<Record<string, string>>({});
+  const runningRef = useRef(false);
+  const animatingRef = useRef(false);
+  const codeRef = useRef("");
+  const hasExecutedCodeRef = useRef(false);
 
   const resolveLuaModule = useCallback(async (moduleName: string, fromModule?: string | null) => {
     const activeSession = sessionsRef.current.find((session) => session.id === activeSessionIdRef.current);
@@ -637,6 +642,9 @@ export default function App() {
   activeSessionIdRef.current = activeSessionId;
   settingsRef.current = settings;
   activeLuaModuleSearchPathsRef.current = activeLuaModuleSearchPaths;
+  runningRef.current = running;
+  animatingRef.current = animating;
+  codeRef.current = code;
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", activeTheme.id);
@@ -698,6 +706,17 @@ export default function App() {
     }
   }, []);
 
+  const clearInteractiveRunTimer = useCallback(() => {
+    if (interactiveRunTimerRef.current) {
+      clearTimeout(interactiveRunTimerRef.current);
+      interactiveRunTimerRef.current = 0;
+    }
+  }, []);
+
+  const syncBufferResolution = useCallback((target: DrawBuffer = bufferRef.current) => {
+    target.SetResolution(settingsRef.current.canvasWidth, settingsRef.current.canvasHeight);
+  }, []);
+
   useEffect(() => {
     let frameId = 0;
     let previousTimestamp: number | null = null;
@@ -742,26 +761,33 @@ export default function App() {
 
   const resetRuntime = useCallback(() => {
     clearAutoRunTimer();
+    clearInteractiveRunTimer();
     executionTokenRef.current += 1;
     resolvedModulePathsRef.current = {};
     void envRef.current.dispose();
     bufferRef.current.resetRuntimeState();
+    bufferRef.current.ClearCursorTransitions();
+    syncBufferResolution(bufferRef.current);
     committedBufferRef.current = bufferRef.current.createRenderSnapshot();
     envRef.current = createLuaEnvironment(bufferRef.current, resolveLuaModule, runtimeFlags);
     setResult(null);
     setRunning(false);
-  }, [clearAutoRunTimer, resolveLuaModule]);
+    hasExecutedCodeRef.current = false;
+  }, [clearAutoRunTimer, clearInteractiveRunTimer, resolveLuaModule, syncBufferResolution]);
 
   const stopAnimation = useCallback(() => {
     clearAutoRunTimer();
+    clearInteractiveRunTimer();
     executionTokenRef.current += 1;
     if (animTimerRef.current) {
       clearTimeout(animTimerRef.current);
       animTimerRef.current = 0;
     }
+    bufferRef.current.ClearCursorTransitions();
     setAnimating(false);
     setRunning(false);
-  }, [clearAutoRunTimer]);
+    hasExecutedCodeRef.current = false;
+  }, [clearAutoRunTimer, clearInteractiveRunTimer]);
 
   const stopExecution = useCallback(() => {
     stopAnimation();
@@ -841,8 +867,7 @@ export default function App() {
     const getEffectiveFrameIntervalMs = () => getFrameIntervalMs(
       getEffectiveMaxFps(settingsRef.current.maxFPS, displayRefreshRateRef.current)
     );
-    buffer.screen.width = settings.canvasWidth;
-    buffer.screen.height = settings.canvasHeight;
+    syncBufferResolution(buffer);
     buffer.time = 0;
     buffer.deltaTime = 0;
     const executionLabel = activeChunkLabel;
@@ -850,14 +875,14 @@ export default function App() {
     try {
       void envRef.current.dispose();
       buffer.resetRuntimeState();
+      syncBufferResolution(buffer);
       envRef.current = createLuaEnvironment(buffer, resolveLuaModule, runtimeFlags);
-      buffer.screen.width = settings.canvasWidth;
-      buffer.screen.height = settings.canvasHeight;
 
       const firstResult = await envRef.current.execute(codeToRun, { chunkLabel: executionLabel });
       if (executionTokenRef.current !== executionToken) {
         return;
       }
+      hasExecutedCodeRef.current = firstResult.success;
       setResult(firstResult);
       commitAndRenderBuffer();
 
@@ -892,13 +917,13 @@ export default function App() {
           buffer.time = getRuntimeTimeSeconds(frameStartedAt, runStartedAt);
           buffer.deltaTime = getFrameDeltaSeconds(frameStartedAt, previousFrameStartedAt, frameIntervalMs);
           previousFrameStartedAt = frameStartedAt;
-          buffer.screen.width = settings.canvasWidth;
-          buffer.screen.height = settings.canvasHeight;
+          syncBufferResolution(buffer);
 
           const frameResult = await envRef.current.execute(codeToRun, { chunkLabel: executionLabel });
           if (executionTokenRef.current !== executionToken) {
             return;
           }
+          hasExecutedCodeRef.current = frameResult.success;
           setResult(frameResult);
           commitAndRenderBuffer();
 
@@ -921,12 +946,46 @@ export default function App() {
       setResult({ success: false, error: message, logs: [], output: "", requestAnimFrames: 0 });
       showStatus(`Error: ${message.slice(0, 140)}`);
       setAnimating(false);
+      hasExecutedCodeRef.current = false;
     } finally {
       if (executionTokenRef.current === executionToken) {
         setRunning(false);
       }
     }
-  }, [activeChunkLabel, commitAndRenderBuffer, settings.canvasHeight, settings.canvasWidth, showStatus]);
+  }, [activeChunkLabel, commitAndRenderBuffer, resolveLuaModule, showStatus, syncBufferResolution]);
+
+  const scheduleInteractiveRun = useCallback(() => {
+    if (!hasExecutedCodeRef.current || runningRef.current || animatingRef.current || interactiveRunTimerRef.current) {
+      return;
+    }
+
+    interactiveRunTimerRef.current = window.setTimeout(() => {
+      interactiveRunTimerRef.current = 0;
+      if (!hasExecutedCodeRef.current || runningRef.current || animatingRef.current) {
+        return;
+      }
+      void executeCode(codeRef.current);
+    }, 0);
+  }, [executeCode]);
+
+  const handleCanvasPointerInteraction = useCallback((interaction: CanvasPointerInteraction) => {
+    const buffer = bufferRef.current;
+    if (interaction.inside) {
+      buffer.SetCursor(interaction.x, interaction.y);
+    } else {
+      buffer.ClearCursor();
+    }
+
+    if (interaction.kind === "down") {
+      buffer.SetCursorDown(true);
+      buffer.MarkCursorPressed();
+    } else if (interaction.kind === "up") {
+      buffer.SetCursorDown(false);
+      buffer.MarkCursorReleased();
+    }
+
+    scheduleInteractiveRun();
+  }, [scheduleInteractiveRun]);
 
   const runCurrentCode = useCallback((nextCode?: string) => {
     stopAnimation();
@@ -1013,8 +1072,7 @@ export default function App() {
       resetRuntime();
       setResult(null);
       setEditorDropActive(false);
-      bufferRef.current.screen.width = settings.canvasWidth;
-      bufferRef.current.screen.height = settings.canvasHeight;
+      syncBufferResolution();
       commitAndRenderBuffer();
 
       const loadedFiles = await Promise.all(acceptedFiles.map(async ({ file, safeFileName, sessionName }) => ({
@@ -1042,8 +1100,7 @@ export default function App() {
         }
       }
 
-      bufferRef.current.screen.width = settings.canvasWidth;
-      bufferRef.current.screen.height = settings.canvasHeight;
+      syncBufferResolution();
       commitAndRenderBuffer();
 
       const skippedLabel = rejectedReasons.length > 0
@@ -1128,8 +1185,7 @@ export default function App() {
       resetRuntime();
       setResult(null);
       setEditorDropActive(false);
-      bufferRef.current.screen.width = settings.canvasWidth;
-      bufferRef.current.screen.height = settings.canvasHeight;
+      syncBufferResolution();
       commitAndRenderBuffer();
 
       const created = await createSession({
@@ -1145,8 +1201,7 @@ export default function App() {
         return;
       }
 
-      bufferRef.current.screen.width = settings.canvasWidth;
-      bufferRef.current.screen.height = settings.canvasHeight;
+      syncBufferResolution();
       commitAndRenderBuffer();
       closeGitHubImport();
       showStatus(`Imported GitHub script: ${safeFileName}`);
@@ -1226,8 +1281,7 @@ export default function App() {
         return;
       }
       setResult(null);
-      bufferRef.current.screen.width = settings.canvasWidth;
-      bufferRef.current.screen.height = settings.canvasHeight;
+      syncBufferResolution();
       commitAndRenderBuffer();
       showStatus(`Reloaded from source: ${sourceLabel}`);
     } catch (error: unknown) {
@@ -1377,8 +1431,7 @@ export default function App() {
     if (loadedCode === null) {
       return;
     }
-    bufferRef.current.screen.width = settings.canvasWidth;
-    bufferRef.current.screen.height = settings.canvasHeight;
+    syncBufferResolution();
     setResult(null);
     commitAndRenderBuffer();
     showStatus("Session loaded");
@@ -1393,8 +1446,7 @@ export default function App() {
     if (loadedCode === null) {
       return;
     }
-    bufferRef.current.screen.width = settings.canvasWidth;
-    bufferRef.current.screen.height = settings.canvasHeight;
+    syncBufferResolution();
     setResult(null);
     commitAndRenderBuffer();
     showStatus(`New temp session: ${created.name}`);
@@ -1410,8 +1462,7 @@ export default function App() {
     if (deletingActive) {
       resetRuntime();
       setResult(null);
-      bufferRef.current.screen.width = settings.canvasWidth;
-      bufferRef.current.screen.height = settings.canvasHeight;
+      syncBufferResolution();
       commitAndRenderBuffer();
     }
     await deleteSession(sessionId);
@@ -1419,8 +1470,7 @@ export default function App() {
     if (remaining.length === 0) {
       clearActiveSession();
       setResult(null);
-      bufferRef.current.screen.width = settings.canvasWidth;
-      bufferRef.current.screen.height = settings.canvasHeight;
+      syncBufferResolution();
       commitAndRenderBuffer();
       showStatus("Session deleted");
       return;
@@ -1561,20 +1611,30 @@ export default function App() {
       return;
     }
     prevResolutionRef.current = { width: settings.canvasWidth, height: settings.canvasHeight };
-    bufferRef.current.screen.width = settings.canvasWidth;
-    bufferRef.current.screen.height = settings.canvasHeight;
+    syncBufferResolution();
     if (result) {
       runCurrentCode();
     } else {
       commitAndRenderBuffer();
     }
-  }, [bootstrapped, result, runCurrentCode, settings.canvasHeight, settings.canvasWidth, settings.showGrid]);
+  }, [bootstrapped, commitAndRenderBuffer, result, runCurrentCode, settings.canvasHeight, settings.canvasWidth, syncBufferResolution]);
 
   useEffect(() => {
     if (result) {
       commitAndRenderBuffer();
     }
   }, [result, settings.showGrid]);
+
+  useEffect(() => {
+    clearInteractiveRunTimer();
+    hasExecutedCodeRef.current = false;
+  }, [clearInteractiveRunTimer, code]);
+
+  useEffect(() => {
+    return () => {
+      clearInteractiveRunTimer();
+    };
+  }, [clearInteractiveRunTimer]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1653,8 +1713,7 @@ export default function App() {
       setBootstrapped(true);
       persistedCodeRef.current = nextCode;
       setResult(null);
-      bufferRef.current.screen.width = settings.canvasWidth;
-      bufferRef.current.screen.height = settings.canvasHeight;
+      syncBufferResolution();
       commitAndRenderBuffer();
     };
     void initialize();
@@ -1805,6 +1864,7 @@ export default function App() {
                 onRotateLeft={handleRotateCanvasLeft}
                 onRotateRight={handleRotateCanvasRight}
                 onResetRotation={handleResetCanvasRotation}
+                onPointerInteraction={handleCanvasPointerInteraction}
               />
             </div>
           </div>

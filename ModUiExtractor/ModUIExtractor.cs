@@ -492,6 +492,13 @@ public sealed class MyDuMod : IMod
                 return;
             }
 
+            if (string.Equals(action, "ui_dump", StringComparison.OrdinalIgnoreCase))
+            {
+                await ProcessMcpUiDumpBridgeCommand(commandId, targetKind, payload, playerId.Value, boardId);
+                MoveMcpBridgeCommandToProcessed(commandPath, commandId);
+                return;
+            }
+
             if (!TryBuildMcpBridgeCommandScript(commandId, targetKind, action, payload, out var injectCode, out var summary, out var status, out var details))
             {
                 await AppendMcpBridgeEvent(
@@ -578,6 +585,50 @@ public sealed class MyDuMod : IMod
         {
             logger.LogDebug(ex, "UIExtractor failed to move processed MCP bridge command {CommandId}", commandId);
         }
+    }
+
+    private async Task ProcessMcpUiDumpBridgeCommand(
+        string commandId,
+        string targetKind,
+        JObject payload,
+        ulong playerId,
+        string? boardId)
+    {
+        var deepMode = payload["deep"]?.Value<bool>() ?? true;
+        var initialDelayMs = payload["initialDelayMs"]?.Value<int>() ?? 0;
+        initialDelayMs = Math.Max(0, Math.Min(30000, initialDelayMs));
+
+        var config = new JObject
+        {
+            ["mode"] = "full_dump",
+            ["phaseDelayMs"] = deepMode ? 2 : 10,
+            ["maxHtmlChars"] = deepMode ? 1_500_000 : 700_000,
+            ["maxScripts"] = deepMode ? 800 : 300,
+            ["maxStyleSheets"] = deepMode ? 200 : 80,
+            ["maxCssRulesPerSheet"] = deepMode ? 2500 : 1200,
+            ["maxTotalCssChars"] = deepMode ? 2_500_000 : 1_000_000,
+            ["maxElementsPerSelector"] = deepMode ? 80 : 30,
+            ["initialDelayMs"] = initialDelayMs
+        };
+
+        await InjectPayload(
+            playerId,
+            config,
+            $"UI dump requested ({(deepMode ? "deep" : "safe")}, delay={initialDelayMs}ms). Writing packets to server tmp/ui-dumps.",
+            deepMode ? "full-deep" : "full-safe");
+
+        await AppendMcpBridgeEvent(
+            targetKind,
+            "command_result",
+            playerId,
+            new JObject
+            {
+                ["commandId"] = commandId,
+                ["status"] = "injected",
+                ["action"] = "ui_dump",
+                ["summary"] = $"ui_dump {(deepMode ? "deep" : "safe")} initialDelayMs={initialDelayMs}"
+            },
+            boardId);
     }
 
     private async Task<bool> TryProcessServerChatBridgeCommand(

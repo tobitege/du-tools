@@ -921,6 +921,7 @@ export function createLuaEnvironment(buffer: DrawBuffer, resolveModule?: LuaModu
           return chunk()
         end
       `);
+      buffer.ClearCursorTransitions();
       return {
         success: true,
         logs: [...buffer.logs],
@@ -931,6 +932,7 @@ export function createLuaEnvironment(buffer: DrawBuffer, resolveModule?: LuaModu
       if (isLuaThreadTimeoutError(error)) {
         disposeEngine();
       }
+      buffer.ClearCursorTransitions();
       return {
         success: false,
         error: isLuaThreadTimeoutError(error)

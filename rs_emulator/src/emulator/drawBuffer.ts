@@ -5,6 +5,15 @@ import { normalizeAnimationFrameCount } from "./frameTiming";
 import { measureCompatFontMetrics, measureTextBounds } from "./textMetrics";
 import { normalizeImageSource } from "../security/inputGuards";
 import {
+  costAddBezier,
+  costAddBox,
+  costAddBoxRounded,
+  costAddCircle,
+  costAddImage,
+  costAddLine,
+  costAddQuad,
+  costAddText,
+  costAddTriangle,
   DU_FONT_CATALOG,
   DU_MAX_LOADED_FONTS,
   isDUFontName,
@@ -89,6 +98,13 @@ export class DrawBuffer {
     snapshot.renderCost = this.renderCost;
     snapshot.time = this.time;
     snapshot.deltaTime = this.deltaTime;
+    snapshot.cursorX = this.cursorX;
+    snapshot.cursorY = this.cursorY;
+    snapshot.cursorDown = this.cursorDown;
+    snapshot.cursorPressed = this.cursorPressed;
+    snapshot.cursorReleased = this.cursorReleased;
+    snapshot.input = this.input;
+    snapshot.locale = this.locale;
     snapshot.output = this.output;
     snapshot.logs = [...this.logs];
     snapshot.requestAnimFrames = this.requestAnimFrames;
@@ -122,6 +138,38 @@ export class DrawBuffer {
     this.screen.backgroundColor = [...DEFAULT_SCREEN.backgroundColor];
   }
 
+  SetResolution(width: number, height: number) {
+    this.screen.width = Math.max(1, Math.round(width));
+    this.screen.height = Math.max(1, Math.round(height));
+  }
+
+  SetCursor(x: number, y: number) {
+    this.cursorX = x;
+    this.cursorY = y;
+  }
+
+  ClearCursor() {
+    this.cursorX = -1;
+    this.cursorY = -1;
+  }
+
+  SetCursorDown(value: boolean) {
+    this.cursorDown = value;
+  }
+
+  MarkCursorPressed() {
+    this.cursorPressed = true;
+  }
+
+  MarkCursorReleased() {
+    this.cursorReleased = true;
+  }
+
+  ClearCursorTransitions() {
+    this.cursorPressed = false;
+    this.cursorReleased = false;
+  }
+
   private isRenderableCommand(command: DrawCommand): command is RenderableDrawCommand {
     return command.op.startsWith("Add");
   }
@@ -145,8 +193,11 @@ export class DrawBuffer {
 
     if (this.isRenderableCommand(cmd)) {
       this.getLayerRenderCommands(cmd.layer).push(cmd);
-      this.renderCost += 1;
     }
+  }
+
+  private addRenderCost(cost: number): void {
+    this.renderCost += Math.max(0, Math.floor(cost));
   }
 
   private cloneStyle(style: LayerStyle): LayerStyle {
@@ -229,46 +280,65 @@ export class DrawBuffer {
   }
 
   AddBezier(layer: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) {
-    this.push({ op: "AddBezier", layer, style: this.getResolvedStyle(layer, RSShape.Bezier), x1, y1, x2, y2, x3, y3 });
+    const style = this.getResolvedStyle(layer, RSShape.Bezier);
+    this.push({ op: "AddBezier", layer, style, x1, y1, x2, y2, x3, y3 });
+    this.addRenderCost(costAddBezier(x1, y1, x2, y2, x3, y3, style.strokeWidth, style.shadow.radius));
     this.consumeNextOverride(layer);
   }
   AddBox(layer: number, x: number, y: number, w: number, h: number) {
     const style = this.getResolvedStyle(layer, RSShape.Box);
     this.push({ op: "AddBox", layer, style, x, y, w, h });
+    this.addRenderCost(costAddBox(w, h, style.strokeWidth, style.shadow.radius));
     this.consumeNextOverride(layer);
   }
   AddBoxRounded(layer: number, x: number, y: number, w: number, h: number, radius: number) {
-    this.push({ op: "AddBoxRounded", layer, style: this.getResolvedStyle(layer, RSShape.BoxRounded), x, y, w, h, radius });
+    const style = this.getResolvedStyle(layer, RSShape.BoxRounded);
+    this.push({ op: "AddBoxRounded", layer, style, x, y, w, h, radius });
+    this.addRenderCost(costAddBoxRounded(w, h, style.strokeWidth, style.shadow.radius));
     this.consumeNextOverride(layer);
   }
   AddCircle(layer: number, x: number, y: number, radius: number) {
-    this.push({ op: "AddCircle", layer, style: this.getResolvedStyle(layer, RSShape.Circle), x, y, radius });
+    const style = this.getResolvedStyle(layer, RSShape.Circle);
+    this.push({ op: "AddCircle", layer, style, x, y, radius });
+    this.addRenderCost(costAddCircle(radius, style.strokeWidth, style.shadow.radius));
     this.consumeNextOverride(layer);
   }
   AddLine(layer: number, x1: number, y1: number, x2: number, y2: number) {
-    this.push({ op: "AddLine", layer, style: this.getResolvedStyle(layer, RSShape.Line), x1, y1, x2, y2 });
+    const style = this.getResolvedStyle(layer, RSShape.Line);
+    this.push({ op: "AddLine", layer, style, x1, y1, x2, y2 });
+    this.addRenderCost(costAddLine(x1, y1, x2, y2, style.strokeWidth, style.shadow.radius));
     this.consumeNextOverride(layer);
   }
   AddQuad(layer: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, x4: number, y4: number) {
-    this.push({ op: "AddQuad", layer, style: this.getResolvedStyle(layer, RSShape.Polygon), x1, y1, x2, y2, x3, y3, x4, y4 });
+    const style = this.getResolvedStyle(layer, RSShape.Polygon);
+    this.push({ op: "AddQuad", layer, style, x1, y1, x2, y2, x3, y3, x4, y4 });
+    this.addRenderCost(costAddQuad(x1, y1, x2, y2, x3, y3, x4, y4, style.strokeWidth, style.shadow.radius));
     this.consumeNextOverride(layer);
   }
   AddTriangle(layer: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) {
-    this.push({ op: "AddTriangle", layer, style: this.getResolvedStyle(layer, RSShape.Polygon), x1, y1, x2, y2, x3, y3 });
+    const style = this.getResolvedStyle(layer, RSShape.Polygon);
+    this.push({ op: "AddTriangle", layer, style, x1, y1, x2, y2, x3, y3 });
+    this.addRenderCost(costAddTriangle(x1, y1, x2, y2, x3, y3, style.strokeWidth, style.shadow.radius));
     this.consumeNextOverride(layer);
   }
   AddText(layer: number, fontId: number, text: string, x: number, y: number) {
     const style = this.getResolvedStyle(layer, RSShape.Text);
-    this.getFontEntry(fontId);
+    const font = this.getFontEntry(fontId);
+    const metrics = measureTextBounds(font.name, font.size, text ?? "");
     this.push({ op: "AddText", layer, style, fontId, text, x, y });
+    this.addRenderCost(costAddText(metrics.width, metrics.height, style.strokeWidth, style.shadow.radius));
     this.consumeNextOverride(layer);
   }
   AddImage(layer: number, imageId: number, x: number, y: number, w: number, h: number) {
-    this.push({ op: "AddImage", layer, style: this.getResolvedStyle(layer, RSShape.Image), imageId, x, y, w, h });
+    const style = this.getResolvedStyle(layer, RSShape.Image);
+    this.push({ op: "AddImage", layer, style, imageId, x, y, w, h });
+    this.addRenderCost(costAddImage(w, h));
     this.consumeNextOverride(layer);
   }
   AddImageSub(layer: number, imageId: number, x: number, y: number, w: number, h: number, subX: number, subY: number, subW: number, subH: number) {
-    this.push({ op: "AddImageSub", layer, style: this.getResolvedStyle(layer, RSShape.Image), imageId, x, y, w, h, subX, subY, subW, subH });
+    const style = this.getResolvedStyle(layer, RSShape.Image);
+    this.push({ op: "AddImageSub", layer, style, imageId, x, y, w, h, subX, subY, subW, subH });
+    this.addRenderCost(costAddImage(w, h));
     this.consumeNextOverride(layer);
   }
 

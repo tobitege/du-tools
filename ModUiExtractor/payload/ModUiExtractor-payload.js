@@ -28,6 +28,7 @@
     allScriptsPacketDelayMs: 2,
     chunkSize: 12000,
     phaseDelayMs: 10,
+    initialDelayMs: 0,
     maxPayloadChars: 3000000,
     maxHtmlChars: 1500000,
     maxScripts: 400,
@@ -324,6 +325,7 @@
   config.allScriptsPacketDelayMs = numberOrDefault(config.allScriptsPacketDelayMs, DEFAULT_CONFIG.allScriptsPacketDelayMs);
   config.chunkSize = numberOrDefault(config.chunkSize, DEFAULT_CONFIG.chunkSize);
   config.phaseDelayMs = numberOrDefault(config.phaseDelayMs, DEFAULT_CONFIG.phaseDelayMs);
+  config.initialDelayMs = numberOrDefault(config.initialDelayMs, DEFAULT_CONFIG.initialDelayMs);
   config.maxPayloadChars = numberOrDefault(config.maxPayloadChars, DEFAULT_CONFIG.maxPayloadChars);
   config.maxHtmlChars = numberOrDefault(config.maxHtmlChars, DEFAULT_CONFIG.maxHtmlChars);
   config.maxScripts = numberOrDefault(config.maxScripts, DEFAULT_CONFIG.maxScripts);
@@ -1672,14 +1674,22 @@
       }
     });
 
-    if (config.mode === "single_stylesheet") {
-      runSingleStylesheetExtraction();
-    } else if (config.mode === "all_stylesheets") {
-      runAllStylesheetsExtraction();
-    } else if (config.mode === "all_scripts") {
-      runAllScriptsExtraction();
+    function startDispatch() {
+      if (config.mode === "single_stylesheet") {
+        runSingleStylesheetExtraction();
+      } else if (config.mode === "all_stylesheets") {
+        runAllStylesheetsExtraction();
+      } else if (config.mode === "all_scripts") {
+        runAllScriptsExtraction();
+      } else {
+        runPhases();
+      }
+    }
+
+    if (config.initialDelayMs > 0) {
+      setTimeout(startDispatch, config.initialDelayMs);
     } else {
-      runPhases();
+      startDispatch();
     }
   } catch (errTop) {
     fatal("bootstrap", errTop);

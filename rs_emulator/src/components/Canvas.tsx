@@ -1,4 +1,4 @@
-import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from "react";
+import { useEffect, useRef, forwardRef, useImperativeHandle, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { DrawBuffer, renderBuffer } from "../emulator";
 
 const CANVAS_SHELL_PADDING = 16;
@@ -6,6 +6,13 @@ const CANVAS_SHELL_PADDING = 16;
 export interface CanvasHandle {
   render: (buffer: DrawBuffer, opts?: { showGrid?: boolean }) => void;
   getCanvas: () => HTMLCanvasElement | null;
+}
+
+export interface CanvasPointerInteraction {
+  kind: "move" | "down" | "up" | "leave";
+  x: number;
+  y: number;
+  inside: boolean;
 }
 
 interface CanvasProps {
@@ -18,10 +25,11 @@ interface CanvasProps {
   onRotateLeft: () => void;
   onRotateRight: () => void;
   onResetRotation: () => void;
+  onPointerInteraction?: (interaction: CanvasPointerInteraction) => void;
 }
 
 export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
-  ({ width, height, showGrid, showFps, themeMode, rotationDegrees, onRotateLeft, onRotateRight, onResetRotation }, ref) => {
+  ({ width, height, showGrid, showFps, themeMode, rotationDegrees, onRotateLeft, onRotateRight, onResetRotation, onPointerInteraction }, ref) => {
     const shellRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const lastRenderAtRef = useRef<number | null>(null);
@@ -143,6 +151,85 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
       },
     }));
 
+    const mapClientPointToCanvas = (clientX: number, clientY: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        return { x: -1, y: -1, inside: false };
+      }
+
+      const bounds = canvas.getBoundingClientRect();
+      if (bounds.width <= 0 || bounds.height <= 0) {
+        return { x: -1, y: -1, inside: false };
+      }
+
+      const localX = clientX - bounds.left;
+      const localY = clientY - bounds.top;
+      const inside = localX >= 0 && localX <= bounds.width && localY >= 0 && localY <= bounds.height;
+      if (!inside) {
+        return { x: -1, y: -1, inside: false };
+      }
+
+      const displayX = clamp(localX / bounds.width, 0, 1);
+      const displayY = clamp(localY / bounds.height, 0, 1);
+      let sourceX = displayX;
+      let sourceY = displayY;
+
+      switch (normalizedRotation) {
+        case 90:
+          sourceX = displayY;
+          sourceY = 1 - displayX;
+          break;
+        case 180:
+          sourceX = 1 - displayX;
+          sourceY = 1 - displayY;
+          break;
+        case 270:
+          sourceX = 1 - displayY;
+          sourceY = displayX;
+          break;
+        default:
+          break;
+      }
+
+      return {
+        x: clamp(sourceX * width, 0, width),
+        y: clamp(sourceY * height, 0, height),
+        inside: true,
+      };
+    };
+
+    const emitPointerInteraction = (kind: CanvasPointerInteraction["kind"], clientX: number, clientY: number) => {
+      onPointerInteraction?.({
+        kind,
+        ...mapClientPointToCanvas(clientX, clientY),
+      });
+    };
+
+    const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+      emitPointerInteraction("move", event.clientX, event.clientY);
+    };
+
+    const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+      event.currentTarget.setPointerCapture(event.pointerId);
+      emitPointerInteraction("down", event.clientX, event.clientY);
+    };
+
+    const handlePointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+      emitPointerInteraction("up", event.clientX, event.clientY);
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    };
+
+    const handlePointerLeave = () => {
+      onPointerInteraction?.({
+        kind: "leave",
+        x: -1,
+        y: -1,
+        inside: false,
+      });
+    };
+
     return (
       <div
         ref={shellRef}
@@ -236,6 +323,11 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
               ref={canvasRef}
               width={width}
               height={height}
+              onPointerMove={handlePointerMove}
+              onPointerDown={handlePointerDown}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+              onPointerLeave={handlePointerLeave}
               style={{
                 position: "absolute",
                 top: "50%",
@@ -248,6 +340,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
                 imageRendering: "pixelated",
                 borderRadius: 4,
                 boxShadow: "0 0 20px rgba(0,0,0,0.5)",
+                touchAction: "none",
               }}
             />
           </div>
@@ -314,6 +407,10 @@ function normalizeRotation(rotationDegrees: number): 0 | 90 | 180 | 270 {
     return normalized;
   }
   return 0;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function fitRectWithin(boundsWidth: number, boundsHeight: number, contentWidth: number, contentHeight: number) {

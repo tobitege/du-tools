@@ -204,7 +204,8 @@ function ScreenRenderScript()
     ---@return string value The locale, currently one of "en-US", "fr-FR", or "de-DE"
     function self.getLocale() end
 
-    --- Return the current render cost of the script
+    --- Return the current render cost of the script.
+    --- Larger on-screen shapes generally cost more than smaller ones, so this is useful as a live budget signal while drawing.
     ---@return number value The cost of all rendering operations performed by the render script so far (at the time of the call to this function)
     function self.getRenderCost() end
 
@@ -213,7 +214,8 @@ function ScreenRenderScript()
     function self.getRenderCostMax() end
 
     --- Return the screen's current resolution.
-    --- Ideally, your render scripts should be written to adapt to the resolution, as it may change in the future
+    --- RenderScript coordinates are screen pixels from (0, 0) at the top-left to (width, height) at the bottom-right.
+    --- Scripts should adapt to the resolution instead of assuming a fixed size.
     ---@return integer width, integer height A tuple containing the (width, height) of the screen's render surface, in pixels
     function self.getResolution() end
 
@@ -241,7 +243,7 @@ function ScreenRenderScript()
     function self.loadImage(url) end
 
     --- Load a font to be used with addText
-    ---@param name string The name of the font to load; see the font list section for available font names
+    ---@param name string The name of the font to load; query the current preset list with getAvailableFontCount and getAvailableFontName
     ---@param size integer The size, in vertical pixels, at which the font will render. Note that this size can be changed during script execution with the setFontSize function
     ---@return integer value The id that can be used to uniquely identify the font for use with other API functions
     function self.loadFont(name, size) end
@@ -254,6 +256,7 @@ function ScreenRenderScript()
     function self.logMessage(message) end
 
     --- Request that this screen should be redrawn in a certain number of frames.
+    --- Each script execution draws one frame only; animate by changing state over time and requesting another frame.
     --- A screen that requires highly-fluid animations should call requestAnimationFrame(1) before it returns.
     --- Usage of this function has a significant performance impact on the screen unit system, so scripts should
     --- try to request updates as infrequently as possible.
@@ -410,4 +413,3 @@ function ScreenRenderScript()
 end
 
 RenderScript = ScreenRenderScript()
-

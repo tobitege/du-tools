@@ -84,7 +84,7 @@ With the example above:
 
 - `require("rslib")` can resolve from the Dual Universe Lua folder
 - `require("lib.SilverZeroRsLib")` resolves from `./lib/SilverZeroRsLib.lua`
-- `require("examples.SilverZero.SimpleSignS_html")` resolves from `./examples/SilverZero/SimpleSignS_html.lua`
+- `require("examples.SilverZero.SimpleSignSharedAssets")` resolves from `./examples/SilverZero/SimpleSignSharedAssets.lua`
 
 Optional runtime flags stay disabled unless you explicitly enable them:
 
@@ -117,15 +117,37 @@ Optional runtime flags stay disabled unless you explicitly enable them:
 - editor font size can be adjusted from the toolbar
 - the canvas preview can be rotated left, right, or reset without modifying the script
 
-### Animation Ordering
+### RenderScript Notes
 
-If a script schedules its next frame with `requestAnimationFrame(...)` or `SZ.animLoop(...)`, that call must be the last statement of the frame/script.
+Animation:
 
-- put `SZ.animLoop(1)` at the very end
-- do not schedule the next frame near the top of the script
-- otherwise the emulator can render immediately with incomplete draw state
-- if a screen is static, do not call `requestAnimationFrame(...)` or `SZ.animLoop(...)` at all
-- a static script that redraws itself in a loop is a common source of visible flicker
+- `requestAnimationFrame(frames)` schedules the next script execution after roughly that many display frames
+- each script execution draws one frame only; animate by updating positions over time and then requesting another frame
+- static screens should not call `requestAnimationFrame(...)` or `SZ.animLoop(...)`; unnecessary redraw loops are a common source of flicker
+
+Coordinate space:
+
+- RenderScript coordinates are screen pixels
+- `(0, 0)` is the top-left corner and `(width, height)` is the bottom-right corner
+- use `getResolution()` and write layouts relative to the current screen size
+
+Fonts:
+
+- `loadFont(...)` only accepts the emulator's current preset font list
+- query that list with `getAvailableFontCount()` and `getAvailableFontName(index)` instead of hardcoding assumptions
+- loaded fonts are tracked per `name + size` combination, so different sizes still count against the font limit within one run
+
+Render cost:
+
+- `getRenderCost()` and `getRenderCostMax()` expose the current frame budget usage
+- the emulator estimates cost from drawn screen area, so larger boxes, text blocks, and images cost more than smaller ones
+- treat the number as a useful budget signal, not exact in-game parity
+
+Render order:
+
+- layers render bottom to top in creation order, so later layers appear on top
+- within one layer the current shape stack is `Text`, `Quads`, `Triangles`, `Lines`, `Circles`, `Rounded Boxes`, `Boxes`, `Beziers`, `Images`
+- if something must reliably appear in front, prefer a separate layer instead of relying on same-layer shape order
 
 ### Empty Session Import
 

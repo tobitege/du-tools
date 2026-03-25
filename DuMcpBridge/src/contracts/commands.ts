@@ -1,14 +1,16 @@
 import * as z from "zod/v4";
 
 export const targetKindSchema = z.enum(["lua_editor", "screen_editor", "hud_chat", "server_chat"]);
-export const commandActionSchema = z.enum(["save", "probe_call"]);
+export const commandActionSchema = z.enum(["save", "probe_call", "ui_dump"]);
 export const commandPayloadSchema = z.object({
   save: z.boolean().optional(),
   waitForEditor: z.boolean().optional(),
   maxAttempts: z.number().int().positive().optional(),
   retryDelayMs: z.number().int().positive().optional(),
   probeMethod: z.string().min(1).optional(),
-  probeArgs: z.array(z.any()).optional()
+  probeArgs: z.array(z.any()).optional(),
+  deep: z.boolean().optional(),
+  initialDelayMs: z.number().int().min(0).max(30000).optional()
 });
 
 export const bridgeCommandSchema = z.object({

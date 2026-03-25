@@ -4513,7 +4513,7 @@
     throw new Error("lua_editor_cancel_button_not_found");
   }
 
-  var MAX_OUTER_HTML_CHARS = 350000;
+  var MAX_OUTER_HTML_CHARS = 3000000;
 
   function outerHtmlForTargetSelector(targetKind, rawSelector) {
     var normalizedTarget = normalizeProbeTargetKind(targetKind);
@@ -4545,6 +4545,7 @@
     try {
       html = typeof el.outerHTML === "string" ? el.outerHTML : "";
     } catch (_ignoreOh) {}
+    html = html.replace(/<svg[\s\S]*?<\/svg>/gi, "");
     var originalLength = html.length;
     var truncated = false;
     if (html.length > MAX_OUTER_HTML_CHARS) {

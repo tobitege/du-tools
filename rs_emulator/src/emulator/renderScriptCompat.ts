@@ -270,10 +270,96 @@ export function costCreateLayer(): number {
   return 0;
 }
 
-export function costAddBox(_width: number, _height: number, _strokeWidth = 0, _shadowRadius = 0): number {
-  return 1;
+function costFromBounds(width: number, height: number, strokeWidth = 0, shadowRadius = 0): number {
+  const safeWidth = Math.max(0, width);
+  const safeHeight = Math.max(0, height);
+  const sizeBump = Math.max(0, strokeWidth + shadowRadius) * 2;
+  const expandedWidth = safeWidth + sizeBump;
+  const expandedHeight = safeHeight + sizeBump;
+  const area = expandedWidth * expandedHeight;
+  return Math.max(1, Math.floor(area / 64));
 }
 
-export function costAddText(_textWidth: number, _textHeight: number, _strokeWidth = 0, _shadowRadius = 0): number {
-  return 1;
+function getBoundsFromPoints(points: ReadonlyArray<readonly [number, number]>): { width: number; height: number } {
+  if (points.length === 0) {
+    return { width: 0, height: 0 };
+  }
+
+  let minX = points[0][0];
+  let maxX = points[0][0];
+  let minY = points[0][1];
+  let maxY = points[0][1];
+
+  for (let index = 1; index < points.length; index += 1) {
+    const [x, y] = points[index];
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
+  }
+
+  return {
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+}
+
+export function costAddBox(width: number, height: number, strokeWidth = 0, shadowRadius = 0): number {
+  return costFromBounds(width, height, strokeWidth, shadowRadius);
+}
+
+export function costAddBoxRounded(width: number, height: number, strokeWidth = 0, shadowRadius = 0): number {
+  return costFromBounds(width, height, strokeWidth, shadowRadius);
+}
+
+export function costAddCircle(radius: number, strokeWidth = 0, shadowRadius = 0): number {
+  const diameter = Math.max(0, radius) * 2;
+  return costFromBounds(diameter, diameter, strokeWidth, shadowRadius);
+}
+
+export function costAddLine(x1: number, y1: number, x2: number, y2: number, strokeWidth = 0, shadowRadius = 0): number {
+  return costFromBounds(Math.abs(x2 - x1), Math.abs(y2 - y1), strokeWidth, shadowRadius);
+}
+
+export function costAddBezier(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, strokeWidth = 0, shadowRadius = 0): number {
+  const bounds = getBoundsFromPoints([[x1, y1], [x2, y2], [x3, y3]]);
+  return costFromBounds(bounds.width, bounds.height, strokeWidth, shadowRadius);
+}
+
+export function costAddTriangle(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  x3: number,
+  y3: number,
+  strokeWidth = 0,
+  shadowRadius = 0,
+): number {
+  const bounds = getBoundsFromPoints([[x1, y1], [x2, y2], [x3, y3]]);
+  return costFromBounds(bounds.width, bounds.height, strokeWidth, shadowRadius);
+}
+
+export function costAddQuad(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  x3: number,
+  y3: number,
+  x4: number,
+  y4: number,
+  strokeWidth = 0,
+  shadowRadius = 0,
+): number {
+  const bounds = getBoundsFromPoints([[x1, y1], [x2, y2], [x3, y3], [x4, y4]]);
+  return costFromBounds(bounds.width, bounds.height, strokeWidth, shadowRadius);
+}
+
+export function costAddImage(width: number, height: number): number {
+  return costFromBounds(width, height);
+}
+
+export function costAddText(textWidth: number, textHeight: number, strokeWidth = 0, shadowRadius = 0): number {
+  return costFromBounds(textWidth, textHeight, strokeWidth, shadowRadius);
 }

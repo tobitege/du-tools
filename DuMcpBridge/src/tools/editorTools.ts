@@ -1672,4 +1672,68 @@ export function registerEditorTools(
       };
     }
   );
+
+  server.registerTool(
+    "du_ui_dump",
+    {
+      title: "Queue UI Dump",
+      description:
+        "Queues a full UI dump (ModUiExtractor Action 1/2). Outputs chunked NDJSON to tmp/ui-dumps/. Use initialDelayMs to wait (e.g. for F1/Help system to load) before scraping.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Target player ID"),
+        deep: z.boolean().default(true).describe("Deep mode (true) or safe mode (false)"),
+        initialDelayMs: z.number().int().min(0).max(30000).default(0).describe("Delay in ms before starting the dump (e.g. 3000 for F1/Help load)")
+      },
+      outputSchema: queuedCommandOutputSchema
+    },
+    async ({ playerId, deep, initialDelayMs }) => {
+      const result = await commandQueue.enqueue({
+        playerId,
+        targetKind: "lua_editor",
+        action: "ui_dump",
+        deep,
+        initialDelayMs
+      });
+
+      await eventStore.appendSystemEvent({
+        eventId: `evt-${result.command.commandId}`,
+        createdAtUtc: new Date().toISOString(),
+        playerId,
+        source: {
+          kind: "lua_editor",
+          boardId: null
+        },
+        type: "command_enqueued",
+        payload: {
+          commandId: result.command.commandId,
+          action: "ui_dump",
+          queuePath: result.path,
+          deep,
+          initialDelayMs
+        }
+      });
+
+      const structuredContent = {
+        commandId: result.command.commandId,
+        status: "queued" as const,
+        targetKind: "lua_editor",
+        playerId,
+        queuePath: result.path,
+        saveRequested: false,
+        waitForEditor: false,
+        maxAttempts: null,
+        retryDelayMs: null
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Queued UI dump (${deep ? "deep" : "safe"}, delay=${initialDelayMs}ms) for player ${playerId}: ${result.command.commandId}`
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
 }

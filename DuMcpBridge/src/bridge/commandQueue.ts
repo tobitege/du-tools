@@ -22,6 +22,8 @@ export interface EnqueueCommandInput {
   retryDelayMs?: number;
   probeMethod?: string;
   probeArgs?: unknown[];
+  deep?: boolean;
+  initialDelayMs?: number;
 }
 
 export interface EnqueueCommandResult {
@@ -101,7 +103,9 @@ export class BridgeCommandQueue {
         ...(typeof input.maxAttempts === "number" ? { maxAttempts: input.maxAttempts } : {}),
         ...(typeof input.retryDelayMs === "number" ? { retryDelayMs: input.retryDelayMs } : {}),
         ...(typeof input.probeMethod === "string" ? { probeMethod: input.probeMethod } : {}),
-        ...(Array.isArray(input.probeArgs) ? { probeArgs: input.probeArgs } : {})
+        ...(Array.isArray(input.probeArgs) ? { probeArgs: input.probeArgs } : {}),
+        ...(typeof input.deep === "boolean" ? { deep: input.deep } : {}),
+        ...(typeof input.initialDelayMs === "number" ? { initialDelayMs: input.initialDelayMs } : {})
       }
     };
 
