@@ -30,6 +30,8 @@ interface SidebarProps {
   onResizePointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
   collapsed: boolean;
   onToggle: () => void;
+  section: "sessions" | "settings";
+  onSectionChange: (section: "sessions" | "settings") => void;
 }
 
 function SidebarToggleIcon({ collapsed }: { collapsed: boolean }) {
@@ -146,10 +148,11 @@ export function Sidebar({
   onResizePointerDown,
   collapsed,
   onToggle,
+  section,
+  onSectionChange,
 }: SidebarProps) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
-  const [section, setSection] = useState<"sessions" | "settings">("sessions");
   const [draggingSessionId, setDraggingSessionId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ id: string; placement: SessionDropPlacement } | null>(null);
   const [sidebarDropActive, setSidebarDropActive] = useState(false);
@@ -230,7 +233,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={() => {
-            setSection("settings");
+            onSectionChange("settings");
             onToggle();
           }}
           className="btn btn-ghost btn-sm btn-square"
@@ -265,14 +268,14 @@ export function Sidebar({
       <div className="tabs tabs-border bg-base-200 px-5 pt-4">
         <button
           className={classNames("tab flex-1 text-sm", section === "sessions" && "tab-active")}
-          onClick={() => setSection("sessions")}
+          onClick={() => onSectionChange("sessions")}
           title="Show session history"
         >
           History
         </button>
         <button
           className={classNames("tab flex-1 text-sm", section === "settings" && "tab-active")}
-          onClick={() => setSection("settings")}
+          onClick={() => onSectionChange("settings")}
           title="Show emulator settings"
         >
           Settings

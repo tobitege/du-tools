@@ -85,6 +85,8 @@ export function normalizeMaxFps(value: unknown): number {
 
 export interface Settings {
   sidebarWidth: number;
+  sidebarCollapsed: boolean;
+  sidebarSection: "sessions" | "settings";
   resolutionPreset: string;
   canvasWidth: number;
   canvasHeight: number;
@@ -103,6 +105,8 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   sidebarWidth: MIN_SIDEBAR_WIDTH,
+  sidebarCollapsed: false,
+  sidebarSection: "sessions",
   resolutionPreset: "fhd-landscape",
   canvasWidth: 1920,
   canvasHeight: 1080,

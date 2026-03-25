@@ -169,6 +169,8 @@ function normalizeSettings(raw: unknown): Settings {
     ...DEFAULT_SETTINGS,
     ...value,
     sidebarWidth: clamp(typeof value.sidebarWidth === "number" ? value.sidebarWidth : DEFAULT_SETTINGS.sidebarWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH),
+    sidebarCollapsed: typeof value.sidebarCollapsed === "boolean" ? value.sidebarCollapsed : DEFAULT_SETTINGS.sidebarCollapsed,
+    sidebarSection: value.sidebarSection === "settings" ? "settings" : "sessions",
     resolutionPreset,
     canvasWidth: resolvedWidth,
     canvasHeight: resolvedHeight,
@@ -583,7 +585,6 @@ export default function App() {
   const [activeSessionId, setActiveSessionId] = useState("");
   const [code, setCode] = useState("");
   const [settings, setSettings] = useState<Settings>(safeLoadSettings);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [result, setResult] = useState<LuaExecResult | null>(null);
   const [running, setRunning] = useState(false);
   const [animating, setAnimating] = useState(false);
@@ -1838,8 +1839,10 @@ export default function App() {
         onOpenLuaModuleSearchPaths={openLuaModuleSearchPathsDialog}
         width={settings.sidebarWidth}
         onResizePointerDown={handleSidebarResizePointerDown}
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((current) => !current)}
+        collapsed={settings.sidebarCollapsed}
+        onToggle={() => setSettings((current) => ({ ...current, sidebarCollapsed: !current.sidebarCollapsed }))}
+        section={settings.sidebarSection}
+        onSectionChange={(section) => setSettings((current) => ({ ...current, sidebarSection: section }))}
       />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
