@@ -1,28 +1,23 @@
+import {
+  DU_ALIGN_H,
+  DU_ALIGN_V,
+  DU_LAYER_STYLE_DEFAULTS,
+  DU_RENDER_COST_MAX,
+  DU_SHAPE,
+} from "./renderScriptCompat";
+
 export const RSShape = {
-  Bezier: 0,
-  Box: 1,
-  BoxRounded: 2,
-  Circle: 3,
-  Image: 4,
-  Line: 5,
-  Polygon: 6,
-  Text: 7,
+  ...DU_SHAPE,
 } as const;
 export type RSShape = (typeof RSShape)[keyof typeof RSShape];
 
 export const RSAlignHor = {
-  Left: 0,
-  Center: 1,
-  Right: 2,
+  ...DU_ALIGN_H,
 } as const;
 export type RSAlignHor = (typeof RSAlignHor)[keyof typeof RSAlignHor];
 
 export const RSAlignVer = {
-  Top: 0,
-  Middle: 1,
-  Bottom: 2,
-  Baseline: 3,
-  Descender: 4,
+  ...DU_ALIGN_V,
 } as const;
 export type RSAlignVer = (typeof RSAlignVer)[keyof typeof RSAlignVer];
 
@@ -37,15 +32,29 @@ export interface LayerStyle {
   textAlign: { hor: number; ver: number };
 }
 
-export function defaultLayerStyle(): LayerStyle {
+export function defaultLayerStyleForShape(shape: number): LayerStyle {
+  const base = DU_LAYER_STYLE_DEFAULTS[shape] ?? DU_LAYER_STYLE_DEFAULTS[RSShape.Box];
   return {
-    fillColor: [1, 1, 1, 1],
-    strokeColor: [0, 0, 0, 1],
-    strokeWidth: 0,
-    shadow: { radius: 0, color: [0, 0, 0, 0.5] },
-    rotation: 0,
-    textAlign: { hor: RSAlignHor.Left, ver: RSAlignVer.Baseline },
+    fillColor: [...base.fillColor],
+    strokeColor: [...base.strokeColor],
+    strokeWidth: base.strokeWidth,
+    shadow: { radius: base.shadow.radius, color: [...base.shadow.color] },
+    rotation: base.rotation,
+    textAlign: { ...base.textAlign },
   };
+}
+
+export function defaultLayerStyle(): LayerStyle {
+  return defaultLayerStyleForShape(RSShape.Box);
+}
+
+export function buildDefaultLayerStyles(): Record<number, LayerStyle> {
+  return Object.fromEntries(
+    Object.keys(DU_LAYER_STYLE_DEFAULTS).map((shape) => {
+      const numericShape = Number(shape);
+      return [numericShape, defaultLayerStyleForShape(numericShape)];
+    }),
+  );
 }
 
 export type DrawCommand =
@@ -105,5 +114,5 @@ export const DEFAULT_SCREEN: ScreenConfig = {
   width: 1920,
   height: 1080,
   backgroundColor: [0, 0, 0, 1],
-  renderCostMax: 10000,
+  renderCostMax: DU_RENDER_COST_MAX,
 };

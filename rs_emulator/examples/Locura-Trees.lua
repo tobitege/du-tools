@@ -18,7 +18,7 @@ local bgLayer = createLayer()
 local accentLayer = createLayer()
 local textLayer = createLayer()
 
-local bodyFont = loadFont("Georgia", math.max(18, math.floor(ry * 0.04)))
+local bodyFont = loadFont("Play", math.max(18, math.floor(ry * 0.04)))
 local titleFont = loadFont("Montserrat-Bold", math.max(72, math.floor(ry * 0.16)))
 
 setBackgroundColor(0, 0, 0)

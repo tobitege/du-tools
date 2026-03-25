@@ -2,12 +2,12 @@
 -- ScreenOutput(...): render lines of text on a linked screen.
 
 local samples = {
-  { name = "Arial", size = 34, text = "Arial - The quick brown fox jumps over the lazy dog 0123456789" },
-  { name = "Verdana", size = 32, text = "Verdana - Clean UI text and readable labels" },
-  { name = "Georgia", size = 40, text = "Georgia - Serif sample for headings" },
-  { name = "Times New Roman", size = 40, text = "Times New Roman - Traditional serif body copy" },
-  { name = "Courier New", size = 30, text = "Courier New - Monospace diagnostics and logs" },
-  { name = "FiraMono", size = 30, text = "FiraMono - DU-style mono sample if available" },
+  { name = "Montserrat", size = 34, text = "Montserrat - The quick brown fox jumps over the lazy dog 0123456789" },
+  { name = "RobotoCondensed", size = 32, text = "RobotoCondensed - Clean UI text and readable labels" },
+  { name = "Play", size = 40, text = "Play - Heading sample with crisp display shapes" },
+  { name = "Montserrat-Light", size = 40, text = "Montserrat-Light - Lighter body copy sample" },
+  { name = "FiraMono", size = 30, text = "FiraMono - Monospace diagnostics and logs" },
+  { name = "FiraMono-Bold", size = 30, text = "FiraMono-Bold - DU-style mono emphasis sample" },
 }
 
 setBackgroundColor(0.04, 0.05, 0.08)
@@ -18,12 +18,12 @@ local y = 42
 local margin = 34
 
 setNextFillColor(layer, 0.82, 0.88, 1, 1)
-local titleFont = loadFont("Georgia", 64)
+local titleFont = loadFont("Play", 64)
 addText(layer, titleFont, "Font Examples", margin, y)
 y = y + 84
 
 setNextFillColor(layer, 0.5, 0.62, 0.85, 1)
-local subtitleFont = loadFont("Arial", 24)
+local subtitleFont = loadFont("Montserrat", 24)
 addText(layer, subtitleFont, string.format("Resolution: %dx%d", rx, ry), margin, y)
 y = y + 54
 

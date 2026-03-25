@@ -174,7 +174,14 @@ function Library.toScreenH(layout, sourceH)
 end
 
 function Library.font(fontName, size)
-    return loadFont(fontName, size)
+    local compatFonts = {
+        Arial = "Montserrat",
+        Georgia = "Play",
+        ["Courier New"] = "FiraMono",
+        Verdana = "RobotoCondensed",
+        ["Times New Roman"] = "Montserrat-Light",
+    }
+    return loadFont(compatFonts[fontName] or fontName, size)
 end
 
 function Library.withFontSize(font, size)
@@ -1000,6 +1007,109 @@ function Library.drawDot(layer, layout, cx, cy, radius, color)
     addCircle(layer, scx, scy, sr)
 end
 
+local SIMPLE_SIGN_BOARD_OUTLINE_PATH =
+    "m840 59h560l64 61 1.7 0.7h491l1.6-0.61 47-41h327l40 33v260l-42 36-0.86 1.9v905l0.59 1.6 43 50v237l-40 33h-327l-47-41-1.6-0.62h-1504l-1.6 0.6-48 41h-335l-39-33v-82l33-40 0.57-1.6v-268l-0.88-1.9-33-28v-635l35-29 0.91-1.9v-322l-0.68-1.7-35-37v-44l36-32h326l47 41 1.6 0.62h334l1.7-0.7 64-61m561-5h-562l-1.7 0.69-64 61h-332l-47-41-1.6-0.62h-328l-1.7 0.65-37 34-0.82 1.9v46l0.68 1.7 35 37v320l-35 29-0.91 1.9v638l0.88 1.9 33 28v266l-33 40-0.57 1.6v84l0.87 1.9 40 35 1.6 0.61h336l1.6-0.61 48-41h1502l47 41 1.6 0.62h329l1.6-0.58 41-34 0.91-1.9v-239l-0.6-1.6-43-50v-903l42-36 0.87-1.9v-263l-0.91-1.9-41-34-1.6-0.57h-329l-1.6 0.62-47 41h-489l-64-61-1.7-0.69"
+
+local SIMPLE_SIGN_BOARD_HIGHLIGHT_PATHS = {
+    "m413 119-30-26h-300l25 26h305",
+    "m85 94h297l28 24h-302l-23-24m297-2h-300l-0.91 0.61 0.2 1.1 25 26 0.72 0.3h305l0.93-0.66-0.29-1.1-30-26-0.64-0.24",
+    "m2312 93h-300l-30 26h305l25-26",
+    "m2e3 94h297l-23 24h-302l28-24m299-2h-300l-0.65 0.24-30 26-0.29 1.1 0.94 0.66h305l0.71-0.3 25-26 0.41-0.81-1-1",
+    "m836 84h566l37 35h-638l35-35",
+    "m2309 1620h-300l-25-21h350l-25 21",
+    "m402 1620h-300l-25-21h350l-25 21",
+    "m402 1620h-300l-25-21h350l-25 21",
+    "m46 195-20-15v351l20-16v-320",
+    "m46 1215-21-18v305l21-25v-262",
+    "m2330 1473 29 34v-38l-29-34v38",
+    "m2330 1549 29 34v-38l-29-34v38",
+    "m2330 1359v38l29 34v-38",
+    "m2360 238-29 34v-38l29-34v38",
+    "m2360 314-29 34v-38l29-34v38",
+    "m2330 158v38l29-34v-38",
+    "m42 111v38l29 34v-38",
+    "m42 1552v38l29-34v-38",
+}
+
+local SIMPLE_SIGN_BOARD_TRANSFORM = {
+    0.098,
+    0,
+    0,
+    -0.098,
+    -2.2454,
+    161,
+}
+
+local SIMPLE_SIGN_BOARD_ITEMS = {
+    {
+        d = SIMPLE_SIGN_BOARD_OUTLINE_PATH,
+        fill = "#f00",
+        transform = SIMPLE_SIGN_BOARD_TRANSFORM,
+    },
+}
+
+for _, pathData in ipairs(SIMPLE_SIGN_BOARD_HIGHLIGHT_PATHS) do
+    SIMPLE_SIGN_BOARD_ITEMS[#SIMPLE_SIGN_BOARD_ITEMS + 1] = {
+        d = pathData,
+        fill = "#bbb",
+        transform = SIMPLE_SIGN_BOARD_TRANSFORM,
+    }
+end
+
+local SIMPLE_SIGN_BOARD_CLASSIFIED_SHAPES = nil
+
+local function simpleSignBoardClassifiedShapes()
+    if not SIMPLE_SIGN_BOARD_CLASSIFIED_SHAPES then
+        local SvgShapeClassifier = require("lib.SvgShapeClassifier")
+        SIMPLE_SIGN_BOARD_CLASSIFIED_SHAPES = SvgShapeClassifier.classifyItems(SIMPLE_SIGN_BOARD_ITEMS)
+    end
+
+    return SIMPLE_SIGN_BOARD_CLASSIFIED_SHAPES
+end
+
+function Library.simpleSignBoard(layer, layout, bounds, options)
+    options = options or {}
+
+    local screenX = Library.toScreenX(layout, bounds.x)
+    local screenY = Library.toScreenY(layout, bounds.y)
+    local screenW = Library.toScreenW(layout, bounds.w)
+    local screenH = Library.toScreenH(layout, bounds.h)
+
+    local boardLayout = {
+        screenW = layout.screenW,
+        screenH = layout.screenH,
+        sourceW = 231,
+        sourceH = 156,
+        scale = math.min(screenW / 231, screenH / 156),
+        scaleX = screenW / 231,
+        scaleY = screenH / 156,
+        x = screenX,
+        y = screenY,
+    }
+
+    local outlineColor = options.outlineColor or { 1, 0, 0, 1 }
+    local highlightColor = options.highlightColor or { 1, 1, 1, 1 }
+    local outlineWidth = options.outlineWidth or 2.5
+    local highlightWidth = options.highlightWidth or 2.0
+
+    local classifiedShapes = simpleSignBoardClassifiedShapes()
+    for itemIndex, item in ipairs(SIMPLE_SIGN_BOARD_ITEMS) do
+        local color = highlightColor
+        local strokeWidth = highlightWidth
+
+        if itemIndex == 1 then
+            color = outlineColor
+            strokeWidth = outlineWidth
+        end
+
+        Library.drawClassifiedPathItem(layer, boardLayout, item, classifiedShapes[itemIndex], {
+            classifiedMode = "fill",
+            color = color,
+            strokeWidth = strokeWidth,
+        })
+    end
+end
+
 -- --- Geometrie-Routinen für SilverZero UI-Elemente ---
 
 --- Zeichnet ein gefülltes Hexagon.
@@ -1121,6 +1231,29 @@ local function resolveShapeColor(shape, options)
     end
 
     return nil
+end
+
+local function isClassifiedKindAllowed(shape, options)
+    if not shape or not shape.kind then
+        return false
+    end
+
+    local classifiedKinds = options and options.classifiedKinds or nil
+    if not classifiedKinds then
+        return true
+    end
+
+    if classifiedKinds[shape.kind] ~= nil then
+        return classifiedKinds[shape.kind] == true
+    end
+
+    for i = 1, #classifiedKinds do
+        if classifiedKinds[i] == shape.kind then
+            return true
+        end
+    end
+
+    return false
 end
 
 local function drawPointQuad(layer, layout, points, color)
@@ -1695,7 +1828,7 @@ function Library.drawClassifiedPathItem(layer, layout, item, shape, options)
     local hasFill = item.fill and item.fill ~= "" and item.fill ~= "none"
     local drewClassified = false
 
-    if hasFill and shape then
+    if hasFill and shape and isClassifiedKindAllowed(shape, options) then
         if options.classifiedMode == "fill" then
             drewClassified = Library.drawClassifiedFillShape(layer, layout, shape, options)
         else

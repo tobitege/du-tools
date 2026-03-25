@@ -188,11 +188,11 @@ describe("lua runtime example integration", () => {
     const buffer = new DrawBuffer();
     const env = createLuaEnvironment(buffer);
 
-    const first = await env.execute("counter = (counter or 0) + 1\nlocal layer = createLayer()\nlocal font = loadFont('Arial', 16)\naddText(layer, font, 'frame ' .. counter, 10, 20)");
+    const first = await env.execute("counter = (counter or 0) + 1\nlocal layer = createLayer()\nlocal font = loadFont('RobotoMono', 16)\naddText(layer, font, 'frame ' .. counter, 10, 20)");
     expect(first.success).toBe(true);
     expect(buffer.commands.some((command) => command.op === "AddText" && command.text === "frame 1")).toBe(true);
 
-    const second = await env.execute("counter = (counter or 0) + 1\nlocal layer = createLayer()\nlocal font = loadFont('Arial', 16)\naddText(layer, font, 'frame ' .. counter, 10, 20)");
+    const second = await env.execute("counter = (counter or 0) + 1\nlocal layer = createLayer()\nlocal font = loadFont('RobotoMono', 16)\naddText(layer, font, 'frame ' .. counter, 10, 20)");
     expect(second.success).toBe(true);
     expect(buffer.commands.some((command) => command.op === "AddText" && command.text === "frame 2")).toBe(true);
   });
@@ -203,7 +203,7 @@ describe("lua runtime example integration", () => {
       "tests/runtime/pcall-require.lua": `
         local ok, rslib = pcall(require, "rslib")
         local layer = createLayer()
-        local font = loadFont('Arial', 16)
+        local font = loadFont('RobotoMono', 16)
         addText(layer, font, ok and 'loaded' or 'missing', 10, 20)
       `,
       "tests/runtime/rslib.lua": rslibFixture,
@@ -1901,6 +1901,118 @@ describe("lua runtime example integration", () => {
     expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
   });
 
+  it("falls back to raw path drawing when classified path-item kinds are filtered out", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/tests/draw-classified-path-item-kind-filter.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local item = {
+          d = "M0 0 L10 0 L10 10 L0 10 z M3 3 L7 3 L7 7 L3 7 z",
+          fill = "#fff",
+        }
+        local shape = Classifier.classifyItem(item)
+        local layer = createLayer()
+        local layout = {
+          screenW = 100,
+          screenH = 100,
+          sourceW = 100,
+          sourceH = 100,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedPathItem(layer, layout, item, shape, {
+          classifiedMode = "fill",
+          classifiedKinds = { "hex_ring" },
+          color = { 1, 1, 1, 1 },
+          strokeWidth = 1,
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          shape.kind
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-path-item-kind-filter.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|polygon_ring");
+    const lines = buffer.commands.filter((command) => command.op === "AddLine");
+    const quads = buffer.commands.filter((command) => command.op === "AddQuad");
+    expect(lines).toHaveLength(6);
+    expect(quads).toHaveLength(0);
+  });
+
+  it("draws a real master-artboard trapezoid through the classified path-item helper when the kind is allowed", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver({
+      "lib/SilverZeroRsLib.lua": silverZeroLibSource,
+      "lib/SvgParser.lua": svgParserSource,
+      "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+      "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
+      "examples/SilverZero/tests/draw-classified-path-item-master-trapezoid.lua": `
+        local SZ = require("lib.SilverZeroRsLib")
+        local Parser = require("lib.SvgParser")
+        local Classifier = require("lib.SvgShapeClassifier")
+        local html = require("examples.SilverZero.SimpleSignS_html")
+        local doc = Parser.parse(html)
+        local targetItem
+        local targetShape
+
+        for _, svg in ipairs(doc.svgs or {}) do
+          if svg.id == "master-artboard" then
+            local shapes = Classifier.classifySvg(svg, { vars = doc.vars })
+            for itemIndex, shape in ipairs(shapes) do
+              if shape.kind == "trapezoid" then
+                targetItem = svg.items[itemIndex]
+                targetShape = shape
+                break
+              end
+            end
+            break
+          end
+        end
+
+        local layer = createLayer()
+        local layout = {
+          screenW = 1400,
+          screenH = 980,
+          sourceW = 1400,
+          sourceH = 980,
+          scale = 1,
+          x = 0,
+          y = 0,
+        }
+
+        local drew = SZ.drawClassifiedPathItem(layer, layout, targetItem, targetShape, {
+          classifiedMode = "fill",
+          classifiedKinds = { "polygon_ring", "quad", "trapezoid" },
+          color = { 1, 1, 1, 1 },
+          strokeWidth = 1.8,
+        })
+        setOutput(table.concat({
+          tostring(drew),
+          targetShape and targetShape.kind or "nil",
+          tostring(targetShape and targetShape.analysis and targetShape.analysis.pointCount or "nil")
+        }, "|"))
+      `,
+    }));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-path-item-master-trapezoid.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("true|trapezoid|4");
+    const quads = buffer.commands.filter((command) => command.op === "AddQuad");
+    expect(quads).toHaveLength(1);
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
+  });
+
   it("draws a compound_path through the stroke-only adapter", async () => {
     const buffer = new DrawBuffer();
     const env = createLuaEnvironment(buffer, createLuaFileResolver({
@@ -2347,10 +2459,10 @@ describe("lua runtime example integration", () => {
 
     expect(result.success).toBe(true);
     expect(result.requestAnimFrames).toBe(0);
-    expect(renderCommandCount).toBe(5437);
+    expect(renderCommandCount).toBe(4878);
     expect(commandCounts.AddBox ?? 0).toBe(1);
-    expect(commandCounts.AddLine ?? 0).toBe(5327);
-    expect(commandCounts.AddQuad ?? 0).toBe(34);
+    expect(commandCounts.AddLine ?? 0).toBe(4213);
+    expect(commandCounts.AddQuad ?? 0).toBe(589);
     expect(commandCounts.AddTriangle ?? 0).toBe(74);
     expect(commandCounts.AddText ?? 0).toBe(1);
     expect(logoCommandCounts.AddLine ?? 0).toBe(667);
@@ -2369,7 +2481,7 @@ describe("lua runtime example integration", () => {
     const result = await executeLuaFile(env, "examples/SilverZero/SimpleSignXS.lua");
 
     expect(result.success).toBe(true);
-    expect(result.requestAnimFrames).toBe(1);
+    expect(result.requestAnimFrames).toBe(0);
     expect(buffer.commands.some((command) => command.op === "AddText")).toBe(true);
     expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(true);
   });
@@ -2534,7 +2646,7 @@ describe("lua runtime example integration", () => {
     const buffer = new DrawBuffer();
     const env = createLuaEnvironment(buffer);
 
-    const result = await env.execute("local font = loadFont('Arial', 20)\nlocal w, h = getTextBounds(font, 'Bottom HUD')\nsetOutput(string.format('%.1f,%.1f', w, h))");
+    const result = await env.execute("local font = loadFont('RobotoMono', 20)\nlocal w, h = getTextBounds(font, 'Bottom HUD')\nsetOutput(string.format('%.1f,%.1f', w, h))");
 
     expect(result.success).toBe(true);
     const [width, height] = result.output.split(",").map(Number);

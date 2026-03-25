@@ -26,7 +26,7 @@ const RS_COMPLETIONS: { label: string; kind: string; insertText: string; detail:
   { label: "addTriangle", kind: "Function", insertText: "addTriangle(${1:layer}, ${2:x1}, ${3:y1}, ${4:x2}, ${5:y2}, ${6:x3}, ${7:y3})", detail: "Add a triangle" },
   { label: "addText", kind: "Function", insertText: "addText(${1:layer}, ${2:font}, \"${3:text}\", ${4:x}, ${5:y})", detail: "Add text" },
   { label: "addImage", kind: "Function", insertText: "addImage(${1:layer}, ${2:image}, ${3:x}, ${4:y}, ${5:width}, ${6:height})", detail: "Add an image" },
-  { label: "loadFont", kind: "Function", insertText: "loadFont(\"${1:Arial}\", ${2:16})", detail: "Load a font" },
+  { label: "loadFont", kind: "Function", insertText: "loadFont(\"${1:RobotoMono}\", ${2:16})", detail: "Load a font" },
   { label: "loadImage", kind: "Function", insertText: "loadImage(\"${1:url}\")", detail: "Load an image from URL" },
   { label: "setBackgroundColor", kind: "Function", insertText: "setBackgroundColor(${1:r}, ${2:g}, ${3:b})", detail: "Set background color" },
   { label: "setDefaultFillColor", kind: "Function", insertText: "setDefaultFillColor(${1:layer}, ${2:shape}, ${3:r}, ${4:g}, ${5:b}, ${6:a})", detail: "Set default fill color" },
@@ -69,7 +69,7 @@ const RS_SNIPPETS = [
     label: "rs-boilerplate",
     insertText: [
       "local layer = createLayer()",
-      "local font = loadFont(\"Arial\", 20)",
+      "local font = loadFont(\"RobotoMono\", 20)",
       "",
       "setBackgroundColor(0.1, 0.1, 0.15)",
       "",

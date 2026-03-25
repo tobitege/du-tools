@@ -1,7 +1,7 @@
 import { DrawBuffer } from "./drawBuffer";
 import { RSAlignHor, RSAlignVer } from "./types";
 import type { DrawCommand, RGBA, LayerStyle } from "./types";
-import { getFontString, measureFontMetrics } from "./textMetrics";
+import { getFontString, measureFontMetrics, measureTextBounds } from "./textMetrics";
 
 type RenderableCommand = Extract<DrawCommand, { style: LayerStyle }>;
 type RenderTargetCanvas = Pick<HTMLCanvasElement, "width" | "height" | "getContext">;
@@ -53,24 +53,24 @@ function alignToCanvas(hor: number): CanvasTextAlign {
   return "left";
 }
 
-function verToBaseline(ver: number): CanvasTextBaseline {
-  if (ver === RSAlignVer.Top) return "top";
-  if (ver === RSAlignVer.Middle) return "middle";
-  if (ver === RSAlignVer.Bottom) return "bottom";
-  return "alphabetic";
-}
+function resolveTextY(fontName: string, fontSize: number, text: string, ver: number, y: number): number {
+  const fontMetrics = measureFontMetrics(fontName, fontSize);
+  const bounds = measureTextBounds(fontName, fontSize, text);
 
-function resolveTextY(fontName: string, fontSize: number, ver: number, y: number): number {
-  const metrics = measureFontMetrics(fontName, fontSize);
-
+  if (ver === RSAlignVer.Ascender) {
+    return y + fontMetrics.ascent;
+  }
   if (ver === RSAlignVer.Top) {
-    return y + metrics.ascent;
+    return y + bounds.ascent;
   }
   if (ver === RSAlignVer.Middle) {
-    return y + (metrics.ascent - metrics.descent) / 2;
+    return y + (bounds.ascent - bounds.descent) / 2;
   }
-  if (ver === RSAlignVer.Bottom || ver === RSAlignVer.Descender) {
-    return y - metrics.descent;
+  if (ver === RSAlignVer.Bottom) {
+    return y - bounds.descent;
+  }
+  if (ver === RSAlignVer.Descender) {
+    return y - fontMetrics.descent;
   }
 
   return y;
@@ -274,9 +274,9 @@ function renderBufferToCanvas(canvas: RenderTargetCanvas, buffer: DrawBuffer) {
           const fontStr = getFontString(fontName, fontSize);
           ctx.font = fontStr;
           ctx.textAlign = alignToCanvas(style.textAlign.hor);
-          ctx.textBaseline = verToBaseline(RSAlignVer.Baseline);
+          ctx.textBaseline = "alphabetic";
           ctx.lineJoin = "round";
-          const textY = resolveTextY(fontName, fontSize, style.textAlign.ver, cmd.y);
+          const textY = resolveTextY(fontName, fontSize, cmd.text, style.textAlign.ver, cmd.y);
           if (style.strokeWidth > 0 && style.strokeColor[3] > 0) {
             ctx.strokeText(cmd.text, cmd.x, textY);
           }

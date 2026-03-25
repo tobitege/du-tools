@@ -2,7 +2,7 @@ local RenderScript = require("RenderScript")
 local render = RenderScript.Instance()
 
 local layer = render.CreateLayer()
-local font = render.LoadFont("Arial", 28)
+local font = render.LoadFont("Montserrat", 28)
 local bounds = render.GetTextBounds(font, "Wrapper OK")
 
 render.SetBackgroundColor(0.04, 0.06, 0.09)

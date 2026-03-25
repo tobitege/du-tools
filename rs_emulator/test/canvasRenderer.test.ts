@@ -38,7 +38,7 @@ describe("canvasRenderer text rendering", () => {
   it("renders AddText commands onto the canvas context", () => {
     const buffer = new DrawBuffer();
     const layer = buffer.CreateLayer();
-    const fontId = buffer.LoadFont("Arial", 24);
+    const fontId = buffer.LoadFont("RobotoMono", 24);
 
     buffer.SetNextFillColor(layer, 1, 1, 1, 1);
     buffer.AddText(layer, fontId, "Hello RenderScript", 180, 560);
@@ -59,7 +59,7 @@ describe("canvasRenderer text rendering", () => {
   it("uses Shape_Text fill and stroke defaults for text rendering", () => {
     const buffer = new DrawBuffer();
     const layer = buffer.CreateLayer();
-    const fontId = buffer.LoadFont("Arial", 24);
+    const fontId = buffer.LoadFont("RobotoMono", 24);
 
     buffer.SetDefaultFillColor(layer, 7, 0.1, 0.2, 0.3, 0.4);
     buffer.SetDefaultStrokeColor(layer, 7, 0.7, 0.8, 0.9, 1);
@@ -85,7 +85,7 @@ describe("canvasRenderer text rendering", () => {
   it("moves descender-aligned text upward to avoid bottom clipping", () => {
     const buffer = new DrawBuffer();
     const layer = buffer.CreateLayer();
-    const fontId = buffer.LoadFont("Arial", 20);
+    const fontId = buffer.LoadFont("RobotoMono", 20);
 
     buffer.SetNextTextAlign(layer, 0, 4);
     buffer.AddText(layer, fontId, "Bottom HUD", 16, 100);
@@ -99,7 +99,75 @@ describe("canvasRenderer text rendering", () => {
 
     renderBuffer(canvas, buffer);
 
-    expect(context.fillText).toHaveBeenCalledWith("Bottom HUD", 16, 96);
+    expect(context.fillText).toHaveBeenCalledTimes(1);
+    expect(context.fillText.mock.calls[0]?.[0]).toBe("Bottom HUD");
+    expect(context.fillText.mock.calls[0]?.[1]).toBe(16);
+    expect(Number(context.fillText.mock.calls[0]?.[2])).toBeLessThan(100);
+  });
+
+  it("distinguishes ascender and top vertical alignment anchors", () => {
+    const buffer = new DrawBuffer();
+    const layer = buffer.CreateLayer();
+    const fontId = buffer.LoadFont("RobotoMono", 24);
+
+    buffer.SetNextTextAlign(layer, 0, 0);
+    buffer.AddText(layer, fontId, "Ascender", 20, 100);
+    buffer.SetNextTextAlign(layer, 0, 1);
+    buffer.AddText(layer, fontId, "Top", 20, 100);
+
+    const context = createMockContext();
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn(() => context),
+    } as unknown as HTMLCanvasElement;
+
+    renderBuffer(canvas, buffer);
+
+    expect(context.fillText).toHaveBeenCalledTimes(2);
+    expect(context.fillText.mock.calls[0]?.[2]).not.toBe(context.fillText.mock.calls[1]?.[2]);
+  });
+
+  it("distinguishes bottom and descender vertical alignment anchors", () => {
+    const buffer = new DrawBuffer();
+    const layer = buffer.CreateLayer();
+    const fontId = buffer.LoadFont("RobotoMono", 24);
+
+    buffer.SetNextTextAlign(layer, 0, 4);
+    buffer.AddText(layer, fontId, "Bottom", 20, 100);
+    buffer.SetNextTextAlign(layer, 0, 5);
+    buffer.AddText(layer, fontId, "Descender", 20, 100);
+
+    const context = createMockContext();
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn(() => context),
+    } as unknown as HTMLCanvasElement;
+
+    renderBuffer(canvas, buffer);
+
+    expect(context.fillText).toHaveBeenCalledTimes(2);
+    expect(context.fillText.mock.calls[0]?.[2]).not.toBe(context.fillText.mock.calls[1]?.[2]);
+  });
+
+  it("renders default-width lines without explicit stroke setup", () => {
+    const buffer = new DrawBuffer();
+    const layer = buffer.CreateLayer();
+
+    buffer.AddLine(layer, 10, 10, 90, 10);
+
+    const context = createMockContext();
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn(() => context),
+    } as unknown as HTMLCanvasElement;
+
+    renderBuffer(canvas, buffer);
+
+    expect(context.lineWidth).toBe(1);
+    expect(context.stroke).toHaveBeenCalled();
   });
 
   it("renders lower layers before higher layers even when commands were added later", () => {
@@ -133,7 +201,7 @@ describe("canvasRenderer text rendering", () => {
   it("uses documented same-layer shape buckets instead of raw insertion order", () => {
     const buffer = new DrawBuffer();
     const layer = buffer.CreateLayer();
-    const fontId = buffer.LoadFont("Arial", 16);
+    const fontId = buffer.LoadFont("RobotoMono", 16);
     const image = { tag: "layer-image" } as unknown as HTMLImageElement;
 
     buffer.images.push({
@@ -164,7 +232,7 @@ describe("canvasRenderer text rendering", () => {
     const buffer = new DrawBuffer();
     const background = buffer.CreateLayer();
     const foreground = buffer.CreateLayer();
-    const fontId = buffer.LoadFont("Arial", 16);
+    const fontId = buffer.LoadFont("RobotoMono", 16);
     const image = { tag: "foreground-layer-image" } as unknown as HTMLImageElement;
 
     buffer.images.push({

@@ -194,13 +194,134 @@ describe("drawBuffer style snapshotting", () => {
   it("reuses the same font handle for identical fonts across frame resets", () => {
     const buffer = new DrawBuffer();
 
-    const firstId = buffer.LoadFont("Arial", 24);
+    const firstId = buffer.LoadFont("RobotoMono", 24);
     buffer.resetFrame();
-    const secondId = buffer.LoadFont("Arial", 24);
+    const secondId = buffer.LoadFont("RobotoMono", 24);
 
     expect(firstId).toBe(1);
     expect(secondId).toBe(firstId);
     expect(buffer.fonts).toHaveLength(1);
+  });
+
+  it("exposes the DU font catalog in the documented order", () => {
+    const buffer = new DrawBuffer();
+
+    expect(buffer.GetAvailableFontCount()).toBe(12);
+    expect(buffer.GetAvailableFontName(1)).toBe("FiraMono");
+    expect(buffer.GetAvailableFontName(12)).toBe("RobotoMono-Bold");
+    expect(() => buffer.GetAvailableFontName(0)).toThrow("out-of-bounds font index");
+    expect(() => buffer.GetAvailableFontName(13)).toThrow("out-of-bounds font index");
+  });
+
+  it("limits loaded fonts to eight unique handles", () => {
+    const buffer = new DrawBuffer();
+    const names = [
+      "FiraMono",
+      "FiraMono-Bold",
+      "Montserrat",
+      "Montserrat-Bold",
+      "Montserrat-Light",
+      "Play",
+      "Play-Bold",
+      "RefrigeratorDeluxe",
+      "RobotoMono",
+    ] as const;
+
+    for (const name of names.slice(0, 8)) {
+      buffer.LoadFont(name, 20);
+    }
+
+    expect(() => buffer.LoadFont(names[8], 20)).toThrow("exceeded maximum number of loaded fonts (8)");
+  });
+
+  it("uses DU default stroke widths for lines and beziers", () => {
+    const buffer = new DrawBuffer();
+    const layer = buffer.CreateLayer();
+
+    buffer.AddLine(layer, 0, 0, 10, 10);
+    buffer.AddBezier(layer, 0, 10, 5, 0, 10, 10);
+
+    const line = buffer.commands.find((command) => command.op === "AddLine");
+    const bezier = buffer.commands.find((command) => command.op === "AddBezier");
+
+    expect(line?.style.strokeWidth).toBe(1);
+    expect(bezier?.style.strokeWidth).toBe(1);
+    expect(line?.style.strokeColor).toEqual([1, 1, 1, 1]);
+    expect(bezier?.style.strokeColor).toEqual([1, 1, 1, 1]);
+  });
+
+  it("returns negative descenders from font metrics", () => {
+    const buffer = new DrawBuffer();
+    const font = buffer.LoadFont("RobotoMono", 20);
+    const [ascender, descender] = buffer.GetFontMetrics(font);
+
+    expect(ascender).toBeGreaterThan(0);
+    expect(descender).toBeLessThan(0);
+  });
+
+  it("uses DU render cost max and createLayer cost", () => {
+    const buffer = new DrawBuffer();
+
+    expect(buffer.GetRenderCostMax()).toBe(4_000_000);
+    expect(buffer.GetRenderCost()).toBe(0);
+
+    buffer.CreateLayer();
+
+    expect(buffer.GetRenderCost()).toBe(75_000);
+  });
+
+  it("uses DU addBox render cost formulas", () => {
+    const buffer = new DrawBuffer();
+    const layer = buffer.CreateLayer();
+
+    let before = buffer.GetRenderCost();
+    buffer.AddBox(layer, 0, 0, 10, 10);
+    expect(buffer.GetRenderCost() - before).toBe(100);
+
+    buffer.SetNextStrokeWidth(layer, 1);
+    before = buffer.GetRenderCost();
+    buffer.AddBox(layer, 0, 0, 10, 10);
+    expect(buffer.GetRenderCost() - before).toBe(144);
+
+    buffer.SetNextStrokeWidth(layer, 5);
+    buffer.SetNextShadow(layer, 5, 1, 1, 1, 1);
+    before = buffer.GetRenderCost();
+    buffer.AddBox(layer, 0, 0, 10, 10);
+    expect(buffer.GetRenderCost() - before).toBe(900);
+  });
+
+  it("uses deterministic DU addText render cost formulas", () => {
+    const buffer = new DrawBuffer();
+    const layer = buffer.CreateLayer();
+    const font = buffer.LoadFont("RobotoMono", 30);
+
+    let before = buffer.GetRenderCost();
+    buffer.AddText(layer, font, ".", 0, 0);
+    expect(buffer.GetRenderCost() - before).toBe(111);
+
+    before = buffer.GetRenderCost();
+    buffer.AddText(layer, font, "%", 0, 0);
+    expect(buffer.GetRenderCost() - before).toBe(815);
+
+    before = buffer.GetRenderCost();
+    buffer.AddText(layer, font, "%%%", 0, 0);
+    expect(buffer.GetRenderCost() - before).toBe(2211);
+
+    buffer.SetFontSize(font, 20);
+    before = buffer.GetRenderCost();
+    buffer.AddText(layer, font, "%", 0, 0);
+    expect(buffer.GetRenderCost() - before).toBe(362);
+
+    buffer.SetNextStrokeWidth(layer, 1);
+    before = buffer.GetRenderCost();
+    buffer.AddText(layer, font, "%", 0, 0);
+    expect(buffer.GetRenderCost() - before).toBe(442);
+
+    buffer.SetNextStrokeWidth(layer, 5);
+    buffer.SetNextShadow(layer, 5, 1, 1, 1, 1);
+    before = buffer.GetRenderCost();
+    buffer.AddText(layer, font, "%", 0, 0);
+    expect(buffer.GetRenderCost() - before).toBe(1525);
   });
 
   it("rejects image URLs outside the allowed Novaquark asset host", () => {

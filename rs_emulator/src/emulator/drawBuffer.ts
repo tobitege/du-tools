@@ -1,9 +1,17 @@
 import type { DrawCommand, ScreenConfig } from "./types";
-import { RSShape, defaultLayerStyle, DEFAULT_SCREEN } from "./types";
+import { RSShape, buildDefaultLayerStyles, DEFAULT_SCREEN } from "./types";
 import type { LayerStyle, FontEntry, ImageEntry } from "./types";
 import { normalizeAnimationFrameCount } from "./frameTiming";
-import { measureFontMetrics, measureTextBounds } from "./textMetrics";
+import { measureCompatFontMetrics, measureTextBounds } from "./textMetrics";
 import { normalizeImageSource } from "../security/inputGuards";
+import {
+  costAddBox,
+  costAddText,
+  costCreateLayer,
+  DU_FONT_CATALOG,
+  DU_MAX_LOADED_FONTS,
+  isDUFontName,
+} from "./renderScriptCompat";
 
 const DEFAULT_DISABLED_IMAGE_URL = "/images-disabled.svg";
 const DISABLED_IMAGE_TEXT = "Images disabled";
@@ -141,10 +149,6 @@ export class DrawBuffer {
     if (this.isRenderableCommand(cmd)) {
       this.getLayerRenderCommands(cmd.layer).push(cmd);
     }
-
-    // cost each draw call as 1 unit (simplified)
-    const shapeOps = ["AddBezier","AddBox","AddBoxRounded","AddCircle","AddLine","AddQuad","AddTriangle","AddText","AddImage","AddImageSub"];
-    if (shapeOps.includes(cmd.op)) this.renderCost += 1;
   }
 
   private cloneStyle(style: LayerStyle): LayerStyle {
@@ -187,11 +191,17 @@ export class DrawBuffer {
   private getLayerShapeStyle(layer: number, shape: number): LayerStyle {
     this.assertLayerExists(layer);
     if (!this.layerStyles.has(layer)) {
-      const shapes = {} as Record<number, LayerStyle>;
-      for (let s = 0; s <= 7; s++) shapes[s] = defaultLayerStyle();
-      this.layerStyles.set(layer, shapes);
+      this.layerStyles.set(layer, buildDefaultLayerStyles());
     }
     return this.layerStyles.get(layer)![shape];
+  }
+
+  private getFontEntry(fontId: number): FontEntry {
+    const font = this.fonts.find((entry) => entry.id === fontId);
+    if (!font) {
+      throw new Error("invalid font handle");
+    }
+    return font;
   }
 
   private getLayerTransform(layer: number) {
@@ -208,8 +218,8 @@ export class DrawBuffer {
     const id = this.nextLayerId++;
     this.layerOrder.push(id);
     this.layerRenderCommands.set(id, []);
-    // initialize default styles for this layer
-    this.getLayerShapeStyle(id, RSShape.Box);
+    this.layerStyles.set(id, buildDefaultLayerStyles());
+    this.renderCost += costCreateLayer();
     return id;
   }
 
@@ -226,7 +236,9 @@ export class DrawBuffer {
     this.consumeNextOverride(layer);
   }
   AddBox(layer: number, x: number, y: number, w: number, h: number) {
-    this.push({ op: "AddBox", layer, style: this.getResolvedStyle(layer, RSShape.Box), x, y, w, h });
+    const style = this.getResolvedStyle(layer, RSShape.Box);
+    this.push({ op: "AddBox", layer, style, x, y, w, h });
+    this.renderCost += costAddBox(w, h, style.strokeWidth, style.shadow.radius);
     this.consumeNextOverride(layer);
   }
   AddBoxRounded(layer: number, x: number, y: number, w: number, h: number, radius: number) {
@@ -250,7 +262,11 @@ export class DrawBuffer {
     this.consumeNextOverride(layer);
   }
   AddText(layer: number, fontId: number, text: string, x: number, y: number) {
-    this.push({ op: "AddText", layer, style: this.getResolvedStyle(layer, RSShape.Text), fontId, text, x, y });
+    const style = this.getResolvedStyle(layer, RSShape.Text);
+    const font = this.getFontEntry(fontId);
+    const bounds = measureTextBounds(font.name, font.size, text ?? "");
+    this.push({ op: "AddText", layer, style, fontId, text, x, y });
+    this.renderCost += costAddText(bounds.width, bounds.height, style.strokeWidth, style.shadow.radius);
     this.consumeNextOverride(layer);
   }
   AddImage(layer: number, imageId: number, x: number, y: number, w: number, h: number) {
@@ -368,9 +384,17 @@ export class DrawBuffer {
 
   // --- fonts & images ---
   LoadFont(name: string, size: number): number {
+    if (!isDUFontName(name)) {
+      throw new Error(`unknown font <${name}>`);
+    }
+
     const existing = this.fonts.find((font) => font.name === name && font.size === size);
     if (existing) {
       return existing.id;
+    }
+
+    if (this.fonts.length >= DU_MAX_LOADED_FONTS) {
+      throw new Error(`exceeded maximum number of loaded fonts (${DU_MAX_LOADED_FONTS})`);
     }
 
     const id = this.nextFontId++;
@@ -378,30 +402,34 @@ export class DrawBuffer {
     return id;
   }
   GetFontSize(fontId: number): number {
-    return this.fonts.find(f => f.id === fontId)?.size ?? 0;
+    return this.getFontEntry(fontId).size;
   }
   SetFontSize(fontId: number, size: number) {
-    const f = this.fonts.find(f => f.id === fontId);
-    if (f) f.size = size;
+    this.getFontEntry(fontId).size = size;
   }
   GetFontMetrics(fontId: number): [number, number] {
-    const f = this.fonts.find(f => f.id === fontId);
-    if (!f) return [0, 0];
-    const metrics = measureFontMetrics(f.name, f.size);
-    return [metrics.ascent, metrics.descent];
+    const font = this.getFontEntry(fontId);
+    const metrics = measureCompatFontMetrics(font.name, font.size);
+    return [metrics.ascender, metrics.descender];
   }
   GetTextBounds(fontId: number, text: string): [number, number] {
-    const f = this.fonts.find(font => font.id === fontId);
-    if (!f) return [0, 0];
-    const metrics = measureTextBounds(f.name, f.size, text ?? "");
+    const font = this.getFontEntry(fontId);
+    const metrics = measureTextBounds(font.name, font.size, text ?? "");
     return [metrics.width, metrics.height];
   }
+  IsFontLoaded(fontId: number): boolean {
+    this.getFontEntry(fontId);
+    return true;
+  }
   GetAvailableFontCount(): number {
-    return 5; // pretend we have some system fonts
+    return DU_FONT_CATALOG.length;
   }
   GetAvailableFontName(index: number): string {
-    const names = ["Arial", "Courier New", "Georgia", "Times New Roman", "Verdana"];
-    return names[index] ?? "";
+    const name = DU_FONT_CATALOG[index - 1];
+    if (!name) {
+      throw new Error("out-of-bounds font index");
+    }
+    return name;
   }
 
   private createDisabledImagePlaceholder(): number {

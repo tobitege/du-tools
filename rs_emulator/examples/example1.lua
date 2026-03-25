@@ -28,9 +28,9 @@ local scene = createLayer()
 local fx = createLayer()
 local ui = createLayer()
 
-titleFont = titleFont or loadFont("Georgia", 34)
-bodyFont = bodyFont or loadFont("Arial", 18)
-monoFont = monoFont or loadFont("Courier New", 14)
+titleFont = titleFont or loadFont("Play", 34)
+bodyFont = bodyFont or loadFont("Montserrat", 18)
+monoFont = monoFont or loadFont("FiraMono", 14)
 
 local titleSize = clamp(34 + math.sin(pulse * 0.6) * 5, 28, 40)
 local bodySize = clamp(18 + math.cos(pulse * 0.5) * 2, 16, 22)
