@@ -101,7 +101,7 @@ Those families now run through shared classifier-to-library rules instead of loc
 
 ### Phase 22: Free-Form Adapter Probe
 
-- `examples/SilverZero/ShapeAdapterProbe.lua` was added as a free-form visual probe independent of the `SimpleSign*` examples.
+- `examples/SilverZero/ShapeClassifierAdapterProbe.lua` was added as a free-form visual probe independent of the `SimpleSign*` examples.
 - The probe shows labeled example cells for `hex_ring`, `polygon_ring`, `trapezoid`, `closed_polygon`, `compound_path`, and `outline_path`.
 - `luaRuntime.test.ts` also executes the probe and verifies both the textual adapter summary and the presence of text, line, quad, and triangle render calls.
 
@@ -109,7 +109,7 @@ Those families now run through shared classifier-to-library rules instead of loc
 
 - `SilverZeroRsLib.lua` now exposes `drawClassifiedStrokeShape(...)` as a reusable rule for stroke-oriented classifier families.
 - The first intentionally small production scope is geometric: `outline_path` and `compound_path`.
-- The free-form `ShapeAdapterProbe.lua` now uses this stroke rule directly for the two lower-right cells instead of relying on implicit fallback.
+- The free-form `ShapeClassifierAdapterProbe.lua` now uses this stroke rule directly for the two lower-right cells instead of relying on implicit fallback.
 - New runtime tests cover the stroke adapter directly with synthetic `outline_path` and `compound_path` cases.
 
 ### Phase 24: Classified Path-Item Porter Helper

@@ -1,3 +1,7 @@
+-- Focused visual probe for SvgShapeClassifier and the classified-shape draw helpers.
+-- This stays intentionally narrower than the current SimpleSign board renderer:
+-- it verifies adapter coverage and fallback behavior for representative shape families.
+
 local SZ = require("lib.SilverZeroRsLib")
 local Classifier = require("lib.SvgShapeClassifier")
 
@@ -21,6 +25,8 @@ local textLayer = layers.text
 local titleFont = SZ.font("Arial", SZ.scaleFontSize(10, layout))
 local bodyFont = SZ.font("Arial", SZ.scaleFontSize(4, layout))
 
+-- Reuse a few real board entries so the probe can compare synthetic shapes with
+-- actual SimpleSign board families without duplicating the production script.
 local boardProbe = SZ.simpleSignBoardProbeItems()
 
 local function drawCard(x, y, w, h)
@@ -118,6 +124,9 @@ local function drawProbeCase(probeLayout, probe, shape)
     return status, getRenderCost() - beforeCost
 end
 
+-- The probe mixes small synthetic fixtures with a few real board-derived items.
+-- That keeps classifier behavior visible without coupling this file to every
+-- render detail of SimpleSignS-svg.lua.
 local syntheticSourceW = 40
 local syntheticSourceH = 40
 
@@ -250,6 +259,7 @@ local probes = {
     },
 }
 
+-- The labeled summaries are part of the probe contract and are asserted in tests.
 local summaries = {}
 local cardW = 68
 local cardH = 50
@@ -261,8 +271,8 @@ local stepY = 52
 setNextFillColor(bgLayer, colors.background[1], colors.background[2], colors.background[3], colors.background[4])
 addBox(bgLayer, 0, 0, resolutionX, resolutionY)
 
-drawText(titleFont, "Shape Adapter Probe", 120, 10, colors.highlight)
-drawText(bodyFont, "synthetic + real board families", 120, 18, colors.muted)
+drawText(titleFont, "Shape Classifier Adapter Probe", 120, 10, colors.highlight)
+drawText(bodyFont, "synthetic + selected board families", 120, 18, colors.muted)
 
 for index, probe in ipairs(probes) do
     local col = (index - 1) % 3

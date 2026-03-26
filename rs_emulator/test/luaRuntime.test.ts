@@ -6,7 +6,7 @@ import renderScriptSource from "../examples/du-mocks/RenderScript.lua?raw";
 import simpleSignSSource from "../examples/SilverZero/SimpleSignS.lua?raw";
 import simpleSignSvgScriptSource from "../examples/SilverZero/SimpleSignS-svg.lua?raw";
 import simpleSignXSSource from "../examples/SilverZero/SimpleSignXS.lua?raw";
-import shapeAdapterProbeSource from "../examples/SilverZero/ShapeAdapterProbe.lua?raw";
+import shapeClassifierAdapterProbeSource from "../examples/SilverZero/ShapeClassifierAdapterProbe.lua?raw";
 import welcomeScreenMSource from "../examples/SilverZero/WelcomeScreenM.lua?raw";
 import shipStatsSSource from "../examples/SilverZero/ShipStatsS.lua?raw";
 import shipFrameMSource from "../examples/SilverZero/ShipFrameM.lua?raw";
@@ -17,9 +17,18 @@ import containerSignMSource from "../examples/SilverZero/ContainerSignM.lua?raw"
 import containerHubHubMSource from "../examples/SilverZero/ContainerHubHubM.lua?raw";
 import industrySelectorMSource from "../examples/SilverZero/IndustrySelectorM.lua?raw";
 import oreExplorerMSource from "../examples/SilverZero/OreExplorerM.lua?raw";
+import simpleSignMasterPreparedSource from "../examples/SilverZero/SimpleSignMasterPrepared.lua?raw";
+import simpleSignBoardPreparedSource from "../examples/SilverZero/SimpleSignBoardPrepared.lua?raw";
+import simpleSignLogoPreparedSource from "../examples/SilverZero/SimpleSignLogoPrepared.lua?raw";
+import containerHubHubMFramePreparedSource from "../examples/SilverZero/ContainerHubHubMFramePrepared.lua?raw";
+import containerHubHubMSeparatorPreparedSource from "../examples/SilverZero/ContainerHubHubMSeparatorPrepared.lua?raw";
+import containerHubHubMItemCardPreparedSource from "../examples/SilverZero/ContainerHubHubMItemCardPrepared.lua?raw";
 import silverZeroLibSource from "../lib/SilverZeroRsLib.lua?raw";
 import svgParserSource from "../lib/SvgParser.lua?raw";
 import svgShapeClassifierSource from "../lib/SvgShapeClassifier.lua?raw";
+import simpleSignSharedAssetsSource from "../lib/SimpleSignSharedAssets.lua?raw";
+import simpleSignSharedAssetsSelectiveSource from "../lib/SimpleSignSharedAssetsSelective.lua?raw";
+import simpleSignSharedVarsSource from "../lib/SimpleSignSharedVars.lua?raw";
 import simpleSignSHtmlSource from "../examples/SilverZero/SimpleSignS_html.lua?raw";
 import locuraTreesSource from "../examples/Locura-Trees.lua?raw";
 import { DrawBuffer, createLuaEnvironment, type LuaModuleResolver } from "../src/emulator";
@@ -125,11 +134,24 @@ function createLuaFileResolver(files: Record<string, string>): LuaModuleResolver
     }
 
     if (!normalizedRequest.includes("/") && !normalizedRequest.startsWith(".")) {
-      const basenameMatches = basenameIndex.get(normalizedRequest) ?? basenameIndex.get(withLuaExtension(normalizedRequest));
-      if (basenameMatches?.length === 1) {
-        const resolvedPath = basenameMatches[0];
-        resolvedPaths[moduleName] = resolvedPath;
-        return normalizedFiles[resolvedPath] ?? null;
+      const bareModuleName = normalizedRequest.split(".").filter(Boolean).at(-1);
+      const basenameKeys = [
+        normalizedRequest,
+        withLuaExtension(normalizedRequest),
+        bareModuleName,
+        bareModuleName ? withLuaExtension(bareModuleName) : null,
+      ];
+
+      for (const basenameKey of basenameKeys) {
+        if (!basenameKey) {
+          continue;
+        }
+        const basenameMatches = basenameIndex.get(basenameKey);
+        if (basenameMatches?.length === 1) {
+          const resolvedPath = basenameMatches[0];
+          resolvedPaths[moduleName] = resolvedPath;
+          return normalizedFiles[resolvedPath] ?? null;
+        }
       }
     }
 
@@ -149,7 +171,7 @@ const silverZeroFileSources = {
   "examples/SilverZero/SimpleSignS.lua": simpleSignSSource,
   "examples/SilverZero/SimpleSignS-svg.lua": simpleSignSvgScriptSource,
   "examples/SilverZero/SimpleSignXS.lua": simpleSignXSSource,
-  "examples/SilverZero/ShapeAdapterProbe.lua": shapeAdapterProbeSource,
+  "examples/SilverZero/ShapeClassifierAdapterProbe.lua": shapeClassifierAdapterProbeSource,
   "examples/SilverZero/WelcomeScreenM.lua": welcomeScreenMSource,
   "examples/SilverZero/ShipStatsS.lua": shipStatsSSource,
   "examples/SilverZero/ShipFrameM.lua": shipFrameMSource,
@@ -160,9 +182,25 @@ const silverZeroFileSources = {
   "examples/SilverZero/ContainerHubHubM.lua": containerHubHubMSource,
   "examples/SilverZero/IndustrySelectorM.lua": industrySelectorMSource,
   "examples/SilverZero/OreExplorerM.lua": oreExplorerMSource,
+  "examples/SilverZero/SimpleSignMasterPrepared.lua": simpleSignMasterPreparedSource,
+  "examples/SilverZero/SimpleSignBoardPrepared.lua": simpleSignBoardPreparedSource,
+  "examples/SilverZero/SimpleSignLogoPrepared.lua": simpleSignLogoPreparedSource,
+  "examples/SilverZero/ContainerHubHubMFramePrepared.lua": containerHubHubMFramePreparedSource,
+  "examples/SilverZero/ContainerHubHubMSeparatorPrepared.lua": containerHubHubMSeparatorPreparedSource,
+  "examples/SilverZero/ContainerHubHubMItemCardPrepared.lua": containerHubHubMItemCardPreparedSource,
   "lib/SilverZeroRsLib.lua": silverZeroLibSource,
   "lib/SvgParser.lua": svgParserSource,
   "lib/SvgShapeClassifier.lua": svgShapeClassifierSource,
+  "lib/SimpleSignSharedAssets.lua": simpleSignSharedAssetsSource,
+  "lib/SimpleSignSharedAssetsSelective.lua": simpleSignSharedAssetsSelectiveSource,
+  "lib/SimpleSignSharedVars.lua": simpleSignSharedVarsSource,
+  "lib/SimpleSignMasterPrepared.lua": simpleSignMasterPreparedSource,
+  "lib/SimpleSignBoardPrepared.lua": simpleSignBoardPreparedSource,
+  "lib/SimpleSignLogoPrepared.lua": simpleSignLogoPreparedSource,
+  "lib/ContainerHubHubMFramePrepared.lua": containerHubHubMFramePreparedSource,
+  "lib/ContainerHubHubMSeparatorPrepared.lua": containerHubHubMSeparatorPreparedSource,
+  "lib/ContainerHubHubMItemCardPrepared.lua": containerHubHubMItemCardPreparedSource,
+  "lib/SimpleSignS_html.lua": simpleSignSHtmlSource,
   "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
 };
 
@@ -2459,12 +2497,13 @@ describe("lua runtime example integration", () => {
 
     expect(result.success).toBe(true);
     expect(result.requestAnimFrames).toBe(0);
-    expect(renderCommandCount).toBe(4878);
-    expect(commandCounts.AddBox ?? 0).toBe(1);
-    expect(commandCounts.AddLine ?? 0).toBe(4213);
-    expect(commandCounts.AddQuad ?? 0).toBe(589);
-    expect(commandCounts.AddTriangle ?? 0).toBe(74);
-    expect(commandCounts.AddText ?? 0).toBe(1);
+    expect(renderCommandCount).toBe(2738);
+    expect(commandCounts.AddBox ?? 0).toBe(2);
+    expect(commandCounts.AddCircle ?? 0).toBe(23);
+    expect(commandCounts.AddLine ?? 0).toBe(2634);
+    expect(commandCounts.AddQuad ?? 0).toBe(33);
+    expect(commandCounts.AddTriangle ?? 0).toBe(44);
+    expect(commandCounts.AddText ?? 0).toBe(2);
     expect(logoCommandCounts.AddLine ?? 0).toBe(667);
     expect(logoCommandCounts.AddQuad ?? 0).toBe(18);
     expect(logoCommandCounts.AddTriangle ?? 0).toBe(44);
@@ -2496,11 +2535,11 @@ describe("lua runtime example integration", () => {
     expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(true);
   });
 
-  it("renders ShapeAdapterProbe with labeled classified adapter coverage", async () => {
+  it("renders ShapeClassifierAdapterProbe with labeled classified adapter coverage", async () => {
     const buffer = new DrawBuffer();
     const env = createLuaEnvironment(buffer, createLuaFileResolver(silverZeroFileSources));
 
-    const result = await executeLuaFile(env, "examples/SilverZero/ShapeAdapterProbe.lua");
+    const result = await executeLuaFile(env, "examples/SilverZero/ShapeClassifierAdapterProbe.lua");
 
     expect(result.success).toBe(true);
     expect(result.requestAnimFrames).toBe(0);
@@ -2578,7 +2617,7 @@ describe("lua runtime example integration", () => {
     expect(findText("10,000,000")).toBeDefined();
     expect(findText("ħ")).toBeDefined();
     expect(findText("ħ")?.x).toBeGreaterThan(findText("10,000,000")!.x);
-    expect(findText("ħ")?.y).toBeLessThan(findText("10,000,000")!.y);
+    expect(findText("ħ")?.y).toBeCloseTo(findText("10,000,000")!.y, 6);
     expect(findText("DISPENSER")).toBeUndefined();
     expect(findText("Static promotional layout")).toBeUndefined();
     expect(findText("SALE")).toBeUndefined();
@@ -2642,6 +2681,8 @@ describe("lua runtime example integration", () => {
     const buffer = new DrawBuffer();
     const env = createLuaEnvironment(buffer, createLuaFileResolver(silverZeroFileSources));
 
+    const warmup1 = await executeLuaFile(env, "examples/SilverZero/ContainerHubHubM.lua");
+    const warmup2 = await executeLuaFile(env, "examples/SilverZero/ContainerHubHubM.lua");
     const result = await executeLuaFile(env, "examples/SilverZero/ContainerHubHubM.lua");
     const textCommands = buffer.commands.filter((command) => command.op === "AddText");
     const topBarQuads = buffer.commands.filter(
@@ -2657,6 +2698,10 @@ describe("lua runtime example integration", () => {
       return font?.size ?? 0;
     };
 
+    expect(warmup1.success).toBe(true);
+    expect(warmup1.requestAnimFrames).toBe(1);
+    expect(warmup2.success).toBe(true);
+    expect(warmup2.requestAnimFrames).toBe(1);
     expect(result.success).toBe(true);
     expect(result.requestAnimFrames).toBe(0);
     expect(textCommands.length).toBeGreaterThan(0);

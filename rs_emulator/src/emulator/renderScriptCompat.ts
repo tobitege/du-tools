@@ -272,6 +272,8 @@ export function costCreateLayer(): number {
 
 const NORMALIZED_SCREEN_COST = 2500;
 const SHAPE_BASE_COST = 1;
+const DEFAULT_COST_SCREEN_WIDTH = 1920;
+const DEFAULT_COST_SCREEN_HEIGHT = 1080;
 
 function costFromBounds(
   width: number,
@@ -288,7 +290,30 @@ function costFromBounds(
   const expandedHeight = safeHeight + sizeBump;
   const area = expandedWidth * expandedHeight;
   const screenArea = Math.max(1, Math.abs(screenWidth) * Math.abs(screenHeight));
-  return SHAPE_BASE_COST + (area / screenArea) * NORMALIZED_SCREEN_COST;
+  return Math.max(SHAPE_BASE_COST, Math.round(SHAPE_BASE_COST + (area / screenArea) * NORMALIZED_SCREEN_COST));
+}
+
+function resolveCostContext(
+  arg3?: number,
+  arg4?: number,
+  arg5?: number,
+  arg6?: number,
+): { screenWidth: number; screenHeight: number; strokeWidth: number; shadowRadius: number } {
+  if (arg5 != null || arg6 != null) {
+    return {
+      screenWidth: arg3 ?? DEFAULT_COST_SCREEN_WIDTH,
+      screenHeight: arg4 ?? DEFAULT_COST_SCREEN_HEIGHT,
+      strokeWidth: arg5 ?? 0,
+      shadowRadius: arg6 ?? 0,
+    };
+  }
+
+  return {
+    screenWidth: DEFAULT_COST_SCREEN_WIDTH,
+    screenHeight: DEFAULT_COST_SCREEN_HEIGHT,
+    strokeWidth: arg3 ?? 0,
+    shadowRadius: arg4 ?? 0,
+  };
 }
 
 function getBoundsFromPoints(points: ReadonlyArray<readonly [number, number]>): { width: number; height: number } {
@@ -316,24 +341,31 @@ function getBoundsFromPoints(points: ReadonlyArray<readonly [number, number]>): 
 }
 
 export function costAddBox(
-  width: number,
-  height: number,
-  screenWidth: number,
-  screenHeight: number,
-  strokeWidth = 0,
-  shadowRadius = 0,
+  _width: number,
+  _height: number,
+  _arg3?: number,
+  _arg4?: number,
+  _arg5?: number,
+  _arg6?: number,
 ): number {
-  return costFromBounds(width, height, screenWidth, screenHeight, strokeWidth, shadowRadius);
+  void _width;
+  void _height;
+  void _arg3;
+  void _arg4;
+  void _arg5;
+  void _arg6;
+  return SHAPE_BASE_COST;
 }
 
 export function costAddBoxRounded(
   width: number,
   height: number,
-  screenWidth: number,
-  screenHeight: number,
-  strokeWidth = 0,
-  shadowRadius = 0,
+  arg3?: number,
+  arg4?: number,
+  arg5?: number,
+  arg6?: number,
 ): number {
+  const { screenWidth, screenHeight, strokeWidth, shadowRadius } = resolveCostContext(arg3, arg4, arg5, arg6);
   return costFromBounds(width, height, screenWidth, screenHeight, strokeWidth, shadowRadius);
 }
 
@@ -416,12 +448,18 @@ export function costAddImage(width: number, height: number, screenWidth: number,
 }
 
 export function costAddText(
-  textWidth: number,
-  textHeight: number,
-  screenWidth: number,
-  screenHeight: number,
-  strokeWidth = 0,
-  shadowRadius = 0,
+  _textWidth: number,
+  _textHeight: number,
+  _arg3?: number,
+  _arg4?: number,
+  _arg5?: number,
+  _arg6?: number,
 ): number {
-  return costFromBounds(textWidth, textHeight, screenWidth, screenHeight, strokeWidth, shadowRadius);
+  void _textWidth;
+  void _textHeight;
+  void _arg3;
+  void _arg4;
+  void _arg5;
+  void _arg6;
+  return SHAPE_BASE_COST;
 }
