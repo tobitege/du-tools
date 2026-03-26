@@ -1205,106 +1205,6 @@ return {
       confidence = 0.98,
       geometry = {
         bounds = {
-          h = 2.058,
-          w = 34.3,
-          x = 5.3006,
-          y = 2.24,
-        },
-        center = {
-          x = 22.4506,
-          y = 3.269,
-        },
-        points = {
-          {
-            x = 37.1506,
-            y = 2.24,
-          },
-          {
-            x = 7.7506,
-            y = 2.24,
-          },
-          {
-            x = 5.3006,
-            y = 4.298,
-          },
-          {
-            x = 39.6006,
-            y = 4.298,
-          },
-        },
-        subpaths = {
-          {
-            area = -65.547300000001,
-            bounds = {
-              h = 2.058,
-              w = 34.3,
-              x = 5.3006,
-              y = 2.24,
-            },
-            closed = true,
-            orientation = "cw",
-            pointCount = 4,
-            points = {
-              {
-                x = 37.1506,
-                y = 2.24,
-              },
-              {
-                x = 7.7506,
-                y = 2.24,
-              },
-              {
-                x = 5.3006,
-                y = 4.298,
-              },
-              {
-                x = 39.6006,
-                y = 4.298,
-              },
-            },
-            rawPointCount = 4,
-          },
-        },
-      },
-      groupHints = {
-        clusterSize = 3,
-        neighbors = {
-          8,
-          7,
-        },
-        sameCluster = "trapezoid_cluster_03",
-      },
-      kind = "trapezoid",
-      role = "edge_decal",
-      source = {
-        itemIndex = 9,
-        path = "m402 1620h-300l-25-21h350l-25 21",
-        transform = {
-          0.098,
-          0,
-          0,
-          -0.098,
-          -2.2454,
-          161,
-        },
-      },
-      style = {
-        fill = "var(--highlight-color)",
-      },
-    },
-    {
-      analysis = {
-        closed = true,
-        compound = false,
-        open = false,
-        pointCount = 4,
-        primarySubpathIndex = 1,
-        rawPointCount = 4,
-        subpathCount = 1,
-      },
-      confidence = 0.98,
-      geometry = {
-        bounds = {
           h = 34.398,
           w = 1.96,
           x = 0.3026,
@@ -3048,19 +2948,6 @@ return {
       },
       {
         d = "m2309 1620h-300l-25-21h350l-25 21",
-        fill = "var(--highlight-color)",
-        index = 1,
-        transform = {
-          0.098,
-          0,
-          0,
-          -0.098,
-          -2.2454,
-          161,
-        },
-      },
-      {
-        d = "m402 1620h-300l-25-21h350l-25 21",
         fill = "var(--highlight-color)",
         index = 1,
         transform = {

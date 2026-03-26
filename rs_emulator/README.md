@@ -84,7 +84,7 @@ With the example above:
 
 - `require("rslib")` can resolve from the Dual Universe Lua folder
 - `require("lib.SilverZeroRsLib")` resolves from `./lib/SilverZeroRsLib.lua`
-- `require("lib.SimpleSignSharedAssets")` resolves from `./examples/SilverZero/SimpleSignSharedAssets.lua`
+- `require("lib.SimpleSignSharedAssetsSelective")` resolves from `./lib/SimpleSignSharedAssetsSelective.lua`
 
 Optional runtime flags stay disabled unless you explicitly enable them:
 
@@ -216,6 +216,14 @@ Examples live under [`examples/`](./examples), including:
 - `examples/SilverZero/` for larger shared-helper examples
 
 These files are available in the repo but are not bundled into the production app.
+
+### SilverZero SimpleSign Notes
+
+- `examples/SilverZero/SimpleSignS-svg.lua` keeps the red board outline as a manual path for budget reasons.
+- White board decals/highlights should come from `SimpleSignBoardPrepared` via `SZ.drawSvgEntry(...)` filtered to `var(--highlight-color)` items, not from a hand-maintained mix of `highlightPaths` and manual quads.
+- This keeps all small board decals on the same rendering path as the prepared board asset and avoids drift between emulator and in-game output.
+- Important: treat the visual target first, not the current representation. If a shape is really just a sharp filled trapezoid or quad, prefer the simplest native RenderScript primitive such as `addQuad(...)` or `addTriangle(...)` instead of forcing it through SVG-path reconstruction.
+- Do not get stuck on one idea just because the current code already uses it. If a path-based approach starts fighting you, stop and switch levels: compare the target shape, identify the minimal native primitive that matches it, and only keep the more complex path/classifier route when it is clearly needed.
 
 ## Known Limitations
 

@@ -1368,6 +1368,15 @@ local function drawPointQuad(layer, layout, points, color)
     )
 end
 
+function Library.drawQuadPoints(layer, layout, points, color)
+    if not points or #points ~= 4 or not color then
+        return false
+    end
+
+    drawPointQuad(layer, layout, points, color)
+    return true
+end
+
 local function drawPointTriangle(layer, layout, a, b, c, color)
     setNextFillColor(layer, color[1], color[2], color[3], color[4] or 1)
     addTriangle(

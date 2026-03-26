@@ -10,9 +10,9 @@ local OPTIONS = {
     drawCircuitC = false,
     drawCircuitCRange = true,
     drawCircuitCRangeStart = 1,
-    drawCircuitCRangeEnd = 55,
-    drawCircuitCRange2 = false,
-    drawCircuitCRange2Start = 56,
+    drawCircuitCRangeEnd = 30,
+    drawCircuitCRange2 = true,
+    drawCircuitCRange2Start = 75,
     drawCircuitCRange2End = 92,
     drawCircuitCGroup1 = false,
     drawCircuitCGroup2 = false,
@@ -36,12 +36,12 @@ local theme = {
 }
 
 local resolutionX, resolutionY = getResolution()
-local sharedLogoAssets = nil
-local logoReady = true
+local sharedAssets = nil
 
-if OPTIONS.drawLogo then
-    sharedLogoAssets, logoReady = SimpleSignSharedAssetsSelective.prepareStep({
-        logo = true,
+if OPTIONS.drawBoardHighlights or OPTIONS.drawLogo then
+    sharedAssets = SimpleSignSharedAssetsSelective.get({
+        board = OPTIONS.drawBoardHighlights,
+        logo = OPTIONS.drawLogo,
     })
 end
 
@@ -56,10 +56,6 @@ masterLayout.y = 0
 masterLayout.scale = math.max(resolutionX / 1400, resolutionY / 980)
 
 local layers = SZ.createLayers("master", "board", "logo", "text")
-
-if not logoReady then
-    requestAnimationFrame(1)
-end
 
 local masterLayer = layers.master
 local masterW = resolutionX
@@ -274,54 +270,42 @@ local boardLayout = {
     x = boardX,
     y = boardY,
 }
-local boardTransform = { 0.098, 0, 0, -0.098, -3, 161 }
-local function boardPoint(x, y)
-    local tx = boardTransform[1] * x + boardTransform[3] * y + boardTransform[5]
-    local ty = boardTransform[2] * x + boardTransform[4] * y + boardTransform[6]
-    return SZ.toScreenX(boardLayout, tx), SZ.toScreenY(boardLayout, ty)
-end
-
-local function drawBoardDecalQuad(points)
-    local x1, y1 = boardPoint(points[1], points[2])
-    local x2, y2 = boardPoint(points[3], points[4])
-    local x3, y3 = boardPoint(points[5], points[6])
-    local x4, y4 = boardPoint(points[7], points[8])
-    setNextFillColor(boardLayer, theme.highlight[1], theme.highlight[2], theme.highlight[3], theme.highlight[4])
-    addQuad(boardLayer, x1, y1, x2, y2, x3, y3, x4, y4)
-end
 local boardOutlinePath = "m76.53 1636.6h335l49.6-41.6 1505.6 0.62 47 41h327l40-33v-237l-43.59-51.6 3.45-901.44 42-36-2.59-265.46-40.05-35.91-330.6 0.62041-47 41-490.65 2.2-64-61h-560l-65.65 62.09h-334l-48.6-41.62-328.7-4.36-33.3 36.36-4.52 45.54 35.68 38.7 3.61 322.36-35 29v635l33 28 0.31 271.5-33 40v82z"
+
+local function drawBoardNativeQuad(points, color)
+    SZ.drawQuadPoints(boardLayer, boardLayout, points, color)
+end
 
 setNextFillColor(boardLayer, 0, 0, 0, 0.8)
 addBox(boardLayer, boardX, boardY, boardW, boardH)
 
 if OPTIONS.drawBoardOutline then
-    SZ.drawPath(boardLayer, boardLayout, boardOutlinePath, theme.primary, 3.0, boardTransform)
+    SZ.drawPath(boardLayer, boardLayout, boardOutlinePath, theme.primary, 3.0, { 0.098, 0, 0, -0.098, -3, 161 })
 end
 
-local highlightPaths = {
-    "m413 119-30-26h-300l25 26h305",
-    "m85 94h297l28 24h-302l-23-24",
-    "m2312 93h-300l-30 26h305l25-26",
-    "m2000 94h297l-23 24h-302l28-24",
-    "m836 84h566l37 35h-638l35-35",
-    "m2309 1620h-300l-25-21h350l-25 21",
-    "m402 1620h-300l-25-21h350l-25 21",
-    "m46 1215-21-18v305l21-25v-262",
-    "m2330 1473 29 34v-38l-29-34v38",
-    "m2330 1359v38l29 34v-38",
-    "m2360 238-29 34v-38l29-34v38",
-    "m2330 158v38l29-34v-38",
-    "m42 1552v38l29-34v-38",
-}
+if OPTIONS.drawBoardHighlights and sharedAssets and sharedAssets.boardSvg then
+    SZ.drawSvgEntry(boardLayer, boardLayout, sharedAssets.boardSvg, {
+        vars = sharedAssets.vars,
+        classifiedShapes = sharedAssets.boardShapes,
+        classifiedMode = "shape",
+        strokeWidth = 2.5,
+        fallbackFirstSubpathOnly = true,
+        useSvgFill = false,
+        colorResolver = function(item, shape)
+            if item.fill == "var(--highlight-color)" and (not shape or shape.role ~= "edge_decal") then
+                return theme.highlight
+            end
+            return nil
+        end,
+    })
 
-if OPTIONS.drawBoardHighlights then
-    for _, pathData in ipairs(highlightPaths) do
-        SZ.drawPath(boardLayer, boardLayout, pathData, theme.highlight, 2.0, boardTransform)
+    for itemIndex, item in ipairs(sharedAssets.boardSvg.items or {}) do
+        local shape = sharedAssets.boardShapes and sharedAssets.boardShapes[itemIndex] or nil
+        local points = shape and shape.geometry and shape.geometry.points or nil
+        if item.fill == "var(--highlight-color)" and shape and shape.role == "edge_decal" and points and #points == 4 then
+            drawBoardNativeQuad(points, theme.highlight)
+        end
     end
-    drawBoardDecalQuad({ 42, 111, 42, 149, 71, 183, 71, 145 })
-    drawBoardDecalQuad({ 46, 195, 26, 180, 26, 531, 46, 515 })
-    drawBoardDecalQuad({ 2360, 314, 2331, 348, 2331, 310, 2360, 276 })
-    drawBoardDecalQuad({ 2330, 1549, 2359, 1583, 2359, 1545, 2330, 1511 })
 end
 
 local logoLayer = layers.logo
@@ -338,10 +322,10 @@ local logoLayout = {
     y = logoTop,
 }
 
-if OPTIONS.drawLogo and logoReady and sharedLogoAssets and sharedLogoAssets.logoSvg then
-    SZ.drawSvgEntry(logoLayer, logoLayout, sharedLogoAssets.logoSvg, {
-        vars = sharedLogoAssets.vars,
-        classifiedShapes = sharedLogoAssets.logoShapes,
+if OPTIONS.drawLogo and sharedAssets and sharedAssets.logoSvg then
+    SZ.drawSvgEntry(logoLayer, logoLayout, sharedAssets.logoSvg, {
+        vars = sharedAssets.vars,
+        classifiedShapes = sharedAssets.logoShapes,
         classifiedMode = "fill",
         strokeWidth = 2.0,
     })
