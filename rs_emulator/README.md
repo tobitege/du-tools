@@ -84,7 +84,7 @@ With the example above:
 
 - `require("rslib")` can resolve from the Dual Universe Lua folder
 - `require("lib.SilverZeroRsLib")` resolves from `./lib/SilverZeroRsLib.lua`
-- `require("examples.SilverZero.SimpleSignSharedAssets")` resolves from `./examples/SilverZero/SimpleSignSharedAssets.lua`
+- `require("lib.SimpleSignSharedAssets")` resolves from `./examples/SilverZero/SimpleSignSharedAssets.lua`
 
 Optional runtime flags stay disabled unless you explicitly enable them:
 

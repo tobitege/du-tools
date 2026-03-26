@@ -270,14 +270,25 @@ export function costCreateLayer(): number {
   return 0;
 }
 
-function costFromBounds(width: number, height: number, strokeWidth = 0, shadowRadius = 0): number {
+const NORMALIZED_SCREEN_COST = 2500;
+const SHAPE_BASE_COST = 1;
+
+function costFromBounds(
+  width: number,
+  height: number,
+  screenWidth: number,
+  screenHeight: number,
+  strokeWidth = 0,
+  shadowRadius = 0,
+): number {
   const safeWidth = Math.max(0, width);
   const safeHeight = Math.max(0, height);
   const sizeBump = Math.max(0, strokeWidth + shadowRadius) * 2;
   const expandedWidth = safeWidth + sizeBump;
   const expandedHeight = safeHeight + sizeBump;
   const area = expandedWidth * expandedHeight;
-  return Math.max(1, Math.floor(area / 64));
+  const screenArea = Math.max(1, Math.abs(screenWidth) * Math.abs(screenHeight));
+  return SHAPE_BASE_COST + (area / screenArea) * NORMALIZED_SCREEN_COST;
 }
 
 function getBoundsFromPoints(points: ReadonlyArray<readonly [number, number]>): { width: number; height: number } {
@@ -304,26 +315,66 @@ function getBoundsFromPoints(points: ReadonlyArray<readonly [number, number]>): 
   };
 }
 
-export function costAddBox(width: number, height: number, strokeWidth = 0, shadowRadius = 0): number {
-  return costFromBounds(width, height, strokeWidth, shadowRadius);
+export function costAddBox(
+  width: number,
+  height: number,
+  screenWidth: number,
+  screenHeight: number,
+  strokeWidth = 0,
+  shadowRadius = 0,
+): number {
+  return costFromBounds(width, height, screenWidth, screenHeight, strokeWidth, shadowRadius);
 }
 
-export function costAddBoxRounded(width: number, height: number, strokeWidth = 0, shadowRadius = 0): number {
-  return costFromBounds(width, height, strokeWidth, shadowRadius);
+export function costAddBoxRounded(
+  width: number,
+  height: number,
+  screenWidth: number,
+  screenHeight: number,
+  strokeWidth = 0,
+  shadowRadius = 0,
+): number {
+  return costFromBounds(width, height, screenWidth, screenHeight, strokeWidth, shadowRadius);
 }
 
-export function costAddCircle(radius: number, strokeWidth = 0, shadowRadius = 0): number {
+export function costAddCircle(
+  radius: number,
+  screenWidth: number,
+  screenHeight: number,
+  strokeWidth = 0,
+  shadowRadius = 0,
+): number {
   const diameter = Math.max(0, radius) * 2;
-  return costFromBounds(diameter, diameter, strokeWidth, shadowRadius);
+  return costFromBounds(diameter, diameter, screenWidth, screenHeight, strokeWidth, shadowRadius);
 }
 
-export function costAddLine(x1: number, y1: number, x2: number, y2: number, strokeWidth = 0, shadowRadius = 0): number {
-  return costFromBounds(Math.abs(x2 - x1), Math.abs(y2 - y1), strokeWidth, shadowRadius);
+export function costAddLine(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  screenWidth: number,
+  screenHeight: number,
+  strokeWidth = 0,
+  shadowRadius = 0,
+): number {
+  return costFromBounds(Math.abs(x2 - x1), Math.abs(y2 - y1), screenWidth, screenHeight, strokeWidth, shadowRadius);
 }
 
-export function costAddBezier(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, strokeWidth = 0, shadowRadius = 0): number {
+export function costAddBezier(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  x3: number,
+  y3: number,
+  screenWidth: number,
+  screenHeight: number,
+  strokeWidth = 0,
+  shadowRadius = 0,
+): number {
   const bounds = getBoundsFromPoints([[x1, y1], [x2, y2], [x3, y3]]);
-  return costFromBounds(bounds.width, bounds.height, strokeWidth, shadowRadius);
+  return costFromBounds(bounds.width, bounds.height, screenWidth, screenHeight, strokeWidth, shadowRadius);
 }
 
 export function costAddTriangle(
@@ -333,11 +384,13 @@ export function costAddTriangle(
   y2: number,
   x3: number,
   y3: number,
+  screenWidth: number,
+  screenHeight: number,
   strokeWidth = 0,
   shadowRadius = 0,
 ): number {
   const bounds = getBoundsFromPoints([[x1, y1], [x2, y2], [x3, y3]]);
-  return costFromBounds(bounds.width, bounds.height, strokeWidth, shadowRadius);
+  return costFromBounds(bounds.width, bounds.height, screenWidth, screenHeight, strokeWidth, shadowRadius);
 }
 
 export function costAddQuad(
@@ -349,17 +402,26 @@ export function costAddQuad(
   y3: number,
   x4: number,
   y4: number,
+  screenWidth: number,
+  screenHeight: number,
   strokeWidth = 0,
   shadowRadius = 0,
 ): number {
   const bounds = getBoundsFromPoints([[x1, y1], [x2, y2], [x3, y3], [x4, y4]]);
-  return costFromBounds(bounds.width, bounds.height, strokeWidth, shadowRadius);
+  return costFromBounds(bounds.width, bounds.height, screenWidth, screenHeight, strokeWidth, shadowRadius);
 }
 
-export function costAddImage(width: number, height: number): number {
-  return costFromBounds(width, height);
+export function costAddImage(width: number, height: number, screenWidth: number, screenHeight: number): number {
+  return costFromBounds(width, height, screenWidth, screenHeight);
 }
 
-export function costAddText(textWidth: number, textHeight: number, strokeWidth = 0, shadowRadius = 0): number {
-  return costFromBounds(textWidth, textHeight, strokeWidth, shadowRadius);
+export function costAddText(
+  textWidth: number,
+  textHeight: number,
+  screenWidth: number,
+  screenHeight: number,
+  strokeWidth = 0,
+  shadowRadius = 0,
+): number {
+  return costFromBounds(textWidth, textHeight, screenWidth, screenHeight, strokeWidth, shadowRadius);
 }

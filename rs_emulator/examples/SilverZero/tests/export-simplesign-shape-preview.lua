@@ -9,7 +9,7 @@ package.path =
 
 local SvgParser = require("lib.SvgParser")
 local SvgShapeClassifier = require("lib.SvgShapeClassifier")
-local SimpleSignS_svgContent = require("examples.SilverZero.SimpleSignS_html")
+local SimpleSignS_svgContent = require("lib.SimpleSignS_html")
 
 local css = [[
 <style>

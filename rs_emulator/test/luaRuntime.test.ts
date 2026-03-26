@@ -404,7 +404,7 @@ describe("lua runtime example integration", () => {
       "examples/SilverZero/SimpleSignS_html.lua": simpleSignSHtmlSource,
       "examples/SilverZero/tests/parser-board.lua": `
         local Parser = require("lib.SvgParser")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local board
         for _, svg in ipairs(doc.svgs or {}) do
@@ -645,7 +645,7 @@ describe("lua runtime example integration", () => {
       "examples/SilverZero/tests/classifier-frame-outline.lua": `
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local targetRole
 
@@ -703,7 +703,7 @@ describe("lua runtime example integration", () => {
       "examples/SilverZero/tests/classifier-edge-decal.lua": `
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local svg1Role = "nil"
         local svg3Roles = {}
@@ -772,7 +772,7 @@ describe("lua runtime example integration", () => {
       "examples/SilverZero/tests/classifier-frame-cap.lua": `
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local targetRole
 
@@ -941,7 +941,7 @@ describe("lua runtime example integration", () => {
       "examples/SilverZero/tests/classifier-logo-segment-simplesign.lua": `
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local targetOutput = "missing"
 
@@ -981,7 +981,7 @@ describe("lua runtime example integration", () => {
       "examples/SilverZero/tests/classifier-board-decal.lua": `
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local target
 
@@ -1028,7 +1028,7 @@ describe("lua runtime example integration", () => {
       "examples/SilverZero/tests/classifier-marker-ring.lua": `
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local target
 
@@ -1068,7 +1068,7 @@ describe("lua runtime example integration", () => {
       "examples/SilverZero/tests/classifier-group-hints-simplesign.lua": `
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local targetHints
 
@@ -1103,7 +1103,7 @@ describe("lua runtime example integration", () => {
       "examples/SilverZero/tests/classifier-simplesign-hex-ring.lua": `
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local target
 
@@ -1145,7 +1145,7 @@ describe("lua runtime example integration", () => {
         local SZ = require("lib.SilverZeroRsLib")
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local targetSvg
 
@@ -1206,7 +1206,7 @@ describe("lua runtime example integration", () => {
         local SZ = require("lib.SilverZeroRsLib")
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local target
 
@@ -1264,7 +1264,7 @@ describe("lua runtime example integration", () => {
         local SZ = require("lib.SilverZeroRsLib")
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local target
 
@@ -1322,7 +1322,7 @@ describe("lua runtime example integration", () => {
         local SZ = require("lib.SilverZeroRsLib")
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local target
 
@@ -1376,7 +1376,7 @@ describe("lua runtime example integration", () => {
         local SZ = require("lib.SilverZeroRsLib")
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local targetShape
 
@@ -1436,7 +1436,7 @@ describe("lua runtime example integration", () => {
         local SZ = require("lib.SilverZeroRsLib")
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local targetShape
 
@@ -1495,7 +1495,7 @@ describe("lua runtime example integration", () => {
         local SZ = require("lib.SilverZeroRsLib")
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local targetShape
 
@@ -1557,7 +1557,7 @@ describe("lua runtime example integration", () => {
         local SZ = require("lib.SilverZeroRsLib")
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local targetShape
 
@@ -1665,7 +1665,7 @@ describe("lua runtime example integration", () => {
         local SZ = require("lib.SilverZeroRsLib")
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local target
 
@@ -1724,7 +1724,7 @@ describe("lua runtime example integration", () => {
         local SZ = require("lib.SilverZeroRsLib")
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local targetItem
 
@@ -1784,7 +1784,7 @@ describe("lua runtime example integration", () => {
         local SZ = require("lib.SilverZeroRsLib")
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local targetItem
         local targetShape
@@ -1849,7 +1849,7 @@ describe("lua runtime example integration", () => {
         local SZ = require("lib.SilverZeroRsLib")
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local targetItem
         local targetShape
@@ -1960,7 +1960,7 @@ describe("lua runtime example integration", () => {
         local SZ = require("lib.SilverZeroRsLib")
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local targetItem
         local targetShape
@@ -2112,7 +2112,7 @@ describe("lua runtime example integration", () => {
         local SZ = require("lib.SilverZeroRsLib")
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local targetShape
 
@@ -2224,7 +2224,7 @@ describe("lua runtime example integration", () => {
         local SZ = require("lib.SilverZeroRsLib")
         local Parser = require("lib.SvgParser")
         local Classifier = require("lib.SvgShapeClassifier")
-        local html = require("examples.SilverZero.SimpleSignS_html")
+        local html = require("lib.SimpleSignS_html")
         local doc = Parser.parse(html)
         local targetShape
 

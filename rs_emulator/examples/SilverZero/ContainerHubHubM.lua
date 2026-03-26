@@ -1,8 +1,6 @@
 -- RenderScript conversion of SilverZero ContainerHubHubM.json
 
 local SZ = require("lib.SilverZeroRsLib")
-local SvgParser = require("lib.SvgParser")
-local SvgShapeClassifier = require("lib.SvgShapeClassifier")
 
 local theme = SZ.Themes.SilverZero
 local resolutionX, resolutionY = getResolution()
@@ -36,13 +34,6 @@ setBackgroundColor(theme.background[1], theme.background[2], theme.background[3]
 local function topMetricFontSize(baseSize)
   return math.max(1, math.floor(baseSize * math.sqrt(layout.scale) + 0.5))
 end
-
-local percentFont = SZ.font("Arial", topMetricFontSize(26))
-local capacityFont = SZ.font("Arial", topMetricFontSize(26))
-local weightFont = SZ.font("Arial", topMetricFontSize(26))
-local cardNameFont = SZ.font("Arial", SZ.fontSizeVw(layout, 1.6))
-local cardAmountFont = SZ.font("Arial", SZ.fontSizeVw(layout, 2.0))
-local iconFont = SZ.font("Arial", SZ.fontSizeVw(layout, 1.0))
 
 local layers = SZ.createLayers("frame", "bar", "separator", "cards", "text")
 
@@ -152,20 +143,53 @@ local ITEM_CARD_SVG = [[
 </svg>
 ]]
 
-_G.__containerHubHubM_cache = _G.__containerHubHubM_cache or {}
-local cache = _G.__containerHubHubM_cache
+containerHubHubMCache = containerHubHubMCache or {}
+local cache = containerHubHubMCache
 
-if not cache.frameDoc then
-  cache.frameDoc = SvgParser.parse(FRAME_SVG)
-  cache.separatorDoc = SvgParser.parse(SEPARATOR_SVG)
-  cache.itemCardDoc = SvgParser.parse(ITEM_CARD_SVG)
-  cache.frameSvg = cache.frameDoc.svgs[1]
-  cache.separatorSvg = cache.separatorDoc.svgs[1]
-  cache.itemCardSvg = cache.itemCardDoc.svgs[1]
-  cache.frameShapes = SvgShapeClassifier.classifySvg(cache.frameSvg, { vars = cache.frameDoc.vars })
-  cache.separatorShapes = SvgShapeClassifier.classifySvg(cache.separatorSvg, { vars = cache.separatorDoc.vars })
-  cache.itemCardShapes = SvgShapeClassifier.classifySvg(cache.itemCardSvg, { vars = cache.itemCardDoc.vars })
+local function prepareCacheStep()
+  cache.stage = cache.stage or 0
+  if cache.ready then
+    return true
+  end
+
+  if cache.stage == 0 then
+    local framePrepared = require("lib.ContainerHubHubMFramePrepared")
+    cache.frameSvg = framePrepared.svg
+    cache.frameDoc = { vars = framePrepared.vars }
+    cache.frameShapes = framePrepared.shapes
+    cache.stage = 1
+    return false
+  end
+  if cache.stage == 1 then
+    local separatorPrepared = require("lib.ContainerHubHubMSeparatorPrepared")
+    cache.separatorSvg = separatorPrepared.svg
+    cache.separatorDoc = { vars = separatorPrepared.vars }
+    cache.separatorShapes = separatorPrepared.shapes
+    cache.stage = 2
+    return false
+  end
+
+  local itemCardPrepared = require("lib.ContainerHubHubMItemCardPrepared")
+  cache.itemCardSvg = itemCardPrepared.svg
+  cache.itemCardDoc = { vars = itemCardPrepared.vars }
+  cache.itemCardShapes = itemCardPrepared.shapes
+  cache.ready = true
+  cache.stage = 3
+  return true
 end
+
+local percentFontSize = topMetricFontSize(26)
+local capacityFontSize = topMetricFontSize(26)
+local weightFontSize = topMetricFontSize(26)
+local cardNameFontSize = SZ.fontSizeVw(layout, 1.6)
+local cardAmountFontSize = SZ.fontSizeVw(layout, 2.0)
+local iconFontSize = SZ.fontSizeVw(layout, 1.0)
+local percentFont = SZ.font("Arial", percentFontSize)
+local capacityFont = SZ.font("Arial", capacityFontSize)
+local weightFont = SZ.font("Arial", weightFontSize)
+local cardNameFont = SZ.font("Arial", cardNameFontSize)
+local cardAmountFont = SZ.font("Arial", cardAmountFontSize)
+local iconFont = SZ.font("Arial", iconFontSize)
 
 local function drawSkewedPanel(layer, bounds, skewDegrees, fillColor, strokeColor, strokeWidth)
   local x = SZ.toScreenX(layout, bounds.x)
@@ -402,6 +426,10 @@ local function drawBrowser()
   end)
 end
 
-drawFrame()
-drawTopBar()
-drawBrowser()
+if not prepareCacheStep() then
+  requestAnimationFrame(1)
+else
+  drawFrame()
+  drawTopBar()
+  drawBrowser()
+end

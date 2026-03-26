@@ -1,5 +1,5 @@
--- SimpleSignS-svg.lua
--- Ingame-safe prepared RenderScript version of SilverZero SimpleSignS.
+-- SimpleSignS-budgetProbe.lua
+-- Iterative budget probe with individually switchable sub-parts.
 
 local SZ = require("lib.SilverZeroRsLib")
 local SimpleSignSharedAssetsSelective = require("lib.SimpleSignSharedAssetsSelective")
@@ -23,16 +23,16 @@ local OPTIONS = {
     drawBoardHighlights = true,
     drawLogo = true,
     drawText = true,
-    showDebugInfo = false,
+    showDebugInfo = true,
 }
 
 local theme = {
-    background = { 0.31, 0.00, 0.03, 1 },
-    circuitB = { 0.25, 0.00, 0.03, 1 },
-    circuitC = { 0.94, 0.00, 0.03, 1 },
-    primary = { 1.00, 0.00, 0.00, 1 },
-    highlight = { 1.00, 1.00, 1.00, 1 },
-    textColor = { 1.00, 1.00, 1.00, 1 },
+    background = { 0.31, 0.00, 0.03, 1 },     -- circuit-color-A: #5008
+    circuitB = { 0.25, 0.00, 0.03, 1 },       -- circuit-color-B: #4008
+    circuitC = { 0.94, 0.00, 0.03, 1 },       -- circuit-color-C: #f008
+    primary = { 1.00, 0.00, 0.00, 1 },        -- primary-color: #f00
+    highlight = { 1.00, 1.00, 1.00, 1 },      -- highlight-color: #fff
+    textColor = { 1.00, 1.00, 1.00, 1 },      -- text-color: #FFF
 }
 
 local resolutionX, resolutionY = getResolution()
@@ -44,7 +44,6 @@ if OPTIONS.drawLogo then
         logo = true,
     })
 end
-
 local layout = SZ.layoutForScreen(resolutionX, resolutionY, 1400, 980, 0)
 layout.x = 0
 layout.y = 0
@@ -61,6 +60,7 @@ if not logoReady then
     requestAnimationFrame(1)
 end
 
+-- ===== MASTER SVG BACKGROUND =====
 local masterLayer = layers.master
 local masterW = resolutionX
 local masterH = resolutionY
@@ -70,6 +70,7 @@ if OPTIONS.drawBackgroundFill then
     addBox(masterLayer, 0, 0, masterW, masterH)
 end
 
+-- Circuit traces in circuit-color-B (6 paths)
 local circuitBPaths = {
     "m317 201v101l209 209v-182l-52-52v-113l-165-165h-193z",
     "m876 348v142l292-292v-88l110-110h-228l-32 32v174z",
@@ -85,6 +86,7 @@ if OPTIONS.drawCircuitB then
     end
 end
 
+-- Circuit traces in circuit-color-C (all the rounded-corner paths)
 local circuitCPaths = {
     "m964 436-45 45c-3.1-2.1-7.3-1.8-10 1-3.1 3.1-3.1 8.1 0 11s8.1 3.1 11 0c2.7-2.7 3-6.9 1-10l44-44h144l36 36h136c0.7 3.6 3.9 6.4 7.7 6.4 4.4 0 7.9-3.5 7.9-7.9s-3.5-7.9-7.9-7.9c-3.8 0-7 2.8-7.7 6.4h-134l-36-36h-146z",
     "m1000 644c3.8 0 7-2.8 7.7-6.4h28l69-69c3.1 2.1 7.3 1.8 10-1 3.1-3.1 3.1-8.1 0-11s-8.1-3.1-11 0c-2.7 2.7-3 6.9-1 10l-68 68h-27c-0.7-3.6-3.9-6.4-7.7-6.4-4.4 0-7.9 3.5-7.9 7.9 0.1 4.5 3.6 8 8 8z",
@@ -223,6 +225,7 @@ else
     end
 end
 
+-- Dot indicators (circles in circuitC color)
 local dots = {
     { x = 373, y = 430, r = 8.6 },
     { x = 296, y = 453, r = 8.6 },
@@ -255,6 +258,9 @@ if OPTIONS.drawCircuitDots then
     end
 end
 
+-- ===== INNER BOARD SVG =====
+-- Position: left:10vw, top:10vh, size:80vw x 80vh
+-- viewBox="0 0 231 156" scaled to fit 80% of screen
 local boardLayer = layers.board
 local boardW = resolutionX * 0.8
 local boardH = resolutionY * 0.8
@@ -263,6 +269,7 @@ local boardScaleY = boardH / 156
 local boardScale = math.min(boardScaleX, boardScaleY)
 local boardX = resolutionX * 0.1
 local boardY = resolutionY * 0.1
+
 local boardLayout = {
     screenW = resolutionX,
     screenH = resolutionY,
@@ -274,22 +281,8 @@ local boardLayout = {
     x = boardX,
     y = boardY,
 }
-local boardTransform = { 0.098, 0, 0, -0.098, -3, 161 }
-local function boardPoint(x, y)
-    local tx = boardTransform[1] * x + boardTransform[3] * y + boardTransform[5]
-    local ty = boardTransform[2] * x + boardTransform[4] * y + boardTransform[6]
-    return SZ.toScreenX(boardLayout, tx), SZ.toScreenY(boardLayout, ty)
-end
-
-local function drawBoardDecalQuad(points)
-    local x1, y1 = boardPoint(points[1], points[2])
-    local x2, y2 = boardPoint(points[3], points[4])
-    local x3, y3 = boardPoint(points[5], points[6])
-    local x4, y4 = boardPoint(points[7], points[8])
-    setNextFillColor(boardLayer, theme.highlight[1], theme.highlight[2], theme.highlight[3], theme.highlight[4])
-    addQuad(boardLayer, x1, y1, x2, y2, x3, y3, x4, y4)
-end
 local boardOutlinePath = "m76.53 1636.6h335l49.6-41.6 1505.6 0.62 47 41h327l40-33v-237l-43.59-51.6 3.45-901.44 42-36-2.59-265.46-40.05-35.91-330.6 0.62041-47 41-490.65 2.2-64-61h-560l-65.65 62.09h-334l-48.6-41.62-328.7-4.36-33.3 36.36-4.52 45.54 35.68 38.7 3.61 322.36-35 29v635l33 28 0.31 271.5-33 40v82z"
+local boardTransform = { 0.098, 0, 0, -0.098, -3, 161 }
 
 setNextFillColor(boardLayer, 0, 0, 0, 0.8)
 addBox(boardLayer, boardX, boardY, boardW, boardH)
@@ -306,11 +299,15 @@ local highlightPaths = {
     "m836 84h566l37 35h-638l35-35",
     "m2309 1620h-300l-25-21h350l-25 21",
     "m402 1620h-300l-25-21h350l-25 21",
+    "m46 195-20-15v351l20-16v-320",
     "m46 1215-21-18v305l21-25v-262",
     "m2330 1473 29 34v-38l-29-34v38",
+    "m2330 1549 29 34v-38l-29-34v38",
     "m2330 1359v38l29 34v-38",
-    "m2360 238-29 34v-38l29-34v38",
+    "m2330 238v38l29-34v-38",
+    "m2330 314v38l29-34v-38",
     "m2330 158v38l29-34v-38",
+    "m42 111v38l29 34v-38",
     "m42 1552v38l29-34v-38",
 }
 
@@ -318,16 +315,15 @@ if OPTIONS.drawBoardHighlights then
     for _, pathData in ipairs(highlightPaths) do
         SZ.drawPath(boardLayer, boardLayout, pathData, theme.highlight, 2.0, boardTransform)
     end
-    drawBoardDecalQuad({ 42, 111, 42, 149, 71, 183, 71, 145 })
-    drawBoardDecalQuad({ 46, 195, 26, 180, 26, 531, 46, 515 })
-    drawBoardDecalQuad({ 2360, 314, 2331, 348, 2331, 310, 2360, 276 })
-    drawBoardDecalQuad({ 2330, 1549, 2359, 1583, 2359, 1545, 2330, 1511 })
 end
 
+-- ===== CIRCLE LOGO =====
+-- Position: left:14vw, top:32vh, size:20vw x 20vw
 local logoLayer = layers.logo
 local logoX = resolutionX * 0.14
 local logoTop = resolutionY * 0.32
 local logoSize = resolutionX * 0.20
+
 local logoLayout = {
     screenW = resolutionX,
     screenH = resolutionY,
@@ -347,6 +343,8 @@ if OPTIONS.drawLogo and logoReady and sharedLogoAssets and sharedLogoAssets.logo
     })
 end
 
+-- ===== MESSAGE TEXT =====
+-- "SilverZero's Lab" at top:14vw, left:36vw, font-size:7vw
 local textLayer = layers.text
 local titleLine1 = "SilverZero's"
 local titleLine2 = "LAB"

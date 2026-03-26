@@ -197,7 +197,11 @@ export class DrawBuffer {
   }
 
   private addRenderCost(cost: number): void {
-    this.renderCost += Math.max(0, Math.floor(cost));
+    this.renderCost += Math.max(0, cost);
+  }
+
+  private getScreenCostContext(): [number, number] {
+    return [this.screen.width, this.screen.height];
   }
 
   private cloneStyle(style: LayerStyle): LayerStyle {
@@ -282,43 +286,50 @@ export class DrawBuffer {
   AddBezier(layer: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) {
     const style = this.getResolvedStyle(layer, RSShape.Bezier);
     this.push({ op: "AddBezier", layer, style, x1, y1, x2, y2, x3, y3 });
-    this.addRenderCost(costAddBezier(x1, y1, x2, y2, x3, y3, style.strokeWidth, style.shadow.radius));
+    const [screenW, screenH] = this.getScreenCostContext();
+    this.addRenderCost(costAddBezier(x1, y1, x2, y2, x3, y3, screenW, screenH, style.strokeWidth, style.shadow.radius));
     this.consumeNextOverride(layer);
   }
   AddBox(layer: number, x: number, y: number, w: number, h: number) {
     const style = this.getResolvedStyle(layer, RSShape.Box);
     this.push({ op: "AddBox", layer, style, x, y, w, h });
-    this.addRenderCost(costAddBox(w, h, style.strokeWidth, style.shadow.radius));
+    const [screenW, screenH] = this.getScreenCostContext();
+    this.addRenderCost(costAddBox(w, h, screenW, screenH, style.strokeWidth, style.shadow.radius));
     this.consumeNextOverride(layer);
   }
   AddBoxRounded(layer: number, x: number, y: number, w: number, h: number, radius: number) {
     const style = this.getResolvedStyle(layer, RSShape.BoxRounded);
     this.push({ op: "AddBoxRounded", layer, style, x, y, w, h, radius });
-    this.addRenderCost(costAddBoxRounded(w, h, style.strokeWidth, style.shadow.radius));
+    const [screenW, screenH] = this.getScreenCostContext();
+    this.addRenderCost(costAddBoxRounded(w, h, screenW, screenH, style.strokeWidth, style.shadow.radius));
     this.consumeNextOverride(layer);
   }
   AddCircle(layer: number, x: number, y: number, radius: number) {
     const style = this.getResolvedStyle(layer, RSShape.Circle);
     this.push({ op: "AddCircle", layer, style, x, y, radius });
-    this.addRenderCost(costAddCircle(radius, style.strokeWidth, style.shadow.radius));
+    const [screenW, screenH] = this.getScreenCostContext();
+    this.addRenderCost(costAddCircle(radius, screenW, screenH, style.strokeWidth, style.shadow.radius));
     this.consumeNextOverride(layer);
   }
   AddLine(layer: number, x1: number, y1: number, x2: number, y2: number) {
     const style = this.getResolvedStyle(layer, RSShape.Line);
     this.push({ op: "AddLine", layer, style, x1, y1, x2, y2 });
-    this.addRenderCost(costAddLine(x1, y1, x2, y2, style.strokeWidth, style.shadow.radius));
+    const [screenW, screenH] = this.getScreenCostContext();
+    this.addRenderCost(costAddLine(x1, y1, x2, y2, screenW, screenH, style.strokeWidth, style.shadow.radius));
     this.consumeNextOverride(layer);
   }
   AddQuad(layer: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, x4: number, y4: number) {
     const style = this.getResolvedStyle(layer, RSShape.Polygon);
     this.push({ op: "AddQuad", layer, style, x1, y1, x2, y2, x3, y3, x4, y4 });
-    this.addRenderCost(costAddQuad(x1, y1, x2, y2, x3, y3, x4, y4, style.strokeWidth, style.shadow.radius));
+    const [screenW, screenH] = this.getScreenCostContext();
+    this.addRenderCost(costAddQuad(x1, y1, x2, y2, x3, y3, x4, y4, screenW, screenH, style.strokeWidth, style.shadow.radius));
     this.consumeNextOverride(layer);
   }
   AddTriangle(layer: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) {
     const style = this.getResolvedStyle(layer, RSShape.Polygon);
     this.push({ op: "AddTriangle", layer, style, x1, y1, x2, y2, x3, y3 });
-    this.addRenderCost(costAddTriangle(x1, y1, x2, y2, x3, y3, style.strokeWidth, style.shadow.radius));
+    const [screenW, screenH] = this.getScreenCostContext();
+    this.addRenderCost(costAddTriangle(x1, y1, x2, y2, x3, y3, screenW, screenH, style.strokeWidth, style.shadow.radius));
     this.consumeNextOverride(layer);
   }
   AddText(layer: number, fontId: number, text: string, x: number, y: number) {
@@ -326,19 +337,22 @@ export class DrawBuffer {
     const font = this.getFontEntry(fontId);
     const metrics = measureTextBounds(font.name, font.size, text ?? "");
     this.push({ op: "AddText", layer, style, fontId, text, x, y });
-    this.addRenderCost(costAddText(metrics.width, metrics.height, style.strokeWidth, style.shadow.radius));
+    const [screenW, screenH] = this.getScreenCostContext();
+    this.addRenderCost(costAddText(metrics.width, metrics.height, screenW, screenH, style.strokeWidth, style.shadow.radius));
     this.consumeNextOverride(layer);
   }
   AddImage(layer: number, imageId: number, x: number, y: number, w: number, h: number) {
     const style = this.getResolvedStyle(layer, RSShape.Image);
     this.push({ op: "AddImage", layer, style, imageId, x, y, w, h });
-    this.addRenderCost(costAddImage(w, h));
+    const [screenW, screenH] = this.getScreenCostContext();
+    this.addRenderCost(costAddImage(w, h, screenW, screenH));
     this.consumeNextOverride(layer);
   }
   AddImageSub(layer: number, imageId: number, x: number, y: number, w: number, h: number, subX: number, subY: number, subW: number, subH: number) {
     const style = this.getResolvedStyle(layer, RSShape.Image);
     this.push({ op: "AddImageSub", layer, style, imageId, x, y, w, h, subX, subY, subW, subH });
-    this.addRenderCost(costAddImage(w, h));
+    const [screenW, screenH] = this.getScreenCostContext();
+    this.addRenderCost(costAddImage(w, h, screenW, screenH));
     this.consumeNextOverride(layer);
   }
 
@@ -577,7 +591,7 @@ export class DrawBuffer {
   GetTime(): number { return this.time; }
   GetInput(): string { return this.input; }
   GetLocale(): string { return this.locale; }
-  GetRenderCost(): number { return this.renderCost; }
+  GetRenderCost(): number { return Math.round(this.renderCost); }
   GetRenderCostMax(): number { return this.screen.renderCostMax; }
   GetResolution(): [number, number] { return [this.screen.width, this.screen.height]; }
   SetBackgroundColor(r: number, g: number, b: number) {

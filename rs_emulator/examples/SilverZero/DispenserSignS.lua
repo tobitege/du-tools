@@ -1,7 +1,7 @@
 -- RenderScript conversion of SilverZero DispenserSignS.html
 
 local SZ = require("lib.SilverZeroRsLib")
-local SimpleSignSharedAssets = require("examples.SilverZero.SimpleSignSharedAssets")
+local SimpleSignSharedAssets = require("lib.SimpleSignSharedAssets")
 
 local DESCRIPTION_LINES = {
   "Terran",
