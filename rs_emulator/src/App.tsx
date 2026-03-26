@@ -657,8 +657,8 @@ export default function App() {
   }, []);
 
   const renderCommittedBuffer = useCallback((showGridOverride?: boolean) => {
-    canvasRef.current?.render(committedBufferRef.current, { showGrid: showGridOverride ?? settings.showGrid });
-  }, [settings.showGrid]);
+    canvasRef.current?.render(committedBufferRef.current, { showGrid: showGridOverride ?? settingsRef.current.showGrid });
+  }, []);
 
   const commitAndRenderBuffer = useCallback((showGridOverride?: boolean) => {
     commitBufferForRender();
@@ -857,7 +857,12 @@ export default function App() {
     setLoadingSession(false);
   }, []);
 
-  const executeCode = useCallback(async (codeToRun: string) => {
+  const executeCode = useCallback(async (
+    codeToRun: string,
+    options?: {
+      showSuccessStatus?: boolean;
+    },
+  ) => {
     const executionToken = executionTokenRef.current + 1;
     executionTokenRef.current = executionToken;
     setRunning(true);
@@ -872,6 +877,7 @@ export default function App() {
     buffer.time = 0;
     buffer.deltaTime = 0;
     const executionLabel = activeChunkLabel;
+    const showSuccessStatus = options?.showSuccessStatus ?? true;
 
     try {
       void envRef.current.dispose();
@@ -887,12 +893,14 @@ export default function App() {
       setResult(firstResult);
       commitAndRenderBuffer();
 
-      if (firstResult.success) {
+      if (firstResult.success && showSuccessStatus) {
         const animationInfo = firstResult.requestAnimFrames > 0 ? `, anim ${firstResult.requestAnimFrames}f` : "";
         const logInfo = firstResult.logs.length > 0 ? `, ${firstResult.logs.length} log(s)` : "";
         showStatus(`OK: ${buffer.GetRenderCost()} render cost${animationInfo}${logInfo}`);
       } else {
-        showStatus(`Error: ${(firstResult.error ?? "unknown error").slice(0, 140)}`);
+        if (!firstResult.success) {
+          showStatus(`Error: ${(firstResult.error ?? "unknown error").slice(0, 140)}`);
+        }
       }
 
       if (firstResult.success && firstResult.requestAnimFrames > 0) {
@@ -965,7 +973,7 @@ export default function App() {
       if (!hasExecutedCodeRef.current || runningRef.current || animatingRef.current) {
         return;
       }
-      void executeCode(codeRef.current);
+      void executeCode(codeRef.current, { showSuccessStatus: false });
     }, 0);
   }, [executeCode]);
 
@@ -1117,7 +1125,7 @@ export default function App() {
       const message = error instanceof Error ? error.message : String(error);
       showStatus(`Import failed: ${message.slice(0, 140)}`);
     }
-  }, [flushActiveSession, loadSessionIntoEditor, refreshSessions, resetRuntime, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus, stopAnimation]);
+  }, [commitAndRenderBuffer, flushActiveSession, loadSessionIntoEditor, refreshSessions, resetRuntime, showStatus, stopAnimation, syncBufferResolution]);
 
   const handleImportFilePick = useCallback(() => {
     importInputRef.current?.click();
@@ -1212,7 +1220,7 @@ export default function App() {
     } finally {
       setGithubImporting(false);
     }
-  }, [closeGitHubImport, flushActiveSession, loadSessionIntoEditor, refreshSessions, resetRuntime, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus, stopAnimation]);
+  }, [closeGitHubImport, commitAndRenderBuffer, flushActiveSession, loadSessionIntoEditor, refreshSessions, resetRuntime, showStatus, stopAnimation, syncBufferResolution]);
 
   const handleGitHubUrlSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1291,7 +1299,7 @@ export default function App() {
     } finally {
       setReloading(false);
     }
-  }, [activeSession, applySessionUpdate, loadSessionIntoEditor, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus, stopAnimation]);
+  }, [activeSession, applySessionUpdate, commitAndRenderBuffer, loadSessionIntoEditor, showStatus, stopAnimation, syncBufferResolution]);
 
   const closeLuaModuleSearchPathsDialog = useCallback(() => {
     pendingLuaModuleSearchPathHandlesRef.current = {};
@@ -1436,7 +1444,7 @@ export default function App() {
     setResult(null);
     commitAndRenderBuffer();
     showStatus("Session loaded");
-  }, [activeSessionId, flushActiveSession, loadSessionIntoEditor, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus, stopAnimation]);
+  }, [activeSessionId, commitAndRenderBuffer, flushActiveSession, loadSessionIntoEditor, showStatus, stopAnimation, syncBufferResolution]);
 
   const handleNewSession = useCallback(async () => {
     await flushActiveSession();
@@ -1451,7 +1459,7 @@ export default function App() {
     setResult(null);
     commitAndRenderBuffer();
     showStatus(`New temp session: ${created.name}`);
-  }, [flushActiveSession, loadSessionIntoEditor, refreshSessions, sessions, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus, stopAnimation]);
+  }, [commitAndRenderBuffer, flushActiveSession, loadSessionIntoEditor, refreshSessions, sessions, showStatus, stopAnimation, syncBufferResolution]);
 
   const handleDeleteSession = useCallback(async (sessionId: string) => {
     const deletingActive = sessionId === activeSessionId;
@@ -1488,7 +1496,7 @@ export default function App() {
       }
       void executeCode(nextCode);
     }
-  }, [activeSessionId, clearActiveSession, executeCode, flushActiveSession, loadSessionIntoEditor, refreshSessions, resetRuntime, settings.canvasHeight, settings.canvasWidth, settings.showGrid, showStatus, stopAnimation]);
+  }, [activeSessionId, clearActiveSession, commitAndRenderBuffer, executeCode, flushActiveSession, loadSessionIntoEditor, refreshSessions, resetRuntime, showStatus, stopAnimation, syncBufferResolution]);
 
   const handleRenameSession = useCallback(async (sessionId: string, name: string) => {
     const updated = await renameSession(sessionId, name);
@@ -1624,7 +1632,7 @@ export default function App() {
     if (result) {
       commitAndRenderBuffer();
     }
-  }, [result, settings.showGrid]);
+  }, [commitAndRenderBuffer, result]);
 
   useEffect(() => {
     clearInteractiveRunTimer();
@@ -1739,7 +1747,7 @@ export default function App() {
         statusTimerRef.current = 0;
       }
     };
-  }, []);
+  }, [clearActiveSession, commitAndRenderBuffer, loadSessionIntoEditor, syncBufferResolution]);
 
   const currentFileLabel = fileLabel(activeSession);
   const primaryFileLabel = activeSession?.name || "untitled";
@@ -1798,13 +1806,14 @@ export default function App() {
   );
 
   useEffect(() => {
-    bufferRef.current.onAssetsChanged = () => {
+    const buffer = bufferRef.current;
+    buffer.onAssetsChanged = () => {
       renderCommittedBuffer();
     };
     return () => {
-      bufferRef.current.onAssetsChanged = null;
+      buffer.onAssetsChanged = null;
     };
-  }, [settings.showGrid]);
+  }, [renderCommittedBuffer]);
 
   useEffect(() => {
     if (githubImportOpen) {

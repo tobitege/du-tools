@@ -7,6 +7,7 @@ import simpleSignSSource from "../examples/SilverZero/SimpleSignS.lua?raw";
 import simpleSignSvgScriptSource from "../examples/SilverZero/SimpleSignS-svg.lua?raw";
 import simpleSignXSSource from "../examples/SilverZero/SimpleSignXS.lua?raw";
 import shapeClassifierAdapterProbeSource from "../examples/SilverZero/ShapeClassifierAdapterProbe.lua?raw";
+import shapePrimitiveRoutingProbeSource from "../examples/SilverZero/ShapePrimitiveRoutingProbe.lua?raw";
 import welcomeScreenMSource from "../examples/SilverZero/WelcomeScreenM.lua?raw";
 import shipStatsSSource from "../examples/SilverZero/ShipStatsS.lua?raw";
 import shipFrameMSource from "../examples/SilverZero/ShipFrameM.lua?raw";
@@ -172,6 +173,7 @@ const silverZeroFileSources = {
   "examples/SilverZero/SimpleSignS-svg.lua": simpleSignSvgScriptSource,
   "examples/SilverZero/SimpleSignXS.lua": simpleSignXSSource,
   "examples/SilverZero/ShapeClassifierAdapterProbe.lua": shapeClassifierAdapterProbeSource,
+  "examples/SilverZero/ShapePrimitiveRoutingProbe.lua": shapePrimitiveRoutingProbeSource,
   "examples/SilverZero/WelcomeScreenM.lua": welcomeScreenMSource,
   "examples/SilverZero/ShipStatsS.lua": shipStatsSSource,
   "examples/SilverZero/ShipFrameM.lua": shipFrameMSource,
@@ -1687,9 +1689,11 @@ describe("lua runtime example integration", () => {
     expect(result.success).toBe(true);
     expect(result.output).toBe("true|outline_path|5");
     const lines = buffer.commands.filter((command) => command.op === "AddLine");
-    expect(lines).toHaveLength(4);
-    expect(buffer.commands.some((command) => command.op === "AddQuad")).toBe(false);
-    expect(buffer.commands.some((command) => command.op === "AddTriangle")).toBe(false);
+    const quads = buffer.commands.filter((command) => command.op === "AddQuad");
+    const triangles = buffer.commands.filter((command) => command.op === "AddTriangle");
+    expect(lines).toHaveLength(0);
+    expect(quads).toHaveLength(7);
+    expect(triangles).toHaveLength(0);
   });
 
   it("draws the left SimpleSign board edge decal through the generic adapter as a filled quad", async () => {
@@ -2092,7 +2096,11 @@ describe("lua runtime example integration", () => {
     expect(result.success).toBe(true);
     expect(result.output).toBe("true|compound_path|2");
     const lines = buffer.commands.filter((command) => command.op === "AddLine");
-    expect(lines).toHaveLength(8);
+    const quads = buffer.commands.filter((command) => command.op === "AddQuad");
+    const triangles = buffer.commands.filter((command) => command.op === "AddTriangle");
+    expect(lines).toHaveLength(0);
+    expect(quads).toHaveLength(16);
+    expect(triangles).toHaveLength(0);
   });
 
   it("draws a classified polygon_ring through the SilverZero adapter", async () => {
@@ -2223,10 +2231,14 @@ describe("lua runtime example integration", () => {
         }
 
         local expectedLines = 0
+        local expectedJoins = 0
         for _, subpath in ipairs(shape.geometry and shape.geometry.subpaths or {}) do
           expectedLines = expectedLines + math.max(0, #(subpath.points or {}) - 1)
           if subpath.closed then
             expectedLines = expectedLines + 1
+            expectedJoins = expectedJoins + #(subpath.points or {})
+          else
+            expectedJoins = expectedJoins + math.max(0, #(subpath.points or {}) - 2)
           end
         end
 
@@ -2238,7 +2250,8 @@ describe("lua runtime example integration", () => {
           tostring(drew),
           shape.kind,
           tostring(shape.analysis.subpathCount),
-          tostring(expectedLines)
+          tostring(expectedLines),
+          tostring(expectedJoins)
         }, "|"))
       `,
     }));
@@ -2246,9 +2259,13 @@ describe("lua runtime example integration", () => {
     const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-compound-disjoint.lua");
 
     expect(result.success).toBe(true);
-    expect(result.output).toBe("true|compound_path|2|8");
+    expect(result.output).toBe("true|compound_path|2|8|8");
     const lines = buffer.commands.filter((command) => command.op === "AddLine");
-    expect(lines).toHaveLength(8);
+    const quads = buffer.commands.filter((command) => command.op === "AddQuad");
+    const triangles = buffer.commands.filter((command) => command.op === "AddTriangle");
+    expect(lines).toHaveLength(0);
+    expect(quads).toHaveLength(16);
+    expect(triangles).toHaveLength(0);
   });
 
   it("draws a classified SimpleSign board compound edge decal through the SilverZero adapter", async () => {
@@ -2280,10 +2297,14 @@ describe("lua runtime example integration", () => {
         end
 
         local expectedLines = 0
+        local expectedJoins = 0
         for _, subpath in ipairs(targetShape and targetShape.geometry and targetShape.geometry.subpaths or {}) do
           expectedLines = expectedLines + math.max(0, #(subpath.points or {}) - 1)
           if subpath.closed then
             expectedLines = expectedLines + 1
+            expectedJoins = expectedJoins + #(subpath.points or {})
+          else
+            expectedJoins = expectedJoins + math.max(0, #(subpath.points or {}) - 2)
           end
         end
 
@@ -2306,7 +2327,8 @@ describe("lua runtime example integration", () => {
           tostring(drew),
           targetShape and targetShape.kind or "nil",
           targetShape and targetShape.role or "nil",
-          tostring(expectedLines)
+          tostring(expectedLines),
+          tostring(expectedJoins)
         }, "|"))
       `,
     }));
@@ -2314,9 +2336,13 @@ describe("lua runtime example integration", () => {
     const result = await executeLuaFile(env, "examples/SilverZero/tests/draw-classified-simplesign-board-compound-edge.lua");
 
     expect(result.success).toBe(true);
-    expect(result.output).toBe("true|compound_path|edge_decal|14");
+    expect(result.output).toBe("true|compound_path|edge_decal|14|13");
     const lines = buffer.commands.filter((command) => command.op === "AddLine");
-    expect(lines).toHaveLength(14);
+    const quads = buffer.commands.filter((command) => command.op === "AddQuad");
+    const triangles = buffer.commands.filter((command) => command.op === "AddTriangle");
+    expect(lines).toHaveLength(0);
+    expect(quads).toHaveLength(27);
+    expect(triangles).toHaveLength(0);
   });
 
   it("reports runtime errors with the provided chunk label and line number", async () => {
@@ -2549,6 +2575,24 @@ describe("lua runtime example integration", () => {
     const textCommands = buffer.commands.filter((command) => command.op === "AddText");
     expect(textCommands.length).toBeGreaterThanOrEqual(14);
     expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(true);
+    expect(buffer.commands.some((command) => command.op === "AddQuad")).toBe(true);
+    expect(buffer.commands.some((command) => command.op === "AddTriangle")).toBe(true);
+  });
+
+  it("renders ShapePrimitiveRoutingProbe with primitive-first routing summaries", async () => {
+    const buffer = new DrawBuffer();
+    const env = createLuaEnvironment(buffer, createLuaFileResolver(silverZeroFileSources));
+
+    const result = await executeLuaFile(env, "examples/SilverZero/ShapePrimitiveRoutingProbe.lua");
+
+    expect(result.success).toBe(true);
+    expect(result.requestAnimFrames).toBe(0);
+    expect(result.output).toBe(
+      "trap_fill=trapezoid|quad_primitive;tri_fill=triangle|triangle_primitive;pent_fill=closed_polygon|polygon_primitive;board_trap=trapezoid|quad_primitive;board_edge=edge_decal|quad_primitive;corner_join=outline_path|joined_stroke;outline_quad=outline_path|quad_primitive;board_comp=compound_path|joined_stroke",
+    );
+    const textCommands = buffer.commands.filter((command) => command.op === "AddText");
+    expect(textCommands.length).toBeGreaterThanOrEqual(18);
+    expect(buffer.commands.some((command) => command.op === "AddLine")).toBe(false);
     expect(buffer.commands.some((command) => command.op === "AddQuad")).toBe(true);
     expect(buffer.commands.some((command) => command.op === "AddTriangle")).toBe(true);
   });

@@ -1390,6 +1390,45 @@ local function drawPointTriangle(layer, layout, a, b, c, color)
     )
 end
 
+local function drawPointTriangleExpanded(layer, layout, a, b, c, color, inflatePx)
+    inflatePx = inflatePx or 0
+    if inflatePx <= 0 then
+        drawPointTriangle(layer, layout, a, b, c, color)
+        return
+    end
+
+    local points = {
+        { x = Library.toScreenX(layout, a.x), y = Library.toScreenY(layout, a.y) },
+        { x = Library.toScreenX(layout, b.x), y = Library.toScreenY(layout, b.y) },
+        { x = Library.toScreenX(layout, c.x), y = Library.toScreenY(layout, c.y) },
+    }
+    local center = {
+        x = (points[1].x + points[2].x + points[3].x) / 3,
+        y = (points[1].y + points[2].y + points[3].y) / 3,
+    }
+
+    for i = 1, #points do
+        local dx = points[i].x - center.x
+        local dy = points[i].y - center.y
+        local length = math.sqrt(dx * dx + dy * dy)
+        if length > 0.000001 then
+            points[i].x = points[i].x + (dx / length) * inflatePx
+            points[i].y = points[i].y + (dy / length) * inflatePx
+        end
+    end
+
+    setNextFillColor(layer, color[1], color[2], color[3], color[4] or 1)
+    addTriangle(
+        layer,
+        points[1].x,
+        points[1].y,
+        points[2].x,
+        points[2].y,
+        points[3].x,
+        points[3].y
+    )
+end
+
 local function extractFourPointShapePoints(shape)
     if not shape or not shape.geometry then
         return nil
@@ -1629,6 +1668,108 @@ local function drawSubpathSegments(layer, layout, subpath, color, strokeWidth)
     return true
 end
 
+local function offsetPoint(point, normal, direction)
+    return {
+        x = point.x + normal.x * direction,
+        y = point.y + normal.y * direction,
+    }
+end
+
+local function segmentNormal(a, b, halfWidth)
+    local dx = (b.x or 0) - (a.x or 0)
+    local dy = (b.y or 0) - (a.y or 0)
+    local length = math.sqrt(dx * dx + dy * dy)
+    if length <= 0.000001 then
+        return nil
+    end
+
+    return {
+        x = (-dy / length) * halfWidth,
+        y = (dx / length) * halfWidth,
+    }
+end
+
+local function drawStrokeSegmentQuad(layer, layout, a, b, color, halfWidth)
+    local normal = segmentNormal(a, b, halfWidth)
+    if not normal then
+        return false
+    end
+
+    drawPointQuad(layer, layout, {
+        offsetPoint(a, normal, 1),
+        offsetPoint(b, normal, 1),
+        offsetPoint(b, normal, -1),
+        offsetPoint(a, normal, -1),
+    }, color)
+    return true
+end
+
+local function drawStrokeJoinQuad(layer, layout, prevPoint, jointPoint, nextPoint, color, halfWidth)
+    local prevNormal = segmentNormal(prevPoint, jointPoint, halfWidth)
+    local nextNormal = segmentNormal(jointPoint, nextPoint, halfWidth)
+    if not prevNormal or not nextNormal then
+        return false
+    end
+
+    local prevDx = (jointPoint.x or 0) - (prevPoint.x or 0)
+    local prevDy = (jointPoint.y or 0) - (prevPoint.y or 0)
+    local nextDx = (nextPoint.x or 0) - (jointPoint.x or 0)
+    local nextDy = (nextPoint.y or 0) - (jointPoint.y or 0)
+    local cross = prevDx * nextDy - prevDy * nextDx
+    if math.abs(cross) <= 0.000001 then
+        return false
+    end
+
+    local outerDirection = cross > 0 and -1 or 1
+    local innerDirection = -outerDirection
+
+    drawPointQuad(layer, layout, {
+        offsetPoint(jointPoint, prevNormal, outerDirection),
+        offsetPoint(jointPoint, nextNormal, outerDirection),
+        offsetPoint(jointPoint, nextNormal, innerDirection),
+        offsetPoint(jointPoint, prevNormal, innerDirection),
+    }, color)
+    return true
+end
+
+local function drawJoinedStrokeSubpath(layer, layout, subpath, color, strokeWidth)
+    local points = subpath and subpath.points or nil
+    if not points or #points < 2 then
+        return false
+    end
+
+    local halfWidth = math.max(0.0001, (strokeWidth or 1) * 0.5)
+    local segmentCount = #points - 1
+
+    for i = 1, #points - 1 do
+        if not drawStrokeSegmentQuad(layer, layout, points[i], points[i + 1], color, halfWidth) then
+            return false
+        end
+    end
+
+    if subpath.closed then
+        if not drawStrokeSegmentQuad(layer, layout, points[#points], points[1], color, halfWidth) then
+            return false
+        end
+        segmentCount = segmentCount + 1
+    end
+
+    if segmentCount < 2 then
+        return true
+    end
+
+    for i = 2, #points - 1 do
+        drawStrokeJoinQuad(layer, layout, points[i - 1], points[i], points[i + 1], color, halfWidth)
+    end
+
+    if subpath.closed then
+        drawStrokeJoinQuad(layer, layout, points[#points], points[1], points[2], color, halfWidth)
+        drawStrokeJoinQuad(layer, layout, points[#points - 1], points[#points], points[1], color, halfWidth)
+    end
+
+    return true
+end
+
 --- Zeichnet einen klassifizierten hex_ring ueber die bestehende hexRing-Hilfsfunktion.
 function Library.drawClassifiedHexRing(layer, layout, shape, options)
     if not shape or shape.kind ~= "hex_ring" then
@@ -1695,8 +1836,10 @@ function Library.drawClassifiedClosedPolygon(layer, layout, shape, options)
         return false
     end
 
+    local overlapPx = options and options.overlapPx or 0.35
+
     if #points == 3 then
-        drawPointTriangle(layer, layout, points[1], points[2], points[3], color)
+        drawPointTriangleExpanded(layer, layout, points[1], points[2], points[3], color, overlapPx)
         return true
     end
 
@@ -1707,7 +1850,7 @@ function Library.drawClassifiedClosedPolygon(layer, layout, shape, options)
 
     for i = 1, #triangles do
         local triangle = triangles[i]
-        drawPointTriangle(layer, layout, triangle[1], triangle[2], triangle[3], color)
+        drawPointTriangleExpanded(layer, layout, triangle[1], triangle[2], triangle[3], color, overlapPx)
     end
 
     return true
@@ -1724,8 +1867,10 @@ function Library.drawClassifiedImplicitFillPolygon(layer, layout, shape, options
         return false
     end
 
+    local overlapPx = options and options.overlapPx or 0.35
+
     if #points == 3 then
-        drawPointTriangle(layer, layout, points[1], points[2], points[3], color)
+        drawPointTriangleExpanded(layer, layout, points[1], points[2], points[3], color, overlapPx)
         return true
     end
 
@@ -1736,7 +1881,7 @@ function Library.drawClassifiedImplicitFillPolygon(layer, layout, shape, options
 
     for i = 1, #triangles do
         local triangle = triangles[i]
-        drawPointTriangle(layer, layout, triangle[1], triangle[2], triangle[3], color)
+        drawPointTriangleExpanded(layer, layout, triangle[1], triangle[2], triangle[3], color, overlapPx)
     end
 
     return true
@@ -1814,7 +1959,7 @@ function Library.drawClassifiedCompoundPath(layer, layout, shape, options)
         if not subpath.points or #subpath.points < 2 then
             return false
         end
-        if not drawSubpathSegments(layer, layout, subpath, color, strokeWidth) then
+        if not drawJoinedStrokeSubpath(layer, layout, subpath, color, strokeWidth) then
             return false
         end
     end
@@ -1839,7 +1984,7 @@ function Library.drawClassifiedOutlinePath(layer, layout, shape, options)
     end
 
     local strokeWidth = options and options.strokeWidth or 1
-    return drawSubpathSegments(layer, layout, subpaths[1], color, strokeWidth)
+    return drawJoinedStrokeSubpath(layer, layout, subpaths[1], color, strokeWidth)
 end
 
 --- Zeichnet nur klassifizierte Stroke-Shapes und laesst Fill-Faelle aus.
