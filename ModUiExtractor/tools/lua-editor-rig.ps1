@@ -114,6 +114,7 @@ $repoRoot = Resolve-RigPath -Path "..\.." -BasePath $scriptDir
 $uiRoot = Resolve-RigPath -Path "..\..\lua_editor" -BasePath $scriptDir
 $probeScriptPath = Resolve-RigPath -Path "..\payload\lua-editor-probe.js" -BasePath $scriptDir
 $bridgeScriptPath = Resolve-RigPath -Path ".\lua-editor-rig-bridge.js" -BasePath $scriptDir
+$themeCatalogPath = Resolve-RigPath -Path "..\payload\theme-imports\flowery-daisy-palettes.compact.json" -BasePath $scriptDir
 $dumpRoot = Resolve-RigPath -Path $DumpDir -BasePath (Get-Location).Path
 
 if (-not (Test-Path $uiRoot)) {
@@ -124,6 +125,9 @@ if (-not (Test-Path $probeScriptPath)) {
 }
 if (-not (Test-Path $bridgeScriptPath)) {
     throw "Rig bridge script not found: $bridgeScriptPath"
+}
+if (-not (Test-Path $themeCatalogPath)) {
+    throw "Theme catalog not found: $themeCatalogPath"
 }
 
 New-Item -ItemType Directory -Path $dumpRoot -Force | Out-Null
@@ -242,11 +246,36 @@ try {
                 }
 
                 Add-Content -Path $dumpFile -Value (($line | ConvertTo-Json -Depth 30 -Compress)) -Encoding UTF8
-                Send-Json -Response $res -Payload @{
+                $responsePayload = [ordered]@{
                     ok = $true
                     dumpFile = $dumpFile
                     playerId = $effectivePlayerId
                 }
+                if ($packetType -eq "theme_catalog_request") {
+                    $catalogName = ""
+                    $requestId = ""
+                    try { if ($null -ne $packet.data.catalogName) { $catalogName = [string]$packet.data.catalogName } } catch {}
+                    try { if ($null -ne $packet.data.requestId) { $requestId = [string]$packet.data.requestId } } catch {}
+                    if ($catalogName -eq "flowery-daisy") {
+                        $catalogJson = Get-Content -LiteralPath $themeCatalogPath -Raw
+                        $responsePayload.themeCatalogPayload = [ordered]@{
+                            requestId = $requestId
+                            catalogName = $catalogName
+                            success = $true
+                            catalog = $catalogJson | ConvertFrom-Json
+                            error = $null
+                        }
+                    } else {
+                        $responsePayload.themeCatalogPayload = [ordered]@{
+                            requestId = $requestId
+                            catalogName = $catalogName
+                            success = $false
+                            catalog = $null
+                            error = "unsupported_catalog"
+                        }
+                    }
+                }
+                Send-Json -Response $res -Payload $responsePayload
                 continue
             }
 

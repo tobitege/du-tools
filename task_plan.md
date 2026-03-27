@@ -7,11 +7,13 @@ Verstehen, warum die ScreenLayoutEditor-Persistenz auf dem Programming Board nac
 ## Phases
 
 - [completed] Dokumentierte Persistenzkette in `live_board` prüfen
-- [completed] Kleine Lua-Dateien aus `D:\github\yfs-tools\lua` auf relevante Muster prüfen
-- [completed] Wahrscheinliche Fehlerursache und fehlende Abfolge zwischen Board und Screen benennen
-- [completed] Falls klar genug, konkrete Code- oder Testempfehlung formulieren
+- [completed] Live-Artefakt gegen Repo-Dateien vergleichen
+- [completed] Fehlerursache eingrenzen: `setOutput`-Envelope zu groß, Live-`onTimer` veraltet
+- [completed] Kompakte Persistenz-Serialisierung in Repo-Dateien umsetzen und lokal verifizieren
+- [completed] Live-Handlers in den Programming-Board-Editor pushen
+- [in_progress] Persistenz im Spiel nachprüfen
 
 ## Notes
 
-- Fokus zuerst auf Lesen und Verstehen, noch keine Codeänderung
-- Live-MCP-Pfade nur nutzen, wenn eine Codehypothese dadurch gezielt bestätigt werden muss
+- `unit/onTimer(UPD)` und `unit/onStart()` sind jetzt beide live gepusht und gespeichert.
+- Für die Restprüfung braucht es jetzt nur noch einen echten Ingame-Move am Screen plus Beobachtung von Chat/HUD bzw. Restore nach Neustart.

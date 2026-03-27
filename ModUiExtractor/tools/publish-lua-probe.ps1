@@ -22,6 +22,7 @@ $buildScript = Join-Path $scriptDir "build-lua-probe.ps1"
 $moduleDir = Join-Path $repoRoot "payload\lua-editor-probe.modules"
 $payloadFile = Join-Path $repoRoot "payload\lua-editor-probe.js"
 $buildStampFile = Join-Path $repoRoot "payload\lua-editor-probe.build.json"
+$themeImportDir = Join-Path $repoRoot "payload\theme-imports"
 
 & $buildScript -ModuleDir $moduleDir -OutFile $payloadFile
 
@@ -29,17 +30,23 @@ $overrideRoot = Join-Path $DumpDir "payload-overrides"
 $moduleOverrideDir = Join-Path $overrideRoot "lua-editor-probe.modules"
 $singleOverrideFile = Join-Path $overrideRoot "lua-editor-probe.override.js"
 $overrideBuildStamp = Join-Path $overrideRoot "lua-editor-probe.build.json"
+$themeImportOverrideDir = Join-Path $overrideRoot "theme-imports"
 
 New-Item -ItemType Directory -Path $overrideRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $moduleOverrideDir -Force | Out-Null
+New-Item -ItemType Directory -Path $themeImportOverrideDir -Force | Out-Null
 
 Copy-Item -Path $payloadFile -Destination $singleOverrideFile -Force
 if (Test-Path $buildStampFile) {
     Copy-Item -Path $buildStampFile -Destination $overrideBuildStamp -Force
 }
 Copy-Item -Path (Join-Path $moduleDir "*") -Destination $moduleOverrideDir -Force
+if (Test-Path $themeImportDir) {
+    Copy-Item -Path (Join-Path $themeImportDir "*") -Destination $themeImportOverrideDir -Force
+}
 
 Write-Host "Published lua probe to:"
 Write-Host "  $singleOverrideFile"
 Write-Host "  $overrideBuildStamp (build stamp for chat line)"
 Write-Host "  $moduleOverrideDir"
+Write-Host "  $themeImportOverrideDir"

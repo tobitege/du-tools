@@ -18,6 +18,7 @@
   var actionId = cfg.actionId || 900001;
   var dumpId = "lua-probe-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
   var caretHighlightPrefStorageKey = "ModUiExtractor.lua.caret-highlight-enabled.v1";
+  var themeCatalogStorageKey = "ModUiExtractor.lua.theme-catalog.flowery-daisy.v2";
   var mcpResultChunkSize = 7000;
 
   function loadCaretHighlightPreference() {
@@ -44,6 +45,32 @@
       window.localStorage.setItem(caretHighlightPrefStorageKey, enabled ? "1" : "0");
       return true;
     } catch (_ignorePrefWrite) {}
+    return false;
+  }
+
+  function loadThemeCatalogCache() {
+    try {
+      if (!window.localStorage || typeof window.localStorage.getItem !== "function") {
+        return null;
+      }
+      var raw = window.localStorage.getItem(themeCatalogStorageKey);
+      if (!raw) {
+        return null;
+      }
+      var parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch (_ignoreThemeCatalogRead) {}
+    return null;
+  }
+
+  function saveThemeCatalogCache(payload) {
+    try {
+      if (!window.localStorage || typeof window.localStorage.setItem !== "function") {
+        return false;
+      }
+      window.localStorage.setItem(themeCatalogStorageKey, JSON.stringify(payload || null));
+      return true;
+    } catch (_ignoreThemeCatalogWrite) {}
     return false;
   }
 
@@ -83,7 +110,11 @@
     screenLastRestoredContextKey: "",
     lastIdeSyncContextKey: "",
     lastIdeSyncReference: null,
-    lastInitDemReference: null
+    lastInitDemReference: null,
+    themeCatalog: null,
+    themeCatalogLoading: false,
+    themeCatalogRequestId: "",
+    themeCatalogCallbacks: []
   };
 
   state.applyIdeCode = applyIdeCode;
@@ -590,7 +621,7 @@
 
     var referenceMatch = compareIdeImportReference(expectedReference, currentReference, targetKind);
     if (!referenceMatch.match) {
-      flashIdeImportStatus(targetKind, "Sync wartet auf richtiges Element", "#805019", "#ffffff", 1400);
+      flashIdeImportStatus(targetKind, "Warte auf Element", "#805019", "#ffffff", 1400);
       emitIdeImportResult({
         requestId: requestId,
         targetKind: targetKind,
@@ -613,7 +644,7 @@
     }
 
     if (expectedContextKey && currentContextKey && expectedContextKey !== currentContextKey) {
-      flashIdeImportStatus(targetKind, "Sync wartet auf richtigen Filter", "#8a2424", "#ffffff", 1400);
+      flashIdeImportStatus(targetKind, "Warte auf Filter", "#8a2424", "#ffffff", 1400);
       emitIdeImportResult({
         requestId: requestId,
         targetKind: targetKind,
@@ -706,7 +737,7 @@
 
     flashIdeImportStatus(
       targetKind,
-      staleBase ? "Synced from IDE (stale base)" : "Synced from IDE!",
+      staleBase ? "Sync alt" : "Sync ok",
       staleBase ? "#7a6518" : "#2a6b36",
       "#ffffff",
       staleBase ? 2200 : 1500);
@@ -745,7 +776,7 @@
     var currentContextKey = snapshot.contextKey || "";
     if (state.lastIdeSyncContextKey && currentContextKey !== state.lastIdeSyncContextKey) {
       safeLog("IDE sync blocked: Context changed. Expected: " + state.lastIdeSyncContextKey + ", Got: " + currentContextKey);
-      flashIdeSyncButton("Sync Blocked: Wrong Filter", "#8a2424", "#ffffff", 3000);
+      flashIdeSyncButton("Warte auf Filter", "#8a2424", "#ffffff", 3000);
       return;
     }
 
@@ -757,7 +788,7 @@
     codeMirror.setValue(newCode);
     state.lastIdeSyncContextKey = currentContextKey;
     state.lastIdeSyncReference = cloneIdeSyncObject(snapshot.reference || getLuaIdeSyncReference());
-    flashIdeSyncButton("Synced from IDE!", "#2a6b36", "#ffffff", 1500);
+    flashIdeSyncButton("Sync ok", "#2a6b36", "#ffffff", 1500);
   }
 
   function summarizeArg(arg) {
@@ -1079,22 +1110,24 @@
       + "box-shadow:0 0 0 1px var(--lua-probe-accent), 0 0 22px var(--lua-probe-accent) !important;"
       + "border-color:var(--lua-probe-accent) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .header_col{"
-      + "background-color:var(--lua-probe-surface-elevated) !important;}"
-      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .header_col .header_col_description{"
+      + "background-color:var(--lua-probe-surface-elevated) !important;color:var(--lua-probe-text-muted) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .header_col *{"
       + "color:var(--lua-probe-text-muted) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .header_col .header_col_description{"
+      + "color:var(--lua-probe-text-dim) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .editor_header .header_bar .title{"
-      + "background:transparent !important;color:#f8f8f2 !important;}"
+      + "background:transparent !important;color:var(--lua-probe-text-muted) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots{"
       + "background-color:var(--lua-probe-surface-elevated) !important;"
       + "box-shadow:var(--lua-probe-shadow) 3px 3px 5px !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot{"
-      + "background-color:var(--lua-probe-surface-row) !important;color:#f8f8f2 !important;}"
+      + "background-color:var(--lua-probe-surface-row) !important;color:var(--lua-probe-text-muted) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot:not(.disabled):not(.selected):not(.active):not(.active_tab):hover{"
       + "background-color:var(--lua-probe-surface-row) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot:not(.disabled):hover{"
       + "border-color:var(--lua-probe-border-hover) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot.selected{"
-      + "background-color:var(--lua-probe-surface-row) !important;color:#f8f8f2 !important;}"
+      + "background-color:var(--lua-probe-surface-row) !important;color:var(--lua-probe-text-muted) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot.selected::after{"
       + "background-color:var(--lua-probe-accent-solid) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot.active,"
@@ -1198,7 +1231,7 @@
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code{"
       + "background-color:var(--lua-probe-surface-deep) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror{"
-      + "background-color:var(--lua-probe-surface-deep) !important;}"
+      + "background-color:var(--lua-probe-surface-deep) !important;color:var(--lua-probe-text-muted) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror .CodeMirror-gutters{"
       + "background-color:var(--lua-probe-surface-deep) !important;"
       + "border-right-color:var(--lua-probe-gutter-border) !important;}"
@@ -1246,6 +1279,12 @@
       + "color:var(--lua-probe-text-muted) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn .header .lua_error_header_wrapper .value .lua_error_ctn_value{"
       + "color:var(--lua-probe-accent-solid) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn .header .lua_error_header_wrapper{"
+      + "display:flex;align-items:center;gap:10px;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn .header .lua_error_header_wrapper .lua-probe-buffer-size{"
+      + "display:flex;flex:1 1 auto;justify-content:center;align-items:center;text-align:center;"
+      + "margin-left:16px;color:var(--lua-probe-text-dim) !important;white-space:nowrap;"
+      + "font-family:Play,sans-serif;font-size:19.56111145px;font-weight:600;line-height:23px;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn .header .reduce_size{"
       + "fill:var(--lua-probe-accent-solid) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .editor_header .header_container{"
@@ -1254,12 +1293,55 @@
       + "border-bottom:1px solid var(--lua-probe-accent) !important;}"
       + "#dpu_editor #ModUiExtractor-lua-theme-dots{"
       + "position:absolute;left:12px;top:50%;transform:translateY(-50%);"
-      + "display:flex;gap:8px;align-items:center;z-index:11;}"
+      + "display:flex;gap:8px;align-items:center;z-index:11;overflow:visible;}"
       + "#dpu_editor #ModUiExtractor-lua-theme-dots .lua-theme-dot{"
       + "width:12px;height:12px;border-radius:999px;border:1px solid rgba(255,255,255,0.6);"
       + "padding:0;cursor:pointer;opacity:0.88;}"
       + "#dpu_editor #ModUiExtractor-lua-theme-dots .lua-theme-dot[data-active=\"1\"]{"
       + "transform:scale(1.1);opacity:1;box-shadow:0 0 0 1px rgba(0,0,0,0.55),0 0 8px rgba(255,255,255,0.35);}"
+      + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-trigger,"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-trigger{"
+      + "width:18px;height:18px;padding:0;border-radius:6px;cursor:pointer;"
+      + "display:flex;align-items:center;justify-content:center;"
+      + "margin-left:3px;"
+      + "border:1px solid rgba(255,255,255,0.22);background:rgba(0,0,0,0.28);"
+      + "color:var(--lua-probe-text-muted) !important;font-family:Play,sans-serif;font-size:11px;font-weight:900;line-height:1;}"
+      + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-trigger:hover,"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-trigger:hover{"
+      + "border-color:var(--lua-probe-border-hover) !important;color:var(--lua-probe-text-muted) !important;background:rgba(0,0,0,0.42);}"
+      + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-panel,"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-panel{"
+      + "display:none;position:absolute;left:0;top:calc(100% + 8px);z-index:40;width:420px;max-height:52vh;overflow:auto;"
+      + "padding:10px;border-radius:10px;background:var(--lua-probe-surface-elevated) !important;"
+      + "border:1px solid var(--lua-probe-accent) !important;box-shadow:0 10px 26px rgba(0,0,0,0.42);}"
+      + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-panel[data-open=\"1\"],"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-panel[data-open=\"1\"]{display:block;}"
+      + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-status,"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-status{"
+      + "color:var(--lua-probe-text-dim) !important;font-family:Play,sans-serif;font-size:12px;font-weight:700;margin-bottom:8px;}"
+      + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-list,"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-right:-6px;margin-bottom:-8px;}"
+      + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-item,"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-item{"
+      + "display:flex;align-items:center;width:calc(100% - 6px);min-height:30px;padding:7px 10px;border-radius:8px;cursor:pointer;"
+      + "margin:0 6px 8px 0;"
+      + "border:1px solid transparent;background:var(--lua-probe-surface-row) !important;color:var(--lua-probe-text-muted) !important;"
+      + "text-align:left;font-family:Play,sans-serif;font-size:13px;font-weight:700;outline:none;}"
+      + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-item:hover,"
+      + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-item:focus,"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-item:hover{"
+      + "border-color:var(--lua-probe-border-hover) !important;background:var(--lua-probe-surface-row-alt) !important;color:var(--lua-probe-text-muted) !important;}"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-item:focus{"
+      + "border-color:var(--lua-probe-border-hover) !important;background:var(--lua-probe-surface-row-alt) !important;color:var(--lua-probe-text-muted) !important;}"
+      + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-item[data-active=\"1\"],"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-item[data-active=\"1\"]{"
+      + "border-color:var(--lua-probe-accent) !important;box-shadow:0 0 0 1px rgba(0,0,0,0.25) inset;}"
+      + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-swatch,"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-swatch{"
+      + "width:12px;height:12px;border-radius:999px;flex:0 0 12px;border:1px solid rgba(255,255,255,0.55);margin-right:8px;}"
+      + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-label,"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-label{"
+      + "display:block;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:uppercase;}"
       + "#dpu_editor #ModUiExtractor-lua-caret-toggle,#dpu_editor #ModUiExtractor-lua-ide-sync{"
       + "font-family:Play,sans-serif;font-size:1.11111111vh;font-weight:900;text-transform:uppercase;"
       + "display:flex;justify-content:center;align-items:center;text-align:center;overflow:hidden;"
@@ -1298,7 +1380,7 @@
       + "position:relative;background:var(--lua-probe-header-bg) !important;"
       + "border-bottom:1px solid var(--lua-probe-accent) !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .header_block .panel_title{"
-      + "color:#f8f8f2 !important;"
+      + "color:var(--lua-probe-text-muted) !important;"
       + "text-shadow:0 1px 0 rgba(0,0,0,0.42) !important;"
       + "padding-left:4.25925926vh !important;"
       + "padding-right:4.25925926vh !important;"
@@ -1340,12 +1422,12 @@
       + "text-shadow:0 1px 0 rgba(0,0,0,0.35) !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .font_size_wrapper .font_button:hover{"
       + "background:var(--lua-probe-surface-row) !important;"
-      + "border-color:var(--lua-probe-border-hover) !important;color:#ffffff !important;}"
+      + "border-color:var(--lua-probe-border-hover) !important;color:var(--lua-probe-text-muted) !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .content .top_line .font_size_wrapper .font_button:active{"
       + "background:var(--lua-probe-surface-deep) !important;}"
       + ".screen_content_editor_panel #ModUiExtractor-screen-theme-dots{"
       + "position:absolute;left:12px;top:50%;transform:translateY(-50%);"
-      + "display:flex;gap:8px;align-items:center;z-index:11;}"
+      + "display:flex;gap:8px;align-items:center;z-index:11;overflow:visible;}"
       + ".screen_content_editor_panel #ModUiExtractor-screen-theme-dots .lua-theme-dot{"
       + "width:12px;height:12px;border-radius:999px;border:1px solid rgba(255,255,255,0.6);"
       + "padding:0;cursor:pointer;opacity:0.88;}"
@@ -1369,7 +1451,7 @@
       + ".screen_content_editor_panel #ModUiExtractor-screen-ide-sync:focus{"
       + "outline:none;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror{"
-      + "background-color:var(--lua-probe-surface-deep) !important;color:#f8f8f2 !important;}"
+      + "background-color:var(--lua-probe-surface-deep) !important;color:var(--lua-probe-text-muted) !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror .CodeMirror-gutters{"
       + "background-color:var(--lua-probe-surface-deep) !important;"
       + "border-right-color:var(--lua-probe-gutter-border) !important;}"
@@ -1378,6 +1460,20 @@
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line{"
       + "background:var(--lua-probe-surface-elevated) !important;"
       + "border-top:1px solid var(--lua-probe-border-strong) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .error_block{"
+      + "background:var(--lua-probe-surface-elevated) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .error_block .error_header{"
+      + "background:var(--lua-probe-surface-elevated) !important;"
+      + "border-bottom:1px solid var(--lua-probe-border-strong) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .error_block .error_area{"
+      + "background:var(--lua-probe-surface-main) !important;"
+      + "border-top:1px solid var(--lua-probe-gutter-border) !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .error_block .error_header .left_wrapper{"
+      + "display:flex;align-items:center;gap:10px;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .error_block .error_header .left_wrapper .lua-probe-screen-buffer-size{"
+      + "display:flex;flex:1 1 auto;justify-content:center;align-items:center;text-align:center;"
+      + "margin-left:16px;color:var(--lua-probe-text-dim) !important;white-space:nowrap;"
+      + "font-family:Play,sans-serif;font-size:19.56111145px;font-weight:600;line-height:23px;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .editor_error_ctn{"
       + "background:var(--lua-probe-surface-elevated) !important;"
       + "box-shadow:var(--lua-probe-shadow) 3px 3px 5px !important;}"
@@ -1404,7 +1500,7 @@
       + "color:var(--lua-probe-text-muted) !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .mode_switch_wrapper .checkbox_switch input:checked ~ .checked_option,"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .mode_switch_wrapper .checkbox_switch input:not(:checked) ~ .unchecked_option{"
-      + "color:#f8f8f2 !important;}"
+      + "color:var(--lua-probe-on-accent) !important;font-weight:700 !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .character_count{"
       + "color:var(--lua-probe-text-dim) !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .save_button::before,"
@@ -1534,7 +1630,7 @@
       + "content:\"\";position:absolute;top:0;left:-7px;width:4px;height:100%;"
       + "background-color:var(--lua-probe-accent);box-shadow:0 1px 2px 1px rgba(0,0,0,0.72);}"
       + "#dpu_editor #filters_container .filter[data-lua-probe-active-filter=\"1\"] .actionName{"
-      + "color:#ffffff;}"
+      + "color:var(--lua-probe-text-muted) !important;}"
       + "#main_context_menu [data-lua-probe-hit=\"1\"]{"
       + "outline:1px dashed rgba(250,212,122,0.75);outline-offset:-1px;}";
 
@@ -1742,7 +1838,6 @@
   function getDomSelectedSlotNode() {
     return findFirstNode(SLOT_SELECTORS);
   }
-
   function getSlotStableKey(slotNode) {
     if (!slotNode) {
       return "";
@@ -2792,12 +2887,73 @@
     return map[key] || themeName;
   }
 
+  function flushThemeCatalogCallbacks(payload) {
+    var callbacks = state.themeCatalogCallbacks || [];
+    state.themeCatalogCallbacks = [];
+    for (var i = 0; i < callbacks.length; i += 1) {
+      try {
+        callbacks[i](payload);
+      } catch (_ignoreThemeCatalogCallback) {}
+    }
+  }
+
+  function receiveThemeCatalog(payload) {
+    var data = payload && typeof payload === "object" ? payload : null;
+    state.themeCatalogLoading = false;
+    state.themeCatalogRequestId = "";
+    if (!data || data.success === false || !data.catalog || typeof data.catalog !== "object") {
+      flushThemeCatalogCallbacks(null);
+      return null;
+    }
+
+    state.themeCatalog = data.catalog;
+    saveThemeCatalogCache(data.catalog);
+    flushThemeCatalogCallbacks(data.catalog);
+    return data.catalog;
+  }
+
+  function ensureThemeCatalogLoaded(onReady) {
+    if (typeof onReady === "function") {
+      if (!state.themeCatalogCallbacks) {
+        state.themeCatalogCallbacks = [];
+      }
+      state.themeCatalogCallbacks.push(onReady);
+    }
+
+    if (state.themeCatalog && typeof state.themeCatalog === "object") {
+      flushThemeCatalogCallbacks(state.themeCatalog);
+      return;
+    }
+
+    var cached = loadThemeCatalogCache();
+    if (cached && typeof cached === "object") {
+      state.themeCatalog = cached;
+      flushThemeCatalogCallbacks(cached);
+      return;
+    }
+
+    if (state.themeCatalogLoading) {
+      return;
+    }
+
+    state.themeCatalogLoading = true;
+    state.themeCatalogRequestId = "theme-catalog-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
+    sendPacket("theme_catalog_request", {
+      requestId: state.themeCatalogRequestId,
+      catalogName: "flowery-daisy"
+    });
+  }
+
   function getThemeByName(themeName) {
     var wanted = normalizeLegacyThemeName(themeName);
     for (var i = 0; i < colorThemes.length; i += 1) {
       if (colorThemes[i].name === wanted) {
         return colorThemes[i];
       }
+    }
+    var compactTheme = findCompactThemeByName(wanted);
+    if (compactTheme) {
+      return buildThemeFromCompact(compactTheme);
     }
     return colorThemes[0];
   }
@@ -2811,6 +2967,478 @@
       var dot = dots[i];
       var isActive = String(dot.getAttribute("data-theme") || "") === activeThemeName;
       dot.setAttribute("data-active", isActive ? "1" : "0");
+    }
+  }
+
+  function updateThemeCatalogSelection(activeThemeName) {
+    var items = document.querySelectorAll(".lua-theme-catalog-item");
+    if (!items || !items.length) {
+      return;
+    }
+    for (var i = 0; i < items.length; i += 1) {
+      var item = items[i];
+      var isActive = String(item.getAttribute("data-theme") || "") === activeThemeName;
+      item.setAttribute("data-active", isActive ? "1" : "0");
+      item.setAttribute("tabindex", isActive ? "0" : "-1");
+    }
+  }
+
+  function parseHexColor(hex) {
+    var value = String(hex || "").replace(/[^0-9a-f]/gi, "");
+    if (value.length === 3) {
+      value = value.charAt(0) + value.charAt(0) + value.charAt(1) + value.charAt(1) + value.charAt(2) + value.charAt(2);
+    }
+    if (value.length !== 6) {
+      return { r: 0, g: 0, b: 0 };
+    }
+    return {
+      r: parseInt(value.slice(0, 2), 16),
+      g: parseInt(value.slice(2, 4), 16),
+      b: parseInt(value.slice(4, 6), 16)
+    };
+  }
+
+  function clampColorByte(value) {
+    var n = Math.round(Number(value) || 0);
+    if (n < 0) {
+      return 0;
+    }
+    if (n > 255) {
+      return 255;
+    }
+    return n;
+  }
+
+  function toHexColor(rgb) {
+    function toPart(value) {
+      var part = clampColorByte(value).toString(16);
+      return part.length < 2 ? "0" + part : part;
+    }
+    return "#" + toPart(rgb.r) + toPart(rgb.g) + toPart(rgb.b);
+  }
+
+  function mixHexColor(a, b, amount) {
+    var left = parseHexColor(a);
+    var right = parseHexColor(b);
+    var t = typeof amount === "number" ? amount : 0.5;
+    if (t < 0) {
+      t = 0;
+    }
+    if (t > 1) {
+      t = 1;
+    }
+    return toHexColor({
+      r: left.r + (right.r - left.r) * t,
+      g: left.g + (right.g - left.g) * t,
+      b: left.b + (right.b - left.b) * t
+    });
+  }
+
+  function withAlpha(hex, alpha) {
+    var rgb = parseHexColor(hex);
+    var a = typeof alpha === "number" ? alpha : 1;
+    if (a < 0) {
+      a = 0;
+    }
+    if (a > 1) {
+      a = 1;
+    }
+    return "rgba(" + clampColorByte(rgb.r) + "," + clampColorByte(rgb.g) + "," + clampColorByte(rgb.b) + "," + a + ")";
+  }
+
+  function isLightHexColor(hex) {
+    var rgb = parseHexColor(hex);
+    var luminance = (rgb.r * 0.299) + (rgb.g * 0.587) + (rgb.b * 0.114);
+    return luminance >= 160;
+  }
+
+  function getRelativeLuminance(hex) {
+    var rgb = parseHexColor(hex);
+    function toLinear(value) {
+      var n = clampColorByte(value) / 255;
+      return n <= 0.03928 ? (n / 12.92) : Math.pow((n + 0.055) / 1.055, 2.4);
+    }
+    return (0.2126 * toLinear(rgb.r)) + (0.7152 * toLinear(rgb.g)) + (0.0722 * toLinear(rgb.b));
+  }
+
+  function getContrastRatio(a, b) {
+    var left = getRelativeLuminance(a);
+    var right = getRelativeLuminance(b);
+    var lighter = left > right ? left : right;
+    var darker = left > right ? right : left;
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  function pickReadableTextColor(background, preferred, dark, light, minRatio) {
+    var bg = String(background || "#000000");
+    var want = String(preferred || "");
+    var darkText = String(dark || "#111111");
+    var lightText = String(light || "#f8f8f2");
+    var min = typeof minRatio === "number" ? minRatio : 4.5;
+    var best = want;
+    var bestRatio = best ? getContrastRatio(bg, best) : 0;
+    if (best && bestRatio >= min) {
+      return best;
+    }
+    var darkRatio = getContrastRatio(bg, darkText);
+    var lightRatio = getContrastRatio(bg, lightText);
+    return darkRatio >= lightRatio ? darkText : lightText;
+  }
+
+  function shadeHexColor(hex, amount) {
+    return amount >= 0
+      ? mixHexColor(hex, "#ffffff", amount)
+      : mixHexColor(hex, "#000000", -amount);
+  }
+
+  function normalizeThemeCatalogLabel(label) {
+    var text = String(label || "").replace(/^daisy\s+/i, "").trim();
+    return text || "Theme";
+  }
+
+  function getEventKeyName(event) {
+    var key = event && event.key ? String(event.key) : "";
+    if (key) {
+      if (key === "Left") { return "ArrowLeft"; }
+      if (key === "Right") { return "ArrowRight"; }
+      if (key === "Up") { return "ArrowUp"; }
+      if (key === "Down") { return "ArrowDown"; }
+      if (key === "Esc") { return "Escape"; }
+      if (key === "Spacebar") { return " "; }
+      if (key !== "Unidentified") {
+        return key;
+      }
+    }
+    var code = event ? (event.which || event.keyCode || event.charCode || 0) : 0;
+    if (code === 37) { return "ArrowLeft"; }
+    if (code === 38) { return "ArrowUp"; }
+    if (code === 39) { return "ArrowRight"; }
+    if (code === 40) { return "ArrowDown"; }
+    if (code === 13) { return "Enter"; }
+    if (code === 27) { return "Escape"; }
+    if (code === 32) { return " "; }
+    if (code === 36) { return "Home"; }
+    if (code === 35) { return "End"; }
+    return "";
+  }
+
+  function buildLinearGradient(top, mid, bottom) {
+    return "linear-gradient(180deg," + top + " 0%," + mid + " 45%," + bottom + " 100%)";
+  }
+
+  function findCompactThemeByName(themeName) {
+    var catalog = state.themeCatalog;
+    var wanted = normalizeLegacyThemeName(themeName);
+    if (!catalog || !catalog.themes || typeof catalog.themes.length !== "number") {
+      return null;
+    }
+    for (var i = 0; i < catalog.themes.length; i += 1) {
+      var entry = catalog.themes[i];
+      if (entry && String(entry.n || "") === wanted) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
+  function buildThemeFromCompact(compact) {
+    var primary = String(compact.p || compact.d || "#58a6ff");
+    var primaryFocus = String(compact.pf || primary);
+    var primaryContent = pickReadableTextColor(primary, compact.pc || (isLightHexColor(primary) ? "#101418" : "#f8f8f2"), "#101418", "#f8f8f2", 4.5);
+    var neutral = String(compact.nu || "#20242a");
+    var base100 = String(compact.b1 || "#0d1117");
+    var base200 = String(compact.b2 || shadeHexColor(base100, isLightHexColor(base100) ? -0.06 : 0.08));
+    var base300 = String(compact.b3 || shadeHexColor(base200, isLightHexColor(base200) ? -0.12 : 0.12));
+    var isLightBase = isLightHexColor(base100);
+    var baseContent = pickReadableTextColor(base100, compact.bc || (isLightHexColor(base100) ? "#111111" : "#d8dee4"), "#111111", "#f8f8f2", 5.5);
+    var neutralContent = pickReadableTextColor(neutral, compact.nc || baseContent, "#111111", "#f8f8f2", 4.5);
+    var info = String(compact.i || primary);
+    var warning = String(compact.w || primary);
+    var row = isLightBase
+      ? mixHexColor(base100, base200, 0.72)
+      : mixHexColor(base200, base300, 0.38);
+    var rowAlt = isLightBase
+      ? mixHexColor(base200, base300, 0.32)
+      : mixHexColor(base200, neutral, 0.18);
+    var deep = isLightBase
+      ? mixHexColor(base200, base300, 0.58)
+      : mixHexColor(base100, neutral, 0.55);
+    var textMuted = pickReadableTextColor(base200, baseContent, "#111111", "#f8f8f2", 4.5);
+    var textDim = pickReadableTextColor(base200, mixHexColor(baseContent, base300, 0.55), shadeHexColor(textMuted, isLightHexColor(base200) ? -0.3 : 0.3), textMuted, 3.2);
+    var comment = pickReadableTextColor(deep, mixHexColor(baseContent, base300, 0.68), "#4f5964", "#9ea8b3", 3.2);
+    return {
+      name: String(compact.n || "catalog-theme"),
+      label: normalizeThemeCatalogLabel(compact.l || compact.n || "Catalog Theme"),
+      dot: String(compact.d || primary),
+      accent: withAlpha(primary, 0.92),
+      header: withAlpha(base100, 0.97),
+      caretBg: withAlpha(primary, isLightHexColor(base100) ? 0.12 : 0.18),
+      accentSolid: primary,
+      onAccent: primaryContent,
+      surfaceMain: base100,
+      surfaceElevated: base200,
+      surfaceRow: row,
+      surfaceDeep: deep,
+      surfaceRowAlt: rowAlt,
+      borderStrong: isLightBase ? mixHexColor(base300, baseContent, 0.1) : mixHexColor(base300, neutral, 0.15),
+      borderHover: info,
+      shadow: isLightHexColor(base100) ? "rgba(0,0,0,0.18)" : "rgba(0,0,0,0.5)",
+      textMuted: textMuted,
+      textDim: textDim,
+      cmComment: comment,
+      cmLineNumber: textDim,
+      gutterBorder: mixHexColor(base200, base300, 0.5),
+      btnApplyBg: buildLinearGradient(shadeHexColor(primary, 0.08), mixHexColor(primary, primaryFocus, 0.55), shadeHexColor(primaryFocus, -0.18)),
+      btnApplyBorder: withAlpha(primary, 0.78),
+      btnApplyColor: primaryContent,
+      btnApplyHoverBg: buildLinearGradient(shadeHexColor(primary, 0.16), shadeHexColor(primary, 0.05), shadeHexColor(primaryFocus, -0.08)),
+      btnApplyActiveBg: buildLinearGradient(shadeHexColor(primaryFocus, -0.02), shadeHexColor(primaryFocus, -0.12), shadeHexColor(primaryFocus, -0.24)),
+      btnCancelBg: buildLinearGradient(shadeHexColor(neutral, 0.1), neutral, shadeHexColor(neutral, -0.12)),
+      btnCancelBorder: withAlpha(base300, 0.55),
+      btnCancelColor: neutralContent,
+      btnCancelHoverBg: buildLinearGradient(shadeHexColor(neutral, 0.16), shadeHexColor(neutral, 0.05), shadeHexColor(neutral, -0.04)),
+      btnCancelActiveBg: buildLinearGradient(shadeHexColor(neutral, -0.02), shadeHexColor(neutral, -0.1), shadeHexColor(neutral, -0.18))
+    };
+  }
+
+  function hideThemeCatalogPanels() {
+    var panels = document.querySelectorAll(".lua-theme-catalog-panel");
+    if (!panels || !panels.length) {
+      return;
+    }
+    for (var i = 0; i < panels.length; i += 1) {
+      panels[i].setAttribute("data-open", "0");
+    }
+  }
+
+  function getThemeCatalogItems(panel) {
+    return panel && panel.querySelectorAll ? panel.querySelectorAll(".lua-theme-catalog-item") : [];
+  }
+
+  function setThemeCatalogFocus(panel, item, shouldFocus) {
+    var items = getThemeCatalogItems(panel);
+    for (var i = 0; i < items.length; i += 1) {
+      items[i].setAttribute("tabindex", items[i] === item ? "0" : "-1");
+    }
+    if (shouldFocus && item && typeof item.focus === "function") {
+      try {
+        item.focus();
+      } catch (_ignoreThemeFocus) {}
+    }
+  }
+
+  function applyThemeCatalogEntry(panel, item, themeName, persist, shouldFocus) {
+    if (!themeName) {
+      return;
+    }
+    applyTheme(themeName, persist !== false);
+    updateThemeCatalogSelection(state.activeTheme);
+    setThemeCatalogFocus(panel, item, shouldFocus === true);
+  }
+
+  function ensureThemeCatalogDismissBinding() {
+    if (state.themeCatalogDismissBound) {
+      return;
+    }
+    state.themeCatalogDismissBound = true;
+    document.addEventListener("mousedown", function (event) {
+      var target = event && event.target;
+      if (target && target.closest &&
+          (target.closest(".lua-theme-catalog-panel") || target.closest(".lua-theme-catalog-trigger"))) {
+        return;
+      }
+      hideThemeCatalogPanels();
+    }, true);
+  }
+
+  function renderThemeCatalogPanel(panel, catalog) {
+    if (!panel) {
+      return;
+    }
+
+    while (panel.firstChild) {
+      panel.removeChild(panel.firstChild);
+    }
+
+    var status = document.createElement("div");
+    status.className = "lua-theme-catalog-status";
+    panel.appendChild(status);
+
+    if (!catalog || !catalog.themes || !catalog.themes.length) {
+      status.textContent = state.themeCatalogLoading ? "Loading themes..." : "No theme catalog";
+      return;
+    }
+
+    status.textContent = "Themes (" + catalog.themes.length + ")";
+    var list = document.createElement("div");
+    list.className = "lua-theme-catalog-list";
+    var activeItem = null;
+
+    for (var i = 0; i < catalog.themes.length; i += 1) {
+      (function (entry, index) {
+        var item = document.createElement("button");
+        item.type = "button";
+        item.className = "lua-theme-catalog-item";
+        item.setAttribute("data-theme", String(entry.n || ""));
+        item.setAttribute("data-active", String(entry.n || "") === state.activeTheme ? "1" : "0");
+        item.setAttribute("data-index", String(index));
+        item.setAttribute("tabindex", String(entry.n || "") === state.activeTheme ? "0" : "-1");
+
+        var swatch = document.createElement("span");
+        swatch.className = "lua-theme-catalog-swatch";
+        swatch.style.background = String(entry.d || entry.p || "#58a6ff");
+
+        var label = document.createElement("span");
+        label.className = "lua-theme-catalog-label";
+        label.textContent = normalizeThemeCatalogLabel(entry.l || entry.n || "Theme");
+
+        item.appendChild(swatch);
+        item.appendChild(label);
+        item.addEventListener("mouseenter", function () {
+          applyThemeCatalogEntry(panel, item, String(entry.n || ""), true, false);
+        }, true);
+        item.addEventListener("focus", function () {
+          applyThemeCatalogEntry(panel, item, String(entry.n || ""), true, false);
+        }, true);
+        item.addEventListener("keydown", function (event) {
+          var key = getEventKeyName(event);
+          var delta = 0;
+          if (key === "ArrowLeft") {
+            delta = -1;
+          } else if (key === "ArrowRight") {
+            delta = 1;
+          } else if (key === "ArrowUp") {
+            delta = -3;
+          } else if (key === "ArrowDown") {
+            delta = 3;
+          } else if (key === "Home") {
+            delta = -9999;
+          } else if (key === "End") {
+            delta = 9999;
+          } else if (key === "Escape") {
+            hideThemeCatalogPanels();
+            return;
+          } else if (key === "Enter" || key === " ") {
+            if (event && typeof event.preventDefault === "function") {
+              event.preventDefault();
+            }
+            applyThemeCatalogEntry(panel, item, String(entry.n || ""), true, true);
+            return;
+          } else {
+            return;
+          }
+
+          if (event && typeof event.preventDefault === "function") {
+            event.preventDefault();
+          }
+          if (event && typeof event.stopPropagation === "function") {
+            event.stopPropagation();
+          }
+          var items = getThemeCatalogItems(panel);
+          if (!items || !items.length) {
+            return;
+          }
+          var current = index;
+          var next = current + delta;
+          if (delta === -9999) {
+            next = 0;
+          } else if (delta === 9999) {
+            next = items.length - 1;
+          }
+          if (next < 0) {
+            next = 0;
+          }
+          if (next >= items.length) {
+            next = items.length - 1;
+          }
+          var target = items[next];
+          if (target) {
+            setThemeCatalogFocus(panel, target, true);
+          }
+        }, true);
+        item.addEventListener("click", function () {
+          applyThemeCatalogEntry(panel, item, String(entry.n || ""), true, true);
+          hideThemeCatalogPanels();
+        }, true);
+        if (String(entry.n || "") === state.activeTheme || !activeItem) {
+          activeItem = item;
+        }
+        list.appendChild(item);
+      })(catalog.themes[i], i);
+    }
+
+    panel.appendChild(list);
+    if (activeItem) {
+      setThemeCatalogFocus(panel, activeItem, false);
+    }
+  }
+
+  function toggleThemeCatalogPanel(switcher, panelId) {
+    if (!switcher) {
+      return;
+    }
+    ensureThemeCatalogDismissBinding();
+    var panel = document.getElementById(panelId);
+    if (!panel) {
+      return;
+    }
+    var willOpen = String(panel.getAttribute("data-open") || "0") !== "1";
+    hideThemeCatalogPanels();
+    if (!willOpen) {
+      return;
+    }
+    panel.setAttribute("data-open", "1");
+    renderThemeCatalogPanel(panel, null);
+    ensureThemeCatalogLoaded(function (catalog) {
+      renderThemeCatalogPanel(panel, catalog);
+      updateThemeCatalogSelection(state.activeTheme);
+      var active = panel.querySelector(".lua-theme-catalog-item[data-active=\"1\"]") || panel.querySelector(".lua-theme-catalog-item");
+      if (active) {
+        setThemeCatalogFocus(panel, active, true);
+      }
+    });
+  }
+
+  function ensureThemeCatalogTrigger(switcher, baseId) {
+    if (!switcher) {
+      return;
+    }
+
+    var triggerId = baseId + "-catalog-trigger";
+    var panelId = baseId + "-catalog-panel";
+    var trigger = document.getElementById(triggerId);
+    if (!trigger) {
+      trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.id = triggerId;
+      trigger.className = "lua-theme-catalog-trigger";
+      trigger.textContent = "...";
+      trigger.setAttribute("title", "Themes");
+      trigger.setAttribute("aria-label", "Themes");
+      trigger.addEventListener("click", function (event) {
+        if (event && typeof event.preventDefault === "function") {
+          event.preventDefault();
+        }
+        if (event && typeof event.stopPropagation === "function") {
+          event.stopPropagation();
+        }
+        toggleThemeCatalogPanel(switcher, panelId);
+      }, true);
+    }
+
+    if (trigger.parentNode !== switcher) {
+      switcher.appendChild(trigger);
+    }
+
+    var panel = document.getElementById(panelId);
+    if (!panel) {
+      panel = document.createElement("div");
+      panel.id = panelId;
+      panel.className = "lua-theme-catalog-panel";
+      panel.setAttribute("data-open", "0");
+    }
+    if (panel.parentNode !== switcher) {
+      switcher.appendChild(panel);
     }
   }
 
@@ -2982,6 +3610,7 @@
     handlers.changes = function () {
       window.setTimeout(function () {
         updateCaretLineHighlight();
+        ensureLuaBufferSize();
       }, 0);
     };
 
@@ -3023,6 +3652,7 @@
     updateCaretToggleVisual();
     ensureCaretHighlightBindings();
     updateCaretLineHighlight();
+    ensureLuaBufferSize();
   }
 
   function sendIdeSyncPacket(targetKind) {
@@ -3130,6 +3760,62 @@
     }
   }
 
+  function formatLuaBufferSize(count) {
+    var n = typeof count === "number" && isFinite(count) ? count : 0;
+    if (n < 0) {
+      n = 0;
+    }
+    return String(Math.floor(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  }
+
+  function ensureLuaBufferSize() {
+    var root = document.getElementById("dpu_editor");
+    if (!root || !root.querySelector) {
+      return;
+    }
+
+    var reportNode = root.querySelector(".error_ctn .header .lua_error_header_wrapper");
+    if (!reportNode) {
+      return;
+    }
+
+    var sizeNode = document.getElementById("ModUiExtractor-lua-buffer-size");
+    if (!sizeNode) {
+      sizeNode = document.createElement("span");
+      sizeNode.id = "ModUiExtractor-lua-buffer-size";
+      sizeNode.className = "lua-probe-buffer-size";
+    }
+
+    var titleTextNode = document.getElementById("ModUiExtractor-lua-title-text");
+    var titleNode = document.getElementById("lua_editor_title") ||
+      root.querySelector(".editor_header .title, .editor_header .header_bar .title");
+    if (titleNode && titleTextNode && titleTextNode.parentNode === titleNode) {
+      titleNode.textContent = String(titleTextNode.textContent || titleNode.getAttribute("data-probe-title") || "").replace(/\s+/g, " ").trim();
+      titleNode.removeAttribute("data-probe-title");
+    }
+    if (titleTextNode && titleTextNode.parentNode) {
+      titleTextNode.parentNode.removeChild(titleTextNode);
+    }
+
+    if (sizeNode.parentNode !== reportNode) {
+      reportNode.appendChild(sizeNode);
+    }
+
+    var code = "";
+    var codeMirror = getLuaCodeMirror();
+    try {
+      if (codeMirror && typeof codeMirror.getValue === "function") {
+        code = String(codeMirror.getValue() || "");
+      } else {
+        var textArea = document.getElementById("editor_window");
+        code = textArea && typeof textArea.value === "string" ? textArea.value : "";
+      }
+    } catch (_ignoreLuaBufferSize) {}
+
+    sizeNode.textContent = "Code: " + formatLuaBufferSize(code.length) + " chars";
+    sizeNode.setAttribute("data-count", String(code.length));
+  }
+
   function getDefaultThemeName() {
     return (colorThemes[0] && colorThemes[0].name) ? colorThemes[0].name : "monokai";
   }
@@ -3215,6 +3901,7 @@
     }
     state.lastAppliedTheme = theme.name;
     updateThemeDotSelection(theme.name);
+    updateThemeCatalogSelection(theme.name);
 
     if (emitPacket) {
       sendPacket("lua_theme_changed", {
@@ -3247,7 +3934,9 @@
     if (switcher.parentNode !== header) {
       header.appendChild(switcher);
     }
+    ensureThemeCatalogTrigger(switcher, "ModUiExtractor-lua-theme-dots");
 
+    ensureLuaBufferSize();
     applyTheme(state.activeTheme || getDefaultThemeName(), false);
   }
 
@@ -3269,6 +3958,50 @@
     if (switcher.parentNode !== header) {
       header.appendChild(switcher);
     }
+    ensureThemeCatalogTrigger(switcher, "ModUiExtractor-screen-theme-dots");
+  }
+
+  function ensureScreenBufferSize(root) {
+    if (!root || !root.querySelector) {
+      return;
+    }
+
+    var reportNode = root.querySelector(".footer_line .error_block .error_header .left_wrapper");
+    if (!reportNode) {
+      return;
+    }
+
+    var sizeNode = document.getElementById("ModUiExtractor-screen-buffer-size");
+    if (!sizeNode) {
+      sizeNode = document.createElement("span");
+      sizeNode.id = "ModUiExtractor-screen-buffer-size";
+      sizeNode.className = "lua-probe-screen-buffer-size";
+    }
+
+    if (sizeNode.parentNode !== reportNode) {
+      reportNode.appendChild(sizeNode);
+    }
+
+    var code = "";
+    var codeMirror = typeof getScreenEditorCodeMirror === "function" ? getScreenEditorCodeMirror(root) : null;
+    try {
+      if (codeMirror && typeof codeMirror.getValue === "function") {
+        code = String(codeMirror.getValue() || "");
+      }
+    } catch (_ignoreScreenBufferSize) {}
+
+    if (!code) {
+      try {
+        var countNode = root.querySelector(".character_count");
+        var match = countNode ? String(countNode.textContent || "").match(/^\s*(\d+)/) : null;
+        if (match) {
+          sizeNode.textContent = "Code: " + formatLuaBufferSize(parseInt(match[1], 10) || 0) + " chars";
+          return;
+        }
+      } catch (_ignoreScreenCountNode) {}
+    }
+
+    sizeNode.textContent = "Code: " + formatLuaBufferSize(code.length) + " chars";
   }
 
   function ensureScreenEditorFacelift() {
@@ -3320,6 +4053,7 @@
     root.setAttribute("data-lua-probe-active", "1");
     ensureScreenThemeSwitcher(root);
     ensureScreenIdeSyncButton(root);
+    ensureScreenBufferSize(root);
     ensureScreenViewportBindings();
 
     if (contextKey) {
@@ -8328,6 +9062,7 @@
     ensureAutoClickObserver();
     ensureCaretHighlightToggle();
     ensureCaretHighlightBindings();
+    ensureLuaBufferSize();
     syncCurrentContextKey();
     syncCurrentSnippetKeyFromEditor();
     refreshActiveFilterMarker();
@@ -8368,6 +9103,7 @@
       ensureAutoClickObserver();
       ensureCaretHighlightToggle();
       ensureCaretHighlightBindings();
+      ensureLuaBufferSize();
       if (state.suppressRestoreUntilInteraction) {
         installFreshOpenViewportGuard();
       } else {
@@ -8517,6 +9253,8 @@
       "ModUiExtractor-lua-theme-dots",
       "ModUiExtractor-lua-caret-toggle",
       "ModUiExtractor-lua-ide-sync",
+      "ModUiExtractor-lua-buffer-size",
+      "ModUiExtractor-screen-buffer-size",
       "ModUiExtractor-screen-theme-dots",
       "ModUiExtractor-chat-copy-plain",
       quickEditLuaMenuItemId,
@@ -8542,6 +9280,8 @@
 
   window.__UI_EXTRACTOR_LUA_PROBE_UNINSTALL__ = uninstallProbe;
   window.__UI_EXTRACTOR_LUA_PROBE_STATE__ = state;
+  state.receiveThemeCatalog = receiveThemeCatalog;
+  state.ensureThemeCatalogLoaded = ensureThemeCatalogLoaded;
   sendPacket("lua_probe_start", {
     locationHref: String(window.location && window.location.href ? window.location.href : ""),
     userAgent: String(window.navigator && window.navigator.userAgent ? window.navigator.userAgent : "")

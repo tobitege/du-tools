@@ -8,3 +8,17 @@
 - Besonders verdächtig: `pcall(setOutput, envelope)` im Render-Script schluckt einen Fehler still; bei Fehlschlag gibt es dort kein Logging.
 - Ebenfalls verdächtig, aber schwächer: `buildPersistenceRecordFromOutput(...)` kann `parseError` oder `output_mismatch` liefern; diese Fälle würden Persistenz verhindern und nur als `system.print`-Warnung erscheinen.
 - `D:\github\yfs-tools\lua` enthält nützliche Referenzmuster für Board->Screen (`setRenderScript`, `system.setScreen`) und `databank`-Initialisierung, aber kein vergleichbares Screen->Board-Persistenzmuster mit `getScriptOutput()/setOutput()`.
+- Die aktive Live-Datei `D:\MyDUserver\tmp\ui-dumps\ide-workspace\player-10000\lua_editor\snippet.lua` war vor dem Fix nicht auf Repo-Stand: `unit-onTimer-UPD.lua` live fehlten die neueren `SLEP`-Diagnosen und das konsequente `Screen.clearScriptOutput()` auf Reject/TooLong.
+- Der entscheidende Screen-Hinweis `op` passt zur eingebauten Fallback-Logik in `unit-onStart.lua`: großer `setOutput(envelope)` wirft, kleiner Probe-Output klappt noch.
+- Die ursprüngliche Voll-Dokument-Serialisierung lag lokal bei `env=4409` Bytes; nach Umstellung auf kompakte Kurzschlüssel liegt derselbe Envelope bei `env=3196` Bytes und rundet lokal erfolgreich durch `parseOutputEnvelope(...)` sowie `buildPersistenceRecordFromOutput(...)`.
+- Live-Stand jetzt synchronisiert:
+  - `unit/onTimer(UPD)` wurde in den sichtbaren Board-Editor gepusht und gespeichert.
+  - `unit/onStart()` wurde danach ebenfalls in den sichtbaren Board-Editor gepusht und gespeichert.
+- Nach dem zweiten Push zeigt `snippet.lua` exakt den Repo-Stand von `live_board/unit-onStart.lua`.
+- `snippet.sync.json` blieb auf altem Export-Metadatum (`currentFilterSignature = onTimer(timerId)`, Exportzeit `07:06:21`) stehen. Das ist hier nur ein stale IDE-Sync-Metadatum; maßgeblich für den erfolgreichen Push war der tatsächliche `snippet.lua`-Inhalt plus `lua_editor save`.
+- Der Screenshot vom 2026-03-27 zeigte den eigentlichen Restfehler klarer: HUD `op` plus Board-Warnung `expected near ':'`. Das bedeutet:
+  - großer Persistenz-Output scheitert noch im Screen bei `setOutput(...)`
+  - der kleine Fallback-Probe-Output ist JSON
+  - die Board-Seite versuchte diesen JSON-Probe-Output noch als Lua-Literal zu lesen
+- Konsequenz daraus: Screen-Output jetzt auf JSON umgestellt; Board-Seite akzeptiert JSON-Envelopes per Wrapper direkt nach dem Laden des eingebetteten Moduls, ohne die 50k-Screen-Grenze zu reißen.
+- Die eingebettete `SCREEN_LAYOUT_EDITOR_SOURCE` liegt nach dem Umbau bei `49756` Zeichen und bleibt damit unter der Screen-Grenze.

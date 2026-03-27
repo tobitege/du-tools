@@ -677,6 +677,19 @@
           "Content-Type": "application/json"
         },
         body: JSON.stringify(body)
+      }).then(function (res) {
+        if (!res.ok) {
+          return null;
+        }
+        return res.json();
+      }).then(function (data) {
+        if (!data || !data.themeCatalogPayload) {
+          return;
+        }
+        var state = window.__UI_EXTRACTOR_LUA_PROBE_STATE__;
+        if (state && typeof state.receiveThemeCatalog === "function") {
+          state.receiveThemeCatalog(data.themeCatalogPayload);
+        }
       }).catch(function (err) {
         console.error("[rig] sendModAction failed", err);
       });

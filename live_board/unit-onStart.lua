@@ -1229,18 +1229,18 @@ local function normalizeElement(rawElement, index)
         return nil
     end
 
-    local textLines = cloneStringArray(rawElement.textLines)
+    local textLines = cloneStringArray(rawElement.textLines or rawElement.l)
     if not textLines and type(rawElement.text) == "string" then
         textLines = splitTextLines(rawElement.text)
     end
 
-    local elementType = tostring(rawElement.type or rawElement.kind or "boxRounded")
+    local elementType = tostring(rawElement.type or rawElement.t or rawElement.kind or "boxRounded")
     if elementType == "rect" then
         elementType = "boxRounded"
     end
 
     local element = {
-        id = tostring(rawElement.id or ("element_" .. tostring(index))),
+        id = tostring(rawElement.id or rawElement.i or ("element_" .. tostring(index))),
         type = elementType,
         x = x,
         y = y,
@@ -1263,31 +1263,40 @@ local function normalizeElement(rawElement, index)
         element.textSize = textSize
     end
 
-    local lineGap = numberOrNil(rawElement.lineGap)
+    local lineGap = numberOrNil(rawElement.lineGap or rawElement.lg)
     if lineGap then
         element.lineGap = lineGap
     end
 
-    element.fill = cloneColor(rawElement.fill, { 0.2, 0.2, 0.2, 1.0 })
-    element.stroke = cloneColor(rawElement.stroke, { 1.0, 1.0, 1.0, 1.0 })
-    element.textColor = cloneColor(rawElement.textColor or rawElement.tc, { 1.0, 1.0, 1.0, 1.0 })
+    element.fill = cloneColor(rawElement.fill or rawElement.f, { 0.2, 0.2, 0.2, 1.0 })
+    element.stroke = cloneColor(rawElement.stroke or rawElement.s, { 1.0, 1.0, 1.0, 1.0 })
+    element.textColor = cloneColor(rawElement.textColor or rawElement.tc or rawElement.c, { 1.0, 1.0, 1.0, 1.0 })
 
     if textLines then
         element.textLines = textLines
     end
 
-    if type(rawElement.textAlign) == "string" and rawElement.textAlign ~= "" then
-        element.textAlign = rawElement.textAlign
+    local textAlign = rawElement.textAlign or rawElement.ta
+    if type(textAlign) == "string" and textAlign ~= "" then
+        element.textAlign = textAlign
     elseif textLines then
         element.textAlign = "center"
     end
 
-    if rawElement.movable ~= nil then
-        element.movable = not not rawElement.movable
+    local movable = rawElement.movable
+    if movable == nil then
+        movable = rawElement.m
+    end
+    if movable ~= nil then
+        element.movable = not not movable
     end
 
-    if rawElement.resizable ~= nil then
-        element.resizable = not not rawElement.resizable
+    local resizable = rawElement.resizable
+    if resizable == nil then
+        resizable = rawElement.z
+    end
+    if resizable ~= nil then
+        element.resizable = not not resizable
     end
 
     return element
@@ -1299,10 +1308,11 @@ function ScreenLayoutEditor.normalizeDocument(rawDocument, screenWidth, screenHe
         return fallback
     end
 
+    local rawElements = rawDocument.elements or rawDocument.e
     local elements = {}
-    if type(rawDocument.elements) == "table" then
-        for index = 1, #rawDocument.elements do
-            local normalized = normalizeElement(rawDocument.elements[index], index)
+    if type(rawElements) == "table" then
+        for index = 1, #rawElements do
+            local normalized = normalizeElement(rawElements[index], index)
             if normalized then
                 elements[#elements + 1] = normalized
             end
@@ -1313,11 +1323,12 @@ function ScreenLayoutEditor.normalizeDocument(rawDocument, screenWidth, screenHe
         return fallback
     end
 
+    local rawSelectedId = rawDocument.selectedId or rawDocument.s
     local selectedId = nil
-    if type(rawDocument.selectedId) == "string" and rawDocument.selectedId ~= "" then
+    if type(rawSelectedId) == "string" and rawSelectedId ~= "" then
         for index = 1, #elements do
-            if elements[index].id == rawDocument.selectedId then
-                selectedId = rawDocument.selectedId
+            if elements[index].id == rawSelectedId then
+                selectedId = rawSelectedId
                 break
             end
         end
@@ -1325,7 +1336,7 @@ function ScreenLayoutEditor.normalizeDocument(rawDocument, screenWidth, screenHe
 
     return {
         version = ScreenLayoutEditor.SCHEMA_VERSION,
-        revision = math.max(0, math.floor(numberOrNil(rawDocument.revision) or 0)),
+        revision = math.max(0, math.floor(numberOrNil(rawDocument.revision or rawDocument.r) or 0)),
         selectedId = selectedId,
         elements = elements
     }
@@ -1333,9 +1344,9 @@ end
 
 local function serializeElement(element)
     local parts = { "{" }
-    append(parts, "id=")
+    append(parts, "i=")
     append(parts, serializeString(element.id))
-    append(parts, ",type=")
+    append(parts, ",t=")
     append(parts, serializeString(element.type))
     append(parts, ",x=")
     append(parts, serializeNumber(element.x))
@@ -1347,61 +1358,61 @@ local function serializeElement(element)
     append(parts, serializeNumber(element.h))
 
     if isNumber(element.radius) then
-        append(parts, ",radius=")
+        append(parts, ",r=")
         append(parts, serializeNumber(element.radius))
     end
 
     local fill = serializeColor(element.fill)
     if fill then
-        append(parts, ",fill=")
+        append(parts, ",f=")
         append(parts, fill)
     end
 
     local stroke = serializeColor(element.stroke)
     if stroke then
-        append(parts, ",stroke=")
+        append(parts, ",s=")
         append(parts, stroke)
     end
 
     if isNumber(element.strokeWidth) then
-        append(parts, ",strokeWidth=")
+        append(parts, ",sw=")
         append(parts, serializeNumber(element.strokeWidth))
     end
 
     local textLines = serializeStringArray(element.textLines)
     if textLines then
-        append(parts, ",textLines=")
+        append(parts, ",l=")
         append(parts, textLines)
     end
 
     local textColor = serializeColor(element.textColor)
     if textColor then
-        append(parts, ",textColor=")
+        append(parts, ",c=")
         append(parts, textColor)
     end
 
     if isNumber(element.textSize) then
-        append(parts, ",textSize=")
+        append(parts, ",ts=")
         append(parts, serializeNumber(element.textSize))
     end
 
     if type(element.textAlign) == "string" and element.textAlign ~= "" then
-        append(parts, ",textAlign=")
+        append(parts, ",ta=")
         append(parts, serializeString(element.textAlign))
     end
 
     if isNumber(element.lineGap) then
-        append(parts, ",lineGap=")
+        append(parts, ",lg=")
         append(parts, serializeNumber(element.lineGap))
     end
 
     if element.movable ~= nil then
-        append(parts, ",movable=")
+        append(parts, ",m=")
         append(parts, tostring(not not element.movable))
     end
 
     if element.resizable ~= nil then
-        append(parts, ",resizable=")
+        append(parts, ",z=")
         append(parts, tostring(not not element.resizable))
     end
 
@@ -1412,18 +1423,18 @@ end
 function ScreenLayoutEditor.serializeDocument(document)
     local normalized = ScreenLayoutEditor.normalizeDocument(document)
     local parts = {
-        "{version=",
+        "{v=",
         tostring(normalized.version),
-        ",revision=",
+        ",r=",
         tostring(normalized.revision)
     }
 
     if normalized.selectedId then
-        append(parts, ",selectedId=")
+        append(parts, ",s=")
         append(parts, serializeString(normalized.selectedId))
     end
 
-    append(parts, ",elements={")
+    append(parts, ",e={")
     for index = 1, #normalized.elements do
         if index > 1 then
             append(parts, ",")
@@ -1474,12 +1485,11 @@ function ScreenLayoutEditor.serializeOutputEnvelope(document, serializedDocument
     local docText = serializedDocument or ScreenLayoutEditor.serializeDocument(normalized)
     local docHash = hash or ScreenLayoutEditor.hashText(docText)
     return string.format(
-        "{kind=%s,version=%d,revision=%d,hash=%s,document=%s}",
+        '{"k":%s,"r":%d,"g":%s,"d":%s}',
         serializeString(ScreenLayoutEditor.OUTPUT_KIND),
-        ScreenLayoutEditor.SCHEMA_VERSION,
         normalized.revision or 0,
         serializeNumber(docHash),
-        docText
+        serializeString(docText)
     )
 end
 
@@ -1488,14 +1498,14 @@ function ScreenLayoutEditor.parseOutputEnvelope(text, screenWidth, screenHeight)
     if not envelope then
         return nil, parseError
     end
-    if envelope.kind ~= ScreenLayoutEditor.OUTPUT_KIND then
+    if (envelope.kind or envelope.k) ~= ScreenLayoutEditor.OUTPUT_KIND then
         return nil, "wrong_kind"
     end
-    local document = ScreenLayoutEditor.normalizeDocument(envelope.document, screenWidth, screenHeight)
-    document.revision = math.max(0, math.floor(numberOrNil(envelope.revision) or document.revision or 0))
+    local document = ScreenLayoutEditor.normalizeDocument(envelope.document or envelope.d, screenWidth, screenHeight)
+    document.revision = math.max(0, math.floor(numberOrNil(envelope.revision or envelope.r) or document.revision or 0))
     local serialized = ScreenLayoutEditor.serializeDocument(document)
     local computedHash = ScreenLayoutEditor.hashText(serialized)
-    local expectedHash = numberOrNil(envelope.hash)
+    local expectedHash = numberOrNil(envelope.hash or envelope.g)
     if expectedHash and computedHash ~= expectedHash then
         return nil, "hash_mismatch"
     end
@@ -2275,6 +2285,56 @@ local function EnsureScreenLayoutEditorModule()
     return SCREEN_LAYOUT_EDITOR_MODULE
 end
 
+local function InstallScreenLayoutEditorJsonOutputSupport(editorModule)
+    if type(editorModule) ~= "table" or editorModule._jsonOutputSupportInstalled then
+        return editorModule
+    end
+    local legacyParseOutputEnvelope = editorModule.parseOutputEnvelope
+    if type(legacyParseOutputEnvelope) ~= "function" then
+        return editorModule
+    end
+    editorModule.parseOutputEnvelope = function(text, screenWidth, screenHeight)
+        if type(json) == "table" and type(json.decode) == "function" and type(text) == "string" and text ~= "" then
+            local decoded = json.decode(text)
+            if type(decoded) == "table" then
+                if decoded.p ~= nil and decoded.d == nil and decoded.document == nil then
+                    return nil, "probe_output"
+                end
+                if (decoded.kind or decoded.k) == editorModule.OUTPUT_KIND then
+                    local documentValue = decoded.document or decoded.d
+                    local document, documentError = nil, nil
+                    if type(documentValue) == "string" and documentValue ~= "" then
+                        document, documentError = editorModule.deserializeDocument(documentValue, screenWidth, screenHeight)
+                    else
+                        document = editorModule.normalizeDocument(documentValue, screenWidth, screenHeight)
+                    end
+                    if not document then
+                        return nil, documentError or "document_parse_error"
+                    end
+                    document.revision = math.max(0, math.floor(tonumber(decoded.revision or decoded.r) or document.revision or 0))
+                    local serialized = editorModule.serializeDocument(document)
+                    local computedHash = editorModule.hashText(serialized)
+                    local expectedHash = tonumber(decoded.hash or decoded.g)
+                    if expectedHash and computedHash ~= expectedHash then
+                        return nil, "hash_mismatch"
+                    end
+                    return {
+                        kind = editorModule.OUTPUT_KIND,
+                        version = editorModule.SCHEMA_VERSION,
+                        revision = document.revision,
+                        hash = computedHash,
+                        serializedDocument = serialized,
+                        document = document
+                    }, nil
+                end
+            end
+        end
+        return legacyParseOutputEnvelope(text, screenWidth, screenHeight)
+    end
+    editorModule._jsonOutputSupportInstalled = true
+    return editorModule
+end
+
 local function RestoreScreenLayoutEditorEnvelope(editorModule)
     if not databank then
         SLEP("sle-r", "r skip: no db")
@@ -2311,7 +2371,7 @@ end
 SCREEN_LAYOUT_EDITOR_ENABLED = true
 local useFormEditorSlice = SCREEN_LAYOUT_EDITOR_ENABLED
 if useFormEditorSlice then
-    local screenLayoutEditor = EnsureScreenLayoutEditorModule()
+    local screenLayoutEditor = InstallScreenLayoutEditorJsonOutputSupport(EnsureScreenLayoutEditorModule())
     if screenLayoutEditor then
         local persistedEnvelope = RestoreScreenLayoutEditorEnvelope(screenLayoutEditor)
         local initialDocumentText = persistedEnvelope and persistedEnvelope.serializedDocument or nil

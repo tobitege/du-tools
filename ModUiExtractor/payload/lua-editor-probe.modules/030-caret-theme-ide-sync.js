@@ -9,12 +9,73 @@
     return map[key] || themeName;
   }
 
+  function flushThemeCatalogCallbacks(payload) {
+    var callbacks = state.themeCatalogCallbacks || [];
+    state.themeCatalogCallbacks = [];
+    for (var i = 0; i < callbacks.length; i += 1) {
+      try {
+        callbacks[i](payload);
+      } catch (_ignoreThemeCatalogCallback) {}
+    }
+  }
+
+  function receiveThemeCatalog(payload) {
+    var data = payload && typeof payload === "object" ? payload : null;
+    state.themeCatalogLoading = false;
+    state.themeCatalogRequestId = "";
+    if (!data || data.success === false || !data.catalog || typeof data.catalog !== "object") {
+      flushThemeCatalogCallbacks(null);
+      return null;
+    }
+
+    state.themeCatalog = data.catalog;
+    saveThemeCatalogCache(data.catalog);
+    flushThemeCatalogCallbacks(data.catalog);
+    return data.catalog;
+  }
+
+  function ensureThemeCatalogLoaded(onReady) {
+    if (typeof onReady === "function") {
+      if (!state.themeCatalogCallbacks) {
+        state.themeCatalogCallbacks = [];
+      }
+      state.themeCatalogCallbacks.push(onReady);
+    }
+
+    if (state.themeCatalog && typeof state.themeCatalog === "object") {
+      flushThemeCatalogCallbacks(state.themeCatalog);
+      return;
+    }
+
+    var cached = loadThemeCatalogCache();
+    if (cached && typeof cached === "object") {
+      state.themeCatalog = cached;
+      flushThemeCatalogCallbacks(cached);
+      return;
+    }
+
+    if (state.themeCatalogLoading) {
+      return;
+    }
+
+    state.themeCatalogLoading = true;
+    state.themeCatalogRequestId = "theme-catalog-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
+    sendPacket("theme_catalog_request", {
+      requestId: state.themeCatalogRequestId,
+      catalogName: "flowery-daisy"
+    });
+  }
+
   function getThemeByName(themeName) {
     var wanted = normalizeLegacyThemeName(themeName);
     for (var i = 0; i < colorThemes.length; i += 1) {
       if (colorThemes[i].name === wanted) {
         return colorThemes[i];
       }
+    }
+    var compactTheme = findCompactThemeByName(wanted);
+    if (compactTheme) {
+      return buildThemeFromCompact(compactTheme);
     }
     return colorThemes[0];
   }
@@ -28,6 +89,478 @@
       var dot = dots[i];
       var isActive = String(dot.getAttribute("data-theme") || "") === activeThemeName;
       dot.setAttribute("data-active", isActive ? "1" : "0");
+    }
+  }
+
+  function updateThemeCatalogSelection(activeThemeName) {
+    var items = document.querySelectorAll(".lua-theme-catalog-item");
+    if (!items || !items.length) {
+      return;
+    }
+    for (var i = 0; i < items.length; i += 1) {
+      var item = items[i];
+      var isActive = String(item.getAttribute("data-theme") || "") === activeThemeName;
+      item.setAttribute("data-active", isActive ? "1" : "0");
+      item.setAttribute("tabindex", isActive ? "0" : "-1");
+    }
+  }
+
+  function parseHexColor(hex) {
+    var value = String(hex || "").replace(/[^0-9a-f]/gi, "");
+    if (value.length === 3) {
+      value = value.charAt(0) + value.charAt(0) + value.charAt(1) + value.charAt(1) + value.charAt(2) + value.charAt(2);
+    }
+    if (value.length !== 6) {
+      return { r: 0, g: 0, b: 0 };
+    }
+    return {
+      r: parseInt(value.slice(0, 2), 16),
+      g: parseInt(value.slice(2, 4), 16),
+      b: parseInt(value.slice(4, 6), 16)
+    };
+  }
+
+  function clampColorByte(value) {
+    var n = Math.round(Number(value) || 0);
+    if (n < 0) {
+      return 0;
+    }
+    if (n > 255) {
+      return 255;
+    }
+    return n;
+  }
+
+  function toHexColor(rgb) {
+    function toPart(value) {
+      var part = clampColorByte(value).toString(16);
+      return part.length < 2 ? "0" + part : part;
+    }
+    return "#" + toPart(rgb.r) + toPart(rgb.g) + toPart(rgb.b);
+  }
+
+  function mixHexColor(a, b, amount) {
+    var left = parseHexColor(a);
+    var right = parseHexColor(b);
+    var t = typeof amount === "number" ? amount : 0.5;
+    if (t < 0) {
+      t = 0;
+    }
+    if (t > 1) {
+      t = 1;
+    }
+    return toHexColor({
+      r: left.r + (right.r - left.r) * t,
+      g: left.g + (right.g - left.g) * t,
+      b: left.b + (right.b - left.b) * t
+    });
+  }
+
+  function withAlpha(hex, alpha) {
+    var rgb = parseHexColor(hex);
+    var a = typeof alpha === "number" ? alpha : 1;
+    if (a < 0) {
+      a = 0;
+    }
+    if (a > 1) {
+      a = 1;
+    }
+    return "rgba(" + clampColorByte(rgb.r) + "," + clampColorByte(rgb.g) + "," + clampColorByte(rgb.b) + "," + a + ")";
+  }
+
+  function isLightHexColor(hex) {
+    var rgb = parseHexColor(hex);
+    var luminance = (rgb.r * 0.299) + (rgb.g * 0.587) + (rgb.b * 0.114);
+    return luminance >= 160;
+  }
+
+  function getRelativeLuminance(hex) {
+    var rgb = parseHexColor(hex);
+    function toLinear(value) {
+      var n = clampColorByte(value) / 255;
+      return n <= 0.03928 ? (n / 12.92) : Math.pow((n + 0.055) / 1.055, 2.4);
+    }
+    return (0.2126 * toLinear(rgb.r)) + (0.7152 * toLinear(rgb.g)) + (0.0722 * toLinear(rgb.b));
+  }
+
+  function getContrastRatio(a, b) {
+    var left = getRelativeLuminance(a);
+    var right = getRelativeLuminance(b);
+    var lighter = left > right ? left : right;
+    var darker = left > right ? right : left;
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  function pickReadableTextColor(background, preferred, dark, light, minRatio) {
+    var bg = String(background || "#000000");
+    var want = String(preferred || "");
+    var darkText = String(dark || "#111111");
+    var lightText = String(light || "#f8f8f2");
+    var min = typeof minRatio === "number" ? minRatio : 4.5;
+    var best = want;
+    var bestRatio = best ? getContrastRatio(bg, best) : 0;
+    if (best && bestRatio >= min) {
+      return best;
+    }
+    var darkRatio = getContrastRatio(bg, darkText);
+    var lightRatio = getContrastRatio(bg, lightText);
+    return darkRatio >= lightRatio ? darkText : lightText;
+  }
+
+  function shadeHexColor(hex, amount) {
+    return amount >= 0
+      ? mixHexColor(hex, "#ffffff", amount)
+      : mixHexColor(hex, "#000000", -amount);
+  }
+
+  function normalizeThemeCatalogLabel(label) {
+    var text = String(label || "").replace(/^daisy\s+/i, "").trim();
+    return text || "Theme";
+  }
+
+  function getEventKeyName(event) {
+    var key = event && event.key ? String(event.key) : "";
+    if (key) {
+      if (key === "Left") { return "ArrowLeft"; }
+      if (key === "Right") { return "ArrowRight"; }
+      if (key === "Up") { return "ArrowUp"; }
+      if (key === "Down") { return "ArrowDown"; }
+      if (key === "Esc") { return "Escape"; }
+      if (key === "Spacebar") { return " "; }
+      if (key !== "Unidentified") {
+        return key;
+      }
+    }
+    var code = event ? (event.which || event.keyCode || event.charCode || 0) : 0;
+    if (code === 37) { return "ArrowLeft"; }
+    if (code === 38) { return "ArrowUp"; }
+    if (code === 39) { return "ArrowRight"; }
+    if (code === 40) { return "ArrowDown"; }
+    if (code === 13) { return "Enter"; }
+    if (code === 27) { return "Escape"; }
+    if (code === 32) { return " "; }
+    if (code === 36) { return "Home"; }
+    if (code === 35) { return "End"; }
+    return "";
+  }
+
+  function buildLinearGradient(top, mid, bottom) {
+    return "linear-gradient(180deg," + top + " 0%," + mid + " 45%," + bottom + " 100%)";
+  }
+
+  function findCompactThemeByName(themeName) {
+    var catalog = state.themeCatalog;
+    var wanted = normalizeLegacyThemeName(themeName);
+    if (!catalog || !catalog.themes || typeof catalog.themes.length !== "number") {
+      return null;
+    }
+    for (var i = 0; i < catalog.themes.length; i += 1) {
+      var entry = catalog.themes[i];
+      if (entry && String(entry.n || "") === wanted) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
+  function buildThemeFromCompact(compact) {
+    var primary = String(compact.p || compact.d || "#58a6ff");
+    var primaryFocus = String(compact.pf || primary);
+    var primaryContent = pickReadableTextColor(primary, compact.pc || (isLightHexColor(primary) ? "#101418" : "#f8f8f2"), "#101418", "#f8f8f2", 4.5);
+    var neutral = String(compact.nu || "#20242a");
+    var base100 = String(compact.b1 || "#0d1117");
+    var base200 = String(compact.b2 || shadeHexColor(base100, isLightHexColor(base100) ? -0.06 : 0.08));
+    var base300 = String(compact.b3 || shadeHexColor(base200, isLightHexColor(base200) ? -0.12 : 0.12));
+    var isLightBase = isLightHexColor(base100);
+    var baseContent = pickReadableTextColor(base100, compact.bc || (isLightHexColor(base100) ? "#111111" : "#d8dee4"), "#111111", "#f8f8f2", 5.5);
+    var neutralContent = pickReadableTextColor(neutral, compact.nc || baseContent, "#111111", "#f8f8f2", 4.5);
+    var info = String(compact.i || primary);
+    var warning = String(compact.w || primary);
+    var row = isLightBase
+      ? mixHexColor(base100, base200, 0.72)
+      : mixHexColor(base200, base300, 0.38);
+    var rowAlt = isLightBase
+      ? mixHexColor(base200, base300, 0.32)
+      : mixHexColor(base200, neutral, 0.18);
+    var deep = isLightBase
+      ? mixHexColor(base200, base300, 0.58)
+      : mixHexColor(base100, neutral, 0.55);
+    var textMuted = pickReadableTextColor(base200, baseContent, "#111111", "#f8f8f2", 4.5);
+    var textDim = pickReadableTextColor(base200, mixHexColor(baseContent, base300, 0.55), shadeHexColor(textMuted, isLightHexColor(base200) ? -0.3 : 0.3), textMuted, 3.2);
+    var comment = pickReadableTextColor(deep, mixHexColor(baseContent, base300, 0.68), "#4f5964", "#9ea8b3", 3.2);
+    return {
+      name: String(compact.n || "catalog-theme"),
+      label: normalizeThemeCatalogLabel(compact.l || compact.n || "Catalog Theme"),
+      dot: String(compact.d || primary),
+      accent: withAlpha(primary, 0.92),
+      header: withAlpha(base100, 0.97),
+      caretBg: withAlpha(primary, isLightHexColor(base100) ? 0.12 : 0.18),
+      accentSolid: primary,
+      onAccent: primaryContent,
+      surfaceMain: base100,
+      surfaceElevated: base200,
+      surfaceRow: row,
+      surfaceDeep: deep,
+      surfaceRowAlt: rowAlt,
+      borderStrong: isLightBase ? mixHexColor(base300, baseContent, 0.1) : mixHexColor(base300, neutral, 0.15),
+      borderHover: info,
+      shadow: isLightHexColor(base100) ? "rgba(0,0,0,0.18)" : "rgba(0,0,0,0.5)",
+      textMuted: textMuted,
+      textDim: textDim,
+      cmComment: comment,
+      cmLineNumber: textDim,
+      gutterBorder: mixHexColor(base200, base300, 0.5),
+      btnApplyBg: buildLinearGradient(shadeHexColor(primary, 0.08), mixHexColor(primary, primaryFocus, 0.55), shadeHexColor(primaryFocus, -0.18)),
+      btnApplyBorder: withAlpha(primary, 0.78),
+      btnApplyColor: primaryContent,
+      btnApplyHoverBg: buildLinearGradient(shadeHexColor(primary, 0.16), shadeHexColor(primary, 0.05), shadeHexColor(primaryFocus, -0.08)),
+      btnApplyActiveBg: buildLinearGradient(shadeHexColor(primaryFocus, -0.02), shadeHexColor(primaryFocus, -0.12), shadeHexColor(primaryFocus, -0.24)),
+      btnCancelBg: buildLinearGradient(shadeHexColor(neutral, 0.1), neutral, shadeHexColor(neutral, -0.12)),
+      btnCancelBorder: withAlpha(base300, 0.55),
+      btnCancelColor: neutralContent,
+      btnCancelHoverBg: buildLinearGradient(shadeHexColor(neutral, 0.16), shadeHexColor(neutral, 0.05), shadeHexColor(neutral, -0.04)),
+      btnCancelActiveBg: buildLinearGradient(shadeHexColor(neutral, -0.02), shadeHexColor(neutral, -0.1), shadeHexColor(neutral, -0.18))
+    };
+  }
+
+  function hideThemeCatalogPanels() {
+    var panels = document.querySelectorAll(".lua-theme-catalog-panel");
+    if (!panels || !panels.length) {
+      return;
+    }
+    for (var i = 0; i < panels.length; i += 1) {
+      panels[i].setAttribute("data-open", "0");
+    }
+  }
+
+  function getThemeCatalogItems(panel) {
+    return panel && panel.querySelectorAll ? panel.querySelectorAll(".lua-theme-catalog-item") : [];
+  }
+
+  function setThemeCatalogFocus(panel, item, shouldFocus) {
+    var items = getThemeCatalogItems(panel);
+    for (var i = 0; i < items.length; i += 1) {
+      items[i].setAttribute("tabindex", items[i] === item ? "0" : "-1");
+    }
+    if (shouldFocus && item && typeof item.focus === "function") {
+      try {
+        item.focus();
+      } catch (_ignoreThemeFocus) {}
+    }
+  }
+
+  function applyThemeCatalogEntry(panel, item, themeName, persist, shouldFocus) {
+    if (!themeName) {
+      return;
+    }
+    applyTheme(themeName, persist !== false);
+    updateThemeCatalogSelection(state.activeTheme);
+    setThemeCatalogFocus(panel, item, shouldFocus === true);
+  }
+
+  function ensureThemeCatalogDismissBinding() {
+    if (state.themeCatalogDismissBound) {
+      return;
+    }
+    state.themeCatalogDismissBound = true;
+    document.addEventListener("mousedown", function (event) {
+      var target = event && event.target;
+      if (target && target.closest &&
+          (target.closest(".lua-theme-catalog-panel") || target.closest(".lua-theme-catalog-trigger"))) {
+        return;
+      }
+      hideThemeCatalogPanels();
+    }, true);
+  }
+
+  function renderThemeCatalogPanel(panel, catalog) {
+    if (!panel) {
+      return;
+    }
+
+    while (panel.firstChild) {
+      panel.removeChild(panel.firstChild);
+    }
+
+    var status = document.createElement("div");
+    status.className = "lua-theme-catalog-status";
+    panel.appendChild(status);
+
+    if (!catalog || !catalog.themes || !catalog.themes.length) {
+      status.textContent = state.themeCatalogLoading ? "Loading themes..." : "No theme catalog";
+      return;
+    }
+
+    status.textContent = "Themes (" + catalog.themes.length + ")";
+    var list = document.createElement("div");
+    list.className = "lua-theme-catalog-list";
+    var activeItem = null;
+
+    for (var i = 0; i < catalog.themes.length; i += 1) {
+      (function (entry, index) {
+        var item = document.createElement("button");
+        item.type = "button";
+        item.className = "lua-theme-catalog-item";
+        item.setAttribute("data-theme", String(entry.n || ""));
+        item.setAttribute("data-active", String(entry.n || "") === state.activeTheme ? "1" : "0");
+        item.setAttribute("data-index", String(index));
+        item.setAttribute("tabindex", String(entry.n || "") === state.activeTheme ? "0" : "-1");
+
+        var swatch = document.createElement("span");
+        swatch.className = "lua-theme-catalog-swatch";
+        swatch.style.background = String(entry.d || entry.p || "#58a6ff");
+
+        var label = document.createElement("span");
+        label.className = "lua-theme-catalog-label";
+        label.textContent = normalizeThemeCatalogLabel(entry.l || entry.n || "Theme");
+
+        item.appendChild(swatch);
+        item.appendChild(label);
+        item.addEventListener("mouseenter", function () {
+          applyThemeCatalogEntry(panel, item, String(entry.n || ""), true, false);
+        }, true);
+        item.addEventListener("focus", function () {
+          applyThemeCatalogEntry(panel, item, String(entry.n || ""), true, false);
+        }, true);
+        item.addEventListener("keydown", function (event) {
+          var key = getEventKeyName(event);
+          var delta = 0;
+          if (key === "ArrowLeft") {
+            delta = -1;
+          } else if (key === "ArrowRight") {
+            delta = 1;
+          } else if (key === "ArrowUp") {
+            delta = -3;
+          } else if (key === "ArrowDown") {
+            delta = 3;
+          } else if (key === "Home") {
+            delta = -9999;
+          } else if (key === "End") {
+            delta = 9999;
+          } else if (key === "Escape") {
+            hideThemeCatalogPanels();
+            return;
+          } else if (key === "Enter" || key === " ") {
+            if (event && typeof event.preventDefault === "function") {
+              event.preventDefault();
+            }
+            applyThemeCatalogEntry(panel, item, String(entry.n || ""), true, true);
+            return;
+          } else {
+            return;
+          }
+
+          if (event && typeof event.preventDefault === "function") {
+            event.preventDefault();
+          }
+          if (event && typeof event.stopPropagation === "function") {
+            event.stopPropagation();
+          }
+          var items = getThemeCatalogItems(panel);
+          if (!items || !items.length) {
+            return;
+          }
+          var current = index;
+          var next = current + delta;
+          if (delta === -9999) {
+            next = 0;
+          } else if (delta === 9999) {
+            next = items.length - 1;
+          }
+          if (next < 0) {
+            next = 0;
+          }
+          if (next >= items.length) {
+            next = items.length - 1;
+          }
+          var target = items[next];
+          if (target) {
+            setThemeCatalogFocus(panel, target, true);
+          }
+        }, true);
+        item.addEventListener("click", function () {
+          applyThemeCatalogEntry(panel, item, String(entry.n || ""), true, true);
+          hideThemeCatalogPanels();
+        }, true);
+        if (String(entry.n || "") === state.activeTheme || !activeItem) {
+          activeItem = item;
+        }
+        list.appendChild(item);
+      })(catalog.themes[i], i);
+    }
+
+    panel.appendChild(list);
+    if (activeItem) {
+      setThemeCatalogFocus(panel, activeItem, false);
+    }
+  }
+
+  function toggleThemeCatalogPanel(switcher, panelId) {
+    if (!switcher) {
+      return;
+    }
+    ensureThemeCatalogDismissBinding();
+    var panel = document.getElementById(panelId);
+    if (!panel) {
+      return;
+    }
+    var willOpen = String(panel.getAttribute("data-open") || "0") !== "1";
+    hideThemeCatalogPanels();
+    if (!willOpen) {
+      return;
+    }
+    panel.setAttribute("data-open", "1");
+    renderThemeCatalogPanel(panel, null);
+    ensureThemeCatalogLoaded(function (catalog) {
+      renderThemeCatalogPanel(panel, catalog);
+      updateThemeCatalogSelection(state.activeTheme);
+      var active = panel.querySelector(".lua-theme-catalog-item[data-active=\"1\"]") || panel.querySelector(".lua-theme-catalog-item");
+      if (active) {
+        setThemeCatalogFocus(panel, active, true);
+      }
+    });
+  }
+
+  function ensureThemeCatalogTrigger(switcher, baseId) {
+    if (!switcher) {
+      return;
+    }
+
+    var triggerId = baseId + "-catalog-trigger";
+    var panelId = baseId + "-catalog-panel";
+    var trigger = document.getElementById(triggerId);
+    if (!trigger) {
+      trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.id = triggerId;
+      trigger.className = "lua-theme-catalog-trigger";
+      trigger.textContent = "...";
+      trigger.setAttribute("title", "Themes");
+      trigger.setAttribute("aria-label", "Themes");
+      trigger.addEventListener("click", function (event) {
+        if (event && typeof event.preventDefault === "function") {
+          event.preventDefault();
+        }
+        if (event && typeof event.stopPropagation === "function") {
+          event.stopPropagation();
+        }
+        toggleThemeCatalogPanel(switcher, panelId);
+      }, true);
+    }
+
+    if (trigger.parentNode !== switcher) {
+      switcher.appendChild(trigger);
+    }
+
+    var panel = document.getElementById(panelId);
+    if (!panel) {
+      panel = document.createElement("div");
+      panel.id = panelId;
+      panel.className = "lua-theme-catalog-panel";
+      panel.setAttribute("data-open", "0");
+    }
+    if (panel.parentNode !== switcher) {
+      switcher.appendChild(panel);
     }
   }
 
@@ -199,6 +732,7 @@
     handlers.changes = function () {
       window.setTimeout(function () {
         updateCaretLineHighlight();
+        ensureLuaBufferSize();
       }, 0);
     };
 
@@ -240,6 +774,7 @@
     updateCaretToggleVisual();
     ensureCaretHighlightBindings();
     updateCaretLineHighlight();
+    ensureLuaBufferSize();
   }
 
   function sendIdeSyncPacket(targetKind) {
@@ -347,6 +882,62 @@
     }
   }
 
+  function formatLuaBufferSize(count) {
+    var n = typeof count === "number" && isFinite(count) ? count : 0;
+    if (n < 0) {
+      n = 0;
+    }
+    return String(Math.floor(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  }
+
+  function ensureLuaBufferSize() {
+    var root = document.getElementById("dpu_editor");
+    if (!root || !root.querySelector) {
+      return;
+    }
+
+    var reportNode = root.querySelector(".error_ctn .header .lua_error_header_wrapper");
+    if (!reportNode) {
+      return;
+    }
+
+    var sizeNode = document.getElementById("ModUiExtractor-lua-buffer-size");
+    if (!sizeNode) {
+      sizeNode = document.createElement("span");
+      sizeNode.id = "ModUiExtractor-lua-buffer-size";
+      sizeNode.className = "lua-probe-buffer-size";
+    }
+
+    var titleTextNode = document.getElementById("ModUiExtractor-lua-title-text");
+    var titleNode = document.getElementById("lua_editor_title") ||
+      root.querySelector(".editor_header .title, .editor_header .header_bar .title");
+    if (titleNode && titleTextNode && titleTextNode.parentNode === titleNode) {
+      titleNode.textContent = String(titleTextNode.textContent || titleNode.getAttribute("data-probe-title") || "").replace(/\s+/g, " ").trim();
+      titleNode.removeAttribute("data-probe-title");
+    }
+    if (titleTextNode && titleTextNode.parentNode) {
+      titleTextNode.parentNode.removeChild(titleTextNode);
+    }
+
+    if (sizeNode.parentNode !== reportNode) {
+      reportNode.appendChild(sizeNode);
+    }
+
+    var code = "";
+    var codeMirror = getLuaCodeMirror();
+    try {
+      if (codeMirror && typeof codeMirror.getValue === "function") {
+        code = String(codeMirror.getValue() || "");
+      } else {
+        var textArea = document.getElementById("editor_window");
+        code = textArea && typeof textArea.value === "string" ? textArea.value : "";
+      }
+    } catch (_ignoreLuaBufferSize) {}
+
+    sizeNode.textContent = "Code: " + formatLuaBufferSize(code.length) + " chars";
+    sizeNode.setAttribute("data-count", String(code.length));
+  }
+
   function getDefaultThemeName() {
     return (colorThemes[0] && colorThemes[0].name) ? colorThemes[0].name : "monokai";
   }
@@ -432,6 +1023,7 @@
     }
     state.lastAppliedTheme = theme.name;
     updateThemeDotSelection(theme.name);
+    updateThemeCatalogSelection(theme.name);
 
     if (emitPacket) {
       sendPacket("lua_theme_changed", {
@@ -464,7 +1056,9 @@
     if (switcher.parentNode !== header) {
       header.appendChild(switcher);
     }
+    ensureThemeCatalogTrigger(switcher, "ModUiExtractor-lua-theme-dots");
 
+    ensureLuaBufferSize();
     applyTheme(state.activeTheme || getDefaultThemeName(), false);
   }
 
@@ -486,6 +1080,50 @@
     if (switcher.parentNode !== header) {
       header.appendChild(switcher);
     }
+    ensureThemeCatalogTrigger(switcher, "ModUiExtractor-screen-theme-dots");
+  }
+
+  function ensureScreenBufferSize(root) {
+    if (!root || !root.querySelector) {
+      return;
+    }
+
+    var reportNode = root.querySelector(".footer_line .error_block .error_header .left_wrapper");
+    if (!reportNode) {
+      return;
+    }
+
+    var sizeNode = document.getElementById("ModUiExtractor-screen-buffer-size");
+    if (!sizeNode) {
+      sizeNode = document.createElement("span");
+      sizeNode.id = "ModUiExtractor-screen-buffer-size";
+      sizeNode.className = "lua-probe-screen-buffer-size";
+    }
+
+    if (sizeNode.parentNode !== reportNode) {
+      reportNode.appendChild(sizeNode);
+    }
+
+    var code = "";
+    var codeMirror = typeof getScreenEditorCodeMirror === "function" ? getScreenEditorCodeMirror(root) : null;
+    try {
+      if (codeMirror && typeof codeMirror.getValue === "function") {
+        code = String(codeMirror.getValue() || "");
+      }
+    } catch (_ignoreScreenBufferSize) {}
+
+    if (!code) {
+      try {
+        var countNode = root.querySelector(".character_count");
+        var match = countNode ? String(countNode.textContent || "").match(/^\s*(\d+)/) : null;
+        if (match) {
+          sizeNode.textContent = "Code: " + formatLuaBufferSize(parseInt(match[1], 10) || 0) + " chars";
+          return;
+        }
+      } catch (_ignoreScreenCountNode) {}
+    }
+
+    sizeNode.textContent = "Code: " + formatLuaBufferSize(code.length) + " chars";
   }
 
   function ensureScreenEditorFacelift() {
@@ -537,6 +1175,7 @@
     root.setAttribute("data-lua-probe-active", "1");
     ensureScreenThemeSwitcher(root);
     ensureScreenIdeSyncButton(root);
+    ensureScreenBufferSize(root);
     ensureScreenViewportBindings();
 
     if (contextKey) {

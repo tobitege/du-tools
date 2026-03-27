@@ -15,6 +15,7 @@
   var actionId = cfg.actionId || 900001;
   var dumpId = "lua-probe-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
   var caretHighlightPrefStorageKey = "ModUiExtractor.lua.caret-highlight-enabled.v1";
+  var themeCatalogStorageKey = "ModUiExtractor.lua.theme-catalog.flowery-daisy.v2";
   var mcpResultChunkSize = 7000;
 
   function loadCaretHighlightPreference() {
@@ -41,6 +42,32 @@
       window.localStorage.setItem(caretHighlightPrefStorageKey, enabled ? "1" : "0");
       return true;
     } catch (_ignorePrefWrite) {}
+    return false;
+  }
+
+  function loadThemeCatalogCache() {
+    try {
+      if (!window.localStorage || typeof window.localStorage.getItem !== "function") {
+        return null;
+      }
+      var raw = window.localStorage.getItem(themeCatalogStorageKey);
+      if (!raw) {
+        return null;
+      }
+      var parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch (_ignoreThemeCatalogRead) {}
+    return null;
+  }
+
+  function saveThemeCatalogCache(payload) {
+    try {
+      if (!window.localStorage || typeof window.localStorage.setItem !== "function") {
+        return false;
+      }
+      window.localStorage.setItem(themeCatalogStorageKey, JSON.stringify(payload || null));
+      return true;
+    } catch (_ignoreThemeCatalogWrite) {}
     return false;
   }
 
@@ -80,7 +107,11 @@
     screenLastRestoredContextKey: "",
     lastIdeSyncContextKey: "",
     lastIdeSyncReference: null,
-    lastInitDemReference: null
+    lastInitDemReference: null,
+    themeCatalog: null,
+    themeCatalogLoading: false,
+    themeCatalogRequestId: "",
+    themeCatalogCallbacks: []
   };
 
   state.applyIdeCode = applyIdeCode;
@@ -587,7 +618,7 @@
 
     var referenceMatch = compareIdeImportReference(expectedReference, currentReference, targetKind);
     if (!referenceMatch.match) {
-      flashIdeImportStatus(targetKind, "Sync wartet auf richtiges Element", "#805019", "#ffffff", 1400);
+      flashIdeImportStatus(targetKind, "Warte auf Element", "#805019", "#ffffff", 1400);
       emitIdeImportResult({
         requestId: requestId,
         targetKind: targetKind,
@@ -610,7 +641,7 @@
     }
 
     if (expectedContextKey && currentContextKey && expectedContextKey !== currentContextKey) {
-      flashIdeImportStatus(targetKind, "Sync wartet auf richtigen Filter", "#8a2424", "#ffffff", 1400);
+      flashIdeImportStatus(targetKind, "Warte auf Filter", "#8a2424", "#ffffff", 1400);
       emitIdeImportResult({
         requestId: requestId,
         targetKind: targetKind,
@@ -703,7 +734,7 @@
 
     flashIdeImportStatus(
       targetKind,
-      staleBase ? "Synced from IDE (stale base)" : "Synced from IDE!",
+      staleBase ? "Sync alt" : "Sync ok",
       staleBase ? "#7a6518" : "#2a6b36",
       "#ffffff",
       staleBase ? 2200 : 1500);
@@ -742,7 +773,7 @@
     var currentContextKey = snapshot.contextKey || "";
     if (state.lastIdeSyncContextKey && currentContextKey !== state.lastIdeSyncContextKey) {
       safeLog("IDE sync blocked: Context changed. Expected: " + state.lastIdeSyncContextKey + ", Got: " + currentContextKey);
-      flashIdeSyncButton("Sync Blocked: Wrong Filter", "#8a2424", "#ffffff", 3000);
+      flashIdeSyncButton("Warte auf Filter", "#8a2424", "#ffffff", 3000);
       return;
     }
 
@@ -754,7 +785,7 @@
     codeMirror.setValue(newCode);
     state.lastIdeSyncContextKey = currentContextKey;
     state.lastIdeSyncReference = cloneIdeSyncObject(snapshot.reference || getLuaIdeSyncReference());
-    flashIdeSyncButton("Synced from IDE!", "#2a6b36", "#ffffff", 1500);
+    flashIdeSyncButton("Sync ok", "#2a6b36", "#ffffff", 1500);
   }
 
   function summarizeArg(arg) {

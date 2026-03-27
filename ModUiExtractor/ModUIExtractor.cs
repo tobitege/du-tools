@@ -81,6 +81,8 @@ public sealed class MyDuMod : IMod
     private const string RuntimeLuaProbePayloadFileName = "lua-editor-probe.override.js";
     private const string RuntimeLuaProbeModulesDirectoryName = "lua-editor-probe.modules";
     private const string RuntimeLuaProbeModulesManifestFileName = "manifest.txt";
+    private const string RuntimeThemeImportsDirectoryName = "theme-imports";
+    private const string RuntimeFloweryDaisyPaletteFileName = "flowery-daisy-palettes.compact.json";
     private const string IdeImportFilePattern = "ide_import.player-*.json";
 
     /// <summary>
@@ -112,6 +114,8 @@ public sealed class MyDuMod : IMod
     private string runtimeLuaProbePayloadPath = "";
     private string runtimeLuaProbeModulesDirectoryPath = "";
     private string runtimeLuaProbeModulesManifestPath = "";
+    private string runtimeThemeImportsDirectoryPath = "";
+    private string runtimeFloweryDaisyPalettePath = "";
     private string mcpBridgeRootDirectory = "";
     private string mcpBridgeCommandsDirectory = "";
     private string mcpBridgeEventsDirectory = "";
@@ -157,12 +161,15 @@ public sealed class MyDuMod : IMod
         runtimeLuaProbePayloadPath = Path.Combine(payloadOverridesDirectory, RuntimeLuaProbePayloadFileName);
         runtimeLuaProbeModulesDirectoryPath = Path.Combine(payloadOverridesDirectory, RuntimeLuaProbeModulesDirectoryName);
         runtimeLuaProbeModulesManifestPath = Path.Combine(runtimeLuaProbeModulesDirectoryPath, RuntimeLuaProbeModulesManifestFileName);
+        runtimeThemeImportsDirectoryPath = Path.Combine(payloadOverridesDirectory, RuntimeThemeImportsDirectoryName);
+        runtimeFloweryDaisyPalettePath = Path.Combine(runtimeThemeImportsDirectoryPath, RuntimeFloweryDaisyPaletteFileName);
         mcpBridgeRootDirectory = Path.Combine(outputDirectory, McpBridgeDirectoryName);
         mcpBridgeCommandsDirectory = Path.Combine(mcpBridgeRootDirectory, McpBridgeCommandsDirectoryName);
         mcpBridgeEventsDirectory = Path.Combine(mcpBridgeRootDirectory, McpBridgeEventsDirectoryName);
         mcpBridgeStateDirectory = Path.Combine(mcpBridgeRootDirectory, McpBridgeStateDirectoryName);
         mcpBridgeProcessedCommandsDirectory = Path.Combine(mcpBridgeStateDirectory, McpBridgeProcessedCommandsDirectoryName);
         Directory.CreateDirectory(runtimeLuaProbeModulesDirectoryPath);
+        Directory.CreateDirectory(runtimeThemeImportsDirectoryPath);
         Directory.CreateDirectory(mcpBridgeCommandsDirectory);
         Directory.CreateDirectory(mcpBridgeEventsDirectory);
         Directory.CreateDirectory(mcpBridgeStateDirectory);
@@ -1838,6 +1845,11 @@ ORDER BY table_schema, table_name, ordinal_position";
                 var packetData = parsedPacket["data"] as JObject ?? new JObject();
                 RegisterIdeImportResult(packetData);
             }
+            else if (string.Equals(packetType, "theme_catalog_request", StringComparison.OrdinalIgnoreCase))
+            {
+                var packetData = parsedPacket["data"] as JObject ?? new JObject();
+                await ProcessThemeCatalogRequest(playerId, packetData);
+            }
         }
 
         if (envelope?.type == "ui_dump_complete")
@@ -1936,6 +1948,52 @@ ORDER BY table_schema, table_name, ordinal_position";
                 return null;
             }
         }
+    }
+
+    private async Task ProcessThemeCatalogRequest(ulong playerId, JObject packetData)
+    {
+        var requestId = packetData["requestId"]?.Value<string>()?.Trim() ?? "";
+        var catalogName = packetData["catalogName"]?.Value<string>()?.Trim() ?? "flowery-daisy";
+        var payload = new JObject
+        {
+            ["requestId"] = requestId,
+            ["catalogName"] = catalogName,
+            ["success"] = false,
+            ["catalog"] = JValue.CreateNull(),
+            ["error"] = JValue.CreateNull()
+        };
+
+        try
+        {
+            if (!string.Equals(catalogName, "flowery-daisy", StringComparison.OrdinalIgnoreCase))
+            {
+                payload["error"] = "unsupported_catalog";
+            }
+            else if (!File.Exists(runtimeFloweryDaisyPalettePath))
+            {
+                payload["error"] = "catalog_not_published";
+            }
+            else
+            {
+                var json = await File.ReadAllTextAsync(runtimeFloweryDaisyPalettePath, Encoding.UTF8);
+                payload["catalog"] = JObject.Parse(json);
+                payload["success"] = true;
+                payload["error"] = JValue.CreateNull();
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "UIExtractor failed to load theme catalog for player {PlayerId}", playerId);
+            payload["error"] = ex.Message;
+        }
+
+        var injectCode =
+            "(function(){" +
+            "var payload=" + payload.ToString(Newtonsoft.Json.Formatting.None) + ";" +
+            "var probe=window.__UI_EXTRACTOR_LUA_PROBE_STATE__;" +
+            "if(probe&&typeof probe.receiveThemeCatalog==='function'){probe.receiveThemeCatalog(payload);}" +
+            "})();";
+        await InjectJavaScript(playerId, injectCode, "theme-catalog", notifyMessage: null, notifyPlayer: false);
     }
 
     private void CleanupExpiredLuaMcpResultChunks(DateTime nowUtc)

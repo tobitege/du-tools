@@ -40,7 +40,7 @@ if SCREEN_LAYOUT_EDITOR_ENABLED and type(SCREEN_LAYOUT_EDITOR_MODULE) == "table"
                     )
                 )
             end
-        elseif record == nil and recordError then
+        elseif record == nil and recordError and recordError ~= "probe_output" then
             system.print("WARN: ScreenLayoutEditor output ignored: " .. tostring(recordError))
             if type(SLEP) == "function" then
                 SLEP(

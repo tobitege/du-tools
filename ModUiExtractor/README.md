@@ -135,9 +135,12 @@ This writes `all_scripts_manifest.json` plus `all_script_js_*.js` sections after
 - External DU runtime assemblies are resolved from `DUExternalLibDir` (default: `D:\MyDUserver\wincs\all`).
 - Keep Orleans + Microsoft.Extensions dependencies aligned to the DU runtime DLL graph. Mixing additional NuGet Orleans/Extensions package trees on top can reintroduce `MSB3277` assembly conflict warnings.
 - Build from the `ModUiExtractor` folder so `global.json` is respected.
+- Build this mod only with `Release`. Do not use `Debug` builds for deployment, live testing, or handoff.
 - The optional server-side chat read path is a hard compile opt-in: only builds that pass `-p:EnableDuChatServerRead=true` include the `server_chat` bridge target.
 
 ## Build
+
+Use `Release` only. `Debug` is not a supported workflow here.
 
 ```powershell
 cd D:\github\du-tobi\ModUiExtractor
@@ -214,6 +217,8 @@ Each run writes:
 Use this when you want to tweak Lua editor UI behavior live without rebuilding the DLL.
 
 **WICHTIG IN GROSSBUCHSTABEN, WEIL ES SONST IMMER WIEDER PASSIERT: BEI JEDER PAYLOAD-AENDERUNG IMMER BUILD + PUBLISH. NUR REINJECT REICHT NICHT. NUR BUILD REICHT NICHT. ERST `build-lua-probe.ps1`, DANN `publish-lua-probe.ps1`, DANN INGAME REINJECT.**
+
+**MOD-BUILD NUR ALS `Release`. `Debug` NICHT VERWENDEN.**
 
 Edit one of these for live changes:
 
@@ -316,6 +321,33 @@ Recommended (module-first) prep before testing:
 ```powershell
 .\tools\publish-lua-probe.ps1
 ```
+
+### Flowery Daisy Palettes
+
+Die Flowery-Daisy-`axaml`-Paletten lassen sich in ein kurzes DU-Importformat exportieren:
+
+```powershell
+.\tools\extract-flowery-daisy-palettes.ps1
+```
+
+Dabei entsteht:
+
+- `payload/theme-imports/flowery-daisy-palettes.compact.json`
+
+Das kompakte Format speichert nur die relevanten Daisy-Quellfarben. Fuer das aktuelle DU-Probe-Theme reichen als Eingabe effektiv diese DU-Slots:
+
+- `p`, `pf`, `pc`
+- `nu`, `nc`
+- `b1`, `b2`, `b3`, `bc`
+- `i`, `w`, `e`
+
+Der Rest der aktuellen Probe-Theme-Struktur wie `surfaceRow`, `textDim`, Button-Gradienten oder Hover-Farben kann daraus spaeter deterministisch abgeleitet werden. Dadurch muessen wir nicht 30+ Themes manuell als voll expandierte DU-Objekte pflegen.
+
+Der Theme-Katalog kann zur Laufzeit nachgeladen werden. Der Publish kopiert deshalb auch `payload/theme-imports/*` nach:
+
+- `D:\MyDUserver\tmp\ui-dumps\payload-overrides\theme-imports`
+
+Der Probe-State stellt dafuer intern `ensureThemeCatalogLoaded(...)` und `receiveThemeCatalog(...)` bereit. Im lokalen Rig wird derselbe Katalog ueber `/api/mod-action` zurueckgegeben; im Live-Mod antwortet der Server auf `theme_catalog_request` mit einer kleinen JS-Injektion in die offene Probe.
 
 ### 2) Inject and open editor
 

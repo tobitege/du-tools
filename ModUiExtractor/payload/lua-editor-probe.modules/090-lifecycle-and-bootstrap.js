@@ -36,6 +36,7 @@
     ensureAutoClickObserver();
     ensureCaretHighlightToggle();
     ensureCaretHighlightBindings();
+    ensureLuaBufferSize();
     syncCurrentContextKey();
     syncCurrentSnippetKeyFromEditor();
     refreshActiveFilterMarker();
@@ -76,6 +77,7 @@
       ensureAutoClickObserver();
       ensureCaretHighlightToggle();
       ensureCaretHighlightBindings();
+      ensureLuaBufferSize();
       if (state.suppressRestoreUntilInteraction) {
         installFreshOpenViewportGuard();
       } else {
@@ -225,6 +227,8 @@
       "ModUiExtractor-lua-theme-dots",
       "ModUiExtractor-lua-caret-toggle",
       "ModUiExtractor-lua-ide-sync",
+      "ModUiExtractor-lua-buffer-size",
+      "ModUiExtractor-screen-buffer-size",
       "ModUiExtractor-screen-theme-dots",
       "ModUiExtractor-chat-copy-plain",
       quickEditLuaMenuItemId,
@@ -250,6 +254,8 @@
 
   window.__UI_EXTRACTOR_LUA_PROBE_UNINSTALL__ = uninstallProbe;
   window.__UI_EXTRACTOR_LUA_PROBE_STATE__ = state;
+  state.receiveThemeCatalog = receiveThemeCatalog;
+  state.ensureThemeCatalogLoaded = ensureThemeCatalogLoaded;
   sendPacket("lua_probe_start", {
     locationHref: String(window.location && window.location.href ? window.location.href : ""),
     userAgent: String(window.navigator && window.navigator.userAgent ? window.navigator.userAgent : "")
