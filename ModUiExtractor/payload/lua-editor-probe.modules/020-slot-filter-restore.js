@@ -108,6 +108,57 @@
         nodes[i].removeAttribute("data-lua-probe-active-filter");
       } catch (_ignoreAttr) {}
     }
+    syncLuaApplyButtonState();
+  }
+
+  function getLuaApplyButtonNode() {
+    var root = document.getElementById("dpu_editor");
+    if (!root || !root.querySelector) {
+      return null;
+    }
+    try {
+      return root.querySelector(".btn_bar .lua_editor_apply_button");
+    } catch (_ignoreApplyButton) {}
+    return null;
+  }
+
+  function getResolvedActiveFilterNode() {
+    var selectedNode = findDomSelectedFilterNode();
+    if (selectedNode) {
+      return selectedNode;
+    }
+    return findFilterNodeByHints(getManagerFilterHints());
+  }
+
+  function syncLuaApplyButtonState() {
+    var button = getLuaApplyButtonNode();
+    if (!button) {
+      return;
+    }
+
+    if (!button.__luaProbeForceDisableBound) {
+      button.__luaProbeForceDisableBound = true;
+      button.addEventListener("click", function (event) {
+        if (button.getAttribute("data-lua-probe-force-disabled") !== "1") {
+          return;
+        }
+        if (event && typeof event.preventDefault === "function") {
+          event.preventDefault();
+        }
+        if (event && typeof event.stopPropagation === "function") {
+          event.stopPropagation();
+        }
+        if (event && typeof event.stopImmediatePropagation === "function") {
+          event.stopImmediatePropagation();
+        }
+      }, true);
+    }
+
+    var hasFilters = getVisibleFilterNodes().length > 0;
+    var activeFilterNode = getResolvedActiveFilterNode();
+    var shouldDisable = !hasFilters || !activeFilterNode;
+    button.setAttribute("data-lua-probe-force-disabled", shouldDisable ? "1" : "0");
+    button.setAttribute("aria-disabled", shouldDisable ? "true" : "false");
   }
 
   function setActiveFilterMarker(filterNode) {
@@ -138,6 +189,7 @@
       state.activeFilterIndex = -1;
       state.activeFilterFingerprint = "";
     }
+    syncLuaApplyButtonState();
   }
 
   function getManagerFilterHints() {
@@ -279,6 +331,7 @@
     if (nodes.length <= 0) {
       state.activeFilterIndex = -1;
       state.activeFilterFingerprint = "";
+      syncLuaApplyButtonState();
       return;
     }
 
@@ -297,6 +350,7 @@
     }
 
     clearActiveFilterMarker();
+    syncLuaApplyButtonState();
   }
 
   function getEditorContextKey(codeMirror) {

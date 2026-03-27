@@ -18,6 +18,7 @@
   var actionId = cfg.actionId || 900001;
   var dumpId = "lua-probe-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
   var caretHighlightPrefStorageKey = "ModUiExtractor.lua.caret-highlight-enabled.v1";
+  var themePrefStorageKey = "ModUiExtractor.lua.theme-pref.v1";
   var themeCatalogStorageKey = "ModUiExtractor.lua.theme-catalog.flowery-daisy.v2";
   var mcpResultChunkSize = 7000;
 
@@ -45,6 +46,32 @@
       window.localStorage.setItem(caretHighlightPrefStorageKey, enabled ? "1" : "0");
       return true;
     } catch (_ignorePrefWrite) {}
+    return false;
+  }
+
+  function loadThemePreference() {
+    try {
+      if (!window.localStorage || typeof window.localStorage.getItem !== "function") {
+        return "";
+      }
+      var raw = window.localStorage.getItem(themePrefStorageKey);
+      return raw ? String(raw) : "";
+    } catch (_ignoreThemePrefRead) {}
+    return "";
+  }
+
+  function saveThemePreference(themeName) {
+    try {
+      if (!window.localStorage || typeof window.localStorage.setItem !== "function") {
+        return false;
+      }
+      var value = String(themeName || "");
+      if (!value) {
+        return false;
+      }
+      window.localStorage.setItem(themePrefStorageKey, value);
+      return true;
+    } catch (_ignoreThemePrefWrite) {}
     return false;
   }
 
@@ -79,7 +106,7 @@
     menuHits: 0,
     editorVisible: false,
     managerWrapped: false,
-    activeTheme: "monokai",
+    activeTheme: loadThemePreference() || "daisy-night",
     lastAppliedTheme: "",
     scrollTopByContext: Object.create(null),
     screenScrollTopByContext: Object.create(null),
@@ -139,8 +166,19 @@
       shadow: "rgba(0,0,0,0.5)",
       textMuted: "#cfcfc2",
       textDim: "#90908a",
+      cmText: "#f8f8f2",
       cmComment: "#75715e",
       cmLineNumber: "#90908a",
+      cmKeyword: "#f92672",
+      cmAtom: "#ae81ff",
+      cmString: "#e6db74",
+      cmNumber: "#ae81ff",
+      cmDef: "#a6e22e",
+      cmBuiltin: "#66d9ef",
+      cmVariable: "#f8f8f2",
+      cmVariable2: "#fd971f",
+      cmOperator: "#f8f8f2",
+      cmProperty: "#a6e22e",
       gutterBorder: "#49483e",
       btnApplyBg: "linear-gradient(180deg,#646e52 0%,#4a5540 45%,#343c30 100%)",
       btnApplyBorder: "rgba(166,226,46,0.78)",
@@ -151,7 +189,10 @@
       btnCancelBorder: "rgba(183,174,140,0.55)",
       btnCancelColor: "#cfcfc2",
       btnCancelHoverBg: "linear-gradient(180deg,#5e5a50 0%,#4a4640 45%,#38342f 100%)",
-      btnCancelActiveBg: "linear-gradient(180deg,#45423a 0%,#35322d 45%,#282622 100%)"
+      btnCancelActiveBg: "linear-gradient(180deg,#45423a 0%,#35322d 45%,#282622 100%)",
+      btnDisabledBg: "linear-gradient(180deg,rgba(28,40,48,0.85) 0%,rgba(18,28,34,0.85) 100%)",
+      btnDisabledBorder: "rgba(84,122,135,0.45)",
+      btnDisabledColor: "rgba(132,160,170,0.72)"
     },
     {
       name: "github-dark",
@@ -172,8 +213,19 @@
       shadow: "rgba(1,4,9,0.55)",
       textMuted: "#8b949e",
       textDim: "#6e7681",
+      cmText: "#e6edf3",
       cmComment: "#8b949e",
       cmLineNumber: "#6e7681",
+      cmKeyword: "#ff7b72",
+      cmAtom: "#79c0ff",
+      cmString: "#a5d6ff",
+      cmNumber: "#79c0ff",
+      cmDef: "#d2a8ff",
+      cmBuiltin: "#d2a8ff",
+      cmVariable: "#e6edf3",
+      cmVariable2: "#ffa657",
+      cmOperator: "#c9d1d9",
+      cmProperty: "#79c0ff",
       gutterBorder: "#30363d",
       btnApplyBg: "linear-gradient(180deg,#1c4a8c 0%,#143a6e 45%,#0c2848 100%)",
       btnApplyBorder: "rgba(88,166,255,0.78)",
@@ -184,7 +236,10 @@
       btnCancelBorder: "rgba(139,148,158,0.45)",
       btnCancelColor: "#8b949e",
       btnCancelHoverBg: "linear-gradient(180deg,#3d444d 0%,#30363d 45%,#252b32 100%)",
-      btnCancelActiveBg: "linear-gradient(180deg,#282e35 0%,#1e242a 45%,#161b22 100%)"
+      btnCancelActiveBg: "linear-gradient(180deg,#282e35 0%,#1e242a 45%,#161b22 100%)",
+      btnDisabledBg: "linear-gradient(180deg,rgba(28,40,48,0.85) 0%,rgba(18,28,34,0.85) 100%)",
+      btnDisabledBorder: "rgba(84,122,135,0.45)",
+      btnDisabledColor: "rgba(132,160,170,0.72)"
     },
     {
       name: "gruvbox-dark",
@@ -205,8 +260,19 @@
       shadow: "rgba(0,0,0,0.5)",
       textMuted: "#a89984",
       textDim: "#928374",
+      cmText: "#ebdbb2",
       cmComment: "#928374",
       cmLineNumber: "#a89984",
+      cmKeyword: "#fb4934",
+      cmAtom: "#d3869b",
+      cmString: "#b8bb26",
+      cmNumber: "#d3869b",
+      cmDef: "#fabd2f",
+      cmBuiltin: "#83a598",
+      cmVariable: "#ebdbb2",
+      cmVariable2: "#fe8019",
+      cmOperator: "#ebdbb2",
+      cmProperty: "#8ec07c",
       gutterBorder: "#504945",
       btnApplyBg: "linear-gradient(180deg,#76634a 0%,#5a4a3a 45%,#423d34 100%)",
       btnApplyBorder: "rgba(254,128,25,0.82)",
@@ -217,7 +283,10 @@
       btnCancelBorder: "rgba(168,153,132,0.5)",
       btnCancelColor: "#a89984",
       btnCancelHoverBg: "linear-gradient(180deg,#5c534d 0%,#4a4541 45%,#3a3634 100%)",
-      btnCancelActiveBg: "linear-gradient(180deg,#454039 0%,#363230 45%,#292726 100%)"
+      btnCancelActiveBg: "linear-gradient(180deg,#454039 0%,#363230 45%,#292726 100%)",
+      btnDisabledBg: "linear-gradient(180deg,rgba(28,40,48,0.85) 0%,rgba(18,28,34,0.85) 100%)",
+      btnDisabledBorder: "rgba(84,122,135,0.45)",
+      btnDisabledColor: "rgba(132,160,170,0.72)"
     }
   ];
   var quickEditLuaMenuItemId = "ModUiExtractor-quick-edit-lua";
@@ -1091,8 +1160,19 @@
       + "--lua-probe-shadow:rgba(0,0,0,0.5);"
       + "--lua-probe-text-muted:#cfcfc2;"
       + "--lua-probe-text-dim:#90908a;"
+      + "--lua-probe-cm-text:#f8f8f2;"
       + "--lua-probe-cm-comment:#75715e;"
       + "--lua-probe-cm-linenumber:#90908a;"
+      + "--lua-probe-cm-keyword:#f92672;"
+      + "--lua-probe-cm-atom:#ae81ff;"
+      + "--lua-probe-cm-string:#e6db74;"
+      + "--lua-probe-cm-number:#ae81ff;"
+      + "--lua-probe-cm-def:#a6e22e;"
+      + "--lua-probe-cm-builtin:#66d9ef;"
+      + "--lua-probe-cm-variable:#f8f8f2;"
+      + "--lua-probe-cm-variable-2:#fd971f;"
+      + "--lua-probe-cm-operator:#f8f8f2;"
+      + "--lua-probe-cm-property:#a6e22e;"
       + "--lua-probe-gutter-border:#49483e;"
       + "--lua-probe-btn-apply-bg:linear-gradient(180deg,#646e52 0%,#4a5540 45%,#343c30 100%);"
       + "--lua-probe-btn-apply-border:rgba(166,226,46,0.78);"
@@ -1103,7 +1183,10 @@
       + "--lua-probe-btn-cancel-border:rgba(183,174,140,0.55);"
       + "--lua-probe-btn-cancel-color:#cfcfc2;"
       + "--lua-probe-btn-cancel-hover-bg:linear-gradient(180deg,#5e5a50 0%,#4a4640 45%,#38342f 100%);"
-      + "--lua-probe-btn-cancel-active-bg:linear-gradient(180deg,#45423a 0%,#35322d 45%,#282622 100%);}"
+      + "--lua-probe-btn-cancel-active-bg:linear-gradient(180deg,#45423a 0%,#35322d 45%,#282622 100%);"
+      + "--lua-probe-btn-disabled-bg:linear-gradient(180deg,rgba(28,40,48,0.85) 0%,rgba(18,28,34,0.85) 100%);"
+      + "--lua-probe-btn-disabled-border:rgba(84,122,135,0.45);"
+      + "--lua-probe-btn-disabled-color:rgba(132,160,170,0.72);}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper{"
       + "background-color:var(--lua-probe-surface-main) !important;"
       + "filter:drop-shadow(var(--lua-probe-shadow) 0 0 5px) !important;"
@@ -1158,8 +1241,13 @@
       + "background-color:var(--lua-probe-surface-elevated) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter{"
       + "background-color:var(--lua-probe-surface-row) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter,"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter *{"
+      + "color:var(--lua-probe-text-muted) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter:hover{"
       + "border-color:var(--lua-probe-border-hover) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter .actionName{"
+      + "color:var(--lua-probe-text-muted) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter .filter_wrapper .filter_header .delete_btn{"
       + "fill:var(--lua-probe-text-muted) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .lua_editor_filters_wrapper .filter .filter_wrapper .filter_header .delete_btn:hover{"
@@ -1191,39 +1279,39 @@
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button:not(.disabled){"
       + "font-family:Play,sans-serif !important;font-weight:900 !important;"
       + "border-radius:0.55555556vh !important;"
-      + "border:1px solid rgba(250,212,122,0.58) !important;"
-      + "color:rgb(250,222,145) !important;"
-      + "background:linear-gradient(180deg,rgba(64,67,58,0.96) 0%,rgba(37,43,34,0.96) 100%) !important;"
+      + "border:1px solid var(--lua-probe-btn-apply-border) !important;"
+      + "color:var(--lua-probe-btn-apply-color) !important;"
+      + "background:var(--lua-probe-btn-apply-bg) !important;"
       + "background-image:none !important;"
-      + "text-shadow:rgba(20,40,52,0.9) 0px 1px 0px !important;"
-      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.08),inset 0 -1px 0 rgba(0,0,0,0.58),0 0 0 1px rgba(0,0,0,0.28) !important;"
+      + "text-shadow:0 1px 0 rgba(0,0,0,0.42),0 0 1px rgba(0,0,0,0.35) !important;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.16),inset 0 -2px 0 rgba(0,0,0,0.4),0 1px 0 rgba(0,0,0,0.22),0 3px 10px rgba(0,0,0,0.3) !important;"
       + "transition:background-color 0.14s ease,border-color 0.14s ease,color 0.14s ease,box-shadow 0.14s ease,transform 0.05s ease;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button:hover:not(.disabled){"
-      + "border-color:rgba(228,244,252,0.85) !important;color:rgb(245,252,255) !important;"
-      + "background:linear-gradient(180deg,rgba(56,82,99,0.98) 0%,rgba(26,48,61,0.98) 100%) !important;"
+      + "border-color:var(--lua-probe-border-hover) !important;color:var(--lua-probe-btn-apply-color) !important;"
+      + "background:var(--lua-probe-btn-apply-hover-bg) !important;"
       + "background-image:none !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button:active:not(.disabled){"
       + "transform:translateY(1px);"
-      + "background:linear-gradient(180deg,rgba(30,48,60,0.98) 0%,rgba(18,32,41,0.98) 100%) !important;"
+      + "background:var(--lua-probe-btn-apply-active-bg) !important;"
       + "background-image:none !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button:not(.disabled) .icon{"
-      + "fill:rgb(250,222,145) !important;}"
+      + "fill:var(--lua-probe-btn-apply-color) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button:hover:not(.disabled) .icon{"
-      + "fill:rgb(245,252,255) !important;}"
+      + "fill:var(--lua-probe-btn-apply-color) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button:active:not(.disabled) svg,"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button:active:not(.disabled):hover svg{"
-      + "fill:rgb(245,252,255) !important;}"
+      + "fill:var(--lua-probe-btn-apply-color) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button.disabled{"
-      + "border-color:rgba(84,122,135,0.45) !important;color:rgba(132,160,170,0.72) !important;"
-      + "background:linear-gradient(180deg,rgba(28,40,48,0.85) 0%,rgba(18,28,34,0.85) 100%) !important;"
+      + "border-color:var(--lua-probe-btn-disabled-border) !important;color:var(--lua-probe-btn-disabled-color) !important;"
+      + "background:var(--lua-probe-btn-disabled-bg) !important;"
       + "background-image:none !important;"
       + "text-shadow:none !important;"
       + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.04),inset 0 -1px 0 rgba(0,0,0,0.5) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button.disabled .icon{"
-      + "fill:rgba(132,160,170,0.72) !important;}"
+      + "fill:var(--lua-probe-btn-disabled-color) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.filters .bottom_filter .lua_add_filter_button.active{"
-      + "color:rgb(250,222,145) !important;border-color:rgba(250,212,122,0.72) !important;"
-      + "background:linear-gradient(180deg,rgba(64,67,58,0.96) 0%,rgba(37,43,34,0.96) 100%) !important;"
+      + "color:var(--lua-probe-btn-apply-color) !important;border-color:var(--lua-probe-btn-apply-border) !important;"
+      + "background:var(--lua-probe-btn-apply-hover-bg) !important;"
       + "background-image:none !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper{"
       + "background-color:var(--lua-probe-surface-elevated) !important;"
@@ -1232,9 +1320,42 @@
       + "background-color:var(--lua-probe-surface-deep) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror{"
       + "background-color:var(--lua-probe-surface-deep) !important;color:var(--lua-probe-text-muted) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror pre,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror pre{"
+      + "color:var(--lua-probe-cm-text) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror .CodeMirror-gutters{"
       + "background-color:var(--lua-probe-surface-deep) !important;"
       + "border-right-color:var(--lua-probe-gutter-border) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror span.cm-keyword,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror span.cm-keyword{"
+      + "color:var(--lua-probe-cm-keyword) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror span.cm-atom,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror span.cm-atom{"
+      + "color:var(--lua-probe-cm-atom) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror span.cm-string,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror span.cm-string{"
+      + "color:var(--lua-probe-cm-string) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror span.cm-number,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror span.cm-number{"
+      + "color:var(--lua-probe-cm-number) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror span.cm-def,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror span.cm-def{"
+      + "color:var(--lua-probe-cm-def) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror span.cm-builtin,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror span.cm-builtin{"
+      + "color:var(--lua-probe-cm-builtin) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror span.cm-variable,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror span.cm-variable{"
+      + "color:var(--lua-probe-cm-variable) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror span.cm-variable-2,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror span.cm-variable-2{"
+      + "color:var(--lua-probe-cm-variable-2) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror span.cm-operator,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror span.cm-operator{"
+      + "color:var(--lua-probe-cm-operator) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror span.cm-property,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror span.cm-property{"
+      + "color:var(--lua-probe-cm-property) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror span.cm-comment{"
       + "color:var(--lua-probe-cm-comment) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .window_code .CodeMirror .CodeMirror-linenumber{"
@@ -1248,7 +1369,7 @@
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .header_editor .right_wrapper .font_size_wrapper .lua_change_font_size:hover:not(.disabled),"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .header_editor .right_wrapper .wrap_line_wrapper .lua_change_font_size:hover:not(.disabled){"
       + "background-color:var(--lua-probe-surface-row) !important;"
-      + "border-color:var(--lua-probe-border-hover) !important;color:#ffffff !important;}"
+      + "border-color:var(--lua-probe-border-hover) !important;color:var(--lua-probe-text-muted) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .header_editor .right_wrapper .font_size_wrapper .lua_change_font_size.active,"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .script_window_editor_wrapper .header_editor .right_wrapper .wrap_line_wrapper .lua_change_font_size.active{"
       + "background-color:var(--lua-probe-accent-solid) !important;color:var(--lua-probe-on-accent) !important;}"
@@ -1348,27 +1469,27 @@
       + "height:2.31481481vh;min-height:2.31481481vh;max-height:2.31481481vh;padding:0 1.11111111vh;"
       + "margin-left:0.37037037vh;cursor:pointer;line-height:2.12962963vh;"
       + "border-radius:0.55555556vh;"
-      + "border:1px solid rgba(165,194,210,0.52);"
-      + "background:linear-gradient(180deg,rgba(42,62,75,0.96) 0%,rgba(18,33,43,0.96) 100%);"
-      + "color:rgb(199,227,240);"
-      + "text-shadow:rgba(20,40,52,0.9) 0px 1px 0px;"
-      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.08),inset 0 -1px 0 rgba(0,0,0,0.58),0 0 0 1px rgba(0,0,0,0.28);"
+      + "border:1px solid var(--lua-probe-btn-cancel-border);"
+      + "background:var(--lua-probe-btn-cancel-bg);"
+      + "color:var(--lua-probe-btn-cancel-color);"
+      + "text-shadow:0 1px 0 rgba(0,0,0,0.42),0 0 1px rgba(0,0,0,0.35);"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.11),inset 0 -2px 0 rgba(0,0,0,0.46),0 1px 0 rgba(0,0,0,0.2),0 3px 10px rgba(0,0,0,0.28);"
       + "transition:background-color 0.14s ease,border-color 0.14s ease,color 0.14s ease,box-shadow 0.14s ease,transform 0.05s ease;}"
       + "#dpu_editor #ModUiExtractor-lua-caret-toggle{"
       + "min-width:9.25925926vh;}"
       + "#dpu_editor #ModUiExtractor-lua-ide-sync{"
-      + "min-width:8.7962963vh;color:rgb(250,222,145);border-color:rgba(250,212,122,0.58);"
-      + "background:linear-gradient(180deg,rgba(64,67,58,0.96) 0%,rgba(37,43,34,0.96) 100%);}"
+      + "min-width:8.7962963vh;color:var(--lua-probe-btn-apply-color);border-color:var(--lua-probe-btn-apply-border);"
+      + "background:var(--lua-probe-btn-apply-bg);}"
       + "#dpu_editor #ModUiExtractor-lua-caret-toggle[data-on=\"1\"]{"
-      + "border-color:rgba(103,214,141,0.82);color:#ffffff;"
-      + "background:linear-gradient(180deg,rgba(64,148,89,0.96) 0%,rgba(41,110,66,0.96) 100%);"
-      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.11),inset 0 -1px 0 rgba(0,0,0,0.45),0 0 10px rgba(103,214,141,0.22);}"
+      + "border-color:var(--lua-probe-btn-apply-border);color:var(--lua-probe-btn-apply-color);"
+      + "background:var(--lua-probe-btn-apply-bg);"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.16),inset 0 -2px 0 rgba(0,0,0,0.4),0 1px 0 rgba(0,0,0,0.22),0 3px 10px rgba(0,0,0,0.3);}"
       + "#dpu_editor #ModUiExtractor-lua-caret-toggle:hover,#dpu_editor #ModUiExtractor-lua-ide-sync:hover{"
-      + "border-color:rgba(228,244,252,0.85);color:rgb(245,252,255);"
-      + "background:linear-gradient(180deg,rgba(56,82,99,0.98) 0%,rgba(26,48,61,0.98) 100%);}"
+      + "border-color:var(--lua-probe-border-hover);color:var(--lua-probe-btn-cancel-color);"
+      + "background:var(--lua-probe-btn-cancel-hover-bg);}"
       + "#dpu_editor #ModUiExtractor-lua-caret-toggle:active,#dpu_editor #ModUiExtractor-lua-ide-sync:active{"
       + "transform:translateY(1px);"
-      + "background:linear-gradient(180deg,rgba(30,48,60,0.98) 0%,rgba(18,32,41,0.98) 100%);}"
+      + "background:var(--lua-probe-btn-cancel-active-bg);}"
       + "#dpu_editor #ModUiExtractor-lua-caret-toggle:focus,#dpu_editor #ModUiExtractor-lua-ide-sync:focus{"
       + "outline:none;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"]{"
@@ -1438,16 +1559,16 @@
       + "display:flex;justify-content:center;align-items:center;text-align:center;overflow:hidden;"
       + "height:2.31481481vh;min-height:2.31481481vh;max-height:2.31481481vh;padding:0 1.11111111vh;"
       + "margin-left:0.37037037vh;cursor:pointer;line-height:2.12962963vh;border-radius:0.55555556vh;"
-      + "border:1px solid rgba(250,212,122,0.58);background:linear-gradient(180deg,rgba(64,67,58,0.96) 0%,rgba(37,43,34,0.96) 100%);"
-      + "color:rgb(250,222,145);text-shadow:rgba(20,40,52,0.9) 0px 1px 0px;"
-      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.08),inset 0 -1px 0 rgba(0,0,0,0.58),0 0 0 1px rgba(0,0,0,0.28);"
+      + "border:1px solid var(--lua-probe-btn-apply-border);background:var(--lua-probe-btn-apply-bg);"
+      + "color:var(--lua-probe-btn-apply-color);text-shadow:0 1px 0 rgba(0,0,0,0.42),0 0 1px rgba(0,0,0,0.35);"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.16),inset 0 -2px 0 rgba(0,0,0,0.4),0 1px 0 rgba(0,0,0,0.22),0 3px 10px rgba(0,0,0,0.3);"
       + "transition:background-color 0.14s ease,border-color 0.14s ease,color 0.14s ease,box-shadow 0.14s ease,transform 0.05s ease;"
       + "min-width:8.7962963vh;}"
       + ".screen_content_editor_panel #ModUiExtractor-screen-ide-sync:hover{"
-      + "border-color:rgba(228,244,252,0.85);color:rgb(245,252,255);"
-      + "background:linear-gradient(180deg,rgba(56,82,99,0.98) 0%,rgba(26,48,61,0.98) 100%);}"
+      + "border-color:var(--lua-probe-border-hover);color:var(--lua-probe-btn-apply-color);"
+      + "background:var(--lua-probe-btn-apply-hover-bg);}"
       + ".screen_content_editor_panel #ModUiExtractor-screen-ide-sync:active{"
-      + "transform:translateY(1px);background:linear-gradient(180deg,rgba(30,48,60,0.98) 0%,rgba(18,32,41,0.98) 100%);}"
+      + "transform:translateY(1px);background:var(--lua-probe-btn-apply-active-bg);}"
       + ".screen_content_editor_panel #ModUiExtractor-screen-ide-sync:focus{"
       + "outline:none;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .CodeMirror{"
@@ -1491,7 +1612,7 @@
       + "background-color:var(--lua-probe-surface-row-alt) !important;"
       + "border-color:var(--lua-probe-border-strong) !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .mode_switch_wrapper .checkbox_switch .slider{"
-      + "background:linear-gradient(180deg,rgba(64,67,58,0.96) 0%,rgba(37,43,34,0.96) 100%) !important;"
+      + "background:var(--lua-probe-btn-cancel-bg) !important;"
       + "border-color:var(--lua-probe-btn-apply-border) !important;"
       + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.12),0 1px 4px rgba(0,0,0,0.28) !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .mode_switch_wrapper .checkbox_switch .switch_label{"
@@ -1521,11 +1642,11 @@
       + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.11),inset 0 -2px 0 rgba(0,0,0,0.46),0 1px 0 rgba(0,0,0,0.2),0 3px 10px rgba(0,0,0,0.28) !important;"
       + "transition:background 0.14s ease,border-color 0.14s ease,color 0.14s ease,box-shadow 0.14s ease,transform 0.05s ease;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .save_button:hover:not(.disabled){"
-      + "border-color:var(--lua-probe-border-hover) !important;color:#f5fcff !important;"
+      + "border-color:var(--lua-probe-border-hover) !important;color:var(--lua-probe-btn-apply-color) !important;"
       + "background:var(--lua-probe-btn-apply-hover-bg) !important;"
       + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.22),inset 0 -2px 0 rgba(0,0,0,0.38),0 2px 10px rgba(0,0,0,0.34) !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .cancel_button:hover:not(.disabled){"
-      + "border-color:rgba(245,252,255,0.48) !important;color:#f2f5f8 !important;"
+      + "border-color:var(--lua-probe-border-hover) !important;color:var(--lua-probe-btn-cancel-color) !important;"
       + "background:var(--lua-probe-btn-cancel-hover-bg) !important;"
       + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.18),inset 0 -2px 0 rgba(0,0,0,0.4),0 2px 10px rgba(0,0,0,0.3) !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .save_button:active:not(.disabled){"
@@ -1536,8 +1657,8 @@
       + "box-shadow:inset 0 2px 0 rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.06),0 1px 3px rgba(0,0,0,0.26) !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .save_button.disabled,"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .cancel_button.disabled{"
-      + "border-color:rgba(84,122,135,0.45) !important;color:rgba(132,160,170,0.72) !important;"
-      + "background:linear-gradient(180deg,rgba(28,40,48,0.85) 0%,rgba(18,28,34,0.85) 100%) !important;"
+      + "border-color:var(--lua-probe-btn-disabled-border) !important;color:var(--lua-probe-btn-disabled-color) !important;"
+      + "background:var(--lua-probe-btn-disabled-bg) !important;"
       + "background-image:none !important;text-shadow:none !important;"
       + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.04),inset 0 -1px 0 rgba(0,0,0,0.5) !important;}"
       + ".main_chat #ModUiExtractor-chat-copy-plain{"
@@ -1545,23 +1666,23 @@
       + "font-family:Play,sans-serif;font-size:0.92592593vh;font-weight:900;text-transform:uppercase;"
       + "display:flex;justify-content:center;align-items:center;text-align:center;overflow:hidden;"
       + "min-height:2.03703704vh;padding:0 0.92592593vh;cursor:pointer;line-height:1.85185185vh;"
-      + "border-radius:0.46296296vh;border:1px solid rgba(165,194,210,0.52);"
-      + "background:linear-gradient(180deg,rgba(42,62,75,0.96) 0%,rgba(18,33,43,0.96) 100%);"
-      + "color:rgb(199,227,240);text-shadow:rgba(20,40,52,0.9) 0px 1px 0px;"
-      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.08),inset 0 -1px 0 rgba(0,0,0,0.58),0 0 0 1px rgba(0,0,0,0.28);"
+      + "border-radius:0.46296296vh;border:1px solid var(--lua-probe-btn-cancel-border);"
+      + "background:var(--lua-probe-btn-cancel-bg);"
+      + "color:var(--lua-probe-btn-cancel-color);text-shadow:0 1px 0 rgba(0,0,0,0.42),0 0 1px rgba(0,0,0,0.35);"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.11),inset 0 -2px 0 rgba(0,0,0,0.46),0 1px 0 rgba(0,0,0,0.2),0 3px 10px rgba(0,0,0,0.28);"
       + "transition:background-color 0.14s ease,border-color 0.14s ease,color 0.14s ease,box-shadow 0.14s ease,transform 0.05s ease;}"
       + ".main_chat #ModUiExtractor-chat-copy-plain:hover:not([data-disabled=\"1\"]){"
-      + "border-color:rgba(228,244,252,0.85);color:rgb(245,252,255);"
-      + "background:linear-gradient(180deg,rgba(56,82,99,0.98) 0%,rgba(26,48,61,0.98) 100%);}"
+      + "border-color:var(--lua-probe-border-hover);color:var(--lua-probe-btn-cancel-color);"
+      + "background:var(--lua-probe-btn-cancel-hover-bg);}"
       + ".main_chat #ModUiExtractor-chat-copy-plain:active:not([data-disabled=\"1\"]){"
       + "transform:translateY(1px);"
-      + "background:linear-gradient(180deg,rgba(30,48,60,0.98) 0%,rgba(18,32,41,0.98) 100%);}"
+      + "background:var(--lua-probe-btn-cancel-active-bg);}"
       + ".main_chat #ModUiExtractor-chat-copy-plain:focus{"
       + "outline:none;}"
       + ".main_chat #ModUiExtractor-chat-copy-plain[data-disabled=\"1\"],"
       + ".main_chat #ModUiExtractor-chat-copy-plain:disabled{"
-      + "cursor:default;border-color:rgba(84,122,135,0.45);color:rgba(132,160,170,0.72);"
-      + "background:linear-gradient(180deg,rgba(28,40,48,0.85) 0%,rgba(18,28,34,0.85) 100%);"
+      + "cursor:default;border-color:var(--lua-probe-btn-disabled-border);color:var(--lua-probe-btn-disabled-color);"
+      + "background:var(--lua-probe-btn-disabled-bg);"
       + "text-shadow:none;box-shadow:inset 0 1px 0 rgba(255,255,255,0.04),inset 0 -1px 0 rgba(0,0,0,0.5);}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button::before,"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button::after{"
@@ -1585,11 +1706,11 @@
       + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.11),inset 0 -2px 0 rgba(0,0,0,0.46),0 1px 0 rgba(0,0,0,0.2),0 3px 10px rgba(0,0,0,0.28) !important;"
       + "transition:background 0.14s ease,border-color 0.14s ease,color 0.14s ease,box-shadow 0.14s ease,transform 0.05s ease;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button:hover:not(.disabled){"
-      + "border-color:var(--lua-probe-border-hover) !important;color:#f5fcff !important;"
+      + "border-color:var(--lua-probe-border-hover) !important;color:var(--lua-probe-btn-apply-color) !important;"
       + "background:var(--lua-probe-btn-apply-hover-bg) !important;"
       + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.22),inset 0 -2px 0 rgba(0,0,0,0.38),0 2px 10px rgba(0,0,0,0.34) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_cancel_button:hover:not(.disabled){"
-      + "border-color:rgba(245,252,255,0.48) !important;color:#f2f5f8 !important;"
+      + "border-color:var(--lua-probe-border-hover) !important;color:var(--lua-probe-btn-cancel-color) !important;"
       + "background:var(--lua-probe-btn-cancel-hover-bg) !important;"
       + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.18),inset 0 -2px 0 rgba(0,0,0,0.4),0 2px 10px rgba(0,0,0,0.3) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button:active:not(.disabled){"
@@ -1605,16 +1726,24 @@
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_cancel_button:not(.disabled) .icon{"
       + "fill:var(--lua-probe-btn-cancel-color) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button:hover:not(.disabled) .icon{"
-      + "fill:#f5fcff !important;}"
+      + "fill:var(--lua-probe-btn-apply-color) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_cancel_button:hover:not(.disabled) .icon{"
-      + "fill:#f2f5f8 !important;}"
+      + "fill:var(--lua-probe-btn-cancel-color) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button.disabled,"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_cancel_button.disabled{"
-      + "border-color:rgba(84,122,135,0.45) !important;color:rgba(132,160,170,0.72) !important;"
-      + "background:linear-gradient(180deg,rgba(28,40,48,0.85) 0%,rgba(18,28,34,0.85) 100%) !important;"
+      + "border-color:var(--lua-probe-btn-disabled-border) !important;color:var(--lua-probe-btn-disabled-color) !important;"
+      + "background:var(--lua-probe-btn-disabled-bg) !important;"
       + "background-image:none !important;"
       + "text-shadow:none !important;"
       + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.04),inset 0 -1px 0 rgba(0,0,0,0.5) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button[data-lua-probe-force-disabled=\"1\"]{"
+      + "pointer-events:none !important;cursor:default !important;"
+      + "border-color:var(--lua-probe-btn-disabled-border) !important;color:var(--lua-probe-btn-disabled-color) !important;"
+      + "background:var(--lua-probe-btn-disabled-bg) !important;"
+      + "background-image:none !important;text-shadow:none !important;"
+      + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.04),inset 0 -1px 0 rgba(0,0,0,0.5) !important;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button[data-lua-probe-force-disabled=\"1\"] .icon{"
+      + "fill:var(--lua-probe-btn-disabled-color) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col .btn_bar .lua_editor_apply_button.active{"
       + "color:var(--lua-probe-btn-apply-color) !important;border-color:var(--lua-probe-btn-apply-border) !important;"
       + "background:var(--lua-probe-btn-apply-hover-bg) !important;}"
@@ -1948,6 +2077,57 @@
         nodes[i].removeAttribute("data-lua-probe-active-filter");
       } catch (_ignoreAttr) {}
     }
+    syncLuaApplyButtonState();
+  }
+
+  function getLuaApplyButtonNode() {
+    var root = document.getElementById("dpu_editor");
+    if (!root || !root.querySelector) {
+      return null;
+    }
+    try {
+      return root.querySelector(".btn_bar .lua_editor_apply_button");
+    } catch (_ignoreApplyButton) {}
+    return null;
+  }
+
+  function getResolvedActiveFilterNode() {
+    var selectedNode = findDomSelectedFilterNode();
+    if (selectedNode) {
+      return selectedNode;
+    }
+    return findFilterNodeByHints(getManagerFilterHints());
+  }
+
+  function syncLuaApplyButtonState() {
+    var button = getLuaApplyButtonNode();
+    if (!button) {
+      return;
+    }
+
+    if (!button.__luaProbeForceDisableBound) {
+      button.__luaProbeForceDisableBound = true;
+      button.addEventListener("click", function (event) {
+        if (button.getAttribute("data-lua-probe-force-disabled") !== "1") {
+          return;
+        }
+        if (event && typeof event.preventDefault === "function") {
+          event.preventDefault();
+        }
+        if (event && typeof event.stopPropagation === "function") {
+          event.stopPropagation();
+        }
+        if (event && typeof event.stopImmediatePropagation === "function") {
+          event.stopImmediatePropagation();
+        }
+      }, true);
+    }
+
+    var hasFilters = getVisibleFilterNodes().length > 0;
+    var activeFilterNode = getResolvedActiveFilterNode();
+    var shouldDisable = !hasFilters || !activeFilterNode;
+    button.setAttribute("data-lua-probe-force-disabled", shouldDisable ? "1" : "0");
+    button.setAttribute("aria-disabled", shouldDisable ? "true" : "false");
   }
 
   function setActiveFilterMarker(filterNode) {
@@ -1978,6 +2158,7 @@
       state.activeFilterIndex = -1;
       state.activeFilterFingerprint = "";
     }
+    syncLuaApplyButtonState();
   }
 
   function getManagerFilterHints() {
@@ -2119,6 +2300,7 @@
     if (nodes.length <= 0) {
       state.activeFilterIndex = -1;
       state.activeFilterFingerprint = "";
+      syncLuaApplyButtonState();
       return;
     }
 
@@ -2137,6 +2319,7 @@
     }
 
     clearActiveFilterMarker();
+    syncLuaApplyButtonState();
   }
 
   function getEditorContextKey(codeMirror) {
@@ -2946,6 +3129,9 @@
 
   function getThemeByName(themeName) {
     var wanted = normalizeLegacyThemeName(themeName);
+    if (!wanted) {
+      return colorThemes[0];
+    }
     for (var i = 0; i < colorThemes.length; i += 1) {
       if (colorThemes[i].name === wanted) {
         return colorThemes[i];
@@ -2955,7 +3141,7 @@
     if (compactTheme) {
       return buildThemeFromCompact(compactTheme);
     }
-    return colorThemes[0];
+    return null;
   }
 
   function updateThemeDotSelection(activeThemeName) {
@@ -3085,6 +3271,26 @@
     return darkRatio >= lightRatio ? darkText : lightText;
   }
 
+  function ensureReadableAccentColor(background, color, minRatio) {
+    var bg = String(background || "#000000");
+    var candidate = String(color || "");
+    var min = typeof minRatio === "number" ? minRatio : 3.4;
+    if (candidate && getContrastRatio(bg, candidate) >= min) {
+      return candidate;
+    }
+    var target = isLightHexColor(bg) ? "#111111" : "#f8f8f2";
+    if (!candidate) {
+      candidate = target;
+    }
+    for (var i = 1; i <= 10; i += 1) {
+      var mixed = mixHexColor(candidate, target, i / 10);
+      if (getContrastRatio(bg, mixed) >= min) {
+        return mixed;
+      }
+    }
+    return pickReadableTextColor(bg, candidate, "#111111", "#f8f8f2", min);
+  }
+
   function shadeHexColor(hex, amount) {
     return amount >= 0
       ? mixHexColor(hex, "#ffffff", amount)
@@ -3166,6 +3372,21 @@
     var textMuted = pickReadableTextColor(base200, baseContent, "#111111", "#f8f8f2", 4.5);
     var textDim = pickReadableTextColor(base200, mixHexColor(baseContent, base300, 0.55), shadeHexColor(textMuted, isLightHexColor(base200) ? -0.3 : 0.3), textMuted, 3.2);
     var comment = pickReadableTextColor(deep, mixHexColor(baseContent, base300, 0.68), "#4f5964", "#9ea8b3", 3.2);
+    var cmText = pickReadableTextColor(deep, baseContent, "#111111", "#f8f8f2", 5.5);
+    var cmKeyword = ensureReadableAccentColor(deep, primary, 4.2);
+    var cmAtom = ensureReadableAccentColor(deep, info, 3.6);
+    var cmString = ensureReadableAccentColor(deep, compact.g || "#2ea043", 3.6);
+    var cmNumber = ensureReadableAccentColor(deep, warning, 3.6);
+    var cmDef = ensureReadableAccentColor(deep, primaryFocus, 3.8);
+    var cmBuiltin = ensureReadableAccentColor(deep, compact.a || primaryFocus || primary, 3.8);
+    var cmVariable = cmText;
+    var cmVariable2 = ensureReadableAccentColor(deep, mixHexColor(info, primary, 0.45), 3.6);
+    var cmOperator = pickReadableTextColor(deep, mixHexColor(cmText, base300, 0.18), "#2b3137", "#d8dee4", 3.2);
+    var cmProperty = ensureReadableAccentColor(deep, mixHexColor(primary, info, 0.25), 3.6);
+    var borderStrong = isLightBase ? mixHexColor(base300, baseContent, 0.1) : mixHexColor(base300, neutral, 0.15);
+    var btnDisabledBg = buildLinearGradient(shadeHexColor(base200, isLightBase ? -0.03 : 0.04), rowAlt, shadeHexColor(deep, isLightBase ? -0.08 : -0.02));
+    var btnDisabledBorder = withAlpha(borderStrong, isLightBase ? 0.6 : 0.5);
+    var btnDisabledColor = withAlpha(textDim, isLightBase ? 0.92 : 0.72);
     return {
       name: String(compact.n || "catalog-theme"),
       label: normalizeThemeCatalogLabel(compact.l || compact.n || "Catalog Theme"),
@@ -3180,13 +3401,24 @@
       surfaceRow: row,
       surfaceDeep: deep,
       surfaceRowAlt: rowAlt,
-      borderStrong: isLightBase ? mixHexColor(base300, baseContent, 0.1) : mixHexColor(base300, neutral, 0.15),
+      borderStrong: borderStrong,
       borderHover: info,
       shadow: isLightHexColor(base100) ? "rgba(0,0,0,0.18)" : "rgba(0,0,0,0.5)",
       textMuted: textMuted,
       textDim: textDim,
+      cmText: cmText,
       cmComment: comment,
       cmLineNumber: textDim,
+      cmKeyword: cmKeyword,
+      cmAtom: cmAtom,
+      cmString: cmString,
+      cmNumber: cmNumber,
+      cmDef: cmDef,
+      cmBuiltin: cmBuiltin,
+      cmVariable: cmVariable,
+      cmVariable2: cmVariable2,
+      cmOperator: cmOperator,
+      cmProperty: cmProperty,
       gutterBorder: mixHexColor(base200, base300, 0.5),
       btnApplyBg: buildLinearGradient(shadeHexColor(primary, 0.08), mixHexColor(primary, primaryFocus, 0.55), shadeHexColor(primaryFocus, -0.18)),
       btnApplyBorder: withAlpha(primary, 0.78),
@@ -3197,7 +3429,10 @@
       btnCancelBorder: withAlpha(base300, 0.55),
       btnCancelColor: neutralContent,
       btnCancelHoverBg: buildLinearGradient(shadeHexColor(neutral, 0.16), shadeHexColor(neutral, 0.05), shadeHexColor(neutral, -0.04)),
-      btnCancelActiveBg: buildLinearGradient(shadeHexColor(neutral, -0.02), shadeHexColor(neutral, -0.1), shadeHexColor(neutral, -0.18))
+      btnCancelActiveBg: buildLinearGradient(shadeHexColor(neutral, -0.02), shadeHexColor(neutral, -0.1), shadeHexColor(neutral, -0.18)),
+      btnDisabledBg: btnDisabledBg,
+      btnDisabledBorder: btnDisabledBorder,
+      btnDisabledColor: btnDisabledColor
     };
   }
 
@@ -3817,7 +4052,7 @@
   }
 
   function getDefaultThemeName() {
-    return (colorThemes[0] && colorThemes[0].name) ? colorThemes[0].name : "monokai";
+    return "daisy-night";
   }
 
   function createThemeDotSwitcher(switcherId) {
@@ -3877,8 +4112,19 @@
     root.style.setProperty("--lua-probe-shadow", theme.shadow);
     root.style.setProperty("--lua-probe-text-muted", theme.textMuted);
     root.style.setProperty("--lua-probe-text-dim", theme.textDim);
+    root.style.setProperty("--lua-probe-cm-text", theme.cmText || theme.textMuted);
     root.style.setProperty("--lua-probe-cm-comment", theme.cmComment);
     root.style.setProperty("--lua-probe-cm-linenumber", theme.cmLineNumber);
+    root.style.setProperty("--lua-probe-cm-keyword", theme.cmKeyword || theme.accentSolid);
+    root.style.setProperty("--lua-probe-cm-atom", theme.cmAtom || theme.borderHover);
+    root.style.setProperty("--lua-probe-cm-string", theme.cmString || theme.textMuted);
+    root.style.setProperty("--lua-probe-cm-number", theme.cmNumber || theme.borderHover);
+    root.style.setProperty("--lua-probe-cm-def", theme.cmDef || theme.accentSolid);
+    root.style.setProperty("--lua-probe-cm-builtin", theme.cmBuiltin || theme.borderHover);
+    root.style.setProperty("--lua-probe-cm-variable", theme.cmVariable || theme.textMuted);
+    root.style.setProperty("--lua-probe-cm-variable-2", theme.cmVariable2 || theme.borderHover);
+    root.style.setProperty("--lua-probe-cm-operator", theme.cmOperator || theme.textMuted);
+    root.style.setProperty("--lua-probe-cm-property", theme.cmProperty || theme.accentSolid);
     root.style.setProperty("--lua-probe-gutter-border", theme.gutterBorder);
     root.style.setProperty("--lua-probe-btn-apply-bg", theme.btnApplyBg);
     root.style.setProperty("--lua-probe-btn-apply-border", theme.btnApplyBorder);
@@ -3890,12 +4136,30 @@
     root.style.setProperty("--lua-probe-btn-cancel-color", theme.btnCancelColor);
     root.style.setProperty("--lua-probe-btn-cancel-hover-bg", theme.btnCancelHoverBg);
     root.style.setProperty("--lua-probe-btn-cancel-active-bg", theme.btnCancelActiveBg);
+    root.style.setProperty("--lua-probe-btn-disabled-bg", theme.btnDisabledBg || theme.btnCancelBg);
+    root.style.setProperty("--lua-probe-btn-disabled-border", theme.btnDisabledBorder || theme.btnCancelBorder);
+    root.style.setProperty("--lua-probe-btn-disabled-color", theme.btnDisabledColor || theme.textDim);
   }
 
   function applyTheme(themeName, emitPacket) {
-    var theme = getThemeByName(themeName);
+    var wanted = normalizeLegacyThemeName(themeName || getDefaultThemeName());
+    var theme = getThemeByName(wanted);
+    if (!theme) {
+      state.activeTheme = wanted;
+      saveThemePreference(wanted);
+      ensureThemeCatalogLoaded(function (catalog) {
+        var resolved = findCompactThemeByName(wanted);
+        if (resolved) {
+          applyTheme(wanted, emitPacket);
+          return;
+        }
+        applyTheme(getDefaultThemeName(), emitPacket);
+      });
+      return false;
+    }
     var roots = getThemeRoots();
     state.activeTheme = theme.name;
+    saveThemePreference(theme.name);
     for (var i = 0; i < roots.length; i += 1) {
       applyThemeToRoot(roots[i], theme);
     }
@@ -3913,6 +4177,7 @@
         surfaceMain: theme.surfaceMain
       });
     }
+    return true;
   }
 
   function ensureThemeSwitcher() {

@@ -68,6 +68,9 @@
 
   function getThemeByName(themeName) {
     var wanted = normalizeLegacyThemeName(themeName);
+    if (!wanted) {
+      return colorThemes[0];
+    }
     for (var i = 0; i < colorThemes.length; i += 1) {
       if (colorThemes[i].name === wanted) {
         return colorThemes[i];
@@ -77,7 +80,7 @@
     if (compactTheme) {
       return buildThemeFromCompact(compactTheme);
     }
-    return colorThemes[0];
+    return null;
   }
 
   function updateThemeDotSelection(activeThemeName) {
@@ -207,6 +210,26 @@
     return darkRatio >= lightRatio ? darkText : lightText;
   }
 
+  function ensureReadableAccentColor(background, color, minRatio) {
+    var bg = String(background || "#000000");
+    var candidate = String(color || "");
+    var min = typeof minRatio === "number" ? minRatio : 3.4;
+    if (candidate && getContrastRatio(bg, candidate) >= min) {
+      return candidate;
+    }
+    var target = isLightHexColor(bg) ? "#111111" : "#f8f8f2";
+    if (!candidate) {
+      candidate = target;
+    }
+    for (var i = 1; i <= 10; i += 1) {
+      var mixed = mixHexColor(candidate, target, i / 10);
+      if (getContrastRatio(bg, mixed) >= min) {
+        return mixed;
+      }
+    }
+    return pickReadableTextColor(bg, candidate, "#111111", "#f8f8f2", min);
+  }
+
   function shadeHexColor(hex, amount) {
     return amount >= 0
       ? mixHexColor(hex, "#ffffff", amount)
@@ -288,6 +311,21 @@
     var textMuted = pickReadableTextColor(base200, baseContent, "#111111", "#f8f8f2", 4.5);
     var textDim = pickReadableTextColor(base200, mixHexColor(baseContent, base300, 0.55), shadeHexColor(textMuted, isLightHexColor(base200) ? -0.3 : 0.3), textMuted, 3.2);
     var comment = pickReadableTextColor(deep, mixHexColor(baseContent, base300, 0.68), "#4f5964", "#9ea8b3", 3.2);
+    var cmText = pickReadableTextColor(deep, baseContent, "#111111", "#f8f8f2", 5.5);
+    var cmKeyword = ensureReadableAccentColor(deep, primary, 4.2);
+    var cmAtom = ensureReadableAccentColor(deep, info, 3.6);
+    var cmString = ensureReadableAccentColor(deep, compact.g || "#2ea043", 3.6);
+    var cmNumber = ensureReadableAccentColor(deep, warning, 3.6);
+    var cmDef = ensureReadableAccentColor(deep, primaryFocus, 3.8);
+    var cmBuiltin = ensureReadableAccentColor(deep, compact.a || primaryFocus || primary, 3.8);
+    var cmVariable = cmText;
+    var cmVariable2 = ensureReadableAccentColor(deep, mixHexColor(info, primary, 0.45), 3.6);
+    var cmOperator = pickReadableTextColor(deep, mixHexColor(cmText, base300, 0.18), "#2b3137", "#d8dee4", 3.2);
+    var cmProperty = ensureReadableAccentColor(deep, mixHexColor(primary, info, 0.25), 3.6);
+    var borderStrong = isLightBase ? mixHexColor(base300, baseContent, 0.1) : mixHexColor(base300, neutral, 0.15);
+    var btnDisabledBg = buildLinearGradient(shadeHexColor(base200, isLightBase ? -0.03 : 0.04), rowAlt, shadeHexColor(deep, isLightBase ? -0.08 : -0.02));
+    var btnDisabledBorder = withAlpha(borderStrong, isLightBase ? 0.6 : 0.5);
+    var btnDisabledColor = withAlpha(textDim, isLightBase ? 0.92 : 0.72);
     return {
       name: String(compact.n || "catalog-theme"),
       label: normalizeThemeCatalogLabel(compact.l || compact.n || "Catalog Theme"),
@@ -302,13 +340,24 @@
       surfaceRow: row,
       surfaceDeep: deep,
       surfaceRowAlt: rowAlt,
-      borderStrong: isLightBase ? mixHexColor(base300, baseContent, 0.1) : mixHexColor(base300, neutral, 0.15),
+      borderStrong: borderStrong,
       borderHover: info,
       shadow: isLightHexColor(base100) ? "rgba(0,0,0,0.18)" : "rgba(0,0,0,0.5)",
       textMuted: textMuted,
       textDim: textDim,
+      cmText: cmText,
       cmComment: comment,
       cmLineNumber: textDim,
+      cmKeyword: cmKeyword,
+      cmAtom: cmAtom,
+      cmString: cmString,
+      cmNumber: cmNumber,
+      cmDef: cmDef,
+      cmBuiltin: cmBuiltin,
+      cmVariable: cmVariable,
+      cmVariable2: cmVariable2,
+      cmOperator: cmOperator,
+      cmProperty: cmProperty,
       gutterBorder: mixHexColor(base200, base300, 0.5),
       btnApplyBg: buildLinearGradient(shadeHexColor(primary, 0.08), mixHexColor(primary, primaryFocus, 0.55), shadeHexColor(primaryFocus, -0.18)),
       btnApplyBorder: withAlpha(primary, 0.78),
@@ -319,7 +368,10 @@
       btnCancelBorder: withAlpha(base300, 0.55),
       btnCancelColor: neutralContent,
       btnCancelHoverBg: buildLinearGradient(shadeHexColor(neutral, 0.16), shadeHexColor(neutral, 0.05), shadeHexColor(neutral, -0.04)),
-      btnCancelActiveBg: buildLinearGradient(shadeHexColor(neutral, -0.02), shadeHexColor(neutral, -0.1), shadeHexColor(neutral, -0.18))
+      btnCancelActiveBg: buildLinearGradient(shadeHexColor(neutral, -0.02), shadeHexColor(neutral, -0.1), shadeHexColor(neutral, -0.18)),
+      btnDisabledBg: btnDisabledBg,
+      btnDisabledBorder: btnDisabledBorder,
+      btnDisabledColor: btnDisabledColor
     };
   }
 
@@ -939,7 +991,7 @@
   }
 
   function getDefaultThemeName() {
-    return (colorThemes[0] && colorThemes[0].name) ? colorThemes[0].name : "monokai";
+    return "daisy-night";
   }
 
   function createThemeDotSwitcher(switcherId) {
@@ -999,8 +1051,19 @@
     root.style.setProperty("--lua-probe-shadow", theme.shadow);
     root.style.setProperty("--lua-probe-text-muted", theme.textMuted);
     root.style.setProperty("--lua-probe-text-dim", theme.textDim);
+    root.style.setProperty("--lua-probe-cm-text", theme.cmText || theme.textMuted);
     root.style.setProperty("--lua-probe-cm-comment", theme.cmComment);
     root.style.setProperty("--lua-probe-cm-linenumber", theme.cmLineNumber);
+    root.style.setProperty("--lua-probe-cm-keyword", theme.cmKeyword || theme.accentSolid);
+    root.style.setProperty("--lua-probe-cm-atom", theme.cmAtom || theme.borderHover);
+    root.style.setProperty("--lua-probe-cm-string", theme.cmString || theme.textMuted);
+    root.style.setProperty("--lua-probe-cm-number", theme.cmNumber || theme.borderHover);
+    root.style.setProperty("--lua-probe-cm-def", theme.cmDef || theme.accentSolid);
+    root.style.setProperty("--lua-probe-cm-builtin", theme.cmBuiltin || theme.borderHover);
+    root.style.setProperty("--lua-probe-cm-variable", theme.cmVariable || theme.textMuted);
+    root.style.setProperty("--lua-probe-cm-variable-2", theme.cmVariable2 || theme.borderHover);
+    root.style.setProperty("--lua-probe-cm-operator", theme.cmOperator || theme.textMuted);
+    root.style.setProperty("--lua-probe-cm-property", theme.cmProperty || theme.accentSolid);
     root.style.setProperty("--lua-probe-gutter-border", theme.gutterBorder);
     root.style.setProperty("--lua-probe-btn-apply-bg", theme.btnApplyBg);
     root.style.setProperty("--lua-probe-btn-apply-border", theme.btnApplyBorder);
@@ -1012,12 +1075,30 @@
     root.style.setProperty("--lua-probe-btn-cancel-color", theme.btnCancelColor);
     root.style.setProperty("--lua-probe-btn-cancel-hover-bg", theme.btnCancelHoverBg);
     root.style.setProperty("--lua-probe-btn-cancel-active-bg", theme.btnCancelActiveBg);
+    root.style.setProperty("--lua-probe-btn-disabled-bg", theme.btnDisabledBg || theme.btnCancelBg);
+    root.style.setProperty("--lua-probe-btn-disabled-border", theme.btnDisabledBorder || theme.btnCancelBorder);
+    root.style.setProperty("--lua-probe-btn-disabled-color", theme.btnDisabledColor || theme.textDim);
   }
 
   function applyTheme(themeName, emitPacket) {
-    var theme = getThemeByName(themeName);
+    var wanted = normalizeLegacyThemeName(themeName || getDefaultThemeName());
+    var theme = getThemeByName(wanted);
+    if (!theme) {
+      state.activeTheme = wanted;
+      saveThemePreference(wanted);
+      ensureThemeCatalogLoaded(function (catalog) {
+        var resolved = findCompactThemeByName(wanted);
+        if (resolved) {
+          applyTheme(wanted, emitPacket);
+          return;
+        }
+        applyTheme(getDefaultThemeName(), emitPacket);
+      });
+      return false;
+    }
     var roots = getThemeRoots();
     state.activeTheme = theme.name;
+    saveThemePreference(theme.name);
     for (var i = 0; i < roots.length; i += 1) {
       applyThemeToRoot(roots[i], theme);
     }
@@ -1035,6 +1116,7 @@
         surfaceMain: theme.surfaceMain
       });
     }
+    return true;
   }
 
   function ensureThemeSwitcher() {

@@ -15,6 +15,7 @@
   var actionId = cfg.actionId || 900001;
   var dumpId = "lua-probe-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
   var caretHighlightPrefStorageKey = "ModUiExtractor.lua.caret-highlight-enabled.v1";
+  var themePrefStorageKey = "ModUiExtractor.lua.theme-pref.v1";
   var themeCatalogStorageKey = "ModUiExtractor.lua.theme-catalog.flowery-daisy.v2";
   var mcpResultChunkSize = 7000;
 
@@ -42,6 +43,32 @@
       window.localStorage.setItem(caretHighlightPrefStorageKey, enabled ? "1" : "0");
       return true;
     } catch (_ignorePrefWrite) {}
+    return false;
+  }
+
+  function loadThemePreference() {
+    try {
+      if (!window.localStorage || typeof window.localStorage.getItem !== "function") {
+        return "";
+      }
+      var raw = window.localStorage.getItem(themePrefStorageKey);
+      return raw ? String(raw) : "";
+    } catch (_ignoreThemePrefRead) {}
+    return "";
+  }
+
+  function saveThemePreference(themeName) {
+    try {
+      if (!window.localStorage || typeof window.localStorage.setItem !== "function") {
+        return false;
+      }
+      var value = String(themeName || "");
+      if (!value) {
+        return false;
+      }
+      window.localStorage.setItem(themePrefStorageKey, value);
+      return true;
+    } catch (_ignoreThemePrefWrite) {}
     return false;
   }
 
@@ -76,7 +103,7 @@
     menuHits: 0,
     editorVisible: false,
     managerWrapped: false,
-    activeTheme: "monokai",
+    activeTheme: loadThemePreference() || "daisy-night",
     lastAppliedTheme: "",
     scrollTopByContext: Object.create(null),
     screenScrollTopByContext: Object.create(null),
@@ -136,8 +163,19 @@
       shadow: "rgba(0,0,0,0.5)",
       textMuted: "#cfcfc2",
       textDim: "#90908a",
+      cmText: "#f8f8f2",
       cmComment: "#75715e",
       cmLineNumber: "#90908a",
+      cmKeyword: "#f92672",
+      cmAtom: "#ae81ff",
+      cmString: "#e6db74",
+      cmNumber: "#ae81ff",
+      cmDef: "#a6e22e",
+      cmBuiltin: "#66d9ef",
+      cmVariable: "#f8f8f2",
+      cmVariable2: "#fd971f",
+      cmOperator: "#f8f8f2",
+      cmProperty: "#a6e22e",
       gutterBorder: "#49483e",
       btnApplyBg: "linear-gradient(180deg,#646e52 0%,#4a5540 45%,#343c30 100%)",
       btnApplyBorder: "rgba(166,226,46,0.78)",
@@ -148,7 +186,10 @@
       btnCancelBorder: "rgba(183,174,140,0.55)",
       btnCancelColor: "#cfcfc2",
       btnCancelHoverBg: "linear-gradient(180deg,#5e5a50 0%,#4a4640 45%,#38342f 100%)",
-      btnCancelActiveBg: "linear-gradient(180deg,#45423a 0%,#35322d 45%,#282622 100%)"
+      btnCancelActiveBg: "linear-gradient(180deg,#45423a 0%,#35322d 45%,#282622 100%)",
+      btnDisabledBg: "linear-gradient(180deg,rgba(28,40,48,0.85) 0%,rgba(18,28,34,0.85) 100%)",
+      btnDisabledBorder: "rgba(84,122,135,0.45)",
+      btnDisabledColor: "rgba(132,160,170,0.72)"
     },
     {
       name: "github-dark",
@@ -169,8 +210,19 @@
       shadow: "rgba(1,4,9,0.55)",
       textMuted: "#8b949e",
       textDim: "#6e7681",
+      cmText: "#e6edf3",
       cmComment: "#8b949e",
       cmLineNumber: "#6e7681",
+      cmKeyword: "#ff7b72",
+      cmAtom: "#79c0ff",
+      cmString: "#a5d6ff",
+      cmNumber: "#79c0ff",
+      cmDef: "#d2a8ff",
+      cmBuiltin: "#d2a8ff",
+      cmVariable: "#e6edf3",
+      cmVariable2: "#ffa657",
+      cmOperator: "#c9d1d9",
+      cmProperty: "#79c0ff",
       gutterBorder: "#30363d",
       btnApplyBg: "linear-gradient(180deg,#1c4a8c 0%,#143a6e 45%,#0c2848 100%)",
       btnApplyBorder: "rgba(88,166,255,0.78)",
@@ -181,7 +233,10 @@
       btnCancelBorder: "rgba(139,148,158,0.45)",
       btnCancelColor: "#8b949e",
       btnCancelHoverBg: "linear-gradient(180deg,#3d444d 0%,#30363d 45%,#252b32 100%)",
-      btnCancelActiveBg: "linear-gradient(180deg,#282e35 0%,#1e242a 45%,#161b22 100%)"
+      btnCancelActiveBg: "linear-gradient(180deg,#282e35 0%,#1e242a 45%,#161b22 100%)",
+      btnDisabledBg: "linear-gradient(180deg,rgba(28,40,48,0.85) 0%,rgba(18,28,34,0.85) 100%)",
+      btnDisabledBorder: "rgba(84,122,135,0.45)",
+      btnDisabledColor: "rgba(132,160,170,0.72)"
     },
     {
       name: "gruvbox-dark",
@@ -202,8 +257,19 @@
       shadow: "rgba(0,0,0,0.5)",
       textMuted: "#a89984",
       textDim: "#928374",
+      cmText: "#ebdbb2",
       cmComment: "#928374",
       cmLineNumber: "#a89984",
+      cmKeyword: "#fb4934",
+      cmAtom: "#d3869b",
+      cmString: "#b8bb26",
+      cmNumber: "#d3869b",
+      cmDef: "#fabd2f",
+      cmBuiltin: "#83a598",
+      cmVariable: "#ebdbb2",
+      cmVariable2: "#fe8019",
+      cmOperator: "#ebdbb2",
+      cmProperty: "#8ec07c",
       gutterBorder: "#504945",
       btnApplyBg: "linear-gradient(180deg,#76634a 0%,#5a4a3a 45%,#423d34 100%)",
       btnApplyBorder: "rgba(254,128,25,0.82)",
@@ -214,7 +280,10 @@
       btnCancelBorder: "rgba(168,153,132,0.5)",
       btnCancelColor: "#a89984",
       btnCancelHoverBg: "linear-gradient(180deg,#5c534d 0%,#4a4541 45%,#3a3634 100%)",
-      btnCancelActiveBg: "linear-gradient(180deg,#454039 0%,#363230 45%,#292726 100%)"
+      btnCancelActiveBg: "linear-gradient(180deg,#454039 0%,#363230 45%,#292726 100%)",
+      btnDisabledBg: "linear-gradient(180deg,rgba(28,40,48,0.85) 0%,rgba(18,28,34,0.85) 100%)",
+      btnDisabledBorder: "rgba(84,122,135,0.45)",
+      btnDisabledColor: "rgba(132,160,170,0.72)"
     }
   ];
   var quickEditLuaMenuItemId = "ModUiExtractor-quick-edit-lua";
