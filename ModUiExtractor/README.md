@@ -384,6 +384,13 @@ The successful combination is:
 The Lua probe supports exporting the current script to a local file, automatically opening it in your IDE (e.g. Cursor), and syncing changes back into the game in real-time.
 This now works for both `lua_editor` and `screen_editor`.
 
+Important:
+
+- `sync-ide.ps1` is not optional glue. It is the watcher that reassembles live `IDE Sync` export packets into the player-scoped workspace files.
+- Start it once per live work session before using the in-game `IDE Sync` button.
+- If the watcher is not running, the in-game button can still emit a valid `lua_ide_sync` packet, but `ide-workspace\player-<playerId>\...\snippet.*` will not update.
+- In that state, the export click was real, but the workspace remains stale.
+
 1. Inject the Lua probe in-game.
 2. Run the sync script in PowerShell:
 
@@ -404,6 +411,14 @@ This now works for both `lua_editor` and `screen_editor`.
    - `ide_import.player-<playerId>.screen_editor.json`
 
 7. The C# mod detects the semaphore, injects an IDE import request into the probe, and only treats that request as done after an explicit `ide_import_result` ack from the live editor.
+
+Quick reality check after export:
+
+- verify that `snippet.lua` or `snippet.txt` got a fresh timestamp
+- verify that `snippet.sync.json` also got a fresh timestamp
+- verify that `snippet.sync.json` matches the intended slot/filter context
+
+If those timestamps did not move, the usual cause is that `sync-ide.ps1` was not running when `IDE Sync` was clicked.
 
 MCP transfer contract note:
 
@@ -432,6 +447,17 @@ Mode note:
 
 - Default behavior is live-tail mode: existing NDJSON content is ignored on startup, and only new packets are processed.
 - Use `-ReplayFromStart` only for replay/backfill scenarios (for example tests that pre-seed NDJSON before watcher startup).
+
+Common operator mistake:
+
+- starting the bridge and the probe, but forgetting to start `sync-ide.ps1`
+- then clicking `IDE Sync` and assuming the button failed because the workspace files did not change
+
+What actually happened in that case:
+
+- the editor emitted the export packet
+- the watcher that should reassemble it into `ide-workspace\...` was missing
+- the old workspace snapshot stayed on disk and caused misleading follow-up reads
 
 ## DuMcpBridge integration (MCP file bus)
 

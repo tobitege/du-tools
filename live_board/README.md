@@ -82,6 +82,13 @@ For Programming Board work, the live buffer is the source of truth when you need
 
 This is the external-editor handoff path added by our mod and probe.
 
+Critical prerequisite:
+
+- A running `sync-ide.ps1` watcher must already exist for the current live session.
+- The in-game `IDE Sync` button does not update `snippet.lua|snippet.txt` or `snippet.sync.json` by itself.
+- Without that watcher, the editor can still emit a valid export packet, but the workspace files stay stale.
+- In that state it looks as if `IDE Sync` "did nothing" even though the click itself worked.
+
 Typical files:
 
 - `D:\MyDUserver\tmp\ui-dumps\ide-workspace\player-<playerId>\lua_editor\snippet.lua`
@@ -98,6 +105,12 @@ What it is for:
 - opening the exported code in Cursor or another IDE
 - editing that exported file locally
 - letting the watcher or MCP write back through `ide_import.player-<playerId>.<targetKind>.json`
+
+What must be true before you trust it:
+
+- the watcher was started explicitly for this session
+- the workspace file timestamp changed after the export click
+- `snippet.sync.json` also changed and matches the expected slot/filter context
 
 What it is not:
 
@@ -140,6 +153,13 @@ Before starting, make sure all of the following are true:
 - The player is online.
 - AutoHotkey v2 is installed and reachable by the bridge.
 - At least one active bridge session exists.
+- If you plan to use the in-game `IDE Sync` button, `tools\sync-ide.ps1` is already running.
+
+Recommended helper:
+
+- `.\live_board\Start-DuIdeSyncWatcher.ps1`
+- This starts or reuses the `sync-ide.ps1` watcher only.
+- It does not start or stop `DuMcpBridge` / the MCP server.
 
 Minimum readiness check:
 
@@ -154,6 +174,21 @@ returns a recent bridge event.
 3. `du_tail_runtime_logs(playerId = <playerId>, limit = 20..30)`
 Expected:
 shows fresh bridge activity.
+
+4. If you plan to use the in-game `IDE Sync` button, confirm that the sync watcher is already active.
+Expected:
+the current machine has a running `sync-ide.ps1` process pointed at `D:\MyDUserver\tmp\ui-dumps`.
+
+Recommended local command:
+
+```powershell
+.\live_board\Start-DuIdeSyncWatcher.ps1
+```
+
+This helper intentionally does only one thing:
+
+- it starts or reuses the `sync-ide.ps1` watcher
+- it does not touch `DuMcpBridge` / the MCP server
 
 If one of those checks fails, do not continue into editor actions.
 
@@ -178,6 +213,8 @@ Fallback and measurement helpers:
   Notes for screenshot-aware client-pixel testing.
 - `Test-DuCameraSteering.ps1`
   Local camera steering harness for repeatability and sweep testing.
+- `Start-DuIdeSyncWatcher.ps1`
+  Starts or reuses the local `sync-ide.ps1` watcher for IDE Sync. It does not manage `DuMcpBridge` / MCP.
 - `du-camera-steering-tests.md`
   Notes for measuring visible steering effects by screenshot comparison.
 
@@ -453,6 +490,7 @@ Why this matters even if `snippet.lua` exists already:
 - the IDE Sync workspace can contain a previous export
 - that previous export can still be useful for local editing
 - but it is not enough to prove which Lua buffer is currently visible in-game
+- and if no watcher was running when `IDE Sync` was clicked, the workspace can stay on an even older export although the live click succeeded
 
 For Programming Board work, treat `slot + filter + visible CodeMirror content` as the verified live context.
 
@@ -466,6 +504,9 @@ That snapshot is often the IDE-sync workspace file:
 
 This usually reflects the latest IDE Sync export or staged import state.
 It does not guarantee that the currently visible Lua editor buffer is the same code.
+
+If the sync watcher was not running at export time, this file can remain unchanged even after a real in-game `IDE Sync` click.
+That failure mode is especially misleading because the click can still produce a valid live `lua_ide_sync` packet while the workspace snapshot stays old.
 
 This difference matters more for `lua_editor` than for `screen_editor` because:
 
@@ -494,6 +535,11 @@ What this actually does:
 - it stages the local file through the same file-based IDE-import contract used by the in-game `IDE Sync` workflow
 - it updates the player-scoped workspace/import artifacts
 - it relies on the correct live Lua context already being visible
+
+This is different from a manual in-game `IDE Sync` click:
+
+- `du_editor_push_code` writes the file-based artifacts directly
+- the in-game `IDE Sync` button depends on the external `sync-ide.ps1` watcher to reassemble export packets into the workspace
 
 What it does not do:
 

@@ -1,14 +1,3 @@
-if type(SCREEN_LAYOUT_EDITOR_MODULE) == "table" then
-    if type(getResolution) == "function"
-        and type(createLayer) == "function"
-        and type(getCursor) == "function"
-        and type(requestAnimationFrame) == "function" then
-        local ok, err = pcall(SCREEN_LAYOUT_EDITOR_MODULE._runRenderScript)
-        if not ok then error(err) end
-    end
-    return SCREEN_LAYOUT_EDITOR_MODULE
-end
-
 local ScreenLayoutEditor = {}
 SCREEN_LAYOUT_EDITOR_MODULE = ScreenLayoutEditor
 
@@ -1415,5 +1404,3 @@ if type(getResolution) == "function"
     and type(requestAnimationFrame) == "function" then
     runRenderScript()
 end
-
-return ScreenLayoutEditor

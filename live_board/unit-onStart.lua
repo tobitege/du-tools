@@ -839,17 +839,6 @@ if not Screen then
 end
 
 SCREEN_LAYOUT_EDITOR_SOURCE = SCREEN_LAYOUT_EDITOR_SOURCE or [====[
-if type(SCREEN_LAYOUT_EDITOR_MODULE) == "table" then
-    if type(getResolution) == "function"
-        and type(createLayer) == "function"
-        and type(getCursor) == "function"
-        and type(requestAnimationFrame) == "function" then
-        local ok, err = pcall(SCREEN_LAYOUT_EDITOR_MODULE._runRenderScript)
-        if not ok then error(err) end
-    end
-    return SCREEN_LAYOUT_EDITOR_MODULE
-end
-
 local ScreenLayoutEditor = {}
 SCREEN_LAYOUT_EDITOR_MODULE = ScreenLayoutEditor
 
@@ -2234,8 +2223,12 @@ local function runRenderScript()
         if ok then
             state.os = "o"
         else
-            state.os = oe(err)
-            dp("o!" .. tostring(err))
+            local probeOk = pcall(
+                setOutput,
+                string.format('{"p":1,"r":%d}', state.document.revision or 0)
+            )
+            state.os = probeOk and "p" or oe(err)
+            dp((probeOk and "op " or "o!") .. tostring(err))
         end
     end
 
@@ -2254,12 +2247,11 @@ if type(getResolution) == "function"
     and type(requestAnimationFrame) == "function" then
     runRenderScript()
 end
-
-return ScreenLayoutEditor
 ]====]
 
 local function EnsureScreenLayoutEditorModule()
-    if type(SCREEN_LAYOUT_EDITOR_MODULE) == "table" then
+    if type(SCREEN_LAYOUT_EDITOR_MODULE) == "table"
+        and type(SCREEN_LAYOUT_EDITOR_MODULE.readPersistedEnvelope) == "function" then
         return SCREEN_LAYOUT_EDITOR_MODULE
     end
     local loader, loadError = load(SCREEN_LAYOUT_EDITOR_SOURCE, "@ScreenLayoutEditor.lua", "t", _ENV)
@@ -2272,11 +2264,14 @@ local function EnsureScreenLayoutEditorModule()
         system.print("ERROR: Failed to initialize ScreenLayoutEditor: " .. tostring(loadedModule))
         return nil
     end
-    if type(loadedModule) ~= "table" then
-        system.print("ERROR: ScreenLayoutEditor did not return a module table")
+    if type(loadedModule) == "table" then
+        SCREEN_LAYOUT_EDITOR_MODULE = loadedModule
+    end
+    if type(SCREEN_LAYOUT_EDITOR_MODULE) ~= "table"
+        or type(SCREEN_LAYOUT_EDITOR_MODULE.readPersistedEnvelope) ~= "function" then
+        system.print("ERROR: ScreenLayoutEditor did not initialize module helpers")
         return nil
     end
-    SCREEN_LAYOUT_EDITOR_MODULE = loadedModule
     return SCREEN_LAYOUT_EDITOR_MODULE
 end
 
