@@ -55,12 +55,15 @@
     activeTheme: "monokai",
     lastAppliedTheme: "",
     scrollTopByContext: Object.create(null),
+    screenScrollTopByContext: Object.create(null),
     lastContextKey: "",
+    lastScreenContextKey: "",
     activeFilterFingerprint: "",
     activeFilterIndex: -1,
     currentSnippetKey: "",
     caretHighlightEnabled: loadCaretHighlightPreference(),
     caretBindingsCodeMirror: null,
+    screenViewportBindingsCodeMirror: null,
     setCodeSwitchSeq: 0,
     switchInProgress: false,
     activeSwitchSeq: 0,
@@ -76,6 +79,8 @@
     skipNextSetCodeRestore: false,
     suppressRestoreUntilInteraction: true,
     cursorGuardCodeMirror: null,
+    screenEditorVisible: false,
+    screenLastRestoredContextKey: "",
     lastIdeSyncContextKey: "",
     lastIdeSyncReference: null,
     lastInitDemReference: null
@@ -3269,22 +3274,69 @@
   function ensureScreenEditorFacelift() {
     var root = getScreenEditorRoot();
     if (!root || !root.querySelector) {
+      try {
+        if (state.screenEditorVisible && state.lastScreenContextKey) {
+          rememberScreenEditorViewportForKey(state.lastScreenContextKey);
+        }
+      } catch (_ignoreScreenRememberOnMissingRoot) {}
+      try {
+        if (state.screenViewportBindingsCodeMirror) {
+          detachScreenViewportBindings(state.screenViewportBindingsCodeMirror);
+          state.screenViewportBindingsCodeMirror = null;
+        }
+      } catch (_ignoreScreenBindingsOnMissingRoot) {}
+      state.screenEditorVisible = false;
+      state.screenLastRestoredContextKey = "";
       return;
     }
 
     if (!isElementVisible(root)) {
+      try {
+        if (state.screenEditorVisible && state.lastScreenContextKey) {
+          rememberScreenEditorViewportForKey(state.lastScreenContextKey);
+        }
+      } catch (_ignoreScreenRememberOnHide) {}
+      try {
+        if (state.screenViewportBindingsCodeMirror) {
+          detachScreenViewportBindings(state.screenViewportBindingsCodeMirror);
+          state.screenViewportBindingsCodeMirror = null;
+        }
+      } catch (_ignoreScreenBindingsOnHide) {}
+      state.screenEditorVisible = false;
+      state.screenLastRestoredContextKey = "";
       try {
         root.removeAttribute("data-lua-probe-active");
       } catch (_ignoreScreenProbeInactive) {}
       return;
     }
 
+    var context = getScreenEditorContextSnapshot(root);
+    var contextKey = context.contextKey || "";
+    state.screenEditorVisible = true;
+    if (contextKey) {
+      state.lastScreenContextKey = contextKey;
+    }
+
     root.setAttribute("data-lua-probe-active", "1");
     ensureScreenThemeSwitcher(root);
     ensureScreenIdeSyncButton(root);
+    ensureScreenViewportBindings();
+
+    if (contextKey) {
+      var hasRememberedViewport = hasRememberedScreenViewportForKey(contextKey);
+      if (state.screenLastRestoredContextKey !== contextKey) {
+        if (!hasRememberedViewport || restoreScreenEditorViewportForKey(contextKey)) {
+          state.screenLastRestoredContextKey = contextKey;
+        }
+      }
+
+      if (state.screenLastRestoredContextKey === contextKey) {
+        rememberScreenEditorViewportForKey(contextKey);
+      }
+    }
+
     applyTheme(state.activeTheme || getDefaultThemeName(), false);
   }
-
   function normalizeProbeText(value) {
     return String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
   }
@@ -4172,6 +4224,419 @@
     return null;
   }
 
+  function getScreenEditorTitle(root) {
+    if (!root || !root.querySelector) {
+      return "";
+    }
+    try {
+      var titleNode = root.querySelector(".header_block .panel_title");
+      return titleNode ? String(titleNode.textContent || "").replace(/\s+/g, " ").trim() : "";
+    } catch (_ignoreScreenTitleText) {}
+    return "";
+  }
+
+  function getScreenEditorSubTitle(root) {
+    if (!root || !root.querySelector) {
+      return "";
+    }
+    try {
+      var subTitleNode = root.querySelector(".content .top_line .sub_title_wrapper .sub_title");
+      return subTitleNode ? String(subTitleNode.textContent || "").replace(/\s+/g, " ").trim() : "";
+    } catch (_ignoreScreenSubTitleText) {}
+    return "";
+  }
+
+  function getScreenEditorMode(panel, root) {
+    var modeInputNode = null;
+    try {
+      if (root && root.querySelector) {
+        modeInputNode = root.querySelector(".mode_switch_wrapper .checkbox_switch input");
+      }
+    } catch (_ignoreScreenModeInputLookup) {}
+
+    if (!modeInputNode) {
+      try {
+        if (panel && panel.HTMLNodes && panel.HTMLNodes.isHTMLModeCheckbox) {
+          modeInputNode = panel.HTMLNodes.isHTMLModeCheckbox;
+        }
+      } catch (_ignoreScreenModeInputFallback) {}
+    }
+
+    try {
+      if (panel && typeof panel.isInHTMLMode === "boolean") {
+        return panel.isInHTMLMode ? "html" : "lua";
+      }
+      if (modeInputNode && typeof modeInputNode.checked === "boolean") {
+        return modeInputNode.checked ? "html" : "lua";
+      }
+    } catch (_ignoreScreenModeValue) {}
+
+    return "lua";
+  }
+
+  function getScreenEditorContextSnapshot(root, panel) {
+    var resolvedRoot = root || getScreenEditorRoot();
+    var resolvedPanel = panel || getScreenEditorPanel();
+    var title = getScreenEditorTitle(resolvedRoot);
+    var subTitle = getScreenEditorSubTitle(resolvedRoot);
+    var mode = getScreenEditorMode(resolvedPanel, resolvedRoot);
+    return {
+      title: title,
+      subTitle: subTitle,
+      mode: mode,
+      contextKey: "screen:" + normalizeIdeSyncValue(title) + "::" + normalizeIdeSyncValue(subTitle) + "::" + normalizeIdeSyncValue(mode)
+    };
+  }
+
+  function getScreenEditorCursorFromTextarea(codeNode) {
+    if (!codeNode || typeof codeNode.value !== "string") {
+      return {
+        line: 0,
+        ch: 0
+      };
+    }
+
+    var text = String(codeNode.value || "");
+    var selectionStart = typeof codeNode.selectionStart === "number" ? codeNode.selectionStart : 0;
+    if (selectionStart < 0) {
+      selectionStart = 0;
+    }
+    if (selectionStart > text.length) {
+      selectionStart = text.length;
+    }
+
+    var beforeCursor = text.slice(0, selectionStart);
+    var parts = beforeCursor.split(/\r\n?|\n/);
+    var line = parts.length > 0 ? parts.length - 1 : 0;
+    var ch = parts.length > 0 ? parts[parts.length - 1].length : 0;
+    return {
+      line: line,
+      ch: ch
+    };
+  }
+
+  function getTextareaOffsetForLineAndCh(text, line, ch) {
+    var normalized = String(text || "").replace(/\r\n?/g, "\n");
+    var wantedLine = typeof line === "number" && line >= 0 ? line : 0;
+    var wantedCh = typeof ch === "number" && ch >= 0 ? ch : 0;
+    var currentLine = 0;
+    var idx = 0;
+    while (currentLine < wantedLine && idx < normalized.length) {
+      var nextNewline = normalized.indexOf("\n", idx);
+      if (nextNewline < 0) {
+        idx = normalized.length;
+        break;
+      }
+      idx = nextNewline + 1;
+      currentLine += 1;
+    }
+
+    var lineEnd = normalized.indexOf("\n", idx);
+    if (lineEnd < 0) {
+      lineEnd = normalized.length;
+    }
+    var maxCh = lineEnd - idx;
+    return idx + Math.min(wantedCh, maxCh < 0 ? 0 : maxCh);
+  }
+
+  function hasRememberedScreenViewportForKey(key) {
+    if (!key) {
+      return false;
+    }
+    var remembered = state.screenScrollTopByContext[key];
+    if (typeof remembered === "number") {
+      return remembered >= 0;
+    }
+    return !!(remembered && typeof remembered === "object" && typeof remembered.topLine === "number" && remembered.topLine >= 0);
+  }
+
+  function rememberScreenEditorViewportForKey(keyHint) {
+    var panel = getScreenEditorPanel();
+    var root = getScreenEditorRoot();
+    if (!isElementVisible(root)) {
+      return false;
+    }
+
+    var codeMirror = getScreenEditorCodeMirror(root);
+    var codeNode = getScreenEditorCodeNode(panel, root);
+    if (!codeMirror && !codeNode) {
+      return false;
+    }
+
+    var context = getScreenEditorContextSnapshot(root, panel);
+    var key = keyHint || context.contextKey || state.lastScreenContextKey || "screen:default";
+    state.lastScreenContextKey = key;
+
+    try {
+      var topLine = 0;
+      var cursorLine = 0;
+      var cursorCh = 0;
+      var scrollTopPx = 0;
+      var hadFocus = false;
+
+      if (codeMirror) {
+        try {
+          if (typeof codeMirror.getScrollInfo === "function") {
+            var scrollInfo = codeMirror.getScrollInfo();
+            scrollTopPx = scrollInfo && typeof scrollInfo.top === "number" ? scrollInfo.top : 0;
+          }
+        } catch (_ignoreScreenScrollInfo) {}
+
+        try {
+          if (typeof codeMirror.lineAtHeight === "function") {
+            topLine = codeMirror.lineAtHeight(scrollTopPx, "local");
+          }
+        } catch (_ignoreScreenTopLine) {}
+
+        try {
+          if (typeof codeMirror.getCursor === "function") {
+            var cursor = codeMirror.getCursor();
+            if (cursor && typeof cursor.line === "number") {
+              cursorLine = cursor.line;
+            }
+            if (cursor && typeof cursor.ch === "number") {
+              cursorCh = cursor.ch;
+            }
+          }
+        } catch (_ignoreScreenCursor) {}
+
+        try {
+          if (typeof codeMirror.hasFocus === "function") {
+            hadFocus = codeMirror.hasFocus();
+          }
+        } catch (_ignoreScreenFocus) {}
+      } else if (codeNode) {
+        var textCursor = getScreenEditorCursorFromTextarea(codeNode);
+        topLine = textCursor.line;
+        cursorLine = textCursor.line;
+        cursorCh = textCursor.ch;
+        scrollTopPx = typeof codeNode.scrollTop === "number" ? codeNode.scrollTop : 0;
+        hadFocus = document.activeElement === codeNode;
+      }
+
+      if (typeof topLine !== "number" || topLine < 0) {
+        topLine = cursorLine >= 0 ? cursorLine : 0;
+      }
+      if (cursorLine < 0) {
+        cursorLine = topLine;
+      }
+      if (cursorCh < 0) {
+        cursorCh = 0;
+      }
+
+      state.screenScrollTopByContext[key] = {
+        topLine: topLine,
+        cursorLine: cursorLine,
+        cursorCh: cursorCh,
+        scrollTopPx: scrollTopPx,
+        hadFocus: hadFocus
+      };
+      return true;
+    } catch (_ignoreRememberScreenViewport) {}
+
+    return false;
+  }
+
+  function restoreScreenEditorViewportForKey(keyHint) {
+    var panel = getScreenEditorPanel();
+    var root = getScreenEditorRoot();
+    if (!isElementVisible(root)) {
+      return false;
+    }
+
+    var codeMirror = getScreenEditorCodeMirror(root);
+    var codeNode = getScreenEditorCodeNode(panel, root);
+    if (!codeMirror && !codeNode) {
+      return false;
+    }
+
+    var context = getScreenEditorContextSnapshot(root, panel);
+    var key = keyHint || context.contextKey || state.lastScreenContextKey;
+    if (!key) {
+      return false;
+    }
+    state.lastScreenContextKey = key;
+
+    var remembered = state.screenScrollTopByContext[key];
+    var rememberedTopLine = -1;
+    var rememberedCursorLine = -1;
+    var rememberedCursorCh = 0;
+    var rememberedScrollTopPx = 0;
+    var shouldFocus = false;
+
+    if (typeof remembered === "number") {
+      rememberedTopLine = remembered;
+      rememberedCursorLine = remembered;
+    } else if (remembered && typeof remembered === "object") {
+      if (typeof remembered.topLine === "number") {
+        rememberedTopLine = remembered.topLine;
+      }
+      if (typeof remembered.cursorLine === "number") {
+        rememberedCursorLine = remembered.cursorLine;
+      }
+      if (typeof remembered.cursorCh === "number") {
+        rememberedCursorCh = remembered.cursorCh;
+      }
+      if (typeof remembered.scrollTopPx === "number") {
+        rememberedScrollTopPx = remembered.scrollTopPx;
+      }
+      shouldFocus = !!remembered.hadFocus;
+    }
+
+    if (typeof rememberedTopLine !== "number" || rememberedTopLine < 0) {
+      return false;
+    }
+
+    try {
+      var applyRestore = function() {
+        if (codeMirror) {
+          var lineCount = typeof codeMirror.lineCount === "function" ? codeMirror.lineCount() : 0;
+          if (lineCount > 0) {
+            if (rememberedTopLine >= lineCount) {
+              rememberedTopLine = lineCount - 1;
+            }
+            if (rememberedCursorLine < 0 || rememberedCursorLine >= lineCount) {
+              rememberedCursorLine = rememberedTopLine;
+            }
+          }
+
+          if (rememberedCursorLine < 0) {
+            rememberedCursorLine = rememberedTopLine;
+          }
+          if (rememberedCursorCh < 0) {
+            rememberedCursorCh = 0;
+          }
+
+          if (typeof codeMirror.heightAtLine === "function" && typeof codeMirror.scrollTo === "function") {
+            var topPx = codeMirror.heightAtLine(rememberedTopLine, "local");
+            codeMirror.scrollTo(null, topPx > 0 ? topPx - 5 : 0);
+          } else if (typeof codeMirror.scrollTo === "function") {
+            codeMirror.scrollTo(null, rememberedScrollTopPx > 0 ? rememberedScrollTopPx : 0);
+          }
+
+          if (typeof codeMirror.setCursor === "function") {
+            codeMirror.setCursor({ line: rememberedCursorLine, ch: rememberedCursorCh });
+          }
+          if (shouldFocus && typeof codeMirror.focus === "function") {
+            codeMirror.focus();
+          }
+          return;
+        }
+
+        if (codeNode && typeof codeNode.value === "string") {
+          var offset = getTextareaOffsetForLineAndCh(codeNode.value, rememberedCursorLine, rememberedCursorCh);
+          try {
+            codeNode.selectionStart = offset;
+            codeNode.selectionEnd = offset;
+          } catch (_ignoreScreenTextareaSelection) {}
+          if (typeof codeNode.scrollTop === "number") {
+            codeNode.scrollTop = rememberedScrollTopPx > 0 ? rememberedScrollTopPx : 0;
+          }
+          if (shouldFocus && typeof codeNode.focus === "function") {
+            codeNode.focus();
+          }
+        }
+      };
+
+      applyRestore();
+      window.setTimeout(applyRestore, 40);
+      return true;
+    } catch (_ignoreRestoreScreenViewport) {}
+
+    return false;
+  }
+
+  function detachScreenViewportBindings(codeMirror) {
+    if (!codeMirror) {
+      return;
+    }
+
+    var handlers = codeMirror.__luaProbeScreenViewportHandlers;
+    if (handlers && typeof codeMirror.off === "function") {
+      try {
+        if (typeof handlers.cursorActivity === "function") {
+          codeMirror.off("cursorActivity", handlers.cursorActivity);
+        }
+      } catch (_ignoreScreenOffCursor) {}
+      try {
+        if (typeof handlers.scroll === "function") {
+          codeMirror.off("scroll", handlers.scroll);
+        }
+      } catch (_ignoreScreenOffScroll) {}
+      try {
+        if (typeof handlers.changes === "function") {
+          codeMirror.off("changes", handlers.changes);
+        }
+      } catch (_ignoreScreenOffChanges) {}
+    }
+
+    codeMirror.__luaProbeScreenViewportHandlers = null;
+    codeMirror.__luaProbeScreenViewportBindingsBound = false;
+    codeMirror.__luaProbeScreenViewportOwner = "";
+  }
+
+  function rememberActiveScreenViewportIfReady() {
+    var context = getScreenEditorContextSnapshot();
+    var key = context.contextKey || state.lastScreenContextKey;
+    if (!key) {
+      return;
+    }
+    state.lastScreenContextKey = key;
+    if (state.screenLastRestoredContextKey !== key && hasRememberedScreenViewportForKey(key)) {
+      return;
+    }
+    rememberScreenEditorViewportForKey(key);
+  }
+
+  function ensureScreenViewportBindings() {
+    var root = getScreenEditorRoot();
+    var codeMirror = getScreenEditorCodeMirror(root);
+    if (!codeMirror || typeof codeMirror.on !== "function") {
+      if (state.screenViewportBindingsCodeMirror) {
+        detachScreenViewportBindings(state.screenViewportBindingsCodeMirror);
+        state.screenViewportBindingsCodeMirror = null;
+      }
+      return;
+    }
+
+    if (state.screenViewportBindingsCodeMirror && state.screenViewportBindingsCodeMirror !== codeMirror) {
+      detachScreenViewportBindings(state.screenViewportBindingsCodeMirror);
+      state.screenViewportBindingsCodeMirror = null;
+    }
+
+    var owner = String(codeMirror.__luaProbeScreenViewportOwner || "");
+    if ((owner && owner !== dumpId) || (!owner && codeMirror.__luaProbeScreenViewportBindingsBound)) {
+      detachScreenViewportBindings(codeMirror);
+    }
+
+    if (String(codeMirror.__luaProbeScreenViewportOwner || "") === dumpId && codeMirror.__luaProbeScreenViewportHandlers) {
+      state.screenViewportBindingsCodeMirror = codeMirror;
+      return;
+    }
+
+    var handlers = {};
+    handlers.cursorActivity = function () {
+      rememberActiveScreenViewportIfReady();
+    };
+    handlers.scroll = function () {
+      rememberActiveScreenViewportIfReady();
+    };
+    handlers.changes = function () {
+      window.setTimeout(function () {
+        rememberActiveScreenViewportIfReady();
+      }, 0);
+    };
+
+    codeMirror.on("cursorActivity", handlers.cursorActivity);
+    codeMirror.on("scroll", handlers.scroll);
+    codeMirror.on("changes", handlers.changes);
+
+    codeMirror.__luaProbeScreenViewportHandlers = handlers;
+    codeMirror.__luaProbeScreenViewportBindingsBound = true;
+    codeMirror.__luaProbeScreenViewportOwner = dumpId;
+    state.screenViewportBindingsCodeMirror = codeMirror;
+  }
+
   function parseIntegerOrNull(value) {
     var parsed = parseInt(String(value || "").replace(/[^\d-]/g, ""), 10);
     return isNaN(parsed) ? null : parsed;
@@ -4182,7 +4647,6 @@
     var root = getScreenEditorRoot();
     var codeMirror = getScreenEditorCodeMirror(root);
     var isVisible = isElementVisible(root);
-    var titleNode = null;
     var wrapNode = null;
     var saveNode = null;
     var cancelNode = null;
@@ -4192,12 +4656,16 @@
     var modeInputNode = null;
     var codeNode = getScreenEditorCodeNode(panel, root);
     var code = "";
+    var context = getScreenEditorContextSnapshot(root, panel);
+    var viewport = null;
 
     if (!isVisible) {
       return {
         surface: "screen_editor",
         visible: false,
         title: "",
+        subTitle: "",
+        contextKey: "",
         wrapLines: false,
         canApply: false,
         canCancel: false,
@@ -4206,14 +4674,12 @@
         mode: "",
         htmlModeAvailable: false,
         enableOutputInLuaChannel: false,
-        errorCount: null
+        errorCount: null,
+        viewport: null
       };
     }
 
     if (root && root.querySelector) {
-      try {
-        titleNode = root.querySelector(".header_block .panel_title");
-      } catch (_ignoreScreenTitle) {}
       try {
         wrapNode = root.querySelector(".wrap_line_wrapper .checkbox");
       } catch (_ignoreScreenWrap) {}
@@ -4253,14 +4719,7 @@
       }
     } catch (_ignoreScreenCode) {}
 
-    var isHtmlMode = false;
-    try {
-      if (panel && typeof panel.isInHTMLMode === "boolean") {
-        isHtmlMode = panel.isInHTMLMode;
-      } else if (modeInputNode && typeof modeInputNode.checked === "boolean") {
-        isHtmlMode = modeInputNode.checked;
-      }
-    } catch (_ignoreScreenModeValue) {}
+    var isHtmlMode = context.mode === "html";
 
     var htmlModeAvailable = !!modeInputNode;
     try {
@@ -4279,19 +4738,45 @@
       canApply = !!(panel && codeNode && window.CPPScreenContentEditor && typeof window.CPPScreenContentEditor.save === "function");
     }
 
+    try {
+      if (codeMirror) {
+        var scrollInfo = typeof codeMirror.getScrollInfo === "function" ? codeMirror.getScrollInfo() : null;
+        var cursor = typeof codeMirror.getCursor === "function" ? codeMirror.getCursor() : null;
+        viewport = {
+          scrollTopPx: scrollInfo && typeof scrollInfo.top === "number" ? scrollInfo.top : 0,
+          topLine: scrollInfo && typeof scrollInfo.top === "number" && typeof codeMirror.lineAtHeight === "function"
+            ? codeMirror.lineAtHeight(scrollInfo.top, "local")
+            : null,
+          cursorLine: cursor && typeof cursor.line === "number" ? cursor.line : null,
+          cursorCh: cursor && typeof cursor.ch === "number" ? cursor.ch : null
+        };
+      } else if (codeNode) {
+        var textCursor = getScreenEditorCursorFromTextarea(codeNode);
+        viewport = {
+          scrollTopPx: typeof codeNode.scrollTop === "number" ? codeNode.scrollTop : 0,
+          topLine: textCursor.line,
+          cursorLine: textCursor.line,
+          cursorCh: textCursor.ch
+        };
+      }
+    } catch (_ignoreScreenViewport) {}
+
     return {
       surface: "screen_editor",
       visible: true,
-      title: titleNode ? String(titleNode.textContent || "").trim() : "",
+      title: context.title,
+      subTitle: context.subTitle,
+      contextKey: context.contextKey,
       wrapLines: !!(wrapNode && wrapNode.checked),
       canApply: canApply,
       canCancel: !!(cancelNode && isElementVisible(cancelNode)),
       codeLength: code.length,
       isHtmlMode: !!isHtmlMode,
-      mode: isHtmlMode ? "html" : "lua",
+      mode: context.mode,
       htmlModeAvailable: !!htmlModeAvailable,
       enableOutputInLuaChannel: !!(enableLogsNode && enableLogsNode.checked),
-      errorCount: parseIntegerOrNull(errorCountNode ? errorCountNode.textContent : "")
+      errorCount: parseIntegerOrNull(errorCountNode ? errorCountNode.textContent : ""),
+      viewport: viewport
     };
   }
 
@@ -5795,6 +6280,7 @@
 
   state.describeLuaEditor = describeLuaEditor;
   state.describeScreenEditor = describeScreenEditor;
+  state.getScreenEditorContextSnapshot = getScreenEditorContextSnapshot;
   state.selectSlotByName = selectSlotByName;
   state.selectFilterByEvent = selectFilterByEvent;
   state.selectLuaEditorContext = selectLuaEditorContext;
@@ -5804,6 +6290,11 @@
   state.setScreenEditorCode = setScreenEditorCode;
   state.applyLuaEditorChanges = applyLuaEditorChanges;
   state.applyScreenEditorChanges = applyScreenEditorChanges;
+  state.hasRememberedScreenViewportForKey = hasRememberedScreenViewportForKey;
+  state.rememberScreenEditorViewportForKey = rememberScreenEditorViewportForKey;
+  state.restoreScreenEditorViewportForKey = restoreScreenEditorViewportForKey;
+  state.detachScreenViewportBindings = detachScreenViewportBindings;
+  state.ensureScreenViewportBindings = ensureScreenViewportBindings;
   state.addFilterByEventName = addFilterByEventName;
   state.captureChatSnapshot = captureChatSnapshot;
   state.buildPlainTextChatTranscript = buildPlainTextChatTranscript;
@@ -7964,6 +8455,22 @@
     try {
       clearCaretLineHighlight(getLuaCodeMirror());
     } catch (_ignoreCaret) {}
+
+    try {
+      if (state.lastScreenContextKey) {
+        rememberScreenEditorViewportForKey(state.lastScreenContextKey);
+      }
+    } catch (_ignoreScreenRememberOnUninstall) {}
+
+    try {
+      if (state.screenViewportBindingsCodeMirror) {
+        detachScreenViewportBindings(state.screenViewportBindingsCodeMirror);
+        state.screenViewportBindingsCodeMirror = null;
+      }
+    } catch (_ignoreScreenBindingsUninstall) {}
+
+    state.screenEditorVisible = false;
+    state.screenLastRestoredContextKey = "";
 
     state.lastIdeSyncContextKey = "";
     state.lastIdeSyncReference = null;

@@ -164,6 +164,22 @@
       clearCaretLineHighlight(getLuaCodeMirror());
     } catch (_ignoreCaret) {}
 
+    try {
+      if (state.lastScreenContextKey) {
+        rememberScreenEditorViewportForKey(state.lastScreenContextKey);
+      }
+    } catch (_ignoreScreenRememberOnUninstall) {}
+
+    try {
+      if (state.screenViewportBindingsCodeMirror) {
+        detachScreenViewportBindings(state.screenViewportBindingsCodeMirror);
+        state.screenViewportBindingsCodeMirror = null;
+      }
+    } catch (_ignoreScreenBindingsUninstall) {}
+
+    state.screenEditorVisible = false;
+    state.screenLastRestoredContextKey = "";
+
     state.lastIdeSyncContextKey = "";
     state.lastIdeSyncReference = null;
     state.lastInitDemReference = null;

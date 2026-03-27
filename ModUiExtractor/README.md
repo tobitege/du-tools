@@ -63,6 +63,11 @@ This repo now includes:
   - bounded all waits (`5s` max wait, `250ms` quiet window) to avoid hangs and infinite retries.
 - Added persistence for `LINE HL` toggle using `localStorage` key `ModUiExtractor.lua.caret-highlight-enabled.v1` so preference survives reinject/reopen.
 
+### 2026-03-26
+
+- Added per-screen viewport memory for `screen_editor`: the probe now keys by screen `title + subTitle + mode` and restores top line plus caret line/column when the same screen is reopened in the current probe session.
+- Extended `screen_editor` snapshots with `subTitle`, `contextKey`, and live viewport data so MCP-side verification can confirm the remembered position that was restored.
+
 ## In-Game Actions
 
 - `UI Extractor\Run UI Dump (Safe)`

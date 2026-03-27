@@ -267,6 +267,7 @@ Important scope note:
 - when the editor is not visible, `describe` returns a safe empty snapshot and `apply` rejects with `screen_editor_not_visible`
 - when visible, the injected probe now also gives `screen_editor` the same theme-switcher treatment as the Lua editor and themes the content header panel as well; this remains probe-side UI logic, not MCP-side state
 - when visible, the probe also adds its own `IDE Sync` button to the top control row; export goes to `ide-workspace/player-<playerId>/screen_editor/snippet.txt`, and file edits flow back through `payload-overrides/ide_import.player-<playerId>.screen_editor.json`
+- when visible, the probe also remembers and restores the screen editor viewport per screen context (`title + subTitle + mode`): top line plus caret line/column return automatically when the same screen is reopened during the active probe session
 - opening or toggling a screen through gameplay hotkeys such as `Ctrl+L` or `F` is not currently exposed through MCP
 - the generic `du_ui_*` probe envelope now supports `screen_editor` for `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`
 - slot/filter/chat methods remain `lua_editor`-only
@@ -976,7 +977,7 @@ If the import is staged with **no slot or filter selected**, the live target con
   - `uiKind = lua_editor`: schema-exposed probe surface (`describe`, `list_filters`, `select_slot`, `select_context`, `select_filter`, `select_filter_index`, `apply`, `add_filter`, `outer_html`, `raw_eval`)
   - `uiKind = screen_editor`: `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`
 - `du_chat_snapshot`, `du_chat_send_message`, `du_chat_create_channel`, and `du_chat_select_channel` remain dedicated MCP tool paths; they are not part of the generic `du_ui_invoke` method enum.
-- The screen snapshot is intentionally different from the Lua editor snapshot: one editor only, no slots/filters, plus mode/wrap/error metadata from the screen panel.
+- The screen snapshot is intentionally different from the Lua editor snapshot: one editor only, no slots/filters, plus mode/wrap/error metadata from the screen panel. It now also includes the resolved `contextKey`, `subTitle`, and live viewport metadata (`topLine`, `cursorLine`, `cursorCh`) for the single screen editor buffer.
 
 Native Windows helper note:
 

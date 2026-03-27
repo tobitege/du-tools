@@ -491,19 +491,66 @@
   function ensureScreenEditorFacelift() {
     var root = getScreenEditorRoot();
     if (!root || !root.querySelector) {
+      try {
+        if (state.screenEditorVisible && state.lastScreenContextKey) {
+          rememberScreenEditorViewportForKey(state.lastScreenContextKey);
+        }
+      } catch (_ignoreScreenRememberOnMissingRoot) {}
+      try {
+        if (state.screenViewportBindingsCodeMirror) {
+          detachScreenViewportBindings(state.screenViewportBindingsCodeMirror);
+          state.screenViewportBindingsCodeMirror = null;
+        }
+      } catch (_ignoreScreenBindingsOnMissingRoot) {}
+      state.screenEditorVisible = false;
+      state.screenLastRestoredContextKey = "";
       return;
     }
 
     if (!isElementVisible(root)) {
+      try {
+        if (state.screenEditorVisible && state.lastScreenContextKey) {
+          rememberScreenEditorViewportForKey(state.lastScreenContextKey);
+        }
+      } catch (_ignoreScreenRememberOnHide) {}
+      try {
+        if (state.screenViewportBindingsCodeMirror) {
+          detachScreenViewportBindings(state.screenViewportBindingsCodeMirror);
+          state.screenViewportBindingsCodeMirror = null;
+        }
+      } catch (_ignoreScreenBindingsOnHide) {}
+      state.screenEditorVisible = false;
+      state.screenLastRestoredContextKey = "";
       try {
         root.removeAttribute("data-lua-probe-active");
       } catch (_ignoreScreenProbeInactive) {}
       return;
     }
 
+    var context = getScreenEditorContextSnapshot(root);
+    var contextKey = context.contextKey || "";
+    state.screenEditorVisible = true;
+    if (contextKey) {
+      state.lastScreenContextKey = contextKey;
+    }
+
     root.setAttribute("data-lua-probe-active", "1");
     ensureScreenThemeSwitcher(root);
     ensureScreenIdeSyncButton(root);
+    ensureScreenViewportBindings();
+
+    if (contextKey) {
+      var hasRememberedViewport = hasRememberedScreenViewportForKey(contextKey);
+      if (state.screenLastRestoredContextKey !== contextKey) {
+        if (!hasRememberedViewport || restoreScreenEditorViewportForKey(contextKey)) {
+          state.screenLastRestoredContextKey = contextKey;
+        }
+      }
+
+      if (state.screenLastRestoredContextKey === contextKey) {
+        rememberScreenEditorViewportForKey(contextKey);
+      }
+    }
+
     applyTheme(state.activeTheme || getDefaultThemeName(), false);
   }
-

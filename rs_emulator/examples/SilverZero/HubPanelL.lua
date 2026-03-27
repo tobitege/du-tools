@@ -44,8 +44,8 @@ local entries = {
 }
 
 local function drawScanlines(layer)
-  for i = 0, 16 do
-    local y = 17 + i * 8
+  for i = 0, 11 do
+    local y = 17 + i * 11
     local alpha = 0.05 + i * 0.012 + SZ.pulse(0.01, 0.08, 1.0, i * 0.18)
     SZ.divider(layer, layout, 11, y, 220, y, theme, {
       color = {
@@ -101,7 +101,7 @@ local function drawEntry(layer, rowIndex, entry)
 
   SZ.badge(layer, layout, {
     x = 28,
-    y = panelY + 5.5,
+    y = panelY + 4.9,
     w = 22,
     h = 10,
   }, headingFont, entry.tag, theme, {
@@ -115,14 +115,14 @@ local function drawEntry(layer, rowIndex, entry)
     },
   })
 
-  SZ.text(layer, layout, headingFont, entry.title, 52, y + 2, theme, {
-    alignX = AlignH_Left,
+  SZ.text(layer, layout, headingFont, entry.title, 91.5, y + 5.0, theme, {
+    alignX = AlignH_Center,
     alignY = AlignV_Middle,
     color = theme.textPrimary,
   })
 
-  SZ.text(layer, layout, tinyFont, "STATUS: " .. entry.status, 52, y + 10, theme, {
-    alignX = AlignH_Left,
+  SZ.text(layer, layout, tinyFont, "STATUS: " .. entry.status, 91.5, y + 12.0, theme, {
+    alignX = AlignH_Center,
     alignY = AlignV_Middle,
     color = theme.textMuted,
   })
@@ -173,13 +173,13 @@ SZ.frame(layers.base, layout, {
   cross = 2,
 })
 
-SZ.text(layers.details, layout, titleFont, "Atmospheric", 116, 20, theme, {
+SZ.text(layers.details, layout, titleFont, "Atmospheric", 116, 17.5, theme, {
   alignX = AlignH_Center,
   alignY = AlignV_Middle,
   color = theme.textPrimary,
 })
 
-SZ.text(layers.details, layout, headingFont, "ENGINE ARRAY", 116, 34, theme, {
+SZ.text(layers.details, layout, headingFont, "ENGINE ARRAY", 116, 31.0, theme, {
   alignX = AlignH_Center,
   alignY = AlignV_Middle,
   color = theme.textMuted,
@@ -192,7 +192,7 @@ for i, entry in ipairs(entries) do
   drawEntry(layers.rows, i, entry)
 end
 
-SZ.text(layers.badge, layout, valueFont, "HUB", 177, 60, theme, {
+SZ.text(layers.badge, layout, valueFont, "HUB", 188, 58.5, theme, {
   alignX = AlignH_Center,
   alignY = AlignV_Middle,
   color = theme.textPrimary,
@@ -200,7 +200,7 @@ SZ.text(layers.badge, layout, valueFont, "HUB", 177, 60, theme, {
 
 SZ.badge(layers.badge, layout, {
   x = 185,
-  y = 64,
+  y = 62.6,
   w = 35,
   h = 13,
 }, headingFont, "L", theme, {
@@ -220,8 +220,8 @@ SZ.withClip(layers.fx, layout, {
   w = 205,
   h = 20,
 }, function()
-  for i = 0, 18 do
-    local x = 13 + i * 11
+  for i = 0, 13 do
+    local x = 13 + i * 14.6
     local y1 = i * 0.4 + SZ.wave(1.6, i * 0.25) * 1.2
     setNextStrokeColor(layers.fx, 1, 1, 1, 0.10 + SZ.pulse(0.05, 0.16, 1.8, i * 0.25))
     setNextStrokeWidth(layers.fx, 0.7)
