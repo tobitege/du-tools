@@ -1,6 +1,12 @@
 if SCREEN_LAYOUT_EDITOR_ENABLED and type(SCREEN_LAYOUT_EDITOR_MODULE) == "table" then
     local outputText = Screen.getScriptOutput()
     if type(outputText) == "string" and outputText ~= "" then
+        if type(SLEP) == "function" then
+            SLEP(
+                "sle-receive",
+                string.format("rx b=%d", #outputText)
+            )
+        end
         local record, recordError = SCREEN_LAYOUT_EDITOR_MODULE.buildPersistenceRecordFromOutput(
             outputText,
             SCREEN_LAYOUT_EDITOR_MAX_SCREEN_CODE_CHARS
@@ -13,9 +19,36 @@ if SCREEN_LAYOUT_EDITOR_ENABLED and type(SCREEN_LAYOUT_EDITOR_MODULE) == "table"
                 databank.setStringValue(record.key, record.text)
                 SCREEN_LAYOUT_EDITOR_LAST_PERSISTED_REVISION = record.revision
                 SCREEN_LAYOUT_EDITOR_LAST_PERSISTED_HASH = record.hash
+                if type(SLEP) == "function" then
+                    SLEP(
+                        "sle-persist",
+                        string.format(
+                            "db r=%d h=%s b=%d",
+                            record.revision or 0,
+                            tostring(record.hash or "?"),
+                            record.length or #record.text
+                        )
+                    )
+                end
+            elseif type(SLEP) == "function" then
+                SLEP(
+                    "sle-persist",
+                    string.format(
+                        "dup r=%d h=%s",
+                        record.revision or 0,
+                        tostring(record.hash or "?")
+                    )
+                )
             end
         elseif record == nil and recordError then
             system.print("WARN: ScreenLayoutEditor output ignored: " .. tostring(recordError))
+            if type(SLEP) == "function" then
+                SLEP(
+                    "sle-reject",
+                    "rej: " .. tostring(recordError),
+                    true
+                )
+            end
         elseif record and not record.fits then
             system.print(
                 "WARN: ScreenLayoutEditor output exceeds max length: "
@@ -23,6 +56,17 @@ if SCREEN_LAYOUT_EDITOR_ENABLED and type(SCREEN_LAYOUT_EDITOR_MODULE) == "table"
                     .. "/"
                     .. tostring(record.maxLength)
             )
+            if type(SLEP) == "function" then
+                SLEP(
+                    "sle-too-long",
+                    string.format(
+                        "long l=%d m=%d",
+                        record.length or -1,
+                        record.maxLength or -1
+                    ),
+                    true
+                )
+            end
         end
         Screen.clearScriptOutput()
     end

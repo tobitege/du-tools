@@ -44,12 +44,90 @@ These rules matter because a wrong action can lose unsaved changes or leave the 
 
 - Never save unless you have confirmed the correct live editor is open.
 - Never trust stale code snapshots as proof of current live editor state.
+- Never treat `du_editor_pull_code` or `ide-workspace\...\snippet.lua|snippet.txt` as proof of the exact visible editor buffer.
 - Never use `du_editor_push_code` as if it opens the editor. It does not.
 - Never use `du_editor_save` as if it chooses the target buffer for you. It does not.
 - For `screen_editor`, a save is only a valid test if the buffer is actually dirty.
 - For `lua_editor`, always establish slot and filter before pushing code.
 - Prefer structured probe reads first and screenshots second.
 - If the current client state is unclear, stop and re-check instead of guessing.
+
+## 2A. Code Source Model: Live Buffer vs IDE Sync vs Repo File
+
+This distinction is critical.
+Most confusion in live DU work comes from mixing up these different sources of code.
+
+### Live editor buffer
+
+This is the actual code currently visible in the in-game editor.
+
+For `screen_editor`, this means the visible screen CodeMirror instance in the open editor.
+
+For `lua_editor`, this means:
+
+- the Lua editor is visibly open
+- the intended slot is actually selected
+- the intended filter is actually selected
+- the visible CodeMirror content belongs to that slot + filter
+
+Use these tools to reason about the live buffer:
+
+- `du_ui_describe`
+- `du_ui_wait`
+- `du_ui_invoke(..., method = outer_html, ...)`
+
+For Programming Board work, the live buffer is the source of truth when you need to know what the player is actually looking at right now.
+
+### IDE Sync workspace snapshot
+
+This is the external-editor handoff path added by our mod and probe.
+
+Typical files:
+
+- `D:\MyDUserver\tmp\ui-dumps\ide-workspace\player-<playerId>\lua_editor\snippet.lua`
+- `D:\MyDUserver\tmp\ui-dumps\ide-workspace\player-<playerId>\screen_editor\snippet.txt`
+- matching `snippet.sync.json`
+
+How it is produced:
+
+- the player clicks the in-game `IDE Sync` button added by the probe, or
+- the bridge stages a file through the same IDE-import contract
+
+What it is for:
+
+- opening the exported code in Cursor or another IDE
+- editing that exported file locally
+- letting the watcher or MCP write back through `ide_import.player-<playerId>.<targetKind>.json`
+
+What it is not:
+
+- not a guaranteed fresh live export on demand
+- not guaranteed to match the exact visible editor buffer at this moment
+- not safe proof that the currently open Lua slot/filter is the one you think it is
+
+The workspace snapshot is a transport artifact for external editing.
+It is useful, but it is not the same thing as the live visible editor buffer.
+
+### Pending IDE import payload
+
+This is the file-based write contract used to get local edits back into the open editor.
+
+Typical file:
+
+- `D:\MyDUserver\tmp\ui-dumps\payload-overrides\ide_import.player-<playerId>.<targetKind>.json`
+
+This means "a local edit is staged for import".
+It does not by itself prove that the correct editor is open or that the import has already landed in the visible buffer.
+
+### Tracked repo source file
+
+This is the file in the git repo that you intentionally edit and push from, for example:
+
+- `live_board/unit-onStart.lua`
+- `live_board/unit-onTimer-UPD.lua`
+
+For deliberate development work, prefer tracked repo files as the stable local source of truth.
+Use the IDE workspace as an external-editor exchange path, not as the long-term canonical artifact.
 
 ## 3. What Must Already Be True
 
@@ -243,6 +321,17 @@ Run:
 Use this as the last known code snapshot for local work.
 Do not treat it as guaranteed proof of the exact current live editor buffer.
 
+Important meaning of this pull:
+
+- it reads the last known snapshot available to the bridge
+- that snapshot can come from bridge state, IDE-sync workspace files, or a pending IDE import payload
+- it does not force a fresh export from the currently visible in-game editor
+
+So for `screen_editor`:
+
+- use `du_editor_pull_code` when you need a convenient recent local snapshot
+- use `du_ui_describe` and, when needed, `outer_html` when you need confidence about the actual live visible editor state
+
 ### 10.3 Edit A Local Source File
 
 Edit a tracked local file in the repo.
@@ -359,6 +448,39 @@ The preferred path is:
 
 Do not skip this step before code push.
 
+Why this matters even if `snippet.lua` exists already:
+
+- the IDE Sync workspace can contain a previous export
+- that previous export can still be useful for local editing
+- but it is not enough to prove which Lua buffer is currently visible in-game
+
+For Programming Board work, treat `slot + filter + visible CodeMirror content` as the verified live context.
+
+### 11.2A Understand What `du_editor_pull_code` Means For Lua
+
+`du_editor_pull_code(playerId = <playerId>, targetKind = lua_editor)` reads the last known Lua snapshot available to the bridge.
+
+That snapshot is often the IDE-sync workspace file:
+
+- `D:\MyDUserver\tmp\ui-dumps\ide-workspace\player-<playerId>\lua_editor\snippet.lua`
+
+This usually reflects the latest IDE Sync export or staged import state.
+It does not guarantee that the currently visible Lua editor buffer is the same code.
+
+This difference matters more for `lua_editor` than for `screen_editor` because:
+
+- the Programming Board has multiple slots
+- each slot can have multiple filters
+- the player can be looking at one filter while the workspace still reflects another export
+
+So when you need to answer "what code is live on screen right now?", use:
+
+- `du_ui_describe(uiKind = lua_editor, playerId = <playerId>)`
+- `du_ui_wait(uiKind = lua_editor, playerId = <playerId>, requireVisible = true)`
+- `du_ui_invoke(uiKind = lua_editor, method = outer_html, selector = ".CodeMirror", playerId = <playerId>)`
+
+Use `du_editor_pull_code` only as a recent local snapshot for external work, not as proof of current live slot/filter content.
+
 ### 11.3 Push Code
 
 Run:
@@ -366,6 +488,19 @@ Run:
 - `du_editor_push_code(playerId = <playerId>, targetKind = lua_editor, sourcePath = <local file>)`
 
 Use this only after the correct slot and filter are established.
+
+What this actually does:
+
+- it stages the local file through the same file-based IDE-import contract used by the in-game `IDE Sync` workflow
+- it updates the player-scoped workspace/import artifacts
+- it relies on the correct live Lua context already being visible
+
+What it does not do:
+
+- it does not open the editor
+- it does not choose the slot for you
+- it does not choose the filter for you
+- it does not make `du_editor_pull_code` become a guaranteed mirror of the visible live buffer
 
 ### 11.4 Save
 
@@ -391,6 +526,17 @@ After push or save, use:
 - `du_tail_runtime_logs`
 
 Use a screenshot only when the visible state matters more than the structured probe state.
+
+For `lua_editor`, validation has two different questions:
+
+- "Did the bridge file-transfer path stage or apply what I expected?"
+- "Is the player actually looking at the intended live slot/filter buffer right now?"
+
+Use these signals intentionally:
+
+- `du_get_last_result` and `du_tail_runtime_logs` answer the bridge/import/apply question
+- `du_ui_describe` and `outer_html` answer the visible live-buffer question
+- `du_editor_pull_code` only answers "what is the last known snapshot on the file-based exchange path?"
 
 ## 12. How To Inspect Live UI Safely
 

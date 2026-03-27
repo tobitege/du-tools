@@ -1,8 +1,10 @@
 # Findings
 
-- `rs_emulator` currently exposes only one browser-picked DU Lua folder in the UI.
-- Server-side `.env.local` roots already support multiple semicolon-separated entries via `DU_LUA_ROOT`.
-- Browser-side resolution currently uses one persisted `FileSystemDirectoryHandle` and one display name in settings.
-- Project-root modules like `lib.*` are resolved through the server/plugin, not through a visible search-path list.
-- A transparent solution works best when project root, `.env.local` defaults, and user-picked local folders are all represented as ordered entries in one visible list.
-- The resolver had to gain explicit scoped lookups (`relative`, `project`, `du`) so the visible order and the actual resolution order stay aligned.
+- `live_board/unit-onStart.lua` restauriert Persistenz ausschließlich aus der `databank` unter `screen_layout_editor:document` und übergibt den restaurierten Dokumenttext via `SCREEN_LAYOUT_EDITOR_INITIAL_DOCUMENT` an das Screen-Render-Script.
+- `live_board/unit-onTimer-UPD.lua` ist der einzige Persistenzschreiber: Es liest `Screen.getScriptOutput()`, validiert den Envelope mit `buildPersistenceRecordFromOutput(...)` und schreibt erst dann in die `databank`.
+- Das Screen-Render-Script schreibt nicht selbst in die `databank`. Es emittiert nur einen Envelope über `setOutput(envelope)`.
+- Damit ist die tatsächliche Persistenzkette: `RenderScript commit` -> `setOutput(envelope)` -> Board `onTimer("UPD")` -> `Screen.getScriptOutput()` -> `databank.setStringValue(...)` -> nächstes `onStart` liest aus `databank`.
+- Die Restore-Seite wirkt im Code konsistent. Wenn nach Neustart immer das Default-Layout erscheint, ist wahrscheinlicher, dass der Screen-Output nie ankommt oder vom Board beim Validieren verworfen wird.
+- Besonders verdächtig: `pcall(setOutput, envelope)` im Render-Script schluckt einen Fehler still; bei Fehlschlag gibt es dort kein Logging.
+- Ebenfalls verdächtig, aber schwächer: `buildPersistenceRecordFromOutput(...)` kann `parseError` oder `output_mismatch` liefern; diese Fälle würden Persistenz verhindern und nur als `system.print`-Warnung erscheinen.
+- `D:\github\yfs-tools\lua` enthält nützliche Referenzmuster für Board->Screen (`setRenderScript`, `system.setScreen`) und `databank`-Initialisierung, aber kein vergleichbares Screen->Board-Persistenzmuster mit `getScriptOutput()/setOutput()`.

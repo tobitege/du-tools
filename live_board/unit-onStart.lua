@@ -20,11 +20,30 @@ ShowTier3 = true --export Show Tier 3 recipes and button
 ShowTier4 = true --export Show Tier 4 recipes and button
 ShowTier5 = true --export Show Tier 5 recipes and button
 DEBUG = false --export Set to true to enable debug output for machine detection
+SLE_DIAG = true --export Set to true to log ScreenLayoutEditor diagnostics to Lua chat
 
 -------------------------------------------------------------------------------------
 
 -- Track which tiers are enabled via LUA parameters
 TiersEnabled = {ShowTier1, ShowTier2, ShowTier3, ShowTier4, ShowTier5}
+SLE_DIAG = SLE_DIAG ~= false
+SLE_DIAG_LAST = type(SLE_DIAG_LAST) == "table" and SLE_DIAG_LAST or {}
+
+local function SLEP(key, text, force)
+    if not SLE_DIAG then
+        return
+    end
+    if type(system) ~= "table" or type(system.print) ~= "function" then
+        return
+    end
+    local normalizedKey = tostring(key or text or "")
+    local normalizedText = tostring(text or "")
+    if not force and SLE_DIAG_LAST[normalizedKey] == normalizedText then
+        return
+    end
+    SLE_DIAG_LAST[normalizedKey] = normalizedText
+    system.print("[SLE] " .. normalizedText)
+end
 
 -- Validate at least one tier is enabled
 local hasEnabledTier = false
@@ -841,6 +860,23 @@ ScreenLayoutEditor.DEFAULT_MARGIN = 8
 
 local UINT32_MOD = 4294967296
 
+local function dp(message)
+    if not SLE_DIAG then
+        return
+    end
+    if type(system) == "table" and type(system.print) == "function" then
+        pcall(system.print, "[SLE-S] " .. tostring(message))
+    end
+end
+
+local function oe(err)
+    local s=tostring(err or "?"):lower()
+    if s:find("nil",1,true) then return "nil" end
+    if s:find("arg",1,true) or s:find("string",1,true) then return "arg" end
+    s=s:gsub("^.-:%d+:%s*",""):gsub("%s+",""):gsub("[^%w_]+","")
+    return s ~= "" and s:sub(1,6) or "!"
+end
+
 local function clamp(value, minimum, maximum)
     if value < minimum then
         return minimum
@@ -1006,8 +1042,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 textColor = { 1.00, 0.73, 0.24, 1.00 },
                 textSize = px(32),
                 textAlign = "center",
-                movable = true,
-                resizable = true
             },
             {
                 id = "purity_panel",
@@ -1020,8 +1054,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 textColor = { 1.00, 0.91, 0.56, 1.00 },
                 textSize = px(26),
                 textAlign = "center",
-                movable = true,
-                resizable = true
             },
             {
                 id = "materials_strip",
@@ -1030,8 +1062,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 fill = { 0.19, 0.20, 0.22, 0.96 },
                 stroke = { 0.96, 0.96, 0.98, 1.00 },
                 strokeWidth = px(4),
-                movable = true,
-                resizable = true
             },
             {
                 id = "tier_all",
@@ -1044,8 +1074,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 textColor = { 0.22, 0.15, 0.02, 1.00 },
                 textSize = px(22),
                 textAlign = "center",
-                movable = true,
-                resizable = true
             },
             {
                 id = "tier_l1",
@@ -1058,8 +1086,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 textColor = { 0.24, 0.12, 0.02, 1.00 },
                 textSize = px(20),
                 textAlign = "center",
-                movable = true,
-                resizable = true
             },
             {
                 id = "tier_l2",
@@ -1072,8 +1098,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 textColor = { 0.24, 0.12, 0.02, 1.00 },
                 textSize = px(20),
                 textAlign = "center",
-                movable = true,
-                resizable = true
             },
             {
                 id = "tier_l3",
@@ -1086,8 +1110,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 textColor = { 0.24, 0.12, 0.02, 1.00 },
                 textSize = px(20),
                 textAlign = "center",
-                movable = true,
-                resizable = true
             },
             {
                 id = "tier_l4",
@@ -1100,8 +1122,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 textColor = { 0.24, 0.12, 0.02, 1.00 },
                 textSize = px(20),
                 textAlign = "center",
-                movable = true,
-                resizable = true
             },
             {
                 id = "materials_band",
@@ -1114,8 +1134,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 textColor = { 0.78, 0.95, 1.00, 1.00 },
                 textSize = px(20),
                 textAlign = "center",
-                movable = true,
-                resizable = true
             },
             {
                 id = "preview_panel",
@@ -1124,8 +1142,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 fill = { 0.14, 0.14, 0.15, 0.98 },
                 stroke = { 0.97, 0.97, 0.98, 1.00 },
                 strokeWidth = px(4),
-                movable = true,
-                resizable = true
             },
             {
                 id = "status_badge",
@@ -1138,8 +1154,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 textColor = { 1.00, 0.68, 0.26, 1.00 },
                 textSize = px(28),
                 textAlign = "center",
-                movable = true,
-                resizable = true
             },
             {
                 id = "actions_panel",
@@ -1152,8 +1166,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 textColor = { 1.00, 0.72, 0.24, 1.00 },
                 textSize = px(28),
                 textAlign = "center",
-                movable = true,
-                resizable = true
             },
             {
                 id = "button_maintain",
@@ -1166,8 +1178,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 textColor = { 0.07, 0.22, 0.31, 1.00 },
                 textSize = px(22),
                 textAlign = "center",
-                movable = true,
-                resizable = true
             },
             {
                 id = "button_craft",
@@ -1180,8 +1190,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 textColor = { 0.07, 0.22, 0.31, 1.00 },
                 textSize = px(22),
                 textAlign = "center",
-                movable = true,
-                resizable = true
             },
             {
                 id = "button_stop",
@@ -1194,8 +1202,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 textColor = { 0.33, 0.12, 0.02, 1.00 },
                 textSize = px(24),
                 textAlign = "center",
-                movable = true,
-                resizable = true
             },
             {
                 id = "main_canvas",
@@ -1208,8 +1214,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 textColor = { 0.98, 0.66, 0.19, 1.00 },
                 textSize = px(24),
                 textAlign = "center",
-                movable = true,
-                resizable = true
             },
             {
                 id = "footer_status",
@@ -1218,8 +1222,6 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
                 fill = { 0.12, 0.80, 0.96, 0.98 },
                 stroke = { 0.88, 0.98, 1.00, 1.00 },
                 strokeWidth = px(2),
-                movable = true,
-                resizable = true
             }
         }
     }
@@ -1753,6 +1755,13 @@ function ScreenLayoutEditor.commitDocument(state)
     state.lastCommittedHash = hash
     state.lastOutputEnvelope = ScreenLayoutEditor.serializeOutputEnvelope(state.document, serialized, hash)
     state.documentDirty = false
+    dp(string.format(
+        "c r=%d h=%s s=%d e=%d",
+        state.document.revision or 0,
+        tostring(hash),
+        #serialized,
+        #state.lastOutputEnvelope
+    ))
     return true
 end
 
@@ -1776,6 +1785,7 @@ function ScreenLayoutEditor.createState(screenWidth, screenHeight, initialDocume
         lastCommittedSerialized = serialized,
         lastCommittedHash = ScreenLayoutEditor.hashText(serialized),
         lastOutputEnvelope = "",
+        os = "-",
         frameFontCache = {},
         pointerData = { cursorX = 0, cursorY = 0, pressed = false, down = false, released = false },
         pointerResult = { selectedChanged = false, documentChanged = false, committed = false }
@@ -2137,27 +2147,28 @@ local function drawHud(state, layer, screenHeight, frameFontCache)
         return
     end
 
-    local selectedText = string.format("Selected: none  rev=%d", state.document.revision or 0)
+    local selectedText = string.format("r%d o%s", state.document.revision or 0, tostring(state.os or "-"))
     if state.document.selectedId then
         local selected = ScreenLayoutEditor.findElement(state.document, state.document.selectedId)
         if selected then
             selectedText = string.format(
-                "Selected: %s  x=%d y=%d w=%d h=%d  rev=%d",
+                "%s %d,%d %dx%d r%d o%s",
                 selected.id,
                 math.floor(selected.x + 0.5),
                 math.floor(selected.y + 0.5),
                 math.floor(selected.w + 0.5),
                 math.floor(selected.h + 0.5),
-                state.document.revision or 0
+                state.document.revision or 0,
+                tostring(state.os or "-")
             )
         end
     end
 
     local modeText = "Click to select, drag inside to move, drag corner handles to resize"
     setNextFillColor(layer, 1.0, 0.68, 0.22, 1.0)
-    addTextWithFontRetry(layer, nil, font, math.max(18, math.floor(screenHeight / 42)), 0, modeText, 44, screenHeight - 42, frameFontCache)
+    addTextWithFontRetry(layer, nil, font, math.max(18, math.floor(screenHeight / 42)), 0, modeText, 44, screenHeight - 58, frameFontCache)
     setNextFillColor(layer, 0.72, 0.96, 1.0, 1.0)
-    addTextWithFontRetry(layer, nil, font, math.max(18, math.floor(screenHeight / 42)), 0, selectedText, 44, screenHeight - 16, frameFontCache)
+    addTextWithFontRetry(layer, nil, font, math.max(18, math.floor(screenHeight / 42)), 0, selectedText, 44, screenHeight - 32, frameFontCache)
 end
 
 local function getInitialDocumentText()
@@ -2219,7 +2230,13 @@ local function runRenderScript()
 
     local envelope = ScreenLayoutEditor.getOutputEnvelope(state)
     if envelope ~= "" then
-        pcall(setOutput, envelope)
+        local ok, err = pcall(setOutput, envelope)
+        if ok then
+            state.os = "o"
+        else
+            state.os = oe(err)
+            dp("o!" .. tostring(err))
+        end
     end
 
     local nextFrameDelay = 6
@@ -2265,18 +2282,34 @@ end
 
 local function RestoreScreenLayoutEditorEnvelope(editorModule)
     if not databank then
+        SLEP("sle-r", "r skip: no db")
         return nil
     end
     local key = editorModule.PERSISTENCE_DB_KEY
     if databank.hasKey(key) then
         local persistedText = databank.getStringValue(key)
         if type(persistedText) == "string" and persistedText ~= "" then
-            local envelope = editorModule.readPersistedEnvelope(persistedText)
+            local envelope, parseError = editorModule.readPersistedEnvelope(persistedText)
             if envelope then
+                SLEP(
+                    "sle-restore",
+                    string.format(
+                        "r ok r=%d h=%s b=%d",
+                        envelope.revision or 0,
+                        tostring(envelope.hash or "?"),
+                        #persistedText
+                    )
+                )
                 return envelope
             end
+            SLEP(
+                "sle-r",
+                "r bad: " .. tostring(parseError),
+                true
+            )
         end
     end
+    SLEP("sle-r", "r none")
     return nil
 end
 
@@ -2301,3 +2334,4 @@ end
 
 unit.hideWidget();
 unit.setTimer("UPD")
+

@@ -1,9 +1,6 @@
 # Progress
 
-- Started refactor for transparent Lua module search paths UI and resolver behavior.
-- Identified current single-root implementation in `App.tsx`, `Sidebar.tsx`, `sidebarConfig.ts`, and `sessionStore.ts`.
-- Confirmed server/plugin already parses multiple `.env.local` roots, but the UI does not expose them clearly yet.
-- Replaced the single-folder settings UI with a modal editor for an ordered list of module search paths.
-- Added persisted local-folder handles per search-path entry and one-time migration from the legacy single DU root handle.
-- Updated resolver flow so project root, `.env.local` defaults, and local browser folders can be searched in explicit user-defined order.
-- Verified with `npm test -- luaRuntime.test.ts vite.config.test.ts`, `npm run build`, and `lua module-require-smoke.lua`.
+- Analyse gestartet: `live_board`, `DuMcpBridge`, `ModUiExtractor` und `D:\github\yfs-tools\lua`
+- Persistenzkette identifiziert: Restore wirkt korrekt, verdächtig ist der Laufzeitpfad `setOutput` -> `getScriptOutput` -> Validierung -> `databank`
+- Chat-basierte Diagnostik in `live_board/unit-onStart.lua` und `live_board/unit-onTimer-UPD.lua` eingebaut, um Send/Receive/Persist/Restore im Lua-Chat sichtbar zu machen
+- Eingebetteten `SCREEN_LAYOUT_EDITOR_SOURCE` wieder unter die 50000-Zeichen-Grenze gebracht (`49742` Zeichen) durch Kürzen der Diagnostik und Entfernen redundanter `movable/resizable = true`-Flags im Default-Dokument

@@ -9,6 +9,7 @@ Task:
 Continue development of the `live_board` code specifically for the Programming Board (`lua_editor`) workflow.
 
 Rules:
+
 - Follow the documented MCP workflow from `live_board/README.md`.
 - Treat the manual as the source of truth for:
   - environment assumptions
@@ -27,6 +28,7 @@ Rules:
 - If a step is ambiguous, inspect first and only then act.
 
 Working style:
+
 1. Read `live_board/README.md`.
 2. Summarize the exact Programming Board development cycle you will follow.
 3. Inspect the relevant current code and bridge-facing files.
@@ -35,13 +37,13 @@ Working style:
 6. Report what changed, what was verified live, and any remaining open point.
 
 Focus:
+
 - We are working on the `live_board` code in the Programming Board, not the Screen workflow.
 - Safety and state verification matter more than speed.
 - Missing one required step can block the whole process or risk data loss, so be explicit and procedural.
 
 When you respond, start by confirming:
+
 - that you read `live_board/README.md`
 - the exact Programming Board procedure you will use
 - which files you plan to inspect first
-
-TASK:
