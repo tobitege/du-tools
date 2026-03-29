@@ -405,6 +405,20 @@
     return String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
   }
 
+  function normalizeLuaEditorTrailingNewline(codeMirror) {
+    if (!codeMirror || typeof codeMirror.getValue !== "function" || typeof codeMirror.setValue !== "function") {
+      return;
+    }
+
+    try {
+      var currentText = String(codeMirror.getValue() || "");
+      if (!/\n\n$/.test(currentText)) {
+        return;
+      }
+      codeMirror.setValue(currentText.replace(/\n\n$/, "\n"));
+    } catch (_ignoreNormalizeLuaEditorTrailingNewline) {}
+  }
+
   function cloneIdeSyncObject(value) {
     if (!value || typeof value !== "object") {
       return null;
@@ -806,6 +820,7 @@
           throw new Error("lua_editor_sync_unavailable");
         }
         codeMirror.setValue(code);
+        normalizeLuaEditorTrailingNewline(codeMirror);
       }
     } catch (error) {
       var applyError = error && error.message ? error.message : String(error || "ide_import_apply_failed");
@@ -913,6 +928,7 @@
     }
 
     codeMirror.setValue(newCode);
+    normalizeLuaEditorTrailingNewline(codeMirror);
     state.lastIdeSyncContextKey = currentContextKey;
     state.lastIdeSyncReference = cloneIdeSyncObject(snapshot.reference || getLuaIdeSyncReference());
     flashIdeSyncButton("Sync ok", "#2a6b36", "#ffffff", 1500);

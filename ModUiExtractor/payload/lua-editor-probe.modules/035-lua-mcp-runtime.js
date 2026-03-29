@@ -820,6 +820,7 @@
     try {
       if (window.LUAEditorManager && typeof window.LUAEditorManager.setCodeLuaEditor === "function") {
         window.LUAEditorManager.setCodeLuaEditor(text);
+        normalizeLuaEditorTrailingNewline(getLuaCodeMirror());
         return describeLuaEditor();
       }
     } catch (_ignoreSetCode) {}
