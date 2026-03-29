@@ -1,33 +1,15 @@
 system.print("------------------------------------")
-system.print("HoneyCombControl v"..VERSION)
+system.print("SLE Form Editor v2")
 system.print("Customized by tobitege 2026-03-29")
 system.print("------------------------------------")
 -------------------------------------------------------------------------------------
 
-MainColor = "215,65,0" --export: Main color RGB value
-CraftColor = "0,80,150" --export: Main color RGB value
-StopColor = "200,40,0" --export: Main color RGB value
-StopColorSelect = "170,100,10" --export: Main color RGB value
-CraftColorSelect = "0,100,140" --export: Main color RGB value
-ButtonSelectColor = "205,110,0" --export Button Select color RGB value
-Color3 = "255,255,255" -- Button Select Box color RGB value
-FontColor = "0,0,0" --export Font color RGB value
-BackgroundImage = false --export Background Image on/off
-BackgroundColor = "0,0,0" --export Background Image on/off
-ShowTier1 = true --export Show Tier 1 recipes and button
-ShowTier2 = true --export Show Tier 2 recipes and button
-ShowTier3 = true --export Show Tier 3 recipes and button
-ShowTier4 = true --export Show Tier 4 recipes and button
-ShowTier5 = true --export Show Tier 5 recipes and button
-DEBUG = false --export Set to true to enable debug output for machine detection
 SLE_DIAG = true --export Set to true to log SLE diagnostics to Lua chat
-SLE_LOG_LEVEL = "debug" --export SLE chat level: debug, info, error
+SLE_LOG_LEVEL = "info" --export SLE chat level: debug, info, error
 SLE_BUILD = "0329l" --export Short live build marker for SLE diagnostics
 
 -------------------------------------------------------------------------------------
 
--- Track which tiers are enabled via LUA parameters
-TiersEnabled = {ShowTier1, ShowTier2, ShowTier3, ShowTier4, ShowTier5}
 SLE_DIAG = SLE_DIAG ~= false
 SLE_DIAG_LAST = type(SLE_DIAG_LAST) == "table" and SLE_DIAG_LAST or {}
 SLE_LOG_LEVEL = string.lower(tostring(SLE_LOG_LEVEL or "error"))
@@ -80,786 +62,25 @@ local function SLETrimDebugText(value, maxLength)
     return text:sub(1, limit) .. "..."
 end
 
--- Validate at least one tier is enabled
-local hasEnabledTier = false
-for _, enabled in ipairs(TiersEnabled) do
-    if enabled then
-        hasEnabledTier = true
-        break
-    end
-end
-if not hasEnabledTier then
-    system.print("ERROR: At least one tier must be enabled (ShowTier1-5)!")
-    unit.exit()
-    return
-end
-
--- Hardcoded fallback recipe database (used if dynamic discovery fails)
-DefaultRecipes = {
-    -- Pure Ores - sorted by tier, then alphabetically
-    -- Tier 1
-    {name="Aluminium", id=3412263159, tier=1, category="Pure"},
-    {name="Carbon", id=1302515042, tier=1, category="Pure"},
-    {name="Iron", id=37528869, tier=1, category="Pure"},
-    {name="Silicon", id=3653745342, tier=1, category="Pure"},
-    -- Tier 2
-    {name="Calcium", id=3952360352, tier=2, category="Pure"},
-    {name="Chromium", id=2542211183, tier=2, category="Pure"},
-    {name="Copper", id=910460789, tier=2, category="Pure"},
-    {name="Sodium", id=4053801305, tier=2, category="Pure"},
-    -- Tier 3
-    {name="Lithium", id=1127716470, tier=3, category="Pure"},
-    {name="Nickel", id=460946213, tier=3, category="Pure"},
-    {name="Silver", id=3398664647, tier=3, category="Pure"},
-    {name="Sulfur", id=1203365798, tier=3, category="Pure"},
-    -- Products - sorted by tier, then alphabetically
-    -- Tier 1
-    {name="Brick", id=1795739234, tier=1, category="Product"},
-    {name="Carbon Fiber", id=4090723846, tier=1, category="Product"},
-    {name="Concrete", id=2182865731, tier=1, category="Product"},
-    {name="Marble", id=2230700424, tier=1, category="Product"},
-    {name="Plastic", id=700746008, tier=1, category="Product"},
-    {name="Silumin", id=1728732765, tier=1, category="Product"},
-    {name="Steel", id=2116396300, tier=1, category="Product"},
-    {name="Wood", id=1413882890, tier=1, category="Product"},
-    -- Tier 2
-    {name="Duralumin", id=3868188998, tier=2, category="Product"},
-    {name="Stainless Steel", id=1902887537, tier=2, category="Product"},
-    -- Tier 3
-    {name="Al-Li", id=3731467161, tier=3, category="Product"},
-    {name="Inconel", id=499986391, tier=3, category="Product"},
-    -- Tier 4 Pure
-    {name="Cobalt", id=2555431045, tier=4, category="Pure"},
-    {name="Fluorine", id=2977737982, tier=4, category="Pure"},
-    {name="Gold", id=1325185658, tier=4, category="Pure"},
-    {name="Scandium", id=1613422978, tier=4, category="Pure"},
-    -- Tier 4 Product
-    {name="Maraging Steel", id=2577456363, tier=4, category="Product"},
-    {name="Sc-Al", id=2579091250, tier=4, category="Product"},
-    -- Tier 5 Product / Pure
-    {name="Grade 5 Titanium alloy", id=3946529893, tier=5, category="Product", displayName="G5 Titanium"},
-    {name="Mangalloy", id=560565938, tier=5, category="Product"},
-    {name="Manganese", id=347785248, tier=5, category="Pure"},
-    {name="Niobium", id=3146977693, tier=5, category="Pure"},
-    {name="Titanium", id=1614272263, tier=5, category="Pure"},
-    {name="Vanadium", id=3934620247, tier=5, category="Pure"}
-}
-
-local function FindDefaultRecipeById(itemId)
-    for _, recipe in ipairs(DefaultRecipes) do
-        if recipe.id == itemId then
-            return recipe
-        end
-    end
-    return nil
-end
-
-local function CopyRecipeEntry(recipe)
-    local copy = {
-        name = recipe.name,
-        id = recipe.id,
-        tier = recipe.tier,
-        category = recipe.category,
-        displayName = recipe.displayName,
-    }
-
-    if recipe.outputs then
-        copy.outputs = {}
-        for _, output in ipairs(recipe.outputs) do
-            copy.outputs[#copy.outputs + 1] = {
-                name = output.name,
-                id = output.id,
-            }
-        end
-    end
-
-    return copy
-end
-
-local function SortRecipeCatalog(recipes)
-    table.sort(recipes, function(a, b)
-        if a.category ~= b.category then return a.category < b.category end
-        if a.tier ~= b.tier then return a.tier < b.tier end
-        return a.name < b.name
-    end)
-    return recipes
-end
-
-local function BuildRuntimeRecipeCatalog(discoveredRecipes)
-    local merged = {}
-    local seenKeys = {}
-    local additionalCount = 0
-
-    for _, recipe in ipairs(DefaultRecipes) do
-        local key = string.format("%s|%d|%s", recipe.category, recipe.tier, recipe.name)
-        merged[#merged + 1] = CopyRecipeEntry(recipe)
-        seenKeys[key] = true
-    end
-
-    for _, recipe in ipairs(discoveredRecipes or {}) do
-        local key = string.format("%s|%d|%s", recipe.category, recipe.tier, recipe.name)
-        if not seenKeys[key] then
-            merged[#merged + 1] = CopyRecipeEntry(recipe)
-            seenKeys[key] = true
-            additionalCount = additionalCount + 1
-        end
-    end
-
-    return SortRecipeCatalog(merged), additionalCount
-end
-
--- Strip " Honeycomb" suffix and size indicators to get the clean material name
-local function ExtractMaterialName(locDisplayName)
-    if not locDisplayName or locDisplayName == "" then return nil end
-    local name = locDisplayName
-    name = name:gsub(" Honeycomb.*$", "")
-    name = name:gsub("^Pure%s+", "")
-    name = name:gsub("%s+[Pp]roduct$", "")
-    name = name:gsub("%s+[Cc]opy$", "")
-    name = name:gsub("%s*%b()$", "")
-    name = name:match("^%s*(.-)%s*$")
-    if name == "" then return nil end
-    return name
-end
-
-local function SelectMainRecipeForOutput(outputId)
-    local bestRecipe = nil
-    local bestQuantity = -1
-
-    for _, candidate in ipairs(system.getRecipes(outputId) or {}) do
-        for _, product in ipairs(candidate.products or {}) do
-            if product.id == outputId and (product.quantity or 0) > bestQuantity then
-                bestRecipe = candidate
-                bestQuantity = product.quantity or 0
-            end
-        end
-    end
-
-    return bestRecipe
-end
-
-local function GetCategoryFromSchematic(schematicItem, mainRecipe)
-    local schematicName = schematicItem and (schematicItem.locDisplayName or schematicItem.displayName) or ""
-    local lowerSchematicName = schematicName:lower()
-    if lowerSchematicName:find("product honeycomb") then
-        return "Product"
-    end
-    if lowerSchematicName:find("pure honeycomb") then
-        return "Pure"
-    end
-
-    for _, ingredient in ipairs(mainRecipe and mainRecipe.ingredients or {}) do
-        local ingredientItem = system.getItem(ingredient.id)
-        local ingredientName = ingredientItem and (ingredientItem.locDisplayName or ingredientItem.displayName) or ""
-        local lowerIngredientName = ingredientName:lower()
-        if lowerIngredientName:find(" product$") then
-            return "Product"
-        end
-        if lowerIngredientName:find("^pure ") then
-            return "Pure"
-        end
-    end
-
-    return nil
-end
-
-local function GetTierFromSchematic(schematicItem, mainRecipe, outputItem)
-    if mainRecipe and mainRecipe.tier then
-        return mainRecipe.tier
-    end
-
-    local schematicName = schematicItem and (schematicItem.locDisplayName or schematicItem.displayName) or ""
-    local tier = tonumber(schematicName:match("[Tt]ier%s*(%d+)"))
-    if tier then
-        return tier
-    end
-
-    return outputItem and outputItem.tier or nil
-end
-
-local function ExtractMaterialNameFromOutput(outputItem, mainRecipe, category)
-    for _, ingredient in ipairs(mainRecipe and mainRecipe.ingredients or {}) do
-        local ingredientItem = system.getItem(ingredient.id)
-        local ingredientLabel = ingredientItem and (ingredientItem.locDisplayName or ingredientItem.displayName) or ""
-        local materialName = ExtractMaterialName(ingredientLabel)
-        local lowerIngredientLabel = ingredientLabel:lower()
-        if category == "Product" and lowerIngredientLabel:find(" product$") then
-            return materialName
-        end
-        if category == "Pure" and lowerIngredientLabel:find("^pure ") then
-            return materialName
-        end
-    end
-
-    local outputLabel = outputItem and (outputItem.locDisplayName or outputItem.displayName) or ""
-    outputLabel = outputLabel:gsub("^[Aa]ged%s+", "")
-    outputLabel = outputLabel:gsub("^[Gg]lossy%s+", "")
-    outputLabel = outputLabel:gsub("^[Mm]atte%s+", "")
-    outputLabel = outputLabel:gsub("^[Pp]olished%s+", "")
-    outputLabel = outputLabel:gsub("^[Gg]alvanized%s+", "")
-    outputLabel = outputLabel:gsub("^[Ww]axed%s+", "")
-    outputLabel = outputLabel:gsub("^[Pp]ainted%s+[%a%-]+%s+", "")
-    outputLabel = outputLabel:gsub("%s*%b()$", "")
-
-    return ExtractMaterialName(outputLabel)
-end
-
-local function GetSchematicOutputIds(schematicId)
-    local schematicItem = system.getItem(schematicId)
-    local outputIds = {}
-    local seenOutputIds = {}
-
-    local function AddOutputId(productEntry)
-        local productId = type(productEntry) == "table" and productEntry.id or productEntry
-        if type(productId) == "number" and not seenOutputIds[productId] then
-            seenOutputIds[productId] = true
-            outputIds[#outputIds + 1] = productId
-        end
-    end
-
-    for _, productEntry in ipairs(schematicItem and schematicItem.products or {}) do
-        AddOutputId(productEntry)
-    end
-
-    for _, recipeData in ipairs(system.getRecipes(schematicId) or {}) do
-        for _, productEntry in ipairs(recipeData.products or {}) do
-            AddOutputId(productEntry)
-        end
-    end
-
-    return schematicItem, outputIds
-end
-
-local function AddOutputToFamily(discoveredFamilies, category, tier, materialName, outputItem)
-    if not category or not tier or not materialName or not outputItem or not outputItem.id then
-        return
-    end
-
-    local key = string.format("%s|%d|%s", category, tier, materialName)
-    local family = discoveredFamilies[key]
-    if not family then
-        family = {
-            name = materialName,
-            id = outputItem.id,
-            tier = tier,
-            category = category,
-            outputs = {},
-            _seenOutputIds = {},
-        }
-        discoveredFamilies[key] = family
-    end
-
-    if not family._seenOutputIds[outputItem.id] then
-        family._seenOutputIds[outputItem.id] = true
-        family.outputs[#family.outputs + 1] = {
-            name = outputItem.locDisplayName or outputItem.displayName or materialName,
-            id = outputItem.id,
-        }
-    end
-end
-
--- Dynamic recipe discovery: aggregate machine schematics across all linked honeycomb refiners
-local function DiscoverRecipes(industryLines)
-    local discoveredFamilies = {}
-    local seenSchematicIds = {}
-
-    for _, industryLine in ipairs(industryLines or {}) do
-        local machineElement = industryLine.element or industryLine
-        local machineItem = machineElement and machineElement.getItemId and system.getItem(machineElement.getItemId()) or nil
-        if not machineItem then
-            if DEBUG then system.print("DiscoverRecipes: Could not get machine item info") end
-            goto continue_machine
-        end
-
-        local schematics = machineItem.schematics
-        if not schematics or #schematics == 0 then
-            if DEBUG then
-                system.print("DiscoverRecipes: No schematics field or empty on machine item " .. tostring(machineItem.displayName))
-            end
-            goto continue_machine
-        end
-
-        if DEBUG then
-            system.print("DiscoverRecipes: Machine " .. tostring(machineItem.displayName) .. " has " .. #schematics .. " schematic entries")
-        end
-
-        for _, schematicId in ipairs(schematics) do
-            if type(schematicId) ~= "number" or seenSchematicIds[schematicId] then
-                goto continue_schematic
-            end
-            seenSchematicIds[schematicId] = true
-
-            local schematicItem, outputIds = GetSchematicOutputIds(schematicId)
-            if DEBUG then
-                system.print("  Schematic " .. tostring(schematicItem and (schematicItem.locDisplayName or schematicItem.displayName) or schematicId) .. " -> " .. tostring(#outputIds) .. " output(s)")
-            end
-
-            for _, outputId in ipairs(outputIds) do
-                local outputItem = system.getItem(outputId)
-                if not outputItem or not outputItem.id then
-                    goto continue_output
-                end
-
-                local mainRecipe = SelectMainRecipeForOutput(outputId)
-                local category = GetCategoryFromSchematic(schematicItem, mainRecipe)
-                local tier = GetTierFromSchematic(schematicItem, mainRecipe, outputItem)
-                local materialName = ExtractMaterialNameFromOutput(outputItem, mainRecipe, category)
-                local fallbackRecipe = FindDefaultRecipeById(outputItem.id)
-
-                if fallbackRecipe then
-                    category = category or fallbackRecipe.category
-                    tier = tier or fallbackRecipe.tier
-                    materialName = materialName or fallbackRecipe.name
-                end
-
-                if not category or not tier or not materialName then
-                    if DEBUG then
-                        system.print("    Skipping output " .. tostring(outputItem.locDisplayName or outputItem.displayName) .. " (category/tier/material unresolved)")
-                    end
-                    goto continue_output
-                end
-
-                if DEBUG then
-                    system.print("    Discovered output " .. tostring(outputItem.locDisplayName or outputItem.displayName) .. " -> " .. materialName .. " (" .. category .. " T" .. tostring(tier) .. ")")
-                end
-
-                AddOutputToFamily(discoveredFamilies, category, tier, materialName, outputItem)
-
-                ::continue_output::
-            end
-
-            ::continue_schematic::
-        end
-
-        ::continue_machine::
-    end
-
-    local discovered = {}
-    for _, family in pairs(discoveredFamilies) do
-        table.sort(family.outputs, function(a, b) return a.name < b.name end)
-        family.id = family.outputs[1] and family.outputs[1].id or family.id
-        family._seenOutputIds = nil
-        discovered[#discovered + 1] = family
-    end
-
-    return SortRecipeCatalog(discovered)
-end
-
-local firstMachineDebugDone = false
-local tierCounts = {0, 0, 0, 0, 0} -- Count machines per tier (1-5)
-Industry = {}
 Screens = {}
-for slot,element in pairs(unit) do -- checking elements in slots
-    if type(element)=="table"and type(element.export)=="table"then
-        if element.getClass then
-            if element.getClass()=="ScreenUnit" then
-                if not Screen then
-                    Screen=element
-                end
-                Screens[#Screens+1]=element
-                element.activate()
-            elseif string.find(element.getClass(),"Industry") and #Industry < 8 then
-                local machineItem = system.getItem(element.getItemId())
-                local displayName = machineItem and machineItem.displayName or ""
-                -- Only include machines with "Honeycomb" in their displayName
-                if string.find(displayName, "Honeycomb") then
-                    local info = element.getInfo()
-                    local machineTier = machineItem and machineItem.tier or 1
-                    Industry[#Industry+1]={
-                        element=element,
-                        slot=slot,
-                        info=info,
-                        tier=machineTier,
-                    }
-                    -- Count this machine's tier
-                    if machineTier >= 1 and machineTier <= 5 then
-                        tierCounts[machineTier] = tierCounts[machineTier] + 1
-                    end
-                    -- Debug output for first non-tier-1 machine only (if DEBUG enabled)
-                    if DEBUG and not firstMachineDebugDone and machineTier > 1 then
-                        system.print("=== Industry Machine Debug Info (Slot "..slot..") ===")
-                        system.print("-- Element Identity --")
-                        system.print("Name: "..tostring(element.getName()))
-                        system.print("Class: "..tostring(element.getClass()))
-                        system.print("Class ID: "..tostring(element.getClassId()))
-                        system.print("Item ID: "..tostring(element.getItemId()))
-                        system.print("** STORED TIER: "..tostring(machineTier).." (Can produce honeycombs up to tier "..machineTier..") **")
-                        system.print("-- getInfo() Table Fields --")
-                        system.print("State: "..tostring(info.state))
-                        system.print("Stop Requested: "..tostring(info.stopRequested))
-                        system.print("Units Produced: "..tostring(info.unitsProduced))
-                        system.print("Remaining Time: "..tostring(info.remainingTime))
-                        system.print("Batches Requested: "..tostring(info.batchesRequested))
-                        system.print("Batches Remaining: "..tostring(info.batchesRemaining))
-                        system.print("Maintain Product Amount: "..tostring(info.maintainProductAmount))
-                        system.print("Current Product Amount: "..tostring(info.currentProductAmount))
-                        system.print("Required Schematic Amount: "..tostring(info.requiredSchematicAmount))
-                        if info.requiredSchematicIds and #info.requiredSchematicIds > 0 then
-                            system.print("Required Schematic IDs: "..#info.requiredSchematicIds.." schematic(s)")
-                            for i, schematicId in ipairs(info.requiredSchematicIds) do
-                                system.print("  Schematic "..i..": "..tostring(schematicId))
-                            end
-                        else
-                            system.print("Required Schematic IDs: none")
-                        end
-                        if info.currentProducts and #info.currentProducts > 0 then
-                            system.print("Current Products: "..#info.currentProducts.." product(s)")
-                        else
-                            system.print("Current Products: none")
-                        end
-                        -- Check for tier field directly in info
-                        if info.tier then
-                            system.print("Tier (from info): "..tostring(info.tier))
-                        end
-                        system.print("-- Checking system.getItem() for machine --")
-                        local machineItem2 = system.getItem(element.getItemId())
-                        if machineItem2 then
-                            system.print("Machine locDisplayName: "..tostring(machineItem2.locDisplayName))
-                            system.print("Machine displayName: "..tostring(machineItem2.displayName))
-                            if machineItem2.tier then
-                                system.print("Machine tier (from item): "..tostring(machineItem2.tier))
-                            end
-                            if machineItem2.products then
-                                system.print("Machine products count: "..#machineItem2.products)
-                                for pi, pentry in ipairs(machineItem2.products) do
-                                    local pid = type(pentry) == "table" and pentry.id or pentry
-                                    local pitem = system.getItem(pid)
-                                    local pcat = ""
-                                    if system.isMaterialItem and system.isMaterialItem(pid) then pcat = " [Material/Pure]"
-                                    elseif system.isPartItem and system.isPartItem(pid) then pcat = " [Part/Product]" end
-                                    system.print("  Product "..pi..": id="..pid.." name="..tostring(pitem and pitem.locDisplayName or "?").." type="..tostring(pitem and pitem.type or "?").." tier="..tostring(pitem and pitem.tier or "?").." children="..(pitem and pitem.childIds and #pitem.childIds or 0)..pcat)
-                                end
-                            else
-                                system.print("Machine products: nil")
-                            end
-                            if machineItem2.schematics then
-                                system.print("Machine schematics count: "..#machineItem2.schematics)
-                            end
-                        end
-                        system.print("-- Class Membership Checks --")
-                        local tierClasses = {
-                            {name="IndustryBasic", tier=1},
-                            {name="IndustryUncommon", tier=2},
-                            {name="IndustryAdvanced", tier=3},
-                            {name="IndustryRare", tier=4},
-                            {name="IndustryExotic", tier=5},
-                            {name="Industry1", tier=1},
-                            {name="Industry2", tier=2},
-                            {name="Industry3", tier=3},
-                            {name="Industry4", tier=4},
-                            {name="Industry5", tier=5},
-                        }
-                        for _, tc in ipairs(tierClasses) do
-                            if element.isInClass(tc.name) then
-                                system.print("MATCH: Machine is in class '"..tc.name.."' (tier "..tc.tier..")")
-                            end
-                        end
-                        system.print("=====================================")
-                        firstMachineDebugDone = true
-                    end
-                end -- end of Honeycomb filter
-            elseif element.getClass():lower() == 'databankunit' then
-                databank=element
+databank = nil
+for slot, element in pairs(unit) do
+    if type(element) == "table"
+        and type(element.export) == "table"
+        and type(element.getClass) == "function" then
+        local className = element.getClass()
+        if className == "ScreenUnit" then
+            if not Screen then
+                Screen = element
             end
+            Screens[#Screens + 1] = element
+            element.activate()
+        elseif string.lower(tostring(className)) == "databankunit" then
+            databank = element
         end
     end
 end
 
-if #Industry == 0 then
-    system.print("ERROR: No machines linked!")
-    unit.exit()
-    return
-end
-
-table.sort(Industry, function(a,b) return a.slot < b.slot end)
-
--- Build the Recipes table after all linked machines are known.
-Recipes = nil
-if DEBUG then
-    system.print("Attempting dynamic recipe discovery from all linked honeycomb machines...")
-end
-local discoveredRecipes = DiscoverRecipes(Industry)
-if discoveredRecipes and #discoveredRecipes > 0 then
-    local discoveredAdditions
-    Recipes, discoveredAdditions = BuildRuntimeRecipeCatalog(discoveredRecipes)
-    if discoveredAdditions > 0 then
-        system.print("Dynamic discovery: found " .. discoveredAdditions .. " additional honeycomb families via schematics")
-    else
-        system.print("Dynamic discovery found " .. #discoveredRecipes .. " schematic-backed families, keeping fallback catalog active")
-    end
-else
-    system.print("Using hardcoded recipe database (dynamic discovery unavailable)")
-    Recipes = DefaultRecipes
-end
-
--- Output machine counts per tier and update TiersEnabled
-system.print("--- Honeycomb Machine Tier Summary ---")
-for tier = 1, 5 do
-    if tierCounts[tier] > 0 then
-        system.print("Tier "..tier.." machines: "..tierCounts[tier])
-    end
-end
--- Disable tiers that cannot be produced by any connected machine
--- A machine of tier N can produce honeycombs up to tier N.
-for tier = 1, 5 do
-    local canProduceTier = false
-    for machineTier = tier, 5 do
-        if tierCounts[machineTier] > 0 then
-            canProduceTier = true
-            break
-        end
-    end
-    if not canProduceTier then
-        TiersEnabled[tier] = false
-        system.print("Tier "..tier.." honeycombs disabled (no compatible machines)")
-    end
-end
-system.print("---------------------------------------")
-
-hrs = 0
-min = 0
-sec = 0
-
-local dbKeys = {a, b, c, d, e, f, g, h}
-for _, key in ipairs(dbKeys) do
-    if databank.getIntValue(key) == nil then
-        databank.setIntValue(key, 0)
-    end
-end
-
--- Persisted tier filter setup
-TIER_FILTER_KEY = "hc:tierFilter"
-selectedTiers = {}
--- Build default: all enabled tiers
-local defaultTiers = {}
-for tier = 1, 5 do
-    if TiersEnabled[tier] then
-        table.insert(defaultTiers, tostring(tier))
-    end
-end
-local tierStr = table.concat(defaultTiers, ",")
-if databank then
-    local saved = databank.getStringValue(TIER_FILTER_KEY)
-    if saved and saved ~= "" then
-        -- Validate saved tiers against currently enabled tiers
-        local validTiers = {}
-        for tier in string.gmatch(saved, "%d+") do
-            local t = tonumber(tier)
-            if TiersEnabled[t] then
-                table.insert(validTiers, tier)
-            end
-        end
-        if #validTiers > 0 then
-            tierStr = table.concat(validTiers, ",")
-        end
-    end
-    databank.setStringValue(TIER_FILTER_KEY, tierStr)
-end
--- Parse and apply tier filter
-for tier = 1, 5 do
-    selectedTiers[tier] = false
-end
-for tier in string.gmatch(tierStr, "%d+") do
-    local t = tonumber(tier)
-    if t and TiersEnabled[t] then
-        selectedTiers[t] = true
-    end
-end
-
--- Persisted category setup
-CAT_DB_KEY = "hc:lastCategory"
-TIER_GROUP_DB_KEY = "hc:lastTierGroup"
-if databank then
-    local v = databank.getStringValue(CAT_DB_KEY)
-    if v == "Pure" or v == "Product" then
-        lastCategory = v
-    end
-
-    local savedTierGroup = databank.getStringValue(TIER_GROUP_DB_KEY)
-    if savedTierGroup == "Common" or savedTierGroup == "Rare" then
-        lastTierGroup = savedTierGroup
-    end
-end
-if not lastCategory or lastCategory == "" then
-    lastCategory = "Pure"
-end
-
-if lastTierGroup ~= "Rare" then
-    lastTierGroup = "Common"
-end
-
-if lastTierGroup == "Common" and not (TiersEnabled[1] or TiersEnabled[2] or TiersEnabled[3]) then
-    if TiersEnabled[4] or TiersEnabled[5] then
-        lastTierGroup = "Rare"
-    end
-elseif lastTierGroup == "Rare" and not (TiersEnabled[4] or TiersEnabled[5]) then
-    lastTierGroup = "Common"
-end
-
-if databank then
-    databank.setStringValue(CAT_DB_KEY, lastCategory)
-    databank.setStringValue(TIER_GROUP_DB_KEY, lastTierGroup)
-end
-
-defaultRecipeList = lastCategory
-defaultTierGroup = lastTierGroup
-
-ScrContent = ScreenContentHC
-if lastCategory == "Product" then
-    ScrContent = ScreenContentHC2
-end
-
-function GetLineSelectionLabel(lineNum)
-    if lineNum and lineNum > 0 then
-        return "Line "..lineNum
-    end
-    return "All"
-end
-
-function GetLineDisplayName(lineNum)
-    if not lineNum or lineNum <= 0 or not Industry[lineNum] then
-        return "All connected lines"
-    end
-
-    local element = Industry[lineNum].element
-    local elementName = element and element.getName and element.getName() or ""
-    if elementName and elementName ~= "" then
-        return elementName
-    end
-
-    local machineItem = element and element.getItemId and system.getItem(element.getItemId()) or nil
-    if machineItem then
-        if machineItem.locDisplayName and machineItem.locDisplayName ~= "" then
-            return machineItem.locDisplayName
-        end
-        if machineItem.displayName and machineItem.displayName ~= "" then
-            return machineItem.displayName
-        end
-    end
-
-    return "Honeycomb Line "..lineNum
-end
-
-function BuildRenderHeader(recipeList, lineNum, tierGroup)
-    local category = recipeList or "Pure"
-    local activeTierGroup = tierGroup == "Rare" and "Rare" or "Common"
-    local recipes = GetFilteredRecipesByCategory(category, activeTierGroup)
-    local defaultSelectedLine = GetLineSelectionLabel(lineNum)
-
-    -- Build tier data for recipes
-    local tierData = "local RecipeTiers = {"
-    for _, recipe in ipairs(recipes) do
-        tierData = tierData .. string.format('["%s"]=%d,', recipe.name, recipe.tier)
-    end
-    tierData = tierData .. "}\n"
-
-    -- Build tier filter state
-    local tierFilterData = "local TierFilter = {"
-    for tier = 1, 5 do
-        tierFilterData = tierFilterData .. string.format("[%d]=%s,", tier, selectedTiers[tier] and "true" or "false")
-    end
-    tierFilterData = tierFilterData .. "}\n"
-
-    -- Build tiers enabled state
-    local tiersEnabledData = "local TiersEnabled = {"
-    for tier = 1, 5 do
-        tiersEnabledData = tiersEnabledData .. string.format("[%d]=%s,", tier, TiersEnabled[tier] and "true" or "false")
-    end
-    tiersEnabledData = tiersEnabledData .. "}\n"
-
-    local lineMetaData = "local LineMeta = {\n"
-    lineMetaData = lineMetaData .. string.format("    [0] = {buttonLabel=%q, footerLabel=%q},\n", "All", "All connected lines")
-    for i = 1, #Industry do
-        local machineTier = Industry[i].tier or 1
-        local buttonLabel = string.format("L%d T%d", i, machineTier)
-        local footerLabel = string.format("Line %d: %s", i, GetLineDisplayName(i))
-        lineMetaData = lineMetaData .. string.format(
-            "    [%d] = {buttonLabel=%q, footerLabel=%q},\n",
-            i,
-            buttonLabel,
-            footerLabel
-        )
-    end
-    lineMetaData = lineMetaData .. "}\n"
-
-    return string.format([[
-    -- injected defaults
-    defaultRecipeList = %q
-    defaultTierGroup = %q
-    defaultSelectedLine = %q
-    local version = %q
-    %s%s%s%s    local color2 = {r=%s/255,g=%s/255,b=%s/255}
-    local color1 = {r=%s/255,g=%s/255,b=%s/255}
-    local color3 = {r=%s/255,g=%s/255,b=%s/255}
-    local color4 = {r=%s/255,g=%s/255,b=%s/255}
-    local color5 = {r=%s/255,g=%s/255,b=%s/255}
-    local color6 = {r=%s/255,g=%s/255,b=%s/255}
-    local color7 = {r=%s/255,g=%s/255,b=%s/255}
-    local color8 = {r=%s/255,g=%s/255,b=%s/255}
-    local color9 = {r=%s/255,g=%s/255,b=%s/255}
-    ]],
-        category,
-        activeTierGroup,
-        defaultSelectedLine,
-        VERSION,
-        tierData,
-        tierFilterData,
-        tiersEnabledData,
-        lineMetaData,
-        Split(FontColor, ",")[1], Split(FontColor, ",")[2], Split(FontColor, ",")[3],
-        Split(MainColor, ",")[1], Split(MainColor, ",")[2], Split(MainColor, ",")[3],
-        Split(CraftColor, ",")[1], Split(CraftColor, ",")[2], Split(CraftColor, ",")[3],
-        Split(Color3, ",")[1], Split(Color3, ",")[2], Split(Color3, ",")[3],
-        Split(ButtonSelectColor, ",")[1], Split(ButtonSelectColor, ",")[2], Split(ButtonSelectColor, ",")[3],
-        Split(CraftColorSelect, ",")[1], Split(CraftColorSelect, ",")[2], Split(CraftColorSelect, ",")[3],
-        Split(StopColor, ",")[1], Split(StopColor, ",")[2], Split(StopColor, ",")[3],
-        Split(StopColorSelect, ",")[1], Split(StopColorSelect, ",")[2], Split(StopColorSelect, ",")[3],
-        Split(BackgroundColor, ",")[1], Split(BackgroundColor, ",")[2], Split(BackgroundColor, ",")[3]
-    )
-end
-
-function BuildListDefinitions(category, lineNum, tierGroup)
-    local recipes = GetFilteredRecipesForLine(category, lineNum, tierGroup)
-    local result = "local CategoryRecipes = {\n"
-    for _, recipe in ipairs(recipes) do
-        result = result .. string.format("    {name=%q, id=%d, tier=%d},\n", recipe.name, recipe.id, recipe.tier)
-    end
-    result = result .. "}\n"
-
-    -- Pre-compute all recipe lists using system.getItem (main Lua context)
-    result = result .. "local RecipeLists = {\n"
-    for _, recipe in ipairs(recipes) do
-        local items = {}
-        if recipe.outputs and #recipe.outputs > 0 then
-            for _, output in ipairs(recipe.outputs) do
-                items[#items + 1] = {output.name, output.id}
-            end
-        else
-            local t = system.getItem(recipe.id)
-            for _, childId in pairs(t and t.childIds or {}) do
-                local item = system.getItem(childId)
-                if item then
-                    table.insert(items, {item.locDisplayName, item.id})
-                end
-            end
-        end
-        table.sort(items, function(a,b) return a[1] < b[1] end)
-
-        -- Inject the computed list into render script
-        result = result .. string.format("    [%q] = {\n", recipe.name)
-        for _, item in ipairs(items) do
-            result = result .. string.format("        {%q, %d},\n", item[1], item[2])
-        end
-        result = result .. "    },\n"
-    end
-    result = result .. "}\n"
-
-    return result
-end
-
-function BuildRenderScript(category, lineNum, tierGroup)
-    return BuildRenderHeader(category, lineNum, tierGroup)..BuildListDefinitions(category, lineNum, tierGroup)
-end
 
 local function BuildScreenLayoutEditorRenderSource()
     local source = SCREEN_LAYOUT_EDITOR_SOURCE
@@ -895,8 +116,6 @@ function BuildEditableRenderScript(instanceTag)
     return BuildScreenLayoutEditorRenderSource()
 end
 
-renderHeader = BuildRenderHeader(lastCategory, 0, lastTierGroup)
-
 if not Screen then
     system.print("ERROR: No Screen linked!")
     unit.exit()
@@ -905,15 +124,16 @@ end
 
 SCREEN_LAYOUT_EDITOR_SOURCE = [====[
 local ScreenLayoutEditor = {}
+local SLE = ScreenLayoutEditor
 SCREEN_LAYOUT_EDITOR_MODULE = ScreenLayoutEditor
 
-ScreenLayoutEditor.SCHEMA_VERSION = 1
-ScreenLayoutEditor.OUTPUT_KIND = "sled"
-ScreenLayoutEditor.LEGACY_OUTPUT_KIND = "screen_layout_editor_doc"
-ScreenLayoutEditor.INPUT_KIND = "slei"
-ScreenLayoutEditor.TRANSPORT_KIND = "sd"
-ScreenLayoutEditor.PERSISTENCE_DB_KEY = "screen_layout_editor:document"
-ScreenLayoutEditor.DEFAULT_MARGIN = 8
+SLE.SCHEMA_VERSION = 1
+SLE.OUTPUT_KIND = "sled"
+SLE.LEGACY_OUTPUT_KIND = "screen_layout_editor_doc"
+SLE.INPUT_KIND = "slei"
+SLE.TRANSPORT_KIND = "sd"
+SLE.PERSISTENCE_DB_KEY = "screen_layout_editor:document"
+SLE.DEFAULT_MARGIN = 8
 
 local UINT32_MOD = 4294967296
 
@@ -1327,9 +547,9 @@ local function serializeElement(element)
 end
 
 local function normalizeDocumentForOutput(document, screenWidth, screenHeight)
-    local normalized = ScreenLayoutEditor.normalizeDocument(document, screenWidth, screenHeight)
+    local normalized = SLE.normalizeDocument(document, screenWidth, screenHeight)
     if type(normalized) ~= "table" then
-        normalized = ScreenLayoutEditor.createDefaultDocument(screenWidth or 1920, screenHeight or 1080)
+        normalized = SLE.createDefaultDocument(screenWidth or 1920, screenHeight or 1080)
     end
 
     local safeElements = {}
@@ -1353,7 +573,7 @@ local function normalizeDocumentForOutput(document, screenWidth, screenHeight)
     end
 
     if #safeElements <= 0 then
-        local fallback = ScreenLayoutEditor.createDefaultDocument(
+        local fallback = SLE.createDefaultDocument(
             normalized.screenWidth or screenWidth or 1920,
             normalized.screenHeight or screenHeight or 1080
         )
@@ -1442,11 +662,11 @@ function ScreenLayoutEditor.deserializeDocument(text, screenWidth, screenHeight)
     if not rawDocument then
         return nil, parseError
     end
-    return ScreenLayoutEditor.normalizeDocument(rawDocument, screenWidth, screenHeight), nil
+    return SLE.normalizeDocument(rawDocument, screenWidth, screenHeight), nil
 end
 
 function ScreenLayoutEditor.serializeLayoutPatch(document)
-    local normalized = ScreenLayoutEditor.normalizeDocument(document)
+    local normalized = SLE.normalizeDocument(document)
     local parts = {}
     for index = 1, #normalized.elements do
         local element = normalized.elements[index]
@@ -1467,7 +687,7 @@ function ScreenLayoutEditor.deserializeLayoutPatch(text, screenWidth, screenHeig
     if type(text) ~= "string" or text == "" then
         return nil, "empty_patch"
     end
-    local document = ScreenLayoutEditor.createDefaultDocument(screenWidth or 1920, screenHeight or 1080)
+    local document = SLE.createDefaultDocument(screenWidth or 1920, screenHeight or 1080)
     local startIndex = 1
     local patchCount = 0
     for index = 1, #document.elements do
@@ -1509,12 +729,12 @@ end
 
 function ScreenLayoutEditor.serializeOutputEnvelope(document, serializedDocument, hash)
     local normalized = normalizeDocumentForOutput(document)
-    local docText = serializedDocument or ScreenLayoutEditor.serializeDocument(normalized)
+    local docText = serializedDocument or SLE.serializeDocument(normalized)
     return docText
 end
 
 function ScreenLayoutEditor.serializeTransportDelta(document, elementId, screenWidth, screenHeight)
-    local normalized = ScreenLayoutEditor.normalizeDocument(document, screenWidth, screenHeight)
+    local normalized = SLE.normalizeDocument(document, screenWidth, screenHeight)
     local deltaId = tostring(elementId or normalized.selectedId or "")
     for index = 1, #normalized.elements do
         local element = normalized.elements[index]
@@ -1538,12 +758,12 @@ function ScreenLayoutEditor.serializeTransportDelta(document, elementId, screenW
 end
 
 function ScreenLayoutEditor.parseOutputEnvelope(text, screenWidth, screenHeight)
-    local document, parseError = ScreenLayoutEditor.deserializeDocument(text, screenWidth, screenHeight)
+    local document, parseError = SLE.deserializeDocument(text, screenWidth, screenHeight)
     if not document then
         return nil, parseError
     end
-    local serialized = ScreenLayoutEditor.serializeDocument(document)
-    local computedHash = ScreenLayoutEditor.hashText(serialized)
+    local serialized = SLE.serializeDocument(document)
+    local computedHash = SLE.hashText(serialized)
     return {
         kind = ScreenLayoutEditor.OUTPUT_KIND,
         version = ScreenLayoutEditor.SCHEMA_VERSION,
@@ -1555,7 +775,7 @@ function ScreenLayoutEditor.parseOutputEnvelope(text, screenWidth, screenHeight)
 end
 
 function ScreenLayoutEditor.readPersistedEnvelope(text, screenWidth, screenHeight)
-    local envelope, parseError = ScreenLayoutEditor.parseOutputEnvelope(text, screenWidth, screenHeight)
+    local envelope, parseError = SLE.parseOutputEnvelope(text, screenWidth, screenHeight)
     if not envelope then
         return nil, parseError
     end
@@ -1566,7 +786,7 @@ function ScreenLayoutEditor.readPersistedEnvelope(text, screenWidth, screenHeigh
         hash = envelope.hash,
         serializedDocument = envelope.serializedDocument,
         document = envelope.document,
-        text = ScreenLayoutEditor.serializeOutputEnvelope(envelope.document, envelope.serializedDocument, envelope.hash)
+        text = SLE.serializeOutputEnvelope(envelope.document, envelope.serializedDocument, envelope.hash)
     }, nil
 end
 
@@ -1579,14 +799,14 @@ function ScreenLayoutEditor.resolveMaxScreenCodeChars(value)
 end
 
 function ScreenLayoutEditor.buildPersistenceRecord(document, maxScreenCodeChars)
-    local normalized = ScreenLayoutEditor.normalizeDocument(document)
-    local serialized = ScreenLayoutEditor.serializeDocument(normalized)
-    local hash = ScreenLayoutEditor.hashText(serialized)
+    local normalized = SLE.normalizeDocument(document)
+    local serialized = SLE.serializeDocument(normalized)
+    local hash = SLE.hashText(serialized)
     local text = serialized
-    local maxLength = ScreenLayoutEditor.resolveMaxScreenCodeChars(maxScreenCodeChars)
+    local maxLength = SLE.resolveMaxScreenCodeChars(maxScreenCodeChars)
     return {
-        key = ScreenLayoutEditor.PERSISTENCE_DB_KEY,
-        version = ScreenLayoutEditor.SCHEMA_VERSION,
+        key = SLE.PERSISTENCE_DB_KEY,
+        version = SLE.SCHEMA_VERSION,
         revision = normalized.revision or 0,
         hash = hash,
         serializedDocument = serialized,
@@ -1598,20 +818,20 @@ function ScreenLayoutEditor.buildPersistenceRecord(document, maxScreenCodeChars)
 end
 
 function ScreenLayoutEditor.buildPersistenceRecordFromOutput(text, maxScreenCodeChars, screenWidth, screenHeight)
-    local document, parseError = ScreenLayoutEditor.deserializeDocument(text, screenWidth, screenHeight)
+    local document, parseError = SLE.deserializeDocument(text, screenWidth, screenHeight)
     if not document then
         return nil, parseError
     end
-    return ScreenLayoutEditor.buildPersistenceRecord(document, maxScreenCodeChars), nil
+    return SLE.buildPersistenceRecord(document, maxScreenCodeChars), nil
 end
 
 function ScreenLayoutEditor.canPersistDocument(document, maxScreenCodeChars)
-    local record = ScreenLayoutEditor.buildPersistenceRecord(document, maxScreenCodeChars)
+    local record = SLE.buildPersistenceRecord(document, maxScreenCodeChars)
     return record.fits, record
 end
 
 function ScreenLayoutEditor.restorePersistedDocument(text, screenWidth, screenHeight)
-    local envelope, parseError = ScreenLayoutEditor.parseOutputEnvelope(text, screenWidth, screenHeight)
+    local envelope, parseError = SLE.parseOutputEnvelope(text, screenWidth, screenHeight)
     if not envelope then
         return nil, parseError
     end
@@ -1789,7 +1009,7 @@ function ScreenLayoutEditor.commitDocument(state)
         state.metrics and state.metrics.screenHeight or nil
     )
     state.document.revision = math.max(0, math.floor(numberOrNil(state.document.revision) or 0)) + 1
-    local ok, serialized = pcall(ScreenLayoutEditor.serializeDocument, state.document)
+    local ok, serialized = pcall(SLE.serializeDocument, state.document)
     if not ok or type(serialized) ~= "string" or serialized == "" then
         state.lastOutputEnvelope = ""
         state.documentDirty = false
@@ -1805,14 +1025,14 @@ end
 function ScreenLayoutEditor.createState(screenWidth, screenHeight, initialDocument)
     local document = nil
     if type(initialDocument) == "table" then
-        document = ScreenLayoutEditor.normalizeDocument(initialDocument, screenWidth, screenHeight)
+        document = SLE.normalizeDocument(initialDocument, screenWidth, screenHeight)
     end
     if not document then
-        document = ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
+        document = SLE.createDefaultDocument(screenWidth, screenHeight)
     end
 
     return {
-        metrics = ScreenLayoutEditor.computeMetrics(screenWidth, screenHeight),
+        metrics = SLE.computeMetrics(screenWidth, screenHeight),
         document = document,
         operation = nil,
         documentDirty = false,
@@ -1855,19 +1075,19 @@ function ScreenLayoutEditor.applyPointerFrame(state, pointer)
 
     local selected = nil
     if state.document.selectedId then
-        selected = ScreenLayoutEditor.findElement(state.document, state.document.selectedId)
+        selected = SLE.findElement(state.document, state.document.selectedId)
     end
 
     if pressed and hasCursor then
         if selected and selected.resizable ~= false then
-            local handleName = ScreenLayoutEditor.hitResizeHandle(state.metrics, selected, cursorX, cursorY)
+            local handleName = SLE.hitResizeHandle(state.metrics, selected, cursorX, cursorY)
             if handleName then
                 beginResize(state, selected, handleName)
                 return result
             end
         end
 
-        local hit = ScreenLayoutEditor.pickTopmostElement(state.document, cursorX, cursorY)
+        local hit = SLE.pickTopmostElement(state.document, cursorX, cursorY)
         if hit then
             if state.document.selectedId ~= hit.id then
                 result.selectedChanged = true
@@ -1888,7 +1108,7 @@ function ScreenLayoutEditor.applyPointerFrame(state, pointer)
     end
 
     if down and hasCursor and state.operation then
-        local element = ScreenLayoutEditor.findElement(state.document, state.operation.elementId)
+        local element = SLE.findElement(state.document, state.operation.elementId)
         if element then
             local changed = false
             if state.operation.kind == "drag" then
@@ -1907,7 +1127,7 @@ function ScreenLayoutEditor.applyPointerFrame(state, pointer)
         local committedElementId = state.operation.elementId or state.document.selectedId
         state.operation = nil
         if state.documentDirty then
-            result.committed = ScreenLayoutEditor.commitDocument(state, committedElementId)
+            result.committed = SLE.commitDocument(state, committedElementId)
         end
         return result
     end
@@ -1916,7 +1136,7 @@ function ScreenLayoutEditor.applyPointerFrame(state, pointer)
         local committedElementId = state.operation and state.operation.elementId or state.document.selectedId
         state.operation = nil
         if state.documentDirty then
-            result.committed = ScreenLayoutEditor.commitDocument(state, committedElementId)
+            result.committed = SLE.commitDocument(state, committedElementId)
         end
     end
 
@@ -1950,7 +1170,7 @@ local function runStartupAutoProbe(state)
     if not readyByTime and not readyByFrames then
         return false
     end
-    local element = ScreenLayoutEditor.findElement(state.document, "main_canvas")
+    local element = SLE.findElement(state.document, "main_canvas")
     if type(element) ~= "table" and type(state.document) == "table" and type(state.document.elements) == "table" then
         element = state.document.elements[1]
     end
@@ -2223,7 +1443,7 @@ local function drawSelectionOverlay(state, layer, element)
         return
     end
 
-    local handles = ScreenLayoutEditor.getHandleRects(state.metrics, element)
+    local handles = SLE.getHandleRects(state.metrics, element)
     for _, rect in pairs(handles) do
         if type(rect) == "table" then
             setNextFillColor(layer, SELECTION_BORDER_COLOR[1], SELECTION_BORDER_COLOR[2], SELECTION_BORDER_COLOR[3], 0.95)
@@ -2240,28 +1460,9 @@ local function drawHud(state, layer, screenHeight, frameFontCache)
         return
     end
 
-    local selectedText = string.format("r%d o%s", state.document.revision or 0, tostring(state.os or "-"))
-    if state.document.selectedId then
-        local selected = ScreenLayoutEditor.findElement(state.document, state.document.selectedId)
-        if selected then
-            selectedText = string.format(
-                "%s %d,%d %dx%d r%d o%s",
-                selected.id,
-                math.floor(selected.x + 0.5),
-                math.floor(selected.y + 0.5),
-                math.floor(selected.w + 0.5),
-                math.floor(selected.h + 0.5),
-                state.document.revision or 0,
-                tostring(state.os or "-")
-            )
-        end
-    end
-
-    local modeText = "Click to select, drag inside to move, drag corner handles to resize"
+    local helpText = "Drag to move, handles resize"
     setNextFillColor(layer, 1.0, 0.68, 0.22, 1.0)
-    addTextWithFontRetry(layer, nil, font, math.max(18, math.floor(screenHeight / 42)), 0, modeText, 44, screenHeight - 58, frameFontCache)
-    setNextFillColor(layer, 0.72, 0.96, 1.0, 1.0)
-    addTextWithFontRetry(layer, nil, font, math.max(18, math.floor(screenHeight / 42)), 0, selectedText, 44, screenHeight - 84, frameFontCache)
+    addTextWithFontRetry(layer, nil, font, math.max(18, math.floor(screenHeight / 42)), 0, helpText, 44, screenHeight - 58, frameFontCache)
 end
 
 local function getInputText()
@@ -2283,7 +1484,7 @@ local function getInitialDocumentSeed(inputText, screenWidth, screenHeight)
     if revision36 then
         local patchWidth = tonumber(width36, 36) or screenWidth
         local patchHeight = tonumber(height36, 36) or screenHeight
-        local document, parseError = ScreenLayoutEditor.deserializeLayoutPatch(
+        local document, parseError = SLE.deserializeLayoutPatch(
             patchText,
             patchWidth,
             patchHeight
@@ -2294,7 +1495,7 @@ local function getInitialDocumentSeed(inputText, screenWidth, screenHeight)
             end
             document.revision = math.max(0, math.floor(tonumber(revision36, 36) or document.revision or 0))
             return {
-                document = ScreenLayoutEditor.normalizeDocument(document, screenWidth, screenHeight),
+                document = SLE.normalizeDocument(document, screenWidth, screenHeight),
                 token = "d:" .. tostring(revision36 or "0") .. ":" .. tostring(selectedId or "")
             }
         end
@@ -2308,7 +1509,7 @@ local function getState()
     local inputText = getInputText()
     local startup = getInitialDocumentSeed(inputText, screenWidth, screenHeight)
     if type(SCREEN_LAYOUT_EDITOR_STATE) ~= "table" or not SCREEN_LAYOUT_EDITOR_STATE.initialized then
-        local state = ScreenLayoutEditor.createState(
+        local state = SLE.createState(
             screenWidth,
             screenHeight,
             startup and startup.document or nil
@@ -2320,10 +1521,10 @@ local function getState()
 
     local state = SCREEN_LAYOUT_EDITOR_STATE
     if state.metrics.screenWidth ~= screenWidth or state.metrics.screenHeight ~= screenHeight then
-        state.metrics = ScreenLayoutEditor.computeMetrics(screenWidth, screenHeight)
+        state.metrics = SLE.computeMetrics(screenWidth, screenHeight)
     end
     if startup and type(startup.document) == "table" and state.appliedStartupToken ~= startup.token then
-        local restoredState = ScreenLayoutEditor.createState(screenWidth, screenHeight, startup.document)
+        local restoredState = SLE.createState(screenWidth, screenHeight, startup.document)
         restoredState.initialized = true
         restoredState.appliedStartupToken = startup.token
         SCREEN_LAYOUT_EDITOR_STATE = restoredState
@@ -2340,10 +1541,10 @@ local function runRenderScript()
     end
     if type(state.metrics) ~= "table" then
         local width, height = getResolution()
-        state.metrics = ScreenLayoutEditor.computeMetrics(width, height)
+        state.metrics = SLE.computeMetrics(width, height)
     end
     if type(state.document) ~= "table" then
-        state.document = ScreenLayoutEditor.createDefaultDocument(state.metrics.screenWidth, state.metrics.screenHeight)
+        state.document = SLE.createDefaultDocument(state.metrics.screenWidth, state.metrics.screenHeight)
     end
     state.document = normalizeDocumentForOutput(state.document, state.metrics.screenWidth, state.metrics.screenHeight)
     state.frameCount = math.max(0, math.floor(numberOrNil(state.frameCount) or 0)) + 1
@@ -2365,7 +1566,7 @@ local function runRenderScript()
     if type(state.startupReadyAt) ~= "number" then
         state.startupReadyAt = getArkTimeSeconds()
     end
-    ScreenLayoutEditor.applyPointerFrame(state, pointerData)
+    SLE.applyPointerFrame(state, pointerData)
     runStartupAutoProbe(state)
 
     setBackgroundColor(0.06, 0.06, 0.07)
@@ -2379,7 +1580,7 @@ local function runRenderScript()
     end
 
     if state.document.selectedId then
-        local selected = ScreenLayoutEditor.findElement(state.document, state.document.selectedId)
+        local selected = SLE.findElement(state.document, state.document.selectedId)
         if selected then
             drawSelectionOverlay(state, layer, selected)
         end
@@ -2387,7 +1588,7 @@ local function runRenderScript()
 
     drawHud(state, layer, screenHeight, frameFontCache)
 
-    local envelope = ScreenLayoutEditor.getOutputEnvelope(state)
+    local envelope = SLE.getOutputEnvelope(state)
     if type(envelope) == "string" and envelope ~= "" then
         local ok = pcall(setOutput, envelope)
         if ok then
@@ -2662,95 +1863,69 @@ local function RestoreScreenLayoutEditorEnvelope(editorModule)
 end
 
 SCREEN_LAYOUT_EDITOR_ENABLED = true
-local useFormEditorSlice = SCREEN_LAYOUT_EDITOR_ENABLED
-if useFormEditorSlice then
-    local screenLayoutEditor = InstallScreenLayoutEditorJsonOutputSupport(EnsureScreenLayoutEditorModule())
-    if screenLayoutEditor then
-        local persistedEnvelope = RestoreScreenLayoutEditorEnvelope(screenLayoutEditor)
-        local initialDocumentState = nil
-        if persistedEnvelope and type(persistedEnvelope.document) == "table" then
-            local startupDocumentText = ""
-            local startupNonce = 0
-            local startupCounter = 0
-            if type(screenLayoutEditor.serializeDocument) == "function" then
-                local encodeOk, encodedDocument = pcall(screenLayoutEditor.serializeDocument, persistedEnvelope.document)
-                if encodeOk and type(encodedDocument) == "string" then
-                    startupDocumentText = encodedDocument
-                end
-            end
-            if type(system) == "table" and type(system.getArkTime) == "function" then
-                local arkTime = tonumber(system.getArkTime())
-                if arkTime then
-                    startupNonce = math.max(0, math.floor((arkTime * 1000) + 0.5))
-                end
-            end
-            if databank
-                and type(databank.getIntValue) == "function"
-                and type(databank.setIntValue) == "function" then
-                local counterKey = tostring(screenLayoutEditor.PERSISTENCE_DB_KEY or "screen_layout_editor:document") .. ":startup_counter"
-                local savedCounter = tonumber(databank.getIntValue(counterKey)) or 0
-                startupCounter = math.max(0, math.floor(savedCounter)) + 1
-                databank.setIntValue(counterKey, startupCounter)
-            end
-            startupNonce = (startupNonce * 4096) + (startupCounter % 4096)
-            initialDocumentState = {
-                patch = screenLayoutEditor.serializeLayoutPatch(persistedEnvelope.document),
-                serializedDocument = startupDocumentText,
-                startupNonce = startupNonce,
-                hash = persistedEnvelope.hash,
-                revision = persistedEnvelope.revision,
-                selectedId = persistedEnvelope.document.selectedId,
-                screenWidth = persistedEnvelope.document.screenWidth,
-                screenHeight = persistedEnvelope.document.screenHeight
-            }
-        end
-        SCREEN_LAYOUT_EDITOR_MAX_SCREEN_CODE_CHARS = screenLayoutEditor.resolveMaxScreenCodeChars(SCREEN_LAYOUT_EDITOR_MAX_SCREEN_CODE_CHARS)
-        SCREEN_LAYOUT_EDITOR_LAST_PERSISTED_REVISION = persistedEnvelope and persistedEnvelope.revision or -1
-        SCREEN_LAYOUT_EDITOR_LAST_PERSISTED_HASH = persistedEnvelope and persistedEnvelope.hash or -1
-        SCREEN_LAYOUT_EDITOR_LAST_DOCUMENT = persistedEnvelope and persistedEnvelope.document or nil
-        local startupTransfer = nil
-        local renderInput = ""
-        if type(initialDocumentState) == "table" and type(initialDocumentState.patch) == "string" and initialDocumentState.patch ~= "" then
-            renderInput = table.concat({
-                "d|",
-                encodeBase36(math.max(0, math.floor(tonumber(initialDocumentState.revision) or 0))),
-                "|",
-                tostring(initialDocumentState.selectedId or ""),
-                "|",
-                encodeBase36(math.max(1, math.floor(tonumber(initialDocumentState.screenWidth) or 1))),
-                "|",
-                encodeBase36(math.max(1, math.floor(tonumber(initialDocumentState.screenHeight) or 1))),
-                "|",
-                initialDocumentState.patch
-            })
-        end
-        local renderInstanceTag = nil
-        if (type(renderInstanceTag) ~= "string" or renderInstanceTag == "")
-            and type(system) == "table"
-            and type(system.getArkTime) == "function" then
-            local arkTime = tonumber(system.getArkTime())
-            if arkTime then
-                renderInstanceTag = encodeBase36(math.max(0, math.floor((arkTime * 1000) + 0.5)))
-            end
-        end
-        local renderScript = BuildEditableRenderScript(renderInstanceTag)
-        SCREEN_LAYOUT_EDITOR_STARTUP_TRANSFER = startupTransfer
-        local linkedScreens = type(Screens) == "table" and #Screens > 0 and Screens or {Screen}
-        for index = 1, #linkedScreens do
-            linkedScreens[index].clearScriptOutput()
-            linkedScreens[index].setRenderScript(renderScript)
-            linkedScreens[index].setScriptInput(renderInput)
-        end
-        SLEP("sle-sc", "sc " .. tostring(#linkedScreens), "debug", true)
-    else
-        Screen.setRenderScript(BuildRenderScript(lastCategory, 0, lastTierGroup)..ScrContent)
-    end
-else
-    Screen.setRenderScript(BuildRenderScript(lastCategory, 0, lastTierGroup)..ScrContent)
+if not SCREEN_LAYOUT_EDITOR_ENABLED then
+    system.print("ERROR: SLE is disabled")
+    unit.exit()
+    return
 end
+
+local screenLayoutEditor = InstallScreenLayoutEditorJsonOutputSupport(EnsureScreenLayoutEditorModule())
+if not screenLayoutEditor then
+    unit.exit()
+    return
+end
+
+local persistedEnvelope = RestoreScreenLayoutEditorEnvelope(screenLayoutEditor)
+local initialDocumentState = nil
+if persistedEnvelope and type(persistedEnvelope.document) == "table" then
+    initialDocumentState = {
+        patch = screenLayoutEditor.serializeLayoutPatch(persistedEnvelope.document),
+        revision = persistedEnvelope.revision,
+        selectedId = persistedEnvelope.document.selectedId,
+        screenWidth = persistedEnvelope.document.screenWidth,
+        screenHeight = persistedEnvelope.document.screenHeight
+    }
+end
+
+SCREEN_LAYOUT_EDITOR_MAX_SCREEN_CODE_CHARS = screenLayoutEditor.resolveMaxScreenCodeChars(SCREEN_LAYOUT_EDITOR_MAX_SCREEN_CODE_CHARS)
+SCREEN_LAYOUT_EDITOR_LAST_PERSISTED_REVISION = persistedEnvelope and persistedEnvelope.revision or -1
+SCREEN_LAYOUT_EDITOR_LAST_PERSISTED_HASH = persistedEnvelope and persistedEnvelope.hash or -1
+SCREEN_LAYOUT_EDITOR_LAST_DOCUMENT = persistedEnvelope and persistedEnvelope.document or nil
+
+local renderInput = ""
+if type(initialDocumentState) == "table" and type(initialDocumentState.patch) == "string" and initialDocumentState.patch ~= "" then
+    renderInput = table.concat({
+        "d|",
+        encodeBase36(math.max(0, math.floor(tonumber(initialDocumentState.revision) or 0))),
+        "|",
+        tostring(initialDocumentState.selectedId or ""),
+        "|",
+        encodeBase36(math.max(1, math.floor(tonumber(initialDocumentState.screenWidth) or 1))),
+        "|",
+        encodeBase36(math.max(1, math.floor(tonumber(initialDocumentState.screenHeight) or 1))),
+        "|",
+        initialDocumentState.patch
+    })
+end
+
+local renderInstanceTag = nil
+if type(system) == "table" and type(system.getArkTime) == "function" then
+    local arkTime = tonumber(system.getArkTime())
+    if arkTime then
+        renderInstanceTag = encodeBase36(math.max(0, math.floor((arkTime * 1000) + 0.5)))
+    end
+end
+
+local renderScript = BuildEditableRenderScript(renderInstanceTag)
+local linkedScreens = type(Screens) == "table" and #Screens > 0 and Screens or {Screen}
+for index = 1, #linkedScreens do
+    linkedScreens[index].clearScriptOutput()
+    linkedScreens[index].setRenderScript(renderScript)
+    linkedScreens[index].setScriptInput(renderInput)
+end
+SLEP("sle-sc", "sc " .. tostring(#linkedScreens), "debug", true)
 
 unit.hideWidget();
 SLEP("sle-v", "v " .. SLE_BUILD, "debug", true)
 local _sok, _serr = pcall(unit.setTimer, "UPD", 0.1)
 SLEP("sle-t", (_sok and "t " or "te ") .. SLE_BUILD .. (_sok and "" or (":" .. tostring(_serr))), _sok and "debug" or "error", true)
-

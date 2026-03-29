@@ -25,7 +25,7 @@ local function SLEBuildRecordFromOutput(module, text, maxChars)
                         tostring(tonumber(probeLength, 36) or probeLength or "?"),
                         tostring(tonumber(probeRevision, 36) or probeRevision or "?")
                     ),
-                    "info"
+                    "debug"
                 )
             end
             return nil, "probe_output"
@@ -103,7 +103,7 @@ local function SLEBuildRecordFromOutput(module, text, maxChars)
                     tostring(decoded.l or "?"),
                     tostring(decoded.r or "?")
                 ),
-                "info"
+                "debug"
             )
         end
         return nil, "probe_output"
@@ -169,26 +169,6 @@ local function SLEBuildRecordFromOutput(module, text, maxChars)
     return record, nil
 end
 
-local function SLEParseStartupAck(text)
-    if type(text) ~= "string" or text == "" then
-        return nil
-    end
-    local token, index36, count36 = text:match("^a|([^|]*)|([^|]*)|([^|]*)$")
-    if not token then
-        return nil
-    end
-    local chunkIndex = tonumber(index36, 36)
-    local chunkCount = tonumber(count36, 36)
-    if not chunkIndex or not chunkCount or chunkIndex < 1 or chunkCount < 1 then
-        return nil
-    end
-    return {
-        token = token,
-        chunkIndex = chunkIndex,
-        chunkCount = chunkCount
-    }
-end
-
 local function SLEClearScreenOutputs(outputScreen)
     if type(Screens) == "table" and #Screens > 0 then
         for index = 1, #Screens do
@@ -197,26 +177,6 @@ local function SLEClearScreenOutputs(outputScreen)
     elseif outputScreen then
         outputScreen.clearScriptOutput()
     end
-end
-
-local function SLEPushStartupChunk(transfer)
-    if type(transfer) ~= "table" or type(BuildEditableRenderScriptInput) ~= "function" then
-        return false
-    end
-    local chunkIndex = math.max(1, math.floor(tonumber(transfer.nextIndex) or 1))
-    local inputText = BuildEditableRenderScriptInput(transfer, chunkIndex)
-    if inputText == "" then
-        return false
-    end
-    local targetScreens = type(Screens) == "table" and #Screens > 0 and Screens or (Screen and { Screen } or nil)
-    if type(targetScreens) ~= "table" or #targetScreens <= 0 then
-        return false
-    end
-    for index = 1, #targetScreens do
-        targetScreens[index].setScriptInput(inputText)
-    end
-    transfer.nextIndex = chunkIndex
-    return true
 end
 
 local function SLEPersistRecord(record)
@@ -300,7 +260,7 @@ end
 
 SLE_DIAG = SLE_DIAG ~= false
 SCREEN_LAYOUT_EDITOR_DIAG_LAST = type(SCREEN_LAYOUT_EDITOR_DIAG_LAST) == "table" and SCREEN_LAYOUT_EDITOR_DIAG_LAST or {}
-SLE_LOG_LEVEL = string.lower(tostring(SLE_LOG_LEVEL or "error"))
+SLE_LOG_LEVEL = string.lower(tostring(SLE_LOG_LEVEL or "info"))
 SLE_BUILD = tostring(SLE_BUILD or "0328l")
 local SLE_LEVEL_RANK = {
     debug = 1,
@@ -372,68 +332,12 @@ if SCREEN_LAYOUT_EDITOR_ENABLED and type(SCREEN_LAYOUT_EDITOR_MODULE) == "table"
         outputText = Screen.getScriptOutput()
         outputScreen = Screen
     end
-    local startupTransfer = type(SCREEN_LAYOUT_EDITOR_STARTUP_TRANSFER) == "table" and SCREEN_LAYOUT_EDITOR_STARTUP_TRANSFER or nil
-    if startupTransfer and math.max(1, math.floor(tonumber(startupTransfer.count) or 0)) > 0 then
-        local ack = SLEParseStartupAck(outputText)
-        if ack and ack.token == tostring(startupTransfer.token or "") then
-            startupTransfer.nextIndex = ack.chunkIndex + 1
-            SLEClearScreenOutputs(outputScreen)
-            if ack.chunkIndex >= ack.chunkCount then
-                local targetScreens = type(Screens) == "table" and #Screens > 0 and Screens or (Screen and { Screen } or nil)
-                if type(targetScreens) == "table" then
-                    for index = 1, #targetScreens do
-                        targetScreens[index].setScriptInput("")
-                    end
-                end
-                SCREEN_LAYOUT_EDITOR_STARTUP_TRANSFER = nil
-                if type(SLEP) == "function" then
-                    SLEP(
-                        "sle-startup",
-                        string.format(
-                            "tx ok c=%d b=%d",
-                            ack.chunkCount,
-                            tonumber(startupTransfer.length) or -1
-                        ),
-                        "info",
-                        true
-                    )
-                end
-            else
-                SLEPushStartupChunk(startupTransfer)
-                if type(SLEP) == "function" then
-                    SLEP(
-                        "sle-startup",
-                        string.format("tx %d/%d", ack.chunkIndex + 1, ack.chunkCount),
-                        "debug"
-                    )
-                end
-            end
-            return
-        end
-        if outputText and outputText ~= "" then
-            SLEClearScreenOutputs(outputScreen)
-        end
-        SLEPushStartupChunk(startupTransfer)
-        return
-    end
-    local startupAck = SLEParseStartupAck(outputText)
-    if startupAck then
-        SLEClearScreenOutputs(outputScreen)
-        if type(SLEP) == "function" then
-            SLEP(
-                "sle-startup-echo",
-                string.format("tx echo %d/%d", startupAck.chunkIndex, startupAck.chunkCount),
-                "debug"
-            )
-        end
-        return
-    end
     if type(outputText) == "string" and outputText ~= "" then
         if type(SLEP) == "function" then
             SLEP(
                 "sle-receive",
                 string.format("rx b=%d", #outputText),
-                "info"
+                "debug"
             )
         end
         local record, recordError = SLEBuildRecordFromOutput(
@@ -478,196 +382,4 @@ if SCREEN_LAYOUT_EDITOR_ENABLED and type(SCREEN_LAYOUT_EDITOR_MODULE) == "table"
     return
 end
 
-AmountToCraft = AmountToCraft or 1
-Index = Index or 1
-MaxIndex = MaxIndex or 1
-MAmountToCraft = MAmountToCraft or 1
-MIndex = MIndex or 1
-lastClickedCategory = lastClickedCategory or ""
-cachedSchematicName = cachedSchematicName or ""
-lastRenderedRecipeList = lastRenderedRecipeList or defaultRecipeList or lastCategory or "Pure"
-lastRenderedTierGroup = lastRenderedTierGroup or defaultTierGroup or lastTierGroup or "Common"
-lastRenderedLineNum = lastRenderedLineNum or 0
-
-local RecipesPerPage = 18
-local MouseWheel = -system.getMouseWheel()
-local output = json.decode(Screen.getScriptOutput()) or {}
-local outputID = output.ID or ""
-local outputRecipescount = output.RecipesCount or 0
-local lineNum = ParseLineSelection(output.Line)
-if lineNum == nil then lineNum = lastRenderedLineNum end
-local databankKey = GetDatabankKeyForLine(lineNum)
-local categoryKey = output.RecipeList or defaultRecipeList or lastCategory or "Pure"
-if categoryKey == "" then categoryKey = "Pure" end
-local tierGroupKey = output.TierGroup or defaultTierGroup or lastTierGroup or "Common"
-if tierGroupKey ~= "Rare" then tierGroupKey = "Common" end
-
-local needsRebuild = false
-local shouldClearOutput = false
-local autoSwitchedTierGroup = false
-local selectedRecipe = nil
-local canRunSelectedRecipe = false
-local lineChanged = lineNum ~= lastRenderedLineNum
-
-MaxIndex = math.ceil(outputRecipescount / RecipesPerPage)
-if MaxIndex < 1 then MaxIndex = 1 end
-
-if output.TierButtonClicked then
-    local tierNum = tonumber(string.sub(output.TierButtonClicked, 2))
-    if tierNum and tierNum >= 1 and tierNum <= 5 and TiersEnabled[tierNum] then
-        selectedTiers[tierNum] = not selectedTiers[tierNum]
-        SaveTierFilter()
-        needsRebuild = true
-    end
-    shouldClearOutput = true
-end
-
-if output.StopButtonPressed then
-    StopIndustryLine(lineNum, databankKey)
-    shouldClearOutput = true
-end
-
-if output.CraftButtonPressed then
-    if canRunSelectedRecipe then
-        local timerName = lineNum > 0 and "RT"..lineNum or "RT1"
-        StartIndustryForAmount(lineNum, outputID, AmountToCraft, timerName)
-    end
-    shouldClearOutput = true
-end
-
-if output.MCraftButtonPressed then
-    if canRunSelectedRecipe then
-        StartIndustryMaintain(lineNum, outputID, MAmountToCraft)
-    end
-    shouldClearOutput = true
-end
-
-if output.CraftButtonActive then
-    AmountToCraft = ClampValue(math.floor(AmountToCraft + -MouseWheel), 1, 999)
-elseif not output.MCraftButtonActive then
-    Index = ClampValue(math.floor(Index + MouseWheel), 1, MaxIndex)
-end
-
-if output.MCraftButtonActive then
-    MAmountToCraft = ClampValue(math.floor(MAmountToCraft + -MouseWheel), 1, 999)
-else
-    MIndex = ClampValue(math.floor(MIndex + MouseWheel), 1, MaxIndex)
-end
-
-if lineChanged then
-    local bestTierGroupKey = GetBestTierGroupForLine(categoryKey, tierGroupKey, lineNum)
-    if bestTierGroupKey ~= tierGroupKey then
-        tierGroupKey = bestTierGroupKey
-        autoSwitchedTierGroup = true
-        needsRebuild = true
-        shouldClearOutput = true
-    end
-end
-
-if not autoSwitchedTierGroup then
-    selectedRecipe = GetRecipeByName(output.Category)
-    canRunSelectedRecipe = selectedRecipe ~= nil and outputID ~= nil and outputID ~= "" and CanLineProduceRecipe(lineNum, selectedRecipe)
-end
-
-if categoryKey ~= lastRenderedRecipeList or tierGroupKey ~= lastRenderedTierGroup or lineNum ~= lastRenderedLineNum then
-    needsRebuild = true
-end
-
-if needsRebuild then
-    lastClickedCategory = ""
-    cachedSchematicName = ""
-end
-
-local batches, rbatches, mbatches, UpTime, ReTime, lastItem = GetIndustryStatus(lineNum, databankKey)
-
-local schematicItemId = outputID
-if selectedRecipe and output.Category and output.Category ~= "" then
-    if output.Category ~= lastClickedCategory then
-        lastClickedCategory = output.Category
-        if selectedRecipe.category == "Pure" and selectedRecipe.tier == 1 then
-            cachedSchematicName = ""
-        else
-            cachedSchematicName = "Tier " .. selectedRecipe.tier .. " " .. selectedRecipe.category .. " Honeycomb Schematic Copy"
-        end
-        if not schematicItemId or schematicItemId == 0 or schematicItemId == "" then
-            schematicItemId = selectedRecipe.id
-        end
-    end
-elseif not output.Category or output.Category == "" then
-    lastClickedCategory = ""
-    cachedSchematicName = ""
-end
-
-if lastItem[1] == nil then
-    xlastItem = system.getItem(Industry[1].element.getItemId()).iconPath
-else
-    xlastItem = system.getItem(lastItem[1].id).iconPath
-end
-
-local RemainingTime = ReTime - UpTime
-
-local hrs = math.floor(((RemainingTime)/60)/60) or 0
-local min = math.floor(((RemainingTime)/60)-(hrs*60)) or 0
-local sec = math.floor((RemainingTime)-(min+(hrs*60))*60) or 0
-
-local states = GetAllIndustryStates()
-local input = {
-    ["Icon"] = schematicItemId and system.getItem(schematicItemId).iconPath or "",
-    ["HCIcon"] = system.getItem(Industry[1].element.getItemId()).iconPath,
-    ["lastItem"] = xlastItem,
-    ["Schematic"] = cachedSchematicName,
-    ["locName"] = schematicItemId and system.getItem(schematicItemId).locDisplayNameWithSize or "",
-    ["Batches"] = batches,
-    ["Mamount"] = Industry[1].element.getInfo().maintainProductAmount,
-    ["RBatches"] = rbatches,
-    ["MBatches"] = mbatches,
-    ["Index"] = Index,
-    ["Hrs"] = hrs,
-    ["Min"] = min,
-    ["Sec"] = sec,
-    ["BGimage"] = BackgroundImage,
-    ["State1"] = states[1],
-    ["State2"] = states[2],
-    ["State3"] = states[3],
-    ["State4"] = states[4],
-    ["State5"] = states[5],
-    ["State6"] = states[6],
-    ["State7"] = states[7],
-    ["State8"] = states[8],
-    ["InduLength"] = #Industry,
-    ["State"] = GetCurrentLineState(lineNum),
-    ["AmountToCraft"] = AmountToCraft,
-    ["MaxIndex"] = MaxIndex,
-    ["MIndex"] = MIndex,
-    ["MAmountToCraft"] = MAmountToCraft,
-    ["ArkTime"] = system.getArkTime()
-}
-Screen.setScriptInput(json.encode(input))
-
-if databank and output.RecipeList and output.RecipeList ~= "" then
-    databank.setStringValue(CAT_DB_KEY, categoryKey)
-    lastCategory = categoryKey
-    defaultRecipeList = categoryKey
-end
-if databank then
-    databank.setStringValue(TIER_GROUP_DB_KEY, tierGroupKey)
-end
-lastTierGroup = tierGroupKey
-defaultTierGroup = tierGroupKey
-
-if needsRebuild then
-    local content = ScreenContentHC
-    if categoryKey == "Pure" then
-        content = ScreenContentHC
-    elseif categoryKey == "Product" then
-        content = ScreenContentHC2
-    end
-    Screen.setRenderScript(BuildRenderScript(categoryKey, lineNum, tierGroupKey)..content)
-    lastRenderedRecipeList = categoryKey
-    lastRenderedTierGroup = tierGroupKey
-    lastRenderedLineNum = lineNum
-end
-
-if shouldClearOutput then
-    Screen.clearScriptOutput()
-end
+return
