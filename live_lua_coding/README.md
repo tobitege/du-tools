@@ -1,6 +1,7 @@
-# live_board
+# live_lua_coding
 
 This folder is the operator manual and tracked artifact area for live Dual Universe bridge work.
+It now separates shared live-coding workflow helpers from concrete examples.
 
 Use it when you need to do any of the following safely:
 
@@ -14,6 +15,16 @@ Use it when you need to do any of the following safely:
 This document is written for a first-time human user or AI assistant.
 It is intentionally procedural.
 If a step says to verify state first, do that before continuing.
+
+## 0. Folder Layout
+
+The root of `live_lua_coding/` contains the shared workflow documentation, fallback helpers, and test notes for working against Dual Universe through the bridge.
+
+Concrete demos now live under `live_lua_coding/examples/`.
+The first example is `live_lua_coding/examples/form_editor/`.
+It was developed with help from the Du MCP Bridge and shows a screen-side form editor where a board restores persisted layout state, renders a reduced screen script, and accepts move or resize deltas back from the screen.
+
+That split keeps the root folder reusable for future examples without tying every workflow note to one specific demo.
 
 ## 1. Canonical Rule Set
 
@@ -136,15 +147,15 @@ It does not by itself prove that the correct editor is open or that the import h
 
 This is the file in the git repo that you intentionally edit and push from, for example:
 
-- `live_board/unit-onStart.lua`
-- `live_board/unit-onTimer-UPD.lua`
+- `live_lua_coding/examples/form_editor/unit-onStart.lua`
+- `live_lua_coding/examples/form_editor/unit-onTimer-UPD.lua`
 
 For deliberate development work, prefer tracked repo files as the stable local source of truth.
 Use the IDE workspace as an external-editor exchange path, not as the long-term canonical artifact.
 
-## 2B. ScreenLayoutEditor Persistence Path
+## 2B. form_editor Persistence Path
 
-This is the exact persistence path that is now working for the live board editor.
+This is the exact persistence path used by the first `examples/form_editor` example.
 
 High-level flow:
 
@@ -161,8 +172,8 @@ High-level flow:
 
 Board side:
 
-- `live_board/unit-onStart.lua`
-- helper module embedded from `ScreenLayoutEditor.lua`
+- `live_lua_coding/examples/form_editor/unit-onStart.lua`
+- helper module embedded from `live_lua_coding/examples/form_editor/ScreenLayoutEditor.lua`
 
 What happens:
 
@@ -219,7 +230,7 @@ Important:
 
 Board side:
 
-- `live_board/unit-onTimer-UPD.lua`
+- `live_lua_coding/examples/form_editor/unit-onTimer-UPD.lua`
 
 What happens:
 
@@ -278,7 +289,7 @@ Useful Lua-chat diagnostics:
 
 ### Log levels
 
-Board-side diagnostics can be throttled with the exported parameter in `live_board/unit-onStart.lua`:
+Board-side diagnostics can be throttled with the exported parameter in `live_lua_coding/examples/form_editor/unit-onStart.lua`:
 
 - `SLE_DIAG = true`
   Master switch for ScreenLayoutEditor Lua-chat diagnostics.
@@ -365,7 +376,7 @@ Before starting, make sure all of the following are true:
 
 Recommended helper:
 
-- `.\live_board\Start-DuIdeSyncWatcher.ps1`
+- `.\live_lua_coding\Start-DuIdeSyncWatcher.ps1`
 - This starts or reuses the `sync-ide.ps1` watcher only.
 - It does not start or stop `DuMcpBridge` / the MCP server.
 
@@ -390,7 +401,7 @@ the current machine has a running `sync-ide.ps1` process pointed at `D:\MyDUserv
 Recommended local command:
 
 ```powershell
-.\live_board\Start-DuIdeSyncWatcher.ps1
+.\live_lua_coding\Start-DuIdeSyncWatcher.ps1
 ```
 
 This helper intentionally does only one thing:
@@ -400,16 +411,9 @@ This helper intentionally does only one thing:
 
 If one of those checks fails, do not continue into editor actions.
 
-## 4. Files In This Folder
+## 4. Files And Examples In This Folder
 
-Tracked live artifacts:
-
-- `unit-onStart.lua`
-  Exact tracked snapshot of the board `unit.onStart` script.
-- `unit-onTimer-UPD.lua`
-  Exact tracked snapshot of the board `unit.onTimer("UPD")` script.
-
-Fallback and measurement helpers:
+Shared workflow helpers in `live_lua_coding/`:
 
 - `du_control_center.ahk`
   Local native helper for focus, fallback editor handling, key sends, and client-pixel actions.
@@ -426,7 +430,19 @@ Fallback and measurement helpers:
 - `du-camera-steering-tests.md`
   Notes for measuring visible steering effects by screenshot comparison.
 
-Use tracked repo files such as files in `live_board/` as the source for editor push workflows.
+First example in `live_lua_coding/examples/form_editor/`:
+
+- `unit-onStart.lua`
+  Exact tracked snapshot of the board `unit.onStart` script for the form-editor example.
+- `unit-onTimer-UPD.lua`
+  Exact tracked snapshot of the board `unit.onTimer("UPD")` script for the form-editor example.
+- `ScreenLayoutEditor.lua`
+  Shared module used to build the render script, serialize layout patches, and handle persistence helpers.
+- `scripts/Test-ScreenLayoutEditorOffline.ps1`
+  Offline check for the ScreenLayoutEditor serialization and persistence pipeline.
+
+Use tracked repo files from the example you are actively editing as the source for editor push workflows.
+For the currently documented example, that usually means files in `live_lua_coding/examples/form_editor/`.
 Do not use temporary untracked files as the normal long-term workflow.
 
 ## 5. Client State Model
@@ -904,8 +920,8 @@ Use when you need repeatability checks or sweep measurements for visible camera 
 Examples:
 
 ```powershell
-pwsh -File .\live_board\Test-DuCameraSteering.ps1 -Mode repeatability -MoveX 20 -MoveY 0 -RepeatCount 5 -CaptureArtifacts -SettleMs 1000
-pwsh -File .\live_board\Test-DuCameraSteering.ps1 -Mode ladder_y -SweepValues -5,-10,-20 -CaptureArtifacts -SettleMs 1000
+pwsh -File .\live_lua_coding\Test-DuCameraSteering.ps1 -Mode repeatability -MoveX 20 -MoveY 0 -RepeatCount 5 -CaptureArtifacts -SettleMs 1000
+pwsh -File .\live_lua_coding\Test-DuCameraSteering.ps1 -Mode ladder_y -SweepValues -5,-10,-20 -CaptureArtifacts -SettleMs 1000
 ```
 
 ### `Test-DuClientPixels.ps1`
@@ -921,8 +937,8 @@ Modes:
 Examples:
 
 ```powershell
-pwsh -File .\live_board\Test-DuClientPixels.ps1 -Mode cursor -EnterFreeCursorUi -RestoreAfterFreeCursorUi
-pwsh -File .\live_board\Test-DuClientPixels.ps1 -Mode checkbox -CaptureArtifacts
+pwsh -File .\live_lua_coding\Test-DuClientPixels.ps1 -Mode cursor -EnterFreeCursorUi -RestoreAfterFreeCursorUi
+pwsh -File .\live_lua_coding\Test-DuClientPixels.ps1 -Mode checkbox -CaptureArtifacts
 ```
 
 ### `du_control_center.ahk`
@@ -932,7 +948,7 @@ Use only as a local non-MCP fallback when you intentionally need to work outside
 Example:
 
 ```powershell
-& 'C:\Program Files\tools\AutoHotkey\v2\AutoHotkey64.exe' .\live_board\du_control_center.ahk close_screen_editor
+& 'C:\Program Files\tools\AutoHotkey\v2\AutoHotkey64.exe' .\live_lua_coding\du_control_center.ahk close_screen_editor
 ```
 
 ## 15. Recovery Cookbook
@@ -1082,13 +1098,13 @@ Action:
 
 - [DuMcpBridge README](/d:/github/du-tobi/DuMcpBridge/README.md)
 - [Bridge Live Test](/d:/github/du-tobi/DuMcpBridge/bridge-live-test.md)
-- [Client Pixel Live Tests](/d:/github/du-tobi/live_board/du-client-pixel-live-tests.md)
-- [Camera Steering Tests](/d:/github/du-tobi/live_board/du-camera-steering-tests.md)
+- [Client Pixel Live Tests](/d:/github/du-tobi/live_lua_coding/du-client-pixel-live-tests.md)
+- [Camera Steering Tests](/d:/github/du-tobi/live_lua_coding/du-camera-steering-tests.md)
 - [DU Visual Subagent Notes](/d:/github/du-tobi/du-visual-subagent.md)
 
 ## 18. Maintaining The Tracked Live Snapshots
 
-If a newer live board snapshot replaces the tracked Lua snapshots in this folder:
+If a newer live board snapshot replaces the tracked Lua snapshots in one of the example folders, such as `live_lua_coding/examples/form_editor/`:
 
 - update the tracked file
 - keep the file path stable when possible

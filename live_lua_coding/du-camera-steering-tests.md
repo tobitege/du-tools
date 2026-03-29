@@ -7,7 +7,7 @@ This is the next problem after the free-cursor UI tests: the useful interaction 
 ## Core Idea
 
 - use the bridge-native `du_camera_move(x, y)` semantics for relative camera movement
-- run controlled step sequences through [Test-DuCameraSteering.ps1](/d:/github/du-tobi/live_board/Test-DuCameraSteering.ps1#L1)
+- run controlled step sequences through [Test-DuCameraSteering.ps1](/d:/github/du-tobi/live_lua_coding/Test-DuCameraSteering.ps1#L1)
 - judge movement by what the center of the DU screen points at before and after each step
 
 Current confirmed behavior from live unattended capture runs:
@@ -22,8 +22,8 @@ Current confirmed behavior from live unattended capture runs:
 
 Reference artifacts:
 
-- vertical smoke: [direct-up-smoke-v4](/d:/github/du-tobi/live_board/test-artifacts/du-camera-steering/direct-up-smoke-v4)
-- horizontal smoke: [direct-x-smoke-v1](/d:/github/du-tobi/live_board/test-artifacts/du-camera-steering/direct-x-smoke-v1)
+- vertical smoke: [direct-up-smoke-v4](/d:/github/du-tobi/live_lua_coding/test-artifacts/du-camera-steering/direct-up-smoke-v4)
+- horizontal smoke: [direct-x-smoke-v1](/d:/github/du-tobi/live_lua_coding/test-artifacts/du-camera-steering/direct-x-smoke-v1)
 
 The screenshot reticle bug does not block this workflow the same way it blocked checkbox calibration, because the main thing to watch is the screen center and the scene target under it.
 
@@ -36,7 +36,7 @@ Use the same steering delta multiple times to see whether each step appears to m
 Example:
 
 ```powershell
-pwsh -File .\live_board\Test-DuCameraSteering.ps1 -Mode repeatability -MoveX 20 -MoveY 0 -RepeatCount 5 -PauseBetweenSteps
+pwsh -File .\live_lua_coding\Test-DuCameraSteering.ps1 -Mode repeatability -MoveX 20 -MoveY 0 -RepeatCount 5 -PauseBetweenSteps
 ```
 
 What to look for:
@@ -51,7 +51,7 @@ Use a delta and then its inverse to check for drift, hysteresis, or hidden accel
 Example:
 
 ```powershell
-pwsh -File .\live_board\Test-DuCameraSteering.ps1 -Mode round_trip -MoveX 40 -MoveY 0 -RepeatCount 5 -PauseBetweenSteps
+pwsh -File .\live_lua_coding\Test-DuCameraSteering.ps1 -Mode round_trip -MoveX 40 -MoveY 0 -RepeatCount 5 -PauseBetweenSteps
 ```
 
 What to look for:
@@ -66,19 +66,19 @@ Use increasing deltas to find the smallest visibly reliable steering step.
 Examples:
 
 ```powershell
-pwsh -File .\live_board\Test-DuCameraSteering.ps1 -Mode ladder_x -SweepValues 5,10,20,40,80 -ReturnToStart -PauseBetweenSteps
+pwsh -File .\live_lua_coding\Test-DuCameraSteering.ps1 -Mode ladder_x -SweepValues 5,10,20,40,80 -ReturnToStart -PauseBetweenSteps
 
-pwsh -File .\live_board\Test-DuCameraSteering.ps1 -Mode ladder_y -SweepValues 5,10,20,40,80 -ReturnToStart -PauseBetweenSteps
+pwsh -File .\live_lua_coding\Test-DuCameraSteering.ps1 -Mode ladder_y -SweepValues 5,10,20,40,80 -ReturnToStart -PauseBetweenSteps
 ```
 
 For unattended live capture runs:
 
 ```powershell
-pwsh -File .\live_board\Test-DuCameraSteering.ps1 -Mode ladder_y -SweepValues -5,-10,-20 -SettleMs 1000 -CaptureArtifacts -ArtifactDir .\test-artifacts\du-camera-steering\direct-up-smoke-v4 -EmitJsonLog -JsonLogPath .\test-artifacts\du-camera-steering\direct-up-smoke-v4\run.json
+pwsh -File .\live_lua_coding\Test-DuCameraSteering.ps1 -Mode ladder_y -SweepValues -5,-10,-20 -SettleMs 1000 -CaptureArtifacts -ArtifactDir .\test-artifacts\du-camera-steering\direct-up-smoke-v4 -EmitJsonLog -JsonLogPath .\test-artifacts\du-camera-steering\direct-up-smoke-v4\run.json
 
-pwsh -File .\live_board\Test-DuCameraSteering.ps1 -Mode ladder_x -SweepValues 5,10,20 -SettleMs 1000 -CaptureArtifacts -ArtifactDir .\test-artifacts\du-camera-steering\direct-x-smoke-v1 -EmitJsonLog -JsonLogPath .\test-artifacts\du-camera-steering\direct-x-smoke-v1\run.json
+pwsh -File .\live_lua_coding\Test-DuCameraSteering.ps1 -Mode ladder_x -SweepValues 5,10,20 -SettleMs 1000 -CaptureArtifacts -ArtifactDir .\test-artifacts\du-camera-steering\direct-x-smoke-v1 -EmitJsonLog -JsonLogPath .\test-artifacts\du-camera-steering\direct-x-smoke-v1\run.json
 
-pwsh -File .\live_board\Test-DuCameraSteering.ps1 -Mode ladder_x -SweepValues 5,10,20 -SettleMs 1000 -CaptureArtifacts -CaptureFullClient -ArtifactDir .\test-artifacts\du-camera-steering\direct-x-fullclient-v1 -EmitJsonLog -JsonLogPath .\test-artifacts\du-camera-steering\direct-x-fullclient-v1\run.json
+pwsh -File .\live_lua_coding\Test-DuCameraSteering.ps1 -Mode ladder_x -SweepValues 5,10,20 -SettleMs 1000 -CaptureArtifacts -CaptureFullClient -ArtifactDir .\test-artifacts\du-camera-steering\direct-x-fullclient-v1 -EmitJsonLog -JsonLogPath .\test-artifacts\du-camera-steering\direct-x-fullclient-v1\run.json
 ```
 
 What to look for:

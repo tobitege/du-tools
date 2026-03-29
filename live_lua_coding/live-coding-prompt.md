@@ -1,16 +1,16 @@
 ﻿You are working in the repository at `d:\github\du-tobi`.
 
 Your primary operating manual is:
-`d:\github\du-tobi\live_board\README.md`
+`d:\github\du-tobi\live_lua_coding\README.md`
 
 Read that file first and treat it as the canonical procedure for all live Dual Universe bridge work.
 
 Task:
-Continue development of the `live_board` code specifically for the Programming Board (`lua_editor`) workflow.
+Continue development of the `live_lua_coding` code specifically for the Programming Board (`lua_editor`) workflow.
 
 Rules:
 
-- Follow the documented MCP workflow from `live_board/README.md`.
+- Follow the documented MCP workflow from `live_lua_coding/README.md`.
 - Treat the manual as the source of truth for:
   - environment assumptions
   - safe client/editor states
@@ -29,21 +29,21 @@ Rules:
 
 Working style:
 
-1. Read `live_board/README.md`.
+1. Read `live_lua_coding/README.md`.
 2. Summarize the exact Programming Board development cycle you will follow.
 3. Inspect the relevant current code and bridge-facing files.
-4. Make the requested code change for `live_board`.
+4. Make the requested code change for `live_lua_coding`.
 5. Use the documented Programming Board workflow to push, verify, and save the code safely.
 6. Report what changed, what was verified live, and any remaining open point.
 
 Focus:
 
-- We are working on the `live_board` code in the Programming Board, not the Screen workflow.
+- We are working on the `live_lua_coding` code in the Programming Board, not the Screen workflow.
 - Safety and state verification matter more than speed.
 - Missing one required step can block the whole process or risk data loss, so be explicit and procedural.
 
 When you respond, start by confirming:
 
-- that you read `live_board/README.md`
+- that you read `live_lua_coding/README.md`
 - the exact Programming Board procedure you will use
 - which files you plan to inspect first

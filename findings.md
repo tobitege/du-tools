@@ -1,7 +1,7 @@
 # Findings
 
-- `live_board/unit-onStart.lua` restauriert Persistenz ausschließlich aus der `databank` unter `screen_layout_editor:document` und übergibt den restaurierten Dokumenttext via `SCREEN_LAYOUT_EDITOR_INITIAL_DOCUMENT` an das Screen-Render-Script.
-- `live_board/unit-onTimer-UPD.lua` ist der einzige Persistenzschreiber: Es liest `Screen.getScriptOutput()`, validiert den Envelope mit `buildPersistenceRecordFromOutput(...)` und schreibt erst dann in die `databank`.
+- `live_lua_coding/unit-onStart.lua` restauriert Persistenz ausschließlich aus der `databank` unter `screen_layout_editor:document` und übergibt den restaurierten Dokumenttext via `SCREEN_LAYOUT_EDITOR_INITIAL_DOCUMENT` an das Screen-Render-Script.
+- `live_lua_coding/unit-onTimer-UPD.lua` ist der einzige Persistenzschreiber: Es liest `Screen.getScriptOutput()`, validiert den Envelope mit `buildPersistenceRecordFromOutput(...)` und schreibt erst dann in die `databank`.
 - Das Screen-Render-Script schreibt nicht selbst in die `databank`. Es emittiert nur einen Envelope über `setOutput(envelope)`.
 - Damit ist die tatsächliche Persistenzkette: `RenderScript commit` -> `setOutput(envelope)` -> Board `onTimer("UPD")` -> `Screen.getScriptOutput()` -> `databank.setStringValue(...)` -> nächstes `onStart` liest aus `databank`.
 - Die Restore-Seite wirkt im Code konsistent. Wenn nach Neustart immer das Default-Layout erscheint, ist wahrscheinlicher, dass der Screen-Output nie ankommt oder vom Board beim Validieren verworfen wird.
@@ -14,7 +14,7 @@
 - Live-Stand jetzt synchronisiert:
   - `unit/onTimer(UPD)` wurde in den sichtbaren Board-Editor gepusht und gespeichert.
   - `unit/onStart()` wurde danach ebenfalls in den sichtbaren Board-Editor gepusht und gespeichert.
-- Nach dem zweiten Push zeigt `snippet.lua` exakt den Repo-Stand von `live_board/unit-onStart.lua`.
+- Nach dem zweiten Push zeigt `snippet.lua` exakt den Repo-Stand von `live_lua_coding/unit-onStart.lua`.
 - `snippet.sync.json` blieb auf altem Export-Metadatum (`currentFilterSignature = onTimer(timerId)`, Exportzeit `07:06:21`) stehen. Das ist hier nur ein stale IDE-Sync-Metadatum; maßgeblich für den erfolgreichen Push war der tatsächliche `snippet.lua`-Inhalt plus `lua_editor save`.
 - Der Screenshot vom 2026-03-27 zeigte den eigentlichen Restfehler klarer: HUD `op` plus Board-Warnung `expected near ':'`. Das bedeutet:
   - großer Persistenz-Output scheitert noch im Screen bei `setOutput(...)`

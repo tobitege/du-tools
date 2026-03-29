@@ -47,7 +47,7 @@ Tools and utilities for Dual Universe, targeting the [myDU](https://github.com/d
 | [FactorySample.json](FactorySample.json) | Sample blueprint JSON export used for testing `du_blueprint_parser.py`. |
 | [du-visual-subagent.md](du-visual-subagent.md) | Probe-first dev-process note for using a screenshot-capable helper subagent during live Dual Universe work. Describes when to capture the `Dual Universe` window, when not to, and how to handle `Escape`/retry fallbacks. |
 | [du-ui.md](du-ui.md) | Investigation notes on the DU client UI architecture: where mod UI is rendered, how styling works, and how to extract live CSS/JS/HTML from the game client. |
-| [live_board/](live_board/) | Tracked repository snapshots of live board Lua scripts such as `unit-onStart.lua` and `unit-onTimer-UPD.lua`. Reusable board artifacts belong here. |
+| [live_lua_coding/](live_lua_coding/) | Shared workflow docs and helper scripts for live Lua work through the Du MCP Bridge. The first example lives in `examples/form_editor/`, with tracked board snapshots such as `unit-onStart.lua` and `unit-onTimer-UPD.lua`. |
 
 ## Requirements
 

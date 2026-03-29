@@ -200,7 +200,7 @@ Kanonischer Live-Pfad:
 - `DuMcpBridge/README.md` — Tool-/Resource-Liste, Verträge
 - `ModUiExtractor/README.md` — Mod, Override, Hot-Reload, Build-Stamp
 - `du-visual-subagent.md` — Probe-first Workflow für einen Screenshot-fähigen Hilfs-Subagenten
-- `live_board/README.md` — Fester Repo-Ablageort und getrackte Live-Board-Snapshots
+- `live_lua_coding/README.md` — Fester Repo-Ablageort und getrackte Live-Board-Snapshots
 
 ---
 

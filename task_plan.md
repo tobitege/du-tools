@@ -6,7 +6,7 @@ Verstehen, warum die ScreenLayoutEditor-Persistenz auf dem Programming Board nac
 
 ## Phases
 
-- [completed] Dokumentierte Persistenzkette in `live_board` prüfen
+- [completed] Dokumentierte Persistenzkette in `live_lua_coding` prüfen
 - [completed] Live-Artefakt gegen Repo-Dateien vergleichen
 - [completed] Fehlerursache eingrenzen: `setOutput`-Envelope zu groß, Live-`onTimer` veraltet
 - [completed] Kompakte Persistenz-Serialisierung in Repo-Dateien umsetzen und lokal verifizieren

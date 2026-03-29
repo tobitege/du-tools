@@ -193,4 +193,4 @@ Good moments to use this workflow:
 
 - `DuMcpBridge/README.md`
 - `du-tests.md`
-- `live_board/README.md`
+- `live_lua_coding/README.md`

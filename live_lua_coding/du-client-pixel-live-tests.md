@@ -30,7 +30,7 @@ Recommended sequence:
 2. Run:
 
 ```powershell
-pwsh -File .\live_board\Test-DuClientPixels.ps1 -Mode cursor -EnterFreeCursorUi -RestoreAfterFreeCursorUi
+pwsh -File .\live_lua_coding\Test-DuClientPixels.ps1 -Mode cursor -EnterFreeCursorUi -RestoreAfterFreeCursorUi
 ```
 
 3. If visual proof is needed, take one screenshot of the DU window after a representative point move:
@@ -67,7 +67,7 @@ Recommended sequence:
 4. Run:
 
 ```powershell
-pwsh -File .\live_board\Test-DuClientPixels.ps1 -Mode checkbox
+pwsh -File .\live_lua_coding\Test-DuClientPixels.ps1 -Mode checkbox
 ```
 
 5. Take one screenshot after the script completes:
@@ -98,4 +98,4 @@ Do not add screenshots when:
 ## Notes
 
 - `Test-DuClientPixels.ps1` still has `-CaptureArtifacts` for standalone local runs, but the preferred repo workflow for agent-assisted live checks is the MCP screenshot path above.
-- If the DU UI scale or layout changes, retune `-CheckboxXRatio` and `-CheckboxYRatio` in [Test-DuClientPixels.ps1](/d:/github/du-tobi/live_board/Test-DuClientPixels.ps1#L1).
+- If the DU UI scale or layout changes, retune `-CheckboxXRatio` and `-CheckboxYRatio` in [Test-DuClientPixels.ps1](/d:/github/du-tobi/live_lua_coding/Test-DuClientPixels.ps1#L1).

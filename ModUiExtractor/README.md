@@ -457,7 +457,7 @@ MCP transfer contract note:
 - MCP-driven editor writes use this same file-based path.
 - `du_editor_push_code` now stages `ide_import.player-<playerId>.<targetKind>.json` from a local `sourcePath`.
 - Inline bridge/probe `set_code` write paths are intentionally disabled for editor content.
-- Reusable live board Lua snapshots belong on a tracked repo path such as `live_board/`, not in untracked or temporary folders.
+- Reusable live board Lua snapshots belong on a tracked repo path such as `live_lua_coding/`, not in untracked or temporary folders.
 
 Lua-editor safety note:
 

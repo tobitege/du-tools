@@ -16,7 +16,7 @@
 ## Leitplanken
 
 - Nur `examples/SilverZero/OreExplorerM.lua` und nur falls wirklich sinnvoll `lib/SilverZeroRsLib.lua` ändern.
-- Keine Änderungen in `live_board/`.
+- Keine Änderungen in `live_lua_coding/`.
 - `setNext*` immer direkt vor dem jeweiligen Draw-Call setzen; keine stillen Mehrfachwirkungen annehmen.
 - Bewegungsanimationen nur behalten, wenn sie klar Teil der Originalintention sind.
 

@@ -205,7 +205,7 @@ Important consequences:
 - no public probe `set_code` write path through `du_ui_invoke`
 - `du_editor_save` stays a separate explicit step
 - if the correct editor, slot, or filter is not live yet, the import stays on the file path and is retried by the existing IDE-sync contract
-- reusable live board artifacts must live on a tracked repo path such as `live_board/`, not in untracked or temporary folders
+- reusable live board artifacts must live on a tracked repo path such as `live_lua_coding/`, not in untracked or temporary folders
 
 For newly added MCP tools after a rebuild, the MCP host must be reloaded so the tool inventory updates.
 

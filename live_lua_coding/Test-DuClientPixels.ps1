@@ -2,7 +2,7 @@
 # Live input/measurement harness for Dual Universe client-pixel actions.
 # In agent-driven DU sessions, prefer ScreenShotNet window captures for
 # visual confirmation and use this script for the input and coordinate checks.
-# See ../du-visual-subagent.md and live_board/du-client-pixel-live-tests.md.
+# See ../du-visual-subagent.md and live_lua_coding/du-client-pixel-live-tests.md.
 #
 
 param(
