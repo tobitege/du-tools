@@ -443,6 +443,26 @@
       constructId = lastReference.constructId;
     }
 
+    var currentFilterSignature = null;
+    try {
+      if (typeof getResolvedActiveFilterDisplaySignature === "function") {
+        var resolvedFilterSignature = String(getResolvedActiveFilterDisplaySignature() || "").replace(/\s+/g, " ").trim();
+        if (resolvedFilterSignature) {
+          currentFilterSignature = resolvedFilterSignature;
+        }
+      }
+    } catch (_ignoreLuaIdeSyncResolvedFilterSignature) {}
+
+    if (!currentFilterSignature && currentFilter && typeof currentFilter.signature !== "undefined" && currentFilter.signature !== null) {
+      currentFilterSignature = String(currentFilter.signature);
+    }
+    if (!currentFilterSignature && currentFilter && typeof currentFilter.name !== "undefined" && currentFilter.name !== null) {
+      currentFilterSignature = String(currentFilter.name);
+    }
+    if (!currentFilterSignature && lastReference && typeof lastReference.currentFilterSignature !== "undefined" && lastReference.currentFilterSignature !== null) {
+      currentFilterSignature = String(lastReference.currentFilterSignature);
+    }
+
     return {
       constructId: constructId,
       editorTitle: typeof getLuaEditorTitleForDebug === "function" ? getLuaEditorTitleForDebug() : "",
@@ -450,8 +470,49 @@
       currentSlotName: currentSlot && typeof currentSlot.name !== "undefined" ? currentSlot.name : null,
       currentSlotKey: currentSlot && typeof currentSlot.slotKey !== "undefined" ? currentSlot.slotKey : null,
       currentFilterKey: currentFilter && typeof currentFilter.key !== "undefined" ? currentFilter.key : null,
-      currentFilterSignature: currentFilter && typeof currentFilter.signature !== "undefined" ? currentFilter.signature : null
+      currentFilterSignature: currentFilterSignature
     };
+  }
+
+  function buildLuaIdeSyncContextKey(luaReference, codeMirror) {
+    var reference = luaReference && typeof luaReference === "object" ? luaReference : null;
+    var parts = [];
+
+    if (reference) {
+      var constructId = reference.constructId !== null && typeof reference.constructId !== "undefined"
+        ? normalizeIdeSyncValue(reference.constructId)
+        : "";
+      var slotElementName = normalizeIdeSyncValue(reference.slotElementName);
+      var slotName = normalizeIdeSyncValue(reference.currentSlotName);
+      var slotKey = normalizeIdeSyncValue(reference.currentSlotKey);
+      var filterKey = normalizeIdeSyncValue(reference.currentFilterKey);
+      var filterSignature = normalizeIdeSyncValue(reference.currentFilterSignature);
+
+      if (constructId) {
+        parts.push("construct=" + constructId);
+      }
+      if (slotElementName) {
+        parts.push("slotElement=" + slotElementName);
+      }
+      if (slotName) {
+        parts.push("slot=" + slotName);
+      }
+      if (slotKey) {
+        parts.push("slotKey=" + slotKey);
+      }
+      if (filterKey) {
+        parts.push("filterKey=" + filterKey);
+      }
+      if (filterSignature) {
+        parts.push("filter=" + filterSignature);
+      }
+    }
+
+    if (parts.length > 0) {
+      return "lua:" + parts.join("|");
+    }
+
+    return getEditorContextKey(codeMirror);
   }
 
   function getCurrentIdeImportSnapshot(targetKind) {
@@ -554,7 +615,7 @@
       codeMirror: codeMirror,
       code: luaText,
       codeHash32: hashStringFNV1a(luaText),
-      contextKey: getEditorContextKey(codeMirror),
+      contextKey: buildLuaIdeSyncContextKey(luaReference, codeMirror),
       reference: luaReference
     };
   }
@@ -2038,33 +2099,62 @@
     return textOf(filterNode.querySelector(".actionName"));
   }
 
+  function getFilterArgumentDisplayValues(filterNode) {
+    var args = [];
+    if (!filterNode || !filterNode.querySelectorAll) {
+      return args;
+    }
+
+    try {
+      var inputs = filterNode.querySelectorAll(".actionInputs input");
+      for (var i = 0; i < inputs.length; i += 1) {
+        var input = inputs[i];
+        if (!input) {
+          continue;
+        }
+        var rawValue = "";
+        if (typeof input.value !== "undefined") {
+          rawValue = input.value;
+        } else if (typeof input.getAttribute === "function") {
+          rawValue = input.getAttribute("value") || "";
+        }
+        var displayValue = String(rawValue || "").replace(/\s+/g, " ").trim();
+        if (displayValue) {
+          args.push(displayValue);
+        }
+      }
+    } catch (_ignoreDisplayInputs) {}
+
+    return args;
+  }
+
+  function getFilterDisplaySignature(filterNode) {
+    if (!filterNode) {
+      return "";
+    }
+
+    var actionName = String(getFilterActionText(filterNode) || "").replace(/\s+/g, " ").trim();
+    if (!actionName) {
+      return "";
+    }
+
+    var args = getFilterArgumentDisplayValues(filterNode);
+    return actionName + "(" + args.join(", ") + ")";
+  }
+
   function getFilterSignature(filterNode) {
     if (!filterNode) {
       return "";
     }
 
     var actionName = normalizeProbeText(getFilterActionText(filterNode));
+    var displayArgs = getFilterArgumentDisplayValues(filterNode);
     var args = [];
-    if (filterNode.querySelectorAll) {
-      try {
-        var inputs = filterNode.querySelectorAll(".actionInputs input");
-        for (var i = 0; i < inputs.length; i += 1) {
-          var input = inputs[i];
-          if (!input) {
-            continue;
-          }
-          var rawValue = "";
-          if (typeof input.value !== "undefined") {
-            rawValue = input.value;
-          } else if (typeof input.getAttribute === "function") {
-            rawValue = input.getAttribute("value") || "";
-          }
-          var normalized = normalizeProbeText(rawValue);
-          if (normalized) {
-            args.push(normalized);
-          }
-        }
-      } catch (_ignoreInputs) {}
+    for (var i = 0; i < displayArgs.length; i += 1) {
+      var normalized = normalizeProbeText(displayArgs[i]);
+      if (normalized) {
+        args.push(normalized);
+      }
     }
 
     return actionName + "|" + args.join("|");
@@ -2097,6 +2187,14 @@
       return selectedNode;
     }
     return findFilterNodeByHints(getManagerFilterHints());
+  }
+
+  function getResolvedActiveFilterDisplaySignature() {
+    var filterNode = getResolvedActiveFilterNode();
+    if (!filterNode) {
+      return "";
+    }
+    return getFilterDisplaySignature(filterNode);
   }
 
   function syncLuaApplyButtonState() {
@@ -5057,6 +5155,15 @@
         }
       }
     } catch (_ignoreManagerSelection) {}
+
+    try {
+      if (typeof getResolvedActiveFilterDisplaySignature === "function") {
+        var resolvedSelectedFilter = String(getResolvedActiveFilterDisplaySignature() || "").replace(/\s+/g, " ").trim();
+        if (resolvedSelectedFilter) {
+          selectedFilter = resolvedSelectedFilter;
+        }
+      }
+    } catch (_ignoreResolvedSelectedFilter) {}
 
     return {
       visible: true,

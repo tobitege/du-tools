@@ -69,33 +69,62 @@
     return textOf(filterNode.querySelector(".actionName"));
   }
 
+  function getFilterArgumentDisplayValues(filterNode) {
+    var args = [];
+    if (!filterNode || !filterNode.querySelectorAll) {
+      return args;
+    }
+
+    try {
+      var inputs = filterNode.querySelectorAll(".actionInputs input");
+      for (var i = 0; i < inputs.length; i += 1) {
+        var input = inputs[i];
+        if (!input) {
+          continue;
+        }
+        var rawValue = "";
+        if (typeof input.value !== "undefined") {
+          rawValue = input.value;
+        } else if (typeof input.getAttribute === "function") {
+          rawValue = input.getAttribute("value") || "";
+        }
+        var displayValue = String(rawValue || "").replace(/\s+/g, " ").trim();
+        if (displayValue) {
+          args.push(displayValue);
+        }
+      }
+    } catch (_ignoreDisplayInputs) {}
+
+    return args;
+  }
+
+  function getFilterDisplaySignature(filterNode) {
+    if (!filterNode) {
+      return "";
+    }
+
+    var actionName = String(getFilterActionText(filterNode) || "").replace(/\s+/g, " ").trim();
+    if (!actionName) {
+      return "";
+    }
+
+    var args = getFilterArgumentDisplayValues(filterNode);
+    return actionName + "(" + args.join(", ") + ")";
+  }
+
   function getFilterSignature(filterNode) {
     if (!filterNode) {
       return "";
     }
 
     var actionName = normalizeProbeText(getFilterActionText(filterNode));
+    var displayArgs = getFilterArgumentDisplayValues(filterNode);
     var args = [];
-    if (filterNode.querySelectorAll) {
-      try {
-        var inputs = filterNode.querySelectorAll(".actionInputs input");
-        for (var i = 0; i < inputs.length; i += 1) {
-          var input = inputs[i];
-          if (!input) {
-            continue;
-          }
-          var rawValue = "";
-          if (typeof input.value !== "undefined") {
-            rawValue = input.value;
-          } else if (typeof input.getAttribute === "function") {
-            rawValue = input.getAttribute("value") || "";
-          }
-          var normalized = normalizeProbeText(rawValue);
-          if (normalized) {
-            args.push(normalized);
-          }
-        }
-      } catch (_ignoreInputs) {}
+    for (var i = 0; i < displayArgs.length; i += 1) {
+      var normalized = normalizeProbeText(displayArgs[i]);
+      if (normalized) {
+        args.push(normalized);
+      }
     }
 
     return actionName + "|" + args.join("|");
@@ -128,6 +157,14 @@
       return selectedNode;
     }
     return findFilterNodeByHints(getManagerFilterHints());
+  }
+
+  function getResolvedActiveFilterDisplaySignature() {
+    var filterNode = getResolvedActiveFilterNode();
+    if (!filterNode) {
+      return "";
+    }
+    return getFilterDisplaySignature(filterNode);
   }
 
   function syncLuaApplyButtonState() {

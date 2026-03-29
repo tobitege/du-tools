@@ -440,6 +440,26 @@
       constructId = lastReference.constructId;
     }
 
+    var currentFilterSignature = null;
+    try {
+      if (typeof getResolvedActiveFilterDisplaySignature === "function") {
+        var resolvedFilterSignature = String(getResolvedActiveFilterDisplaySignature() || "").replace(/\s+/g, " ").trim();
+        if (resolvedFilterSignature) {
+          currentFilterSignature = resolvedFilterSignature;
+        }
+      }
+    } catch (_ignoreLuaIdeSyncResolvedFilterSignature) {}
+
+    if (!currentFilterSignature && currentFilter && typeof currentFilter.signature !== "undefined" && currentFilter.signature !== null) {
+      currentFilterSignature = String(currentFilter.signature);
+    }
+    if (!currentFilterSignature && currentFilter && typeof currentFilter.name !== "undefined" && currentFilter.name !== null) {
+      currentFilterSignature = String(currentFilter.name);
+    }
+    if (!currentFilterSignature && lastReference && typeof lastReference.currentFilterSignature !== "undefined" && lastReference.currentFilterSignature !== null) {
+      currentFilterSignature = String(lastReference.currentFilterSignature);
+    }
+
     return {
       constructId: constructId,
       editorTitle: typeof getLuaEditorTitleForDebug === "function" ? getLuaEditorTitleForDebug() : "",
@@ -447,8 +467,49 @@
       currentSlotName: currentSlot && typeof currentSlot.name !== "undefined" ? currentSlot.name : null,
       currentSlotKey: currentSlot && typeof currentSlot.slotKey !== "undefined" ? currentSlot.slotKey : null,
       currentFilterKey: currentFilter && typeof currentFilter.key !== "undefined" ? currentFilter.key : null,
-      currentFilterSignature: currentFilter && typeof currentFilter.signature !== "undefined" ? currentFilter.signature : null
+      currentFilterSignature: currentFilterSignature
     };
+  }
+
+  function buildLuaIdeSyncContextKey(luaReference, codeMirror) {
+    var reference = luaReference && typeof luaReference === "object" ? luaReference : null;
+    var parts = [];
+
+    if (reference) {
+      var constructId = reference.constructId !== null && typeof reference.constructId !== "undefined"
+        ? normalizeIdeSyncValue(reference.constructId)
+        : "";
+      var slotElementName = normalizeIdeSyncValue(reference.slotElementName);
+      var slotName = normalizeIdeSyncValue(reference.currentSlotName);
+      var slotKey = normalizeIdeSyncValue(reference.currentSlotKey);
+      var filterKey = normalizeIdeSyncValue(reference.currentFilterKey);
+      var filterSignature = normalizeIdeSyncValue(reference.currentFilterSignature);
+
+      if (constructId) {
+        parts.push("construct=" + constructId);
+      }
+      if (slotElementName) {
+        parts.push("slotElement=" + slotElementName);
+      }
+      if (slotName) {
+        parts.push("slot=" + slotName);
+      }
+      if (slotKey) {
+        parts.push("slotKey=" + slotKey);
+      }
+      if (filterKey) {
+        parts.push("filterKey=" + filterKey);
+      }
+      if (filterSignature) {
+        parts.push("filter=" + filterSignature);
+      }
+    }
+
+    if (parts.length > 0) {
+      return "lua:" + parts.join("|");
+    }
+
+    return getEditorContextKey(codeMirror);
   }
 
   function getCurrentIdeImportSnapshot(targetKind) {
@@ -551,7 +612,7 @@
       codeMirror: codeMirror,
       code: luaText,
       codeHash32: hashStringFNV1a(luaText),
-      contextKey: getEditorContextKey(codeMirror),
+      contextKey: buildLuaIdeSyncContextKey(luaReference, codeMirror),
       reference: luaReference
     };
   }

@@ -720,6 +720,15 @@
       }
     } catch (_ignoreManagerSelection) {}
 
+    try {
+      if (typeof getResolvedActiveFilterDisplaySignature === "function") {
+        var resolvedSelectedFilter = String(getResolvedActiveFilterDisplaySignature() || "").replace(/\s+/g, " ").trim();
+        if (resolvedSelectedFilter) {
+          selectedFilter = resolvedSelectedFilter;
+        }
+      }
+    } catch (_ignoreResolvedSelectedFilter) {}
+
     return {
       visible: true,
       title: titleNode ? String(titleNode.textContent || "").trim() : "",

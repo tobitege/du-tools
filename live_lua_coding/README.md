@@ -790,6 +790,7 @@ Critical routing detail:
 - `du_editor_push_code` stages code using the last known Lua IDE-sync metadata
 - in practice this means `snippet.sync.json` participates in routing the staged import
 - if `snippet.sync.json` still says `onStart()` while the live target should be `onTimer(upd)`, the staged import can land in the wrong handler even when the correct filter is visibly selected
+- the export-side fix for this is now in the Lua probe: IDE Sync metadata is expected to carry the resolved active filter signature, for example `onTimer(UPD)`, plus a Lua-specific `contextKey` like `lua:...|filter=ontimer(upd)` instead of the older generic DOM label
 
 Before a sensitive push, verify or refresh:
 
