@@ -61,7 +61,34 @@ These rules matter because a wrong action can lose unsaved changes or leave the 
 - For `screen_editor`, a save is only a valid test if the buffer is actually dirty.
 - For `lua_editor`, always establish slot and filter before pushing code.
 - Prefer structured probe reads first and screenshots second.
+- Prefer the simplest transport that can possibly work.
+- Before trusting a new live fix, confirm the screen-side result, not only board-side logs.
+- If board logs and the visible screen disagree, trust the visible screen first.
+- Measure the built render-script size before a live push whenever screen code changed.
+- Do not keep adding transport layers until the current smallest viable path has been disproven.
 - If the current client state is unclear, stop and re-check instead of guessing.
+
+### 2C. PowerShell Command Rules
+
+Small PowerShell syntax mistakes can invalidate a live test just as much as a bad Lua patch.
+
+- Do not wrap variable-containing paths in single quotes if PowerShell must expand them.
+- Prefer `Join-Path`, tokenized arguments, or double-quoted strings for paths with variables.
+- If a command reads or writes a path derived from `$HOME`, `$PWD`, `$env:...`, or another variable, check the final expanded path before trusting the result.
+- If a PowerShell command fails because of quoting, rerun the corrected command end-to-end before drawing conclusions from the failed run.
+
+Correct:
+
+```powershell
+$path = Join-Path $HOME 'file.txt'
+Get-Content -Path $path
+```
+
+Wrong:
+
+```powershell
+Get-Content -Path '$HOME/file.txt'
+```
 
 ## 2A. Code Source Model: Live Buffer vs IDE Sync vs Repo File
 
@@ -161,7 +188,7 @@ High-level flow:
 
 1. `unit.onStart` restores the last persisted ScreenLayoutEditor record from the databank.
 2. The board builds a reduced render-only ScreenLayoutEditor script for the linked screen.
-3. The restored layout is embedded into that render script as a compact startup patch.
+3. The restored layout is sent to the screen as a compact startup patch through `setScriptInput(...)`.
 4. The screen runs that script, lets the user move or resize elements, and emits only a small delta string through `setOutput(...)`.
 5. `unit.onTimer("UPD")` reads that delta with `Screen.getScriptOutput()`, rebuilds the full document board-side, validates it, and writes the compact persisted record back to the databank.
 6. On the next board restart, `unit.onStart` restores that persisted record again, so the screen does not fall back to the vanilla layout.
@@ -198,14 +225,18 @@ Important:
 What happens:
 
 - `unit.onStart` does not send the full restored document as a huge literal anymore.
-- It derives a compact startup patch from the restored document and injects only that patch plus a few short startup fields into the render script.
-- The screen receives the script through `setRenderScript(...)`.
+- The board restores the canonical document on the board side.
+- The board sends a small startup patch through `setScriptInput(...)`.
+- The screen reconstructs the restored document from that patch.
+- The screen still receives the script through `setRenderScript(...)`.
 
 Important:
 
-- This was the critical fix.
+- This is the preferred path for this workflow.
 - A full embedded startup document can easily push the screen script over the hard 50000-char limit.
-- The compact startup patch keeps the render script below that limit.
+- A startup patch is much safer than a full serialized document.
+- Only add chunking if the compact patch itself has been proven too large.
+- Do not introduce startup ack loops unless a direct patch input has already been ruled out by a real live test.
 
 #### 3. Screen-side editing
 
@@ -326,6 +357,10 @@ These were the important real failure modes during live work.
   - compact startup patch
   - compact runtime delta output
 
+- Built screen script size not measured before live push.
+  If the measured render build exceeds the safe screen limit, a live test is not trustworthy.
+  Check the built size first, then push.
+
 - Startup helpers referenced too early.
   Code inside the board-side render-script builder must not call helpers that are defined later only inside the embedded module source.
   Examples that already failed in practice:
@@ -339,6 +374,13 @@ These were the important real failure modes during live work.
   - startup script actually updated
   - delta transport generation
 
+- Board says restore succeeded, but screen still shows default.
+  This means the failure is in the final screen-side import or apply step, not automatically in the DB reader or the board-side restore log.
+  In that case:
+  - inspect the visible screen text first
+  - inspect the screen import path second
+  - only revisit DB parsing if the screen import path is already disproven
+
 - Delta keyed by unstable index.
   If the board logs `rej: delta_id`, the screen likely sent an index-like reference instead of a stable element id.
 
@@ -349,17 +391,21 @@ These were the important real failure modes during live work.
   The persisted record must carry `sx`, `sy`, and `si`. Without them, restore validation can accept the record but reconstruct the wrong layout.
 
 - `setRenderScript(...)` ordering assumptions.
-  Do not assume `setScriptInput(...)` is the reliable startup channel for this editor path. The working path here is the compact startup patch embedded into the render script itself.
+  Do not assume one big `setScriptInput(...)` payload is safe.
+  But also do not jump straight to chunking if a compact startup patch fits.
+  Use the smallest proven startup format first.
 
 ### Practical rules for future changes
 
 - Keep runtime screen output small.
 - Keep startup payload small.
 - Let the board own the full canonical document.
-- Let the screen own only interaction and delta emission.
-- If persistence breaks, inspect the Lua chat first before changing transport format again.
+- Let the screen own only interaction, restore application, and delta emission.
+- If persistence breaks, inspect the visible screen and the Lua chat together before changing transport format again.
 - If a change touches startup transport, immediately re-check total render script size.
 - If a change touches transport ids, keep stable element ids end-to-end.
+- If a simpler existing helper already solves the transport, use it before inventing a larger new path.
+- If a fix depends on local reasoning but the screen still shows old behavior, verify the real live screen code and not only the repo file.
 
 ## 3. What Must Already Be True
 

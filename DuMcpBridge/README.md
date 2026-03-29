@@ -512,12 +512,14 @@ The live MCP surface is intentionally centered on a small set of tool families:
   Dedicated chat read/write helpers that add structured semantics beyond a raw probe result.
 - `du_camera_move`
   The single native entry point for explicit in-world camera steering through relative `x` / `y` movement.
+- `du_send_key_native`
+  The native key-send entry point for a small supported whitelist such as `F`, `Escape`, function keys, and `Ctrl+L`.
 - `du_open_editor_native`
   The single native entry point for opening supported element editors through `Ctrl+L`.
 - `du_get_last_result`, `du_tail_runtime_logs`, `du_list_active_sessions`
   Observability and session discovery.
 
-Wrapper tools such as `du_lua_*`, `du_ui_eval_raw`, and `du_send_key_native` are intentionally no longer part of the public surface. The generic UI path now owns the semantics that mattered in practice:
+Wrapper tools such as `du_lua_*` and `du_ui_eval_raw` are intentionally no longer part of the public surface. The generic UI path now owns the semantics that mattered in practice:
 
 - `du_ui_invoke(uiKind = lua_editor, method = select_context)` now uses `slotName`, `filterName`, and `settleMs` directly and stretches the timeout budget to cover the settle delay.
 - `du_ui_invoke(uiKind = screen_editor, method = cancel)` keeps the one correct current live exit path: probe cancel first, then delayed native `Escape` cleanup.
@@ -1216,7 +1218,7 @@ Verified live:
 
 ## Current Limitations
 
-- the bridge now exposes only two Windows-native gameplay helpers: `du_camera_move` for explicit relative camera steering and `du_open_editor_native` for the shared element-editor `Ctrl+L` case
+- the bridge now exposes three Windows-native input helpers: `du_camera_move` for explicit relative camera steering, `du_send_key_native` for a small supported key whitelist such as `F` / `Escape`, and `du_open_editor_native` for the shared element-editor `Ctrl+L` case
 - `screen_editor` still depends on the user having the correct editor UI open
 - `boardId` is not yet enforced as a verified board selection
 - `du_editor_pull_code` returns the last known snapshot, not necessarily the exact live editor state
@@ -1225,7 +1227,7 @@ Verified live:
 - Lua-editor slot changes are still timing-sensitive in the live client; if you bypass the canonical `select_context` path and use low-level calls manually, you must account for the post-slot redraw delay yourself
 - HUD channel switching is still state-dependent; in one live session with `open = false` and a selected construct channel (`HC_TestCore_L`), select/join to `room_ai_hlp2` timed out even though `server_chat` could still read that room
 - normal HUD mention reads are intentionally limited to the currently selected client tab; if the visible tab is `POIN` or another unrelated channel, `du_chat_ai_mentions` can correctly return zero while `du_chat_server_mentions` still sees relevant server-side traffic such as `room_ai_hlp2`
-- there is still no broad gameplay hotkey contract: native input is intentionally limited to `du_camera_move` and `du_open_editor_native`, not generic action keys like `F` / `Use`
+- there is still no arbitrary raw hotkey contract: native key input is intentionally limited to the `du_send_key_native` whitelist rather than free-form key strings
 - `sendEscapeFirst = true` is not a harmless preflight: from a normal in-world state it can open the game Options menu. If that happens, the next recovery step is another `Escape` to get back in-world before you assume a clean retry state.
 
 ## Recommended Next Steps

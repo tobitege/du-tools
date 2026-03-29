@@ -188,23 +188,24 @@ SendCtrlL(windowTitle, activateWindow := true, sendEscapeFirst := false) {
     result.activeAfter := !!WinActive(targetSpec)
 
     ctrlLSequence := "{LCtrl down}l{LCtrl up}"  ; Explicit modifier syntax for ControlSend
+    ctrlLEventSequence := "{LCtrl down}{l down}{l up}{LCtrl up}"  ; Explicit chord for SendEvent on the active window
 
     if (result.activeAfter) {
         try {
             if (sendEscapeFirst) {
-                ControlSend("{Escape}", , targetSpec)
+                SendEvent("{Escape}")
                 Sleep(120)
             }
-            ; Try with a small delay before and after to ensure modifier is processed
-            Sleep(20)
-            ControlSend(ctrlLSequence, , targetSpec)
-            Sleep(20)
-            result.sendMode := sendEscapeFirst ? "control_send_escape_then_lctrl" : "control_send_lctrl"
+            ; Use direct key events on the active DU window so the left-control chord is preserved.
+            Sleep(60)
+            SendEvent(ctrlLEventSequence)
+            Sleep(80)
+            result.sendMode := sendEscapeFirst ? "send_event_escape_then_lctrl" : "send_event_lctrl"
             result.ok := true
             result.error := ""
             return result
         } catch as err {
-            result.error := "control_send_failed:" . err.Message
+            result.error := "send_event_failed:" . err.Message
         }
     }
 

@@ -119,6 +119,22 @@ const nativeCameraMoveOutputSchema = {
   error: z.string().nullable()
 };
 
+const nativeKeySendOutputSchema = {
+  invoked: z.boolean(),
+  ahkPath: z.string().nullable(),
+  scriptPath: z.string(),
+  windowTitle: z.string(),
+  targetHwnd: z.string().nullable(),
+  activeBefore: z.boolean().nullable(),
+  activeAfter: z.boolean().nullable(),
+  key: z.enum(supportedNativeKeys),
+  repeatCount: z.number().int().positive(),
+  delayMs: z.number().int().nonnegative(),
+  sendMode: z.string().nullable(),
+  nativeResultJson: z.string().nullable(),
+  error: z.string().nullable()
+};
+
 type EditorSnapshotFields = {
   visible: boolean | null;
   selectedSlot: string | null;
@@ -494,6 +510,64 @@ export function registerNativeInputTools(
         settleMs: native.nativeResult?.settleMs ?? settleMs,
         cursorX: native.nativeResult?.cursorX ?? null,
         cursorY: native.nativeResult?.cursorY ?? null,
+        nativeResultJson: native.nativeResultJson,
+        error: native.nativeResult?.error || null
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(structuredContent, null, 2)
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
+  server.registerTool(
+    "du_send_key_native",
+    {
+      title: "Send Native Dual Universe Key",
+      description:
+        "Uses the native AutoHotkey helper from `DuMcpBridge/ahk` to send one supported gameplay or editor key such as `F`, `Escape`, function keys, or `Ctrl+L` to the Dual Universe window.",
+      inputSchema: {
+        key: z.enum(supportedNativeKeys).describe("Supported key to send, for example `F`, `Escape`, `F1`, or `Ctrl+L`"),
+        repeatCount: z.number().int().min(1).max(20).default(1).describe("How many times to send the key"),
+        delayMs: z.number().int().min(0).max(5000).default(120).describe("Delay between repeated sends in milliseconds"),
+        windowTitle: z.string().min(1).default("Dual Universe").describe("Window title substring used to locate the Dual Universe client"),
+        activateWindow: z.boolean().default(true).describe("When true, AutoHotkey first activates the target window before sending the key"),
+        ahkPath: z.string().min(1).optional().describe("Optional AutoHotkey v2 exe path or directory override for this call")
+      },
+      outputSchema: nativeKeySendOutputSchema
+    },
+    async ({ key, repeatCount, delayMs, windowTitle, activateWindow, ahkPath }) => {
+      const resolvedAhkPath = ahkPath ?? options?.defaultAhkPath ?? null;
+      const native = await runNativeAhkInput(
+        "send_key",
+        windowTitle,
+        activateWindow,
+        false,
+        key,
+        repeatCount,
+        delayMs,
+        resolvedAhkPath
+      );
+      const nativeOk = native.nativeResult?.ok === true;
+
+      const structuredContent = {
+        invoked: nativeOk,
+        ahkPath: native.ahkPath,
+        scriptPath: native.scriptPath,
+        windowTitle,
+        targetHwnd: native.nativeResult?.targetHwnd || null,
+        activeBefore: native.nativeResult ? native.nativeResult.activeBefore : null,
+        activeAfter: native.nativeResult ? native.nativeResult.activeAfter : null,
+        key,
+        repeatCount: native.nativeResult?.repeatCount ?? repeatCount,
+        delayMs,
+        sendMode: native.nativeResult?.sendMode || null,
         nativeResultJson: native.nativeResultJson,
         error: native.nativeResult?.error || null
       };
