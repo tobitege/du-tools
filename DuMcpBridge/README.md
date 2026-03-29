@@ -59,6 +59,7 @@ The current implementation supports:
 - MCP over `stdio`
 - a file-based command/event bus under `D:\MyDUserver\tmp\ui-dumps\mcp-bridge`
 - code push and save commands for active editors
+- full UI dump via `du_ui_dump` with targeted `htmlSelector` extraction
 - active code snapshots and last-result lookup
 - runtime log tailing
 - a Lua runtime-probe API for the open Lua editor
@@ -384,6 +385,7 @@ Supported actions today:
 
 - `save`
 - `probe_call`
+- `ui_dump`
 
 ## Event Model
 
@@ -504,6 +506,8 @@ The live MCP surface is intentionally centered on a small set of tool families:
   Canonical live UI read, action, and readiness paths for `lua_editor` and `screen_editor`.
 - `du_editor_push_code`, `du_editor_pull_code`, `du_editor_save`
   File-based IDE import, last-known snapshot reads, and explicit save/apply.
+- `du_ui_dump`
+  Full UI dump via ModUiExtractor (chunked NDJSON). Supports `htmlSelector` to target specific DOM elements.
 - `du_chat_*`
   Dedicated chat read/write helpers that add structured semantics beyond a raw probe result.
 - `du_camera_move`
@@ -585,6 +589,47 @@ Inputs:
 Behavior:
 
 - polls `du_ui_describe` semantics with target-specific readiness checks for `lua_editor` and `screen_editor`
+
+### `du_ui_dump`
+
+Purpose:
+
+- queue a full UI dump via ModUiExtractor (Action 1/2)
+- outputs chunked NDJSON to `tmp/ui-dumps/`
+- use `htmlSelector` to target a specific DOM element instead of the full document
+- useful for extracting the F1/Help codex or other overlay UIs
+
+Inputs:
+
+- `playerId`
+- `deep` (default `true`): deep mode captures more stylesheets/scripts
+- `initialDelayMs` (default `0`): delay before dump starts (e.g. 3000ms to wait for F1/Help to load)
+- `htmlSelector` (default `""`): CSS selector to target a specific element (e.g. `"#dashboard_panel"`)
+
+Behavior:
+
+1. `DuMcpBridge` queues `action = ui_dump` with config
+2. `ModUiExtractor` injects the extractor payload with `htmlSelector` support
+3. the payload collects HTML, stylesheets, scripts, and metadata in chunks
+4. results are written to `tmp/ui-dumps/ui-<id>.ndjson`
+5. use `reassemble-ui-dump.ps1` to reassemble into `reassembled/<id>/`
+
+After reassembly, the HTML is split by `body` root elements into `html/*.html` files.
+
+Return fields:
+
+- `commandId`
+- `status` ("queued")
+- `targetKind`
+- `playerId`
+- `queuePath`
+
+Known limitations:
+
+- deep mode can stall on heavy HUD sessions; use `deep = false` for faster safe dumps
+- full `body` dumps exceed bridge serialization limits and stall; always use `htmlSelector` for targeted extraction
+- `htmlSelector` targets the HUD document root, not the Lua editor probe context
+- F1/Help codex topics use `section#bm_<topic>` IDs (e.g. `section#bm_renderscript`, `section#bm_scripting_element_API`); use `raw_eval` to discover the correct ID: `document.querySelectorAll('section[id^="bm_"]')` to list all available topics
 
 ### Live Lua workflow
 
@@ -1167,6 +1212,7 @@ Verified live:
 - after extending the server-side SQL to include both subscribed channels and channels the same player has written to, a live retest with `limit = 500` returned `messageCount = 349`
 - that same retest made `du_chat_server_mentions` return 21 `@ai` messages across multiple channel types including `Construct`, `Local`, `Org`, `Private`, and `room_ai_hlp2`
 - an immediate HUD comparison still showed the intended split: `du_chat_snapshot` was on `Aphelia` (`channelId = 2`) and `du_chat_ai_mentions` there returned `count = 0`, while the server-side path kept the broader cross-channel inbox
+- `du_ui_dump` with `htmlSelector = "#dashboard_panel"` and `deep = false` successfully extracted 568KB of F1/Help codex HTML as `000-dashboard_panel.html` via reassembly; deep mode stalling was worked around by using safe mode instead
 
 ## Current Limitations
 

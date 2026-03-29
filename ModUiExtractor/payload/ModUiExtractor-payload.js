@@ -16,6 +16,7 @@
     modName: "NQ.UIExtractor",
     actionId: 900001,
     mode: "full_dump",
+    htmlSelector: "",
     targetStylesheetHref: "",
     targetStylesheetMaxChars: 12000000,
     allStylesheetOnlyCssHref: true,
@@ -313,6 +314,7 @@
 
   var config = mergeConfig(DEFAULT_CONFIG, window.__UI_EXTRACTOR_CONFIG || {});
   config.mode = typeof config.mode === "string" ? String(config.mode).toLowerCase() : DEFAULT_CONFIG.mode;
+  config.htmlSelector = String(config.htmlSelector || "");
   config.targetStylesheetHref = String(config.targetStylesheetHref || "");
   config.targetStylesheetMaxChars = numberOrDefault(config.targetStylesheetMaxChars, DEFAULT_CONFIG.targetStylesheetMaxChars);
   config.allStylesheetOnlyCssHref = !!config.allStylesheetOnlyCssHref;
@@ -574,7 +576,18 @@
   function collectHtml() {
     return withSectionGuard("html", function () {
       var html = "";
-      if (document.documentElement && typeof document.documentElement.outerHTML === "string") {
+      if (config.htmlSelector) {
+        try {
+          var el = document.querySelector(config.htmlSelector);
+          if (el && typeof el.outerHTML === "string") {
+            html = el.outerHTML;
+          } else {
+            pushWarning("html", "selector " + config.htmlSelector + " found no element or outerHTML, falling back to documentElement");
+          }
+        } catch (_badSel) {
+          pushWarning("html", "selector " + config.htmlSelector + " threw: " + String(_badSel));
+        }
+      } else if (document.documentElement && typeof document.documentElement.outerHTML === "string") {
         html = document.documentElement.outerHTML;
       }
       var originalLength = html.length;
@@ -1670,7 +1683,9 @@
         maxStyleSheets: config.maxStyleSheets,
         maxCssRulesPerSheet: config.maxCssRulesPerSheet,
         maxTotalCssChars: config.maxTotalCssChars,
-        maxElementsPerSelector: config.maxElementsPerSelector
+        maxElementsPerSelector: config.maxElementsPerSelector,
+        htmlSelector: config.htmlSelector,
+        initialDelayMs: config.initialDelayMs
       }
     });
 

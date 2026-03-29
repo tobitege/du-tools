@@ -24,6 +24,7 @@ export interface EnqueueCommandInput {
   probeArgs?: unknown[];
   deep?: boolean;
   initialDelayMs?: number;
+  htmlSelector?: string;
 }
 
 export interface EnqueueCommandResult {
@@ -105,7 +106,8 @@ export class BridgeCommandQueue {
         ...(typeof input.probeMethod === "string" ? { probeMethod: input.probeMethod } : {}),
         ...(Array.isArray(input.probeArgs) ? { probeArgs: input.probeArgs } : {}),
         ...(typeof input.deep === "boolean" ? { deep: input.deep } : {}),
-        ...(typeof input.initialDelayMs === "number" ? { initialDelayMs: input.initialDelayMs } : {})
+        ...(typeof input.initialDelayMs === "number" ? { initialDelayMs: input.initialDelayMs } : {}),
+        ...(typeof input.htmlSelector === "string" && input.htmlSelector ? { htmlSelector: input.htmlSelector } : {})
       }
     };
 

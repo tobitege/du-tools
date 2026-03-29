@@ -604,6 +604,7 @@ public sealed class MyDuMod : IMod
         var deepMode = payload["deep"]?.Value<bool>() ?? true;
         var initialDelayMs = payload["initialDelayMs"]?.Value<int>() ?? 0;
         initialDelayMs = Math.Max(0, Math.Min(30000, initialDelayMs));
+        var htmlSelector = payload["htmlSelector"]?.Value<string>()?.Trim() ?? "";
 
         var config = new JObject
         {
@@ -617,6 +618,11 @@ public sealed class MyDuMod : IMod
             ["maxElementsPerSelector"] = deepMode ? 80 : 30,
             ["initialDelayMs"] = initialDelayMs
         };
+
+        if (!string.IsNullOrEmpty(htmlSelector))
+        {
+            config["htmlSelector"] = htmlSelector;
+        }
 
         await InjectPayload(
             playerId,

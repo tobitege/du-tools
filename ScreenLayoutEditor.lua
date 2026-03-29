@@ -2,7 +2,8 @@ local ScreenLayoutEditor = {}
 SCREEN_LAYOUT_EDITOR_MODULE = ScreenLayoutEditor
 
 ScreenLayoutEditor.SCHEMA_VERSION = 1
-ScreenLayoutEditor.OUTPUT_KIND = "screen_layout_editor_doc"
+ScreenLayoutEditor.OUTPUT_KIND = "sled"
+ScreenLayoutEditor.LEGACY_OUTPUT_KIND = "screen_layout_editor_doc"
 ScreenLayoutEditor.PERSISTENCE_DB_KEY = "screen_layout_editor:document"
 ScreenLayoutEditor.DEFAULT_MARGIN = 8
 
@@ -32,6 +33,32 @@ local function numberOrNil(value)
         return numeric
     end
     return nil
+end
+
+local function roundInt(value)
+    local numeric = numberOrNil(value) or 0
+    if numeric >= 0 then
+        return math.floor(numeric + 0.5)
+    end
+    return math.ceil(numeric - 0.5)
+end
+
+local function encodeBase36(value)
+    local numeric = math.max(0, roundInt(value))
+    if numeric == 0 then
+        return "0"
+    end
+    local chars = {}
+    while numeric > 0 do
+        local digit = numeric % 36
+        chars[#chars + 1] = string.char(digit < 10 and (48 + digit) or (87 + digit))
+        numeric = math.floor(numeric / 36)
+    end
+    local parts = {}
+    for index = #chars, 1, -1 do
+        parts[#parts + 1] = chars[index]
+    end
+    return table.concat(parts)
 end
 
 local function serializeNumber(value)
@@ -151,6 +178,8 @@ function ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
         version = ScreenLayoutEditor.SCHEMA_VERSION,
         revision = 0,
         selectedId = "main_canvas",
+        screenWidth = screenWidth,
+        screenHeight = screenHeight,
         elements = {
             {
                 id = "frame",
@@ -514,8 +543,14 @@ function ScreenLayoutEditor.normalizeDocument(rawDocument, screenWidth, screenHe
         version = ScreenLayoutEditor.SCHEMA_VERSION,
         revision = math.max(0, math.floor(numberOrNil(rawDocument.revision or rawDocument.r) or 0)),
         selectedId = selectedId,
+        screenWidth = math.max(1, math.floor(numberOrNil(rawDocument.screenWidth or rawDocument.sw) or screenWidth or fallback.screenWidth or 1920)),
+        screenHeight = math.max(1, math.floor(numberOrNil(rawDocument.screenHeight or rawDocument.sh) or screenHeight or fallback.screenHeight or 1080)),
         elements = elements
     }
+end
+
+local function isEditableElement(element)
+    return type(element) == "table" and (element.movable ~= false or element.resizable ~= false)
 end
 
 local function serializeElement(element)
@@ -656,42 +691,142 @@ function ScreenLayoutEditor.deserializeDocument(text, screenWidth, screenHeight)
     return ScreenLayoutEditor.normalizeDocument(rawDocument, screenWidth, screenHeight), nil
 end
 
+function ScreenLayoutEditor.serializeLayoutPatch(document)
+    local normalized = ScreenLayoutEditor.normalizeDocument(document)
+    local parts = {}
+    for index = 1, #normalized.elements do
+        local element = normalized.elements[index]
+        if isEditableElement(element) then
+            parts[#parts + 1] = string.format(
+                "%s.%s.%s.%s",
+                encodeBase36(element.x),
+                encodeBase36(element.y),
+                encodeBase36(element.w),
+                encodeBase36(element.h)
+            )
+        end
+    end
+    return table.concat(parts, ";")
+end
+
+function ScreenLayoutEditor.deserializeLayoutPatch(text, screenWidth, screenHeight)
+    if type(text) ~= "string" or text == "" then
+        return nil, "empty_patch"
+    end
+    local document = ScreenLayoutEditor.createDefaultDocument(screenWidth or 1920, screenHeight or 1080)
+    local startIndex = 1
+    local patchCount = 0
+    for index = 1, #document.elements do
+        local element = document.elements[index]
+        if isEditableElement(element) then
+            local nextIndex = text:find(";", startIndex, true)
+            local chunk = nextIndex and text:sub(startIndex, nextIndex - 1) or text:sub(startIndex)
+            if chunk == "" then
+                return nil, "patch_short"
+            end
+            local x, y, w, h = chunk:match("^([^%.]+)%.([^%.]+)%.([^%.]+)%.([^%.]+)$")
+            x = x and tonumber(x, 36) or nil
+            y = y and tonumber(y, 36) or nil
+            w = w and tonumber(w, 36) or nil
+            h = h and tonumber(h, 36) or nil
+            if not x or not y or not w or not h then
+                return nil, "patch_rect"
+            end
+            element.x = x
+            element.y = y
+            element.w = w
+            element.h = h
+            patchCount = patchCount + 1
+            if not nextIndex then
+                startIndex = #text + 1
+                break
+            end
+            startIndex = nextIndex + 1
+        end
+    end
+    if patchCount <= 0 then
+        return nil, "patch_empty"
+    end
+    if startIndex <= #text then
+        return nil, "patch_long"
+    end
+    return document, nil
+end
+
 function ScreenLayoutEditor.serializeOutputEnvelope(document, serializedDocument, hash)
     local normalized = ScreenLayoutEditor.normalizeDocument(document)
     local docText = serializedDocument or ScreenLayoutEditor.serializeDocument(normalized)
     local docHash = hash or ScreenLayoutEditor.hashText(docText)
+    local patchText = ScreenLayoutEditor.serializeLayoutPatch(normalized)
     return string.format(
-        '{"k":%s,"r":%d,"g":%s,"d":%s}',
+        '{"k":%s,"r":%d,"g":%s,"m":%s,"sx":%s,"sy":%s,"si":%s}',
         serializeString(ScreenLayoutEditor.OUTPUT_KIND),
         normalized.revision or 0,
         serializeNumber(docHash),
-        serializeString(docText)
+        serializeString(patchText),
+        serializeString(encodeBase36(normalized.screenWidth or 1920)),
+        serializeString(encodeBase36(normalized.screenHeight or 1080)),
+        serializeString(normalized.selectedId or "")
     )
+end
+
+function ScreenLayoutEditor.serializeTransportDelta(document, elementId, screenWidth, screenHeight)
+    local normalized = ScreenLayoutEditor.normalizeDocument(document, screenWidth, screenHeight)
+    local deltaId = tostring(elementId or normalized.selectedId or "")
+    for index = 1, #normalized.elements do
+        local element = normalized.elements[index]
+        if isEditableElement(element) then
+            if element.id == deltaId then
+                return string.format(
+                    "d|%s|%s|%s|%s|%s|%s|%s|%s",
+                    encodeBase36(normalized.revision or 0),
+                    tostring(element.id),
+                    encodeBase36(element.x),
+                    encodeBase36(element.y),
+                    encodeBase36(element.w),
+                    encodeBase36(element.h),
+                    encodeBase36(screenWidth or 1920),
+                    encodeBase36(screenHeight or 1080)
+                )
+            end
+        end
+    end
+    return ""
 end
 
 function ScreenLayoutEditor.parseOutputEnvelope(text, screenWidth, screenHeight)
     if type(json) == "table" and type(json.decode) == "function" then
         local decoded = json.decode(text)
         if type(decoded) == "table" then
-            if decoded.p ~= nil and decoded.d == nil and decoded.document == nil then
+            if decoded.p ~= nil and decoded.d == nil and decoded.document == nil and decoded.m == nil and decoded.minimal == nil then
                 return nil, "probe_output"
             end
-            if (decoded.kind or decoded.k) == ScreenLayoutEditor.OUTPUT_KIND then
+            local outputKind = decoded.kind or decoded.k
+            if outputKind == ScreenLayoutEditor.OUTPUT_KIND or outputKind == ScreenLayoutEditor.LEGACY_OUTPUT_KIND then
                 local documentValue = decoded.document or decoded.d
+                local patchValue = decoded.minimal or decoded.m
                 local document, documentError = nil, nil
                 if type(documentValue) == "string" and documentValue ~= "" then
                     document, documentError = ScreenLayoutEditor.deserializeDocument(documentValue, screenWidth, screenHeight)
+                elseif type(patchValue) == "string" and patchValue ~= "" then
+                    local patchWidth = (type(decoded.sx) == "string" and tonumber(decoded.sx, 36)) or screenWidth
+                    local patchHeight = (type(decoded.sy) == "string" and tonumber(decoded.sy, 36)) or screenHeight
+                    document, documentError = ScreenLayoutEditor.deserializeLayoutPatch(patchValue, patchWidth, patchHeight)
                 else
                     document = ScreenLayoutEditor.normalizeDocument(documentValue, screenWidth, screenHeight)
                 end
                 if not document then
                     return nil, documentError or "document_parse_error"
                 end
+                local selectedId = decoded.si or decoded.selectedId
+                if type(selectedId) == "string" and selectedId ~= "" then
+                    document.selectedId = selectedId
+                end
                 document.revision = math.max(0, math.floor(numberOrNil(decoded.revision or decoded.r) or document.revision or 0))
                 local serialized = ScreenLayoutEditor.serializeDocument(document)
                 local computedHash = ScreenLayoutEditor.hashText(serialized)
                 local expectedHash = numberOrNil(decoded.hash or decoded.g)
-                if expectedHash and computedHash ~= expectedHash then
+                if expectedHash and computedHash ~= expectedHash and (type(patchValue) ~= "string" or patchValue == "") then
                     return nil, "hash_mismatch"
                 end
                 return {
@@ -710,7 +845,8 @@ function ScreenLayoutEditor.parseOutputEnvelope(text, screenWidth, screenHeight)
     if not envelope then
         return nil, parseError
     end
-    if (envelope.kind or envelope.k) ~= ScreenLayoutEditor.OUTPUT_KIND then
+    local outputKind = envelope.kind or envelope.k
+    if outputKind ~= ScreenLayoutEditor.OUTPUT_KIND and outputKind ~= ScreenLayoutEditor.LEGACY_OUTPUT_KIND then
         return nil, "wrong_kind"
     end
     local document = ScreenLayoutEditor.normalizeDocument(envelope.document or envelope.d, screenWidth, screenHeight)
@@ -960,34 +1096,25 @@ function ScreenLayoutEditor.commitDocument(state)
         return false
     end
     state.document.revision = math.max(0, math.floor(numberOrNil(state.document.revision) or 0)) + 1
-    local serialized = ScreenLayoutEditor.serializeDocument(state.document)
-    local hash = ScreenLayoutEditor.hashText(serialized)
-    state.lastCommittedSerialized = serialized
-    state.lastCommittedHash = hash
-    state.lastOutputEnvelope = ScreenLayoutEditor.serializeOutputEnvelope(state.document, serialized, hash)
+    state.lastOutputEnvelope = ScreenLayoutEditor.serializeOutputEnvelope(state.document)
     state.documentDirty = false
     return true
 end
 
 function ScreenLayoutEditor.createState(screenWidth, screenHeight, initialDocument)
     local document = nil
-    if type(initialDocument) == "string" and initialDocument ~= "" then
-        document = ScreenLayoutEditor.deserializeDocument(initialDocument, screenWidth, screenHeight)
-    elseif type(initialDocument) == "table" then
+    if type(initialDocument) == "table" then
         document = ScreenLayoutEditor.normalizeDocument(initialDocument, screenWidth, screenHeight)
     end
     if not document then
         document = ScreenLayoutEditor.createDefaultDocument(screenWidth, screenHeight)
     end
 
-    local serialized = ScreenLayoutEditor.serializeDocument(document)
     return {
         metrics = ScreenLayoutEditor.computeMetrics(screenWidth, screenHeight),
         document = document,
         operation = nil,
         documentDirty = false,
-        lastCommittedSerialized = serialized,
-        lastCommittedHash = ScreenLayoutEditor.hashText(serialized),
         lastOutputEnvelope = "",
         frameFontCache = {},
         pointerData = { cursorX = 0, cursorY = 0, pressed = false, down = false, released = false },
@@ -1373,9 +1500,19 @@ local function drawHud(state, layer, screenHeight, frameFontCache)
     addTextWithFontRetry(layer, nil, font, math.max(18, math.floor(screenHeight / 42)), 0, selectedText, 44, screenHeight - 16, frameFontCache)
 end
 
-local function getInitialDocumentText()
-    if type(SCREEN_LAYOUT_EDITOR_INITIAL_DOCUMENT) == "string" and SCREEN_LAYOUT_EDITOR_INITIAL_DOCUMENT ~= "" then
-        return SCREEN_LAYOUT_EDITOR_INITIAL_DOCUMENT
+local function getInitialDocumentSeed(screenWidth, screenHeight)
+    local patchText = type(SLE_IP) == "string" and SLE_IP or nil
+    if patchText and patchText ~= "" then
+        local patchScreenWidth = math.max(1, math.floor(numberOrNil(SLE_IW) or screenWidth or 1920))
+        local patchScreenHeight = math.max(1, math.floor(numberOrNil(SLE_IH) or screenHeight or 1080))
+        local patchDocument, patchError = ScreenLayoutEditor.deserializeLayoutPatch(patchText, patchScreenWidth, patchScreenHeight)
+        if patchDocument then
+            patchDocument.revision = math.max(0, math.floor(numberOrNil(SLE_IR) or patchDocument.revision or 0))
+            if type(SLE_IS) == "string" and SLE_IS ~= "" then
+                patchDocument.selectedId = SLE_IS
+            end
+            return patchDocument
+        end
     end
     return nil
 end
@@ -1383,7 +1520,7 @@ end
 local function getState()
     local screenWidth, screenHeight = getResolution()
     if type(SCREEN_LAYOUT_EDITOR_STATE) ~= "table" or not SCREEN_LAYOUT_EDITOR_STATE.initialized then
-        local state = ScreenLayoutEditor.createState(screenWidth, screenHeight, getInitialDocumentText())
+        local state = ScreenLayoutEditor.createState(screenWidth, screenHeight, getInitialDocumentSeed(screenWidth, screenHeight))
         state.initialized = true
         SCREEN_LAYOUT_EDITOR_STATE = state
     end
@@ -1430,9 +1567,34 @@ local function runRenderScript()
 
     drawHud(state, layer, screenHeight, frameFontCache)
 
+    if not SCREEN_LAYOUT_EDITOR_BOOT_SENT then
+        local bootOk, bootErr = pcall(setOutput, "p|0|boot|0")
+        if bootOk then
+            SCREEN_LAYOUT_EDITOR_BOOT_SENT = true
+        else
+            dp("boot " .. tostring(bootErr))
+        end
+    end
+
     local envelope = ScreenLayoutEditor.getOutputEnvelope(state)
     if envelope ~= "" then
-        pcall(setOutput, envelope)
+        local ok, err = pcall(setOutput, envelope)
+        if ok then
+            state.os = "o"
+        else
+            local errCode = oe(err)
+            local probeOk = pcall(
+                setOutput,
+                string.format(
+                    '{"p":1,"r":%d,"e":%q,"l":%d}',
+                    state.document.revision or 0,
+                    errCode,
+                    #envelope
+                )
+            )
+            state.os = probeOk and "p" or errCode
+            dp((probeOk and "op " or "o!") .. tostring(err))
+        end
     end
 
     local nextFrameDelay = 6

@@ -2103,5 +2103,5 @@ else
 end
 
 unit.hideWidget();
-unit.setTimer("UPD")
-
+local _sok, _serr = pcall(unit.setTimer, "UPD", 0.1)
+SLEP("sle-t", _sok and "t ok" or ("t err: " .. tostring(_serr)), true)

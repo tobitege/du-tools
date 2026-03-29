@@ -1678,21 +1678,23 @@ export function registerEditorTools(
     {
       title: "Queue UI Dump",
       description:
-        "Queues a full UI dump (ModUiExtractor Action 1/2). Outputs chunked NDJSON to tmp/ui-dumps/. Use initialDelayMs to wait (e.g. for F1/Help system to load) before scraping.",
+        "Queues a full UI dump (ModUiExtractor Action 1/2). Outputs chunked NDJSON to tmp/ui-dumps/. Use initialDelayMs to wait (e.g. for F1/Help system to load) before scraping. Use htmlSelector to target a specific DOM element instead of the full document.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         deep: z.boolean().default(true).describe("Deep mode (true) or safe mode (false)"),
-        initialDelayMs: z.number().int().min(0).max(30000).default(0).describe("Delay in ms before starting the dump (e.g. 3000 for F1/Help load)")
+        initialDelayMs: z.number().int().min(0).max(30000).default(0).describe("Delay in ms before starting the dump (e.g. 3000 for F1/Help load)"),
+        htmlSelector: z.string().default("").describe("CSS selector to target a specific DOM element for HTML dump (e.g. '#dashboard_panel'). Empty = full document.")
       },
       outputSchema: queuedCommandOutputSchema
     },
-    async ({ playerId, deep, initialDelayMs }) => {
+    async ({ playerId, deep, initialDelayMs, htmlSelector }) => {
       const result = await commandQueue.enqueue({
         playerId,
         targetKind: "lua_editor",
         action: "ui_dump",
         deep,
-        initialDelayMs
+        initialDelayMs,
+        htmlSelector
       });
 
       await eventStore.appendSystemEvent({
@@ -1709,7 +1711,8 @@ export function registerEditorTools(
           action: "ui_dump",
           queuePath: result.path,
           deep,
-          initialDelayMs
+          initialDelayMs,
+          htmlSelector
         }
       });
 

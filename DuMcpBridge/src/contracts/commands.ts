@@ -10,7 +10,8 @@ export const commandPayloadSchema = z.object({
   probeMethod: z.string().min(1).optional(),
   probeArgs: z.array(z.any()).optional(),
   deep: z.boolean().optional(),
-  initialDelayMs: z.number().int().min(0).max(30000).optional()
+  initialDelayMs: z.number().int().min(0).max(30000).optional(),
+  htmlSelector: z.string().optional()
 });
 
 export const bridgeCommandSchema = z.object({
