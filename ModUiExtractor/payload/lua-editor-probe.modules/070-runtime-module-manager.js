@@ -114,30 +114,42 @@
         });
         return handle;
       },
-      getStoredValue: function (key, fallbackValue) {
-        try {
-          if (!window.localStorage || typeof window.localStorage.getItem !== "function") {
-            return fallbackValue;
-          }
-          var raw = window.localStorage.getItem(runtimeModuleStorageKey(record, key));
-          if (raw === null || typeof raw === "undefined") {
-            return fallbackValue;
-          }
-          return JSON.parse(raw);
-        } catch (_ignoreStorageRead) {
-          return fallbackValue;
+      getState: function (key, fallbackValue) {
+        if (typeof key === "undefined" || key === null || key === "") {
+          return cloneJsonValue(record.state || {}, {});
         }
+        if (record.state && Object.prototype.hasOwnProperty.call(record.state, key)) {
+          return cloneJsonValue(record.state[key], fallbackValue);
+        }
+        return typeof fallbackValue === "undefined" ? null : fallbackValue;
       },
-      setStoredValue: function (key, value) {
-        try {
-          if (!window.localStorage || typeof window.localStorage.setItem !== "function") {
-            return false;
-          }
-          window.localStorage.setItem(runtimeModuleStorageKey(record, key), JSON.stringify(value));
-          return true;
-        } catch (_ignoreStorageWrite) {
+      setState: function (key, value) {
+        if (!key) {
           return false;
         }
+        if (!record.state || typeof record.state !== "object") {
+          record.state = {};
+        }
+        record.state[key] = cloneJsonValue(value, value);
+        ctx.sendPacket("lua_runtime_module_state_set", {
+          key: String(key),
+          value: cloneJsonValue(record.state[key], record.state[key])
+        });
+        return true;
+      },
+      replaceState: function (nextState) {
+        record.state = nextState && typeof nextState === "object" ? cloneJsonValue(nextState, {}) : {};
+        ctx.sendPacket("lua_runtime_module_state_set", {
+          state: cloneJsonValue(record.state, {}),
+          replace: true
+        });
+        return true;
+      },
+      getStoredValue: function (key, fallbackValue) {
+        return ctx.getState(key, fallbackValue);
+      },
+      setStoredValue: function (key, value) {
+        return ctx.setState(key, value);
       }
     };
 
@@ -184,19 +196,6 @@
     row.setAttribute("data-enabled", record.enabled ? "1" : "0");
     row.setAttribute("data-active", record.active ? "1" : "0");
     row.setAttribute("data-error", record.lastError ? "1" : "0");
-
-    var status = row.querySelector(".ModUiExtractor-runtime-module-status");
-    if (status) {
-      if (record.lastError) {
-        status.textContent = "error";
-      } else if (record.active) {
-        status.textContent = "on";
-      } else if (record.enabled) {
-        status.textContent = "pending";
-      } else {
-        status.textContent = "off";
-      }
-    }
 
     var errorNode = row.querySelector(".ModUiExtractor-runtime-module-error");
     if (errorNode) {
@@ -379,17 +378,14 @@
         + "#ModUiExtractor-runtime-module-panel{position:fixed;top:50px;left:10px;z-index:2147482600;min-width:260px;max-width:360px;max-height:60vh;overflow:auto;padding:10px;background:rgba(10,14,18,.97);border:1px solid rgba(100,150,170,.7);border-radius:10px;box-shadow:0 14px 36px rgba(0,0,0,.4);color:#dce8ee;font:13px/1.35 'Segoe UI',sans-serif;}"
         + ".ModUiExtractor-runtime-module-title{margin:0 0 8px 0;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8fb3c2;}"
         + ".ModUiExtractor-runtime-module-empty{padding:8px 4px;color:#8ea2ad;}"
-        + ".ModUiExtractor-runtime-module-row{display:flex;gap:10px;align-items:flex-start;padding:8px 6px;border-radius:8px;cursor:pointer;}"
+        + ".ModUiExtractor-runtime-module-row{display:flex;gap:0;align-items:flex-start;padding:8px 6px;border-radius:8px;cursor:pointer;}"
         + ".ModUiExtractor-runtime-module-row:hover{background:rgba(255,255,255,.05);}"
         + ".ModUiExtractor-runtime-module-row[data-active='1']{background:rgba(39,119,93,.18);}"
         + ".ModUiExtractor-runtime-module-row[data-error='1']{background:rgba(138,49,49,.18);}"
-        + ".ModUiExtractor-runtime-module-row input{margin-top:2px;margin-left:-4px;flex:0 0 auto;}"
-        + ".ModUiExtractor-runtime-module-meta{display:flex;flex-direction:column;gap:2px;min-width:0;}"
+        + ".ModUiExtractor-runtime-module-row input{margin-top:2px;flex:0 0 auto;}"
+        + ".ModUiExtractor-runtime-module-meta{display:flex;flex-direction:column;gap:2px;min-width:0;margin-left:6px;}"
         + ".ModUiExtractor-runtime-module-name{font-weight:600;color:#eef7fb;}"
         + ".ModUiExtractor-runtime-module-desc{color:#9ab1bc;}"
-        + ".ModUiExtractor-runtime-module-status{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#71d1b0;}"
-        + ".ModUiExtractor-runtime-module-row[data-enabled='0'] .ModUiExtractor-runtime-module-status{color:#8094a0;}"
-        + ".ModUiExtractor-runtime-module-row[data-error='1'] .ModUiExtractor-runtime-module-status{color:#f0a3a3;}"
         + ".ModUiExtractor-runtime-module-error{display:none;font-size:11px;color:#f2b4b4;word-break:break-word;}";
       (document.head || document.documentElement || document.body).appendChild(style);
     }
@@ -452,70 +448,80 @@
       return;
     }
 
-    list.innerHTML = "";
-    if (!state.runtimeModuleIds.length) {
-      var empty = document.createElement("div");
-      empty.className = "ModUiExtractor-runtime-module-empty";
-      empty.textContent = "No runtime modules detected.";
-      list.appendChild(empty);
-      syncRuntimeModuleMenuUi();
-      return;
+    var expectedKey = state.runtimeModuleIds.join("|");
+    var needsRebuild = list.getAttribute("data-runtime-module-key") !== expectedKey;
+    if (!needsRebuild) {
+      for (var checkIndex = 0; checkIndex < state.runtimeModuleIds.length; checkIndex += 1) {
+        if (!document.getElementById("ModUiExtractor-runtime-module-row-" + state.runtimeModuleIds[checkIndex])) {
+          needsRebuild = true;
+          break;
+        }
+      }
     }
 
-    for (var i = 0; i < state.runtimeModuleIds.length; i += 1) {
-      var record = getRuntimeModuleRecord(state.runtimeModuleIds[i]);
-      if (!record) {
-        continue;
+    if (needsRebuild) {
+      list.innerHTML = "";
+      list.setAttribute("data-runtime-module-key", expectedKey);
+
+      if (!state.runtimeModuleIds.length) {
+        var empty = document.createElement("div");
+        empty.className = "ModUiExtractor-runtime-module-empty";
+        empty.textContent = "No runtime modules detected.";
+        list.appendChild(empty);
+        syncRuntimeModuleMenuUi();
+        return;
       }
 
-      var row = document.createElement("label");
-      row.id = "ModUiExtractor-runtime-module-row-" + record.id;
-      row.className = "ModUiExtractor-runtime-module-row";
-
-      var checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.id = "ModUiExtractor-runtime-module-checkbox-" + record.id;
-      checkbox.checked = !!record.enabled;
-      checkbox.addEventListener("click", function (ev) {
-        if (ev && typeof ev.stopPropagation === "function") {
-          ev.stopPropagation();
+      for (var i = 0; i < state.runtimeModuleIds.length; i += 1) {
+        var record = getRuntimeModuleRecord(state.runtimeModuleIds[i]);
+        if (!record) {
+          continue;
         }
-      }, true);
-      checkbox.addEventListener("change", (function (moduleId) {
-        return function (ev) {
-          var nextEnabled = !!(ev && ev.target && ev.target.checked);
-          setRuntimeModuleEnabled(moduleId, nextEnabled, "menu");
-        };
-      })(record.id), true);
-      row.appendChild(checkbox);
 
-      var meta = document.createElement("div");
-      meta.className = "ModUiExtractor-runtime-module-meta";
+        var row = document.createElement("label");
+        row.id = "ModUiExtractor-runtime-module-row-" + record.id;
+        row.className = "ModUiExtractor-runtime-module-row";
 
-      var name = document.createElement("div");
-      name.className = "ModUiExtractor-runtime-module-name";
-      name.textContent = record.name;
-      meta.appendChild(name);
+        var checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.id = "ModUiExtractor-runtime-module-checkbox-" + record.id;
+        checkbox.checked = !!record.enabled;
+        checkbox.addEventListener("click", function (ev) {
+          if (ev && typeof ev.stopPropagation === "function") {
+            ev.stopPropagation();
+          }
+        }, true);
+        checkbox.addEventListener("change", (function (moduleId) {
+          return function (ev) {
+            var nextEnabled = !!(ev && ev.target && ev.target.checked);
+            setRuntimeModuleEnabled(moduleId, nextEnabled, "menu");
+          };
+        })(record.id), true);
+        row.appendChild(checkbox);
 
-      if (record.description) {
-        var desc = document.createElement("div");
-        desc.className = "ModUiExtractor-runtime-module-desc";
-        desc.textContent = record.description;
-        meta.appendChild(desc);
+        var meta = document.createElement("div");
+        meta.className = "ModUiExtractor-runtime-module-meta";
+
+        var name = document.createElement("div");
+        name.className = "ModUiExtractor-runtime-module-name";
+        name.textContent = record.name;
+        meta.appendChild(name);
+
+        if (record.description) {
+          var desc = document.createElement("div");
+          desc.className = "ModUiExtractor-runtime-module-desc";
+          desc.textContent = record.description;
+          meta.appendChild(desc);
+        }
+
+        var error = document.createElement("div");
+        error.className = "ModUiExtractor-runtime-module-error";
+        meta.appendChild(error);
+
+        row.appendChild(meta);
+        list.appendChild(row);
+        syncRuntimeModuleRow(record);
       }
-
-      var status = document.createElement("div");
-      status.className = "ModUiExtractor-runtime-module-status";
-      status.textContent = record.active ? "on" : (record.enabled ? "pending" : "off");
-      meta.appendChild(status);
-
-      var error = document.createElement("div");
-      error.className = "ModUiExtractor-runtime-module-error";
-      meta.appendChild(error);
-
-      row.appendChild(meta);
-      list.appendChild(row);
-      syncRuntimeModuleRow(record);
     }
 
     syncRuntimeModuleMenuUi();
@@ -540,6 +546,7 @@
         version: String(def.version || ""),
         source: String(def.code || ""),
         config: def.config && typeof def.config === "object" ? def.config : {},
+        state: def.state && typeof def.state === "object" ? cloneJsonValue(def.state, {}) : {},
         enabled: !!def.enabled,
         active: false,
         busy: false,

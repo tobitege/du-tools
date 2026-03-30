@@ -1877,6 +1877,12 @@ ORDER BY table_schema, table_name, ordinal_position";
                 PersistLuaProbeRuntimeModuleToggle(packetData);
                 await AppendMcpBridgeEvent("lua_editor", "runtime_module_toggle", playerId, packetData);
             }
+            else if (string.Equals(packetType, "lua_runtime_module_state_set", StringComparison.OrdinalIgnoreCase))
+            {
+                var packetData = parsedPacket["data"] as JObject ?? new JObject();
+                PersistLuaProbeRuntimeModuleState(packetData);
+                await AppendMcpBridgeEvent("lua_editor", "runtime_module_state_set", playerId, packetData);
+            }
         }
 
         if (envelope?.type == "ui_dump_complete")
@@ -2118,58 +2124,44 @@ ORDER BY table_schema, table_name, ordinal_position";
         return string.IsNullOrWhiteSpace(sanitized) ? "module" : sanitized;
     }
 
-    private Dictionary<string, bool> LoadLuaProbeRuntimeModuleState()
+    private JObject LoadLuaProbeRuntimeModuleStateContainer()
     {
-        var result = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-
         try
         {
             if (!File.Exists(runtimeLuaProbeRuntimeModulesStatePath))
             {
-                return result;
+                return new JObject
+                {
+                    ["modules"] = new JObject()
+                };
             }
 
             var root = JObject.Parse(File.ReadAllText(runtimeLuaProbeRuntimeModulesStatePath, Encoding.UTF8));
-            var modules = root["modules"] as JObject;
-            if (modules is null)
+            if (root["modules"] is not JObject)
             {
-                return result;
+                root["modules"] = new JObject();
             }
-
-            foreach (var prop in modules.Properties())
-            {
-                var moduleId = SanitizeLuaProbeRuntimeModuleId(prop.Name, prop.Name);
-                if (string.IsNullOrWhiteSpace(moduleId))
-                {
-                    continue;
-                }
-
-                result[moduleId] = prop.Value.Value<bool?>() ?? false;
-            }
+            return root;
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "UIExtractor failed to read runtime lua probe module state from {Path}", runtimeLuaProbeRuntimeModulesStatePath);
+            return new JObject
+            {
+                ["modules"] = new JObject()
+            };
         }
-
-        return result;
     }
 
-    private void SaveLuaProbeRuntimeModuleState(Dictionary<string, bool> stateMap)
+    private void SaveLuaProbeRuntimeModuleStateContainer(JObject payload)
     {
         try
         {
-            var modules = new JObject();
-            foreach (var pair in stateMap.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+            payload["updatedAtUtc"] = DateTime.UtcNow.ToString("O");
+            if (payload["modules"] is not JObject)
             {
-                modules[pair.Key] = pair.Value;
+                payload["modules"] = new JObject();
             }
-
-            var payload = new JObject
-            {
-                ["updatedAtUtc"] = DateTime.UtcNow.ToString("O"),
-                ["modules"] = modules
-            };
 
             File.WriteAllText(runtimeLuaProbeRuntimeModulesStatePath, payload.ToString(Newtonsoft.Json.Formatting.Indented), Encoding.UTF8);
         }
@@ -2177,6 +2169,58 @@ ORDER BY table_schema, table_name, ordinal_position";
         {
             logger.LogWarning(ex, "UIExtractor failed to persist runtime lua probe module state to {Path}", runtimeLuaProbeRuntimeModulesStatePath);
         }
+    }
+
+    private JObject GetOrCreateLuaProbeRuntimeModuleStateEntry(JObject container, string moduleId)
+    {
+        var modules = container["modules"] as JObject;
+        if (modules is null)
+        {
+            modules = new JObject();
+            container["modules"] = modules;
+        }
+
+        if (modules[moduleId] is JObject existingEntry)
+        {
+            if (existingEntry["state"] is not JObject)
+            {
+                existingEntry["state"] = new JObject();
+            }
+            return existingEntry;
+        }
+
+        var created = new JObject
+        {
+            ["enabled"] = false,
+            ["state"] = new JObject()
+        };
+        modules[moduleId] = created;
+        return created;
+    }
+
+    private static bool GetLuaProbeRuntimeModuleEnabledValue(JToken? moduleToken, bool defaultEnabled)
+    {
+        if (moduleToken is null)
+        {
+            return defaultEnabled;
+        }
+
+        if (moduleToken is JObject moduleObject)
+        {
+            return moduleObject["enabled"]?.Value<bool?>() ?? defaultEnabled;
+        }
+
+        return moduleToken.Value<bool?>() ?? defaultEnabled;
+    }
+
+    private static JObject GetLuaProbeRuntimeModuleStateValue(JToken? moduleToken)
+    {
+        if (moduleToken is JObject moduleObject && moduleObject["state"] is JObject stateObject)
+        {
+            return (JObject)stateObject.DeepClone();
+        }
+
+        return new JObject();
     }
 
     private void PersistLuaProbeRuntimeModuleToggle(JObject packetData)
@@ -2190,15 +2234,48 @@ ORDER BY table_schema, table_name, ordinal_position";
         }
 
         var enabled = packetData["enabled"]?.Value<bool?>() ?? false;
-        var stateMap = LoadLuaProbeRuntimeModuleState();
-        stateMap[moduleId] = enabled;
-        SaveLuaProbeRuntimeModuleState(stateMap);
+        var container = LoadLuaProbeRuntimeModuleStateContainer();
+        var entry = GetOrCreateLuaProbeRuntimeModuleStateEntry(container, moduleId);
+        entry["enabled"] = enabled;
+        SaveLuaProbeRuntimeModuleStateContainer(container);
+    }
+
+    private void PersistLuaProbeRuntimeModuleState(JObject packetData)
+    {
+        var moduleId = SanitizeLuaProbeRuntimeModuleId(
+            packetData["moduleId"]?.Value<string>() ?? "",
+            "module");
+        if (string.IsNullOrWhiteSpace(moduleId))
+        {
+            return;
+        }
+
+        var container = LoadLuaProbeRuntimeModuleStateContainer();
+        var entry = GetOrCreateLuaProbeRuntimeModuleStateEntry(container, moduleId);
+        var stateObject = entry["state"] as JObject ?? new JObject();
+
+        if (packetData["replace"]?.Value<bool?>() == true)
+        {
+            stateObject = packetData["state"] as JObject ?? new JObject();
+        }
+        else
+        {
+            var key = packetData["key"]?.Value<string>()?.Trim();
+            if (!string.IsNullOrWhiteSpace(key))
+            {
+                stateObject[key] = packetData["value"]?.DeepClone() ?? JValue.CreateNull();
+            }
+        }
+
+        entry["state"] = stateObject;
+        SaveLuaProbeRuntimeModuleStateContainer(container);
     }
 
     private JArray LoadLuaProbeRuntimeModulesConfig()
     {
         var result = new List<JObject>();
-        var stateMap = LoadLuaProbeRuntimeModuleState();
+        var stateContainer = LoadLuaProbeRuntimeModuleStateContainer();
+        var stateModules = stateContainer["modules"] as JObject ?? new JObject();
 
         try
         {
@@ -2249,7 +2326,8 @@ ORDER BY table_schema, table_name, ordinal_position";
                     }
 
                     var defaultEnabled = metadata["defaultEnabled"]?.Value<bool?>() ?? false;
-                    var enabled = stateMap.TryGetValue(id, out var persistedEnabled) ? persistedEnabled : defaultEnabled;
+                    var persistedEntry = stateModules[id];
+                    var enabled = GetLuaProbeRuntimeModuleEnabledValue(persistedEntry, defaultEnabled);
                     var order = metadata["order"]?.Value<int?>() ?? 0;
 
                     result.Add(new JObject
@@ -2261,7 +2339,8 @@ ORDER BY table_schema, table_name, ordinal_position";
                         ["enabled"] = enabled,
                         ["order"] = order,
                         ["code"] = code,
-                        ["config"] = metadata["config"] is JObject config ? config.DeepClone() : new JObject()
+                        ["config"] = metadata["config"] is JObject config ? config.DeepClone() : new JObject(),
+                        ["state"] = GetLuaProbeRuntimeModuleStateValue(persistedEntry)
                     });
                 }
                 catch (Exception ex)

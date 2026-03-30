@@ -37,6 +37,7 @@
     ensureCaretHighlightToggle();
     ensureCaretHighlightBindings();
     ensureLuaBufferSize();
+    restoreLuaEditorViewPreferences();
     syncCurrentContextKey();
     syncCurrentSnippetKeyFromEditor();
     refreshActiveFilterMarker();
@@ -78,6 +79,7 @@
       ensureCaretHighlightToggle();
       ensureCaretHighlightBindings();
       ensureLuaBufferSize();
+      ensureLuaEditorViewPreferenceBindings();
       if (state.suppressRestoreUntilInteraction) {
         installFreshOpenViewportGuard();
       } else {
@@ -91,37 +93,35 @@
     }
   }
 
-  function runMaintenance() {
+  function runLuaEditorEnhancementMaintenance() {
     tryAttachMenuObserver();
     wrapLuaEditorManager();
     refreshEditorState();
     ensureScreenEditorFacelift();
-    ensureChatPlainTextCopyButton();
-    ensureRuntimeModuleMenuUi();
   }
 
-  function startObservers() {
+  function installLuaEditorEnhancements() {
     addProbeStyle();
-    runMaintenance();
+    runLuaEditorEnhancementMaintenance();
 
-    if (state.intervalId) {
+    if (state.luaEnhancementIntervalId) {
       try {
-        window.clearInterval(state.intervalId);
-      } catch (_ignoreIntervalClear) {}
+        window.clearInterval(state.luaEnhancementIntervalId);
+      } catch (_ignoreEnhancementIntervalClear) {}
     }
 
-    state.intervalId = window.setInterval(function () {
-      runMaintenance();
+    state.luaEnhancementIntervalId = window.setInterval(function () {
+      runLuaEditorEnhancementMaintenance();
     }, 750);
   }
 
-  function uninstallProbe(reason) {
+  function uninstallLuaEditorEnhancements() {
     try {
-      if (state.intervalId) {
-        window.clearInterval(state.intervalId);
-        state.intervalId = 0;
+      if (state.luaEnhancementIntervalId) {
+        window.clearInterval(state.luaEnhancementIntervalId);
+        state.luaEnhancementIntervalId = 0;
       }
-    } catch (_ignoreInterval) {}
+    } catch (_ignoreEnhancementInterval) {}
 
     try {
       if (state.menuObserver && typeof state.menuObserver.disconnect === "function") {
@@ -182,6 +182,9 @@
 
     state.screenEditorVisible = false;
     state.screenLastRestoredContextKey = "";
+    state.screenPreferenceRestoreContextKey = "";
+    state.editorVisible = false;
+    state.menuObserved = false;
 
     state.lastIdeSyncContextKey = "";
     state.lastIdeSyncReference = null;
@@ -231,7 +234,6 @@
       "ModUiExtractor-lua-buffer-size",
       "ModUiExtractor-screen-buffer-size",
       "ModUiExtractor-screen-theme-dots",
-      "ModUiExtractor-chat-copy-plain",
       quickEditLuaMenuItemId,
       quickInjectProbeMenuItemId
     ];
@@ -244,6 +246,38 @@
         }
       } catch (_ignoreRemove) {}
     }
+  }
+
+  function runMaintenance() {
+    ensureRuntimeModuleMenuUi();
+  }
+
+  function startObservers() {
+    addProbeStyle();
+    runMaintenance();
+
+    if (state.intervalId) {
+      try {
+        window.clearInterval(state.intervalId);
+      } catch (_ignoreIntervalClear) {}
+    }
+
+    state.intervalId = window.setInterval(function () {
+      runMaintenance();
+    }, 750);
+  }
+
+  function uninstallProbe(reason) {
+    try {
+      if (state.intervalId) {
+        window.clearInterval(state.intervalId);
+        state.intervalId = 0;
+      }
+    } catch (_ignoreInterval) {}
+
+    try {
+      uninstallLuaEditorEnhancements();
+    } catch (_ignoreEnhancementUninstall) {}
 
     try {
       teardownRuntimeModules(reason || "uninstall");
@@ -259,6 +293,19 @@
 
   window.__UI_EXTRACTOR_LUA_PROBE_UNINSTALL__ = uninstallProbe;
   window.__UI_EXTRACTOR_LUA_PROBE_STATE__ = state;
+  state.luaEditorEnhancements = {
+    install: installLuaEditorEnhancements,
+    uninstall: uninstallLuaEditorEnhancements,
+    runMaintenance: runLuaEditorEnhancementMaintenance
+  };
+  try {
+    var enhancementRecord = typeof getRuntimeModuleRecord === "function"
+      ? getRuntimeModuleRecord("lua-editor-enhancements")
+      : null;
+    if (enhancementRecord && enhancementRecord.enabled && enhancementRecord.api && typeof enhancementRecord.api.install === "function") {
+      enhancementRecord.api.install("core-ready");
+    }
+  } catch (_ignoreEnhancementBootstrapRetry) {}
   state.receiveThemeCatalog = receiveThemeCatalog;
   state.ensureThemeCatalogLoaded = ensureThemeCatalogLoaded;
   sendPacket("lua_probe_start", {

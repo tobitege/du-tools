@@ -1,0 +1,10 @@
+{
+  "id": "chat-plain-copy",
+  "name": "Chat Plain Copy",
+  "description": "Adds a button to copy the active chat channel as plain text.",
+  "version": "0.1.0",
+  "order": 150,
+  "defaultEnabled": true,
+  "entry": "module.js",
+  "config": {}
+}

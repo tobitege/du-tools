@@ -14,62 +14,119 @@
   var modName = cfg.modName || "NQ.UIExtractor";
   var actionId = cfg.actionId || 900001;
   var dumpId = "lua-probe-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
-  var caretHighlightPrefStorageKey = "ModUiExtractor.lua.caret-highlight-enabled.v1";
-  var themePrefStorageKey = "ModUiExtractor.lua.theme-pref.v1";
+  var luaEditorEnhancementModuleId = "lua-editor-enhancements";
   var themeCatalogStorageKey = "ModUiExtractor.lua.theme-catalog.flowery-daisy.v2";
   var mcpResultChunkSize = 7000;
 
-  function loadCaretHighlightPreference() {
+  function cloneJsonValue(value, fallbackValue) {
     try {
-      if (!window.localStorage || typeof window.localStorage.getItem !== "function") {
-        return false;
+      return JSON.parse(JSON.stringify(value));
+    } catch (_ignoreCloneJson) {}
+    return typeof fallbackValue === "undefined" ? null : fallbackValue;
+  }
+
+  function buildRuntimeModuleConfigMap() {
+    var map = Object.create(null);
+    var defs = Array.isArray(cfg.runtimeModules) ? cfg.runtimeModules : [];
+    for (var i = 0; i < defs.length; i += 1) {
+      var def = defs[i];
+      if (!def || typeof def !== "object") {
+        continue;
       }
-      var raw = window.localStorage.getItem(caretHighlightPrefStorageKey);
-      if (raw === "1" || raw === "true") {
-        return true;
+      var id = String(def.id || "").trim();
+      if (!id) {
+        continue;
       }
-      if (raw === "0" || raw === "false") {
-        return false;
+      map[id] = def;
+    }
+    return map;
+  }
+
+  var runtimeModuleConfigById = buildRuntimeModuleConfigMap();
+
+  function getRuntimeModuleConfig(moduleId) {
+    var key = String(moduleId || "").trim();
+    return key && runtimeModuleConfigById[key] ? runtimeModuleConfigById[key] : null;
+  }
+
+  function getRuntimeModuleStateObject(moduleId) {
+    var def = getRuntimeModuleConfig(moduleId);
+    if (!def) {
+      return null;
+    }
+    if (!def.state || typeof def.state !== "object") {
+      def.state = {};
+    }
+    return def.state;
+  }
+
+  function getRuntimeModuleStateValue(moduleId, key, fallbackValue) {
+    var stateObject = getRuntimeModuleStateObject(moduleId);
+    if (!stateObject) {
+      return typeof fallbackValue === "undefined" ? null : fallbackValue;
+    }
+    if (typeof key === "undefined" || key === null || key === "") {
+      return cloneJsonValue(stateObject, typeof fallbackValue === "undefined" ? {} : fallbackValue);
+    }
+    if (Object.prototype.hasOwnProperty.call(stateObject, key)) {
+      return cloneJsonValue(stateObject[key], fallbackValue);
+    }
+    return typeof fallbackValue === "undefined" ? null : fallbackValue;
+  }
+
+  function persistRuntimeModuleStateValue(moduleId, key, value) {
+    var stateObject = getRuntimeModuleStateObject(moduleId);
+    if (!stateObject || !key) {
+      return false;
+    }
+    stateObject[key] = cloneJsonValue(value, value);
+    try {
+      if (typeof sendPacket === "function") {
+        sendPacket("lua_runtime_module_state_set", {
+          moduleId: String(moduleId || ""),
+          key: String(key),
+          value: cloneJsonValue(stateObject[key], stateObject[key])
+        });
       }
-    } catch (_ignorePrefRead) {}
+      return true;
+    } catch (_ignoreRuntimeModulePersist) {}
     return false;
+  }
+
+  function replaceRuntimeModuleState(moduleId, nextState) {
+    var def = getRuntimeModuleConfig(moduleId);
+    if (!def) {
+      return false;
+    }
+    def.state = nextState && typeof nextState === "object" ? cloneJsonValue(nextState, {}) : {};
+    try {
+      if (typeof sendPacket === "function") {
+        sendPacket("lua_runtime_module_state_set", {
+          moduleId: String(moduleId || ""),
+          state: cloneJsonValue(def.state, {}),
+          replace: true
+        });
+      }
+      return true;
+    } catch (_ignoreRuntimeModuleReplace) {}
+    return false;
+  }
+
+  function loadCaretHighlightPreference() {
+    return !!getRuntimeModuleStateValue(luaEditorEnhancementModuleId, "caretHighlightEnabled", false);
   }
 
   function saveCaretHighlightPreference(enabled) {
-    try {
-      if (!window.localStorage || typeof window.localStorage.setItem !== "function") {
-        return false;
-      }
-      window.localStorage.setItem(caretHighlightPrefStorageKey, enabled ? "1" : "0");
-      return true;
-    } catch (_ignorePrefWrite) {}
-    return false;
+    return persistRuntimeModuleStateValue(luaEditorEnhancementModuleId, "caretHighlightEnabled", !!enabled);
   }
 
   function loadThemePreference() {
-    try {
-      if (!window.localStorage || typeof window.localStorage.getItem !== "function") {
-        return "";
-      }
-      var raw = window.localStorage.getItem(themePrefStorageKey);
-      return raw ? String(raw) : "";
-    } catch (_ignoreThemePrefRead) {}
-    return "";
+    var runtimeValue = getRuntimeModuleStateValue(luaEditorEnhancementModuleId, "theme", "");
+    return runtimeValue ? String(runtimeValue) : "";
   }
 
   function saveThemePreference(themeName) {
-    try {
-      if (!window.localStorage || typeof window.localStorage.setItem !== "function") {
-        return false;
-      }
-      var value = String(themeName || "");
-      if (!value) {
-        return false;
-      }
-      window.localStorage.setItem(themePrefStorageKey, value);
-      return true;
-    } catch (_ignoreThemePrefWrite) {}
-    return false;
+    return persistRuntimeModuleStateValue(luaEditorEnhancementModuleId, "theme", String(themeName || ""));
   }
 
   function loadThemeCatalogCache() {
@@ -119,6 +176,7 @@
     switchInProgress: false,
     activeSwitchSeq: 0,
     intervalId: 0,
+    luaEnhancementIntervalId: 0,
     menuObserver: null,
     filtersObserver: null,
     filtersObserverRoot: null,
@@ -132,6 +190,7 @@
     cursorGuardCodeMirror: null,
     screenEditorVisible: false,
     screenLastRestoredContextKey: "",
+    screenPreferenceRestoreContextKey: "",
     lastIdeSyncContextKey: "",
     lastIdeSyncReference: null,
     lastInitDemReference: null,

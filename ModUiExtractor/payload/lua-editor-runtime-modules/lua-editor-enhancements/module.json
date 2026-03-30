@@ -1,0 +1,10 @@
+{
+  "id": "lua-editor-enhancements",
+  "name": "Lua Editor Enhancements",
+  "description": "Theme switcher, quick menu, caret highlight, IDE sync, buffer badges, and editor facelift.",
+  "version": "0.1.0",
+  "order": 120,
+  "defaultEnabled": true,
+  "entry": "module.js",
+  "config": {}
+}

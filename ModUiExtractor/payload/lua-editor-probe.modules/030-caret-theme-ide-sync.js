@@ -942,6 +942,279 @@
     return String(Math.floor(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   }
 
+  function parsePixelFontSize(value) {
+    var text = String(value || "").trim();
+    var parsed = parseFloat(text);
+    return isFinite(parsed) ? parsed : 0;
+  }
+
+  function getCodeMirrorFontSizePx(codeMirror) {
+    if (!codeMirror || typeof codeMirror.getWrapperElement !== "function") {
+      return 0;
+    }
+    try {
+      var wrapper = codeMirror.getWrapperElement();
+      if (!wrapper) {
+        return 0;
+      }
+      return parsePixelFontSize(window.getComputedStyle(wrapper, null).fontSize);
+    } catch (_ignoreCodeMirrorFontSize) {}
+    return 0;
+  }
+
+  function scheduleDelayed(fn, delayMs) {
+    return window.setTimeout(fn, typeof delayMs === "number" ? delayMs : 0);
+  }
+
+  function saveLuaEditorViewPreferences() {
+    var wrapNode = document.getElementById("lua_wrap_lines");
+    persistRuntimeModuleStateValue(luaEditorEnhancementModuleId, "luaWrapLines", !!(wrapNode && wrapNode.checked));
+
+    var fontSizePx = getCodeMirrorFontSizePx(getLuaCodeMirror());
+    if (fontSizePx > 0) {
+      persistRuntimeModuleStateValue(luaEditorEnhancementModuleId, "luaFontSizePx", fontSizePx);
+    }
+  }
+
+  function restoreLuaEditorWrapLinesPreference() {
+    var wrapNode = document.getElementById("lua_wrap_lines");
+    if (!wrapNode) {
+      return;
+    }
+    var wanted = !!getRuntimeModuleStateValue(
+      luaEditorEnhancementModuleId,
+      "luaWrapLines",
+      !!wrapNode.checked
+    );
+    if (!!wrapNode.checked === wanted) {
+      return;
+    }
+    try {
+      wrapNode.click();
+    } catch (_ignoreWrapClick) {
+      wrapNode.checked = wanted;
+    }
+  }
+
+  function stepLuaEditorFontSizeToward(targetPx, remainingSteps) {
+    if (!(targetPx > 0) || remainingSteps <= 0) {
+      return;
+    }
+    var currentPx = getCodeMirrorFontSizePx(getLuaCodeMirror());
+    if (!(currentPx > 0) || Math.abs(currentPx - targetPx) <= 0.35) {
+      return;
+    }
+    var root = document.getElementById("dpu_editor");
+    if (!root || !root.querySelector) {
+      return;
+    }
+    var selector = currentPx < targetPx
+      ? '.header_editor .font_size_wrapper .lua_change_font_size[value="+"]'
+      : '.header_editor .font_size_wrapper .lua_change_font_size[value="-"]';
+    var button = root.querySelector(selector);
+    if (!button) {
+      return;
+    }
+    try {
+      button.click();
+    } catch (_ignoreFontClick) {
+      if (window.LUAEditorManager && typeof window.LUAEditorManager.changeFontSize === "function") {
+        try {
+          window.LUAEditorManager.changeFontSize(currentPx < targetPx);
+        } catch (_ignoreFontManagerCall) {}
+      }
+    }
+    scheduleDelayed(function () {
+      stepLuaEditorFontSizeToward(targetPx, remainingSteps - 1);
+    }, 60);
+  }
+
+  function restoreLuaEditorFontSizePreference() {
+    var targetPx = getRuntimeModuleStateValue(
+      luaEditorEnhancementModuleId,
+      "luaFontSizePx",
+      0
+    );
+    if (!(targetPx > 0)) {
+      return;
+    }
+    scheduleDelayed(function () {
+      stepLuaEditorFontSizeToward(targetPx, 12);
+    }, 0);
+  }
+
+  function ensureLuaEditorViewPreferenceBindings() {
+    var root = document.getElementById("dpu_editor");
+    if (!root || !root.querySelector) {
+      return;
+    }
+
+    var wrapNode = document.getElementById("lua_wrap_lines");
+    if (wrapNode && !wrapNode.__luaProbePreferenceBound) {
+      wrapNode.__luaProbePreferenceBound = true;
+      wrapNode.addEventListener("change", function () {
+        saveLuaEditorViewPreferences();
+      }, true);
+    }
+
+    var fontButtons = root.querySelectorAll('.header_editor .font_size_wrapper .lua_change_font_size');
+    for (var i = 0; i < fontButtons.length; i += 1) {
+      var button = fontButtons[i];
+      if (!button || button.__luaProbePreferenceBound) {
+        continue;
+      }
+      button.__luaProbePreferenceBound = true;
+      button.addEventListener("click", function () {
+        scheduleDelayed(function () {
+          saveLuaEditorViewPreferences();
+        }, 80);
+      }, true);
+    }
+  }
+
+  function restoreLuaEditorViewPreferences() {
+    ensureLuaEditorViewPreferenceBindings();
+    restoreLuaEditorWrapLinesPreference();
+    restoreLuaEditorFontSizePreference();
+    scheduleDelayed(function () {
+      saveLuaEditorViewPreferences();
+    }, 120);
+  }
+
+  function saveScreenEditorViewPreferences(root) {
+    if (!root || !root.querySelector) {
+      return;
+    }
+    var wrapNode = null;
+    try {
+      wrapNode = root.querySelector('.wrap_line_wrapper .checkbox');
+    } catch (_ignoreScreenWrapRead) {}
+    persistRuntimeModuleStateValue(luaEditorEnhancementModuleId, "screenWrapLines", !!(wrapNode && wrapNode.checked));
+
+    var fontSizePx = getCodeMirrorFontSizePx(getScreenEditorCodeMirror(root));
+    if (!(fontSizePx > 0)) {
+      try {
+        var codeNode = getScreenEditorCodeNode(getScreenEditorPanel(), root);
+        if (codeNode) {
+          fontSizePx = parsePixelFontSize(window.getComputedStyle(codeNode, null).fontSize);
+        }
+      } catch (_ignoreScreenFontNode) {}
+    }
+    if (fontSizePx > 0) {
+      persistRuntimeModuleStateValue(luaEditorEnhancementModuleId, "screenFontSizePx", fontSizePx);
+    }
+  }
+
+  function restoreScreenEditorWrapLinesPreference(root) {
+    if (!root || !root.querySelector) {
+      return;
+    }
+    var wrapNode = null;
+    try {
+      wrapNode = root.querySelector('.wrap_line_wrapper .checkbox');
+    } catch (_ignoreScreenWrap) {}
+    if (!wrapNode) {
+      return;
+    }
+    var wanted = !!getRuntimeModuleStateValue(
+      luaEditorEnhancementModuleId,
+      "screenWrapLines",
+      !!wrapNode.checked
+    );
+    if (!!wrapNode.checked === wanted) {
+      return;
+    }
+    try {
+      wrapNode.click();
+    } catch (_ignoreScreenWrapClick) {
+      wrapNode.checked = wanted;
+    }
+  }
+
+  function stepScreenEditorFontSizeToward(root, targetPx, remainingSteps) {
+    if (!root || !(targetPx > 0) || remainingSteps <= 0) {
+      return;
+    }
+    var currentPx = getCodeMirrorFontSizePx(getScreenEditorCodeMirror(root));
+    if (!(currentPx > 0)) {
+      try {
+        var codeNode = getScreenEditorCodeNode(getScreenEditorPanel(), root);
+        if (codeNode) {
+          currentPx = parsePixelFontSize(window.getComputedStyle(codeNode, null).fontSize);
+        }
+      } catch (_ignoreScreenCurrentFont) {}
+    }
+    if (!(currentPx > 0) || Math.abs(currentPx - targetPx) <= 0.35) {
+      return;
+    }
+    var selector = currentPx < targetPx
+      ? '.font_size_wrapper .lua_change_font_size[value="+"]'
+      : '.font_size_wrapper .lua_change_font_size[value="-"]';
+    var button = root.querySelector(selector);
+    if (!button) {
+      return;
+    }
+    try {
+      button.click();
+    } catch (_ignoreScreenFontClick) {}
+    scheduleDelayed(function () {
+      stepScreenEditorFontSizeToward(root, targetPx, remainingSteps - 1);
+    }, 60);
+  }
+
+  function restoreScreenEditorFontSizePreference(root) {
+    var targetPx = getRuntimeModuleStateValue(
+      luaEditorEnhancementModuleId,
+      "screenFontSizePx",
+      0
+    );
+    if (!(targetPx > 0)) {
+      return;
+    }
+    scheduleDelayed(function () {
+      stepScreenEditorFontSizeToward(root, targetPx, 12);
+    }, 0);
+  }
+
+  function ensureScreenEditorViewPreferenceBindings(root) {
+    if (!root || !root.querySelector) {
+      return;
+    }
+    var wrapNode = null;
+    try {
+      wrapNode = root.querySelector('.wrap_line_wrapper .checkbox');
+    } catch (_ignoreScreenWrapBind) {}
+    if (wrapNode && !wrapNode.__luaProbePreferenceBound) {
+      wrapNode.__luaProbePreferenceBound = true;
+      wrapNode.addEventListener("change", function () {
+        saveScreenEditorViewPreferences(root);
+      }, true);
+    }
+
+    var buttons = root.querySelectorAll('.font_size_wrapper .lua_change_font_size');
+    for (var i = 0; i < buttons.length; i += 1) {
+      var button = buttons[i];
+      if (!button || button.__luaProbePreferenceBound) {
+        continue;
+      }
+      button.__luaProbePreferenceBound = true;
+      button.addEventListener("click", function () {
+        scheduleDelayed(function () {
+          saveScreenEditorViewPreferences(root);
+        }, 80);
+      }, true);
+    }
+  }
+
+  function restoreScreenEditorViewPreferences(root) {
+    ensureScreenEditorViewPreferenceBindings(root);
+    restoreScreenEditorWrapLinesPreference(root);
+    restoreScreenEditorFontSizePreference(root);
+    scheduleDelayed(function () {
+      saveScreenEditorViewPreferences(root);
+    }, 120);
+  }
+
   function ensureLuaBufferSize() {
     var root = document.getElementById("dpu_editor");
     if (!root || !root.querySelector) {
@@ -1224,6 +1497,7 @@
       } catch (_ignoreScreenBindingsOnMissingRoot) {}
       state.screenEditorVisible = false;
       state.screenLastRestoredContextKey = "";
+      state.screenPreferenceRestoreContextKey = "";
       return;
     }
 
@@ -1241,6 +1515,7 @@
       } catch (_ignoreScreenBindingsOnHide) {}
       state.screenEditorVisible = false;
       state.screenLastRestoredContextKey = "";
+      state.screenPreferenceRestoreContextKey = "";
       try {
         root.removeAttribute("data-lua-probe-active");
       } catch (_ignoreScreenProbeInactive) {}
@@ -1258,6 +1533,13 @@
     ensureScreenThemeSwitcher(root);
     ensureScreenIdeSyncButton(root);
     ensureScreenBufferSize(root);
+    var screenPrefContextKey = contextKey || "__screen-visible__";
+    if (state.screenPreferenceRestoreContextKey !== screenPrefContextKey) {
+      state.screenPreferenceRestoreContextKey = screenPrefContextKey;
+      restoreScreenEditorViewPreferences(root);
+    } else {
+      ensureScreenEditorViewPreferenceBindings(root);
+    }
     ensureScreenViewportBindings();
 
     if (contextKey) {
