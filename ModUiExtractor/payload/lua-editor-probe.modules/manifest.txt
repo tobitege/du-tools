@@ -7,4 +7,5 @@
 040-menu-helpers.js
 050-quick-menu-actions.js
 060-observers-and-manager-hooks.js
+070-runtime-module-manager.js
 090-lifecycle-and-bootstrap.js

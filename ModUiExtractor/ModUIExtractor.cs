@@ -81,6 +81,8 @@ public sealed class MyDuMod : IMod
     private const string RuntimeLuaProbePayloadFileName = "lua-editor-probe.override.js";
     private const string RuntimeLuaProbeModulesDirectoryName = "lua-editor-probe.modules";
     private const string RuntimeLuaProbeModulesManifestFileName = "manifest.txt";
+    private const string RuntimeLuaProbeRuntimeModulesDirectoryName = "lua-editor-runtime-modules";
+    private const string RuntimeLuaProbeRuntimeModulesStateFileName = "lua-editor-runtime-modules.state.json";
     private const string RuntimeThemeImportsDirectoryName = "theme-imports";
     private const string RuntimeFloweryDaisyPaletteFileName = "flowery-daisy-palettes.compact.json";
     private const string IdeImportFilePattern = "ide_import.player-*.json";
@@ -114,6 +116,8 @@ public sealed class MyDuMod : IMod
     private string runtimeLuaProbePayloadPath = "";
     private string runtimeLuaProbeModulesDirectoryPath = "";
     private string runtimeLuaProbeModulesManifestPath = "";
+    private string runtimeLuaProbeRuntimeModulesDirectoryPath = "";
+    private string runtimeLuaProbeRuntimeModulesStatePath = "";
     private string runtimeThemeImportsDirectoryPath = "";
     private string runtimeFloweryDaisyPalettePath = "";
     private string mcpBridgeRootDirectory = "";
@@ -161,6 +165,8 @@ public sealed class MyDuMod : IMod
         runtimeLuaProbePayloadPath = Path.Combine(payloadOverridesDirectory, RuntimeLuaProbePayloadFileName);
         runtimeLuaProbeModulesDirectoryPath = Path.Combine(payloadOverridesDirectory, RuntimeLuaProbeModulesDirectoryName);
         runtimeLuaProbeModulesManifestPath = Path.Combine(runtimeLuaProbeModulesDirectoryPath, RuntimeLuaProbeModulesManifestFileName);
+        runtimeLuaProbeRuntimeModulesDirectoryPath = Path.Combine(payloadOverridesDirectory, RuntimeLuaProbeRuntimeModulesDirectoryName);
+        runtimeLuaProbeRuntimeModulesStatePath = Path.Combine(payloadOverridesDirectory, RuntimeLuaProbeRuntimeModulesStateFileName);
         runtimeThemeImportsDirectoryPath = Path.Combine(payloadOverridesDirectory, RuntimeThemeImportsDirectoryName);
         runtimeFloweryDaisyPalettePath = Path.Combine(runtimeThemeImportsDirectoryPath, RuntimeFloweryDaisyPaletteFileName);
         mcpBridgeRootDirectory = Path.Combine(outputDirectory, McpBridgeDirectoryName);
@@ -169,6 +175,7 @@ public sealed class MyDuMod : IMod
         mcpBridgeStateDirectory = Path.Combine(mcpBridgeRootDirectory, McpBridgeStateDirectoryName);
         mcpBridgeProcessedCommandsDirectory = Path.Combine(mcpBridgeStateDirectory, McpBridgeProcessedCommandsDirectoryName);
         Directory.CreateDirectory(runtimeLuaProbeModulesDirectoryPath);
+        Directory.CreateDirectory(runtimeLuaProbeRuntimeModulesDirectoryPath);
         Directory.CreateDirectory(runtimeThemeImportsDirectoryPath);
         Directory.CreateDirectory(mcpBridgeCommandsDirectory);
         Directory.CreateDirectory(mcpBridgeEventsDirectory);
@@ -197,7 +204,7 @@ public sealed class MyDuMod : IMod
         }
 
         logger.LogInformation(
-            "UIExtractor initialized. Payload bytes={PayloadSize}, LuaProbe bytes={LuaProbeSize}, output={OutputDirectory}, overrides={OverridesDir}, extractorOverride={ExtractorOverridePath}, luaProbeOverride={LuaProbeOverridePath}, luaProbeModulesDir={LuaProbeModulesDir}, luaProbeModulesManifest={LuaProbeModulesManifest}, targetStylesheetFile={TargetStylesheetFile}, mcpBridgeRoot={McpBridgeRoot}, mcpBridgeCommands={McpBridgeCommands}, mcpBridgeEvents={McpBridgeEvents}",
+            "UIExtractor initialized. Payload bytes={PayloadSize}, LuaProbe bytes={LuaProbeSize}, output={OutputDirectory}, overrides={OverridesDir}, extractorOverride={ExtractorOverridePath}, luaProbeOverride={LuaProbeOverridePath}, luaProbeModulesDir={LuaProbeModulesDir}, luaProbeModulesManifest={LuaProbeModulesManifest}, luaProbeRuntimeModulesDir={LuaProbeRuntimeModulesDir}, luaProbeRuntimeModulesState={LuaProbeRuntimeModulesState}, targetStylesheetFile={TargetStylesheetFile}, mcpBridgeRoot={McpBridgeRoot}, mcpBridgeCommands={McpBridgeCommands}, mcpBridgeEvents={McpBridgeEvents}",
             payloadJs.Length,
             luaProbeJs.Length,
             outputDirectory,
@@ -206,6 +213,8 @@ public sealed class MyDuMod : IMod
             runtimeLuaProbePayloadPath,
             runtimeLuaProbeModulesDirectoryPath,
             runtimeLuaProbeModulesManifestPath,
+            runtimeLuaProbeRuntimeModulesDirectoryPath,
+            runtimeLuaProbeRuntimeModulesStatePath,
             targetStylesheetFilePath,
             mcpBridgeRootDirectory,
             mcpBridgeCommandsDirectory,
@@ -1538,6 +1547,12 @@ ORDER BY table_schema, table_name, ordinal_position";
             ["installedAt"] = DateTime.UtcNow.ToString("O")
         };
 
+        var runtimeModules = LoadLuaProbeRuntimeModulesConfig();
+        if (runtimeModules.Count > 0)
+        {
+            config["runtimeModules"] = runtimeModules;
+        }
+
         var injectCode = $"window.__UI_EXTRACTOR_LUA_PROBE_CONFIG={config.ToString(Newtonsoft.Json.Formatting.None)};\n{luaProbeScript}";
         var notifyMessage = action.constructId == 0
             ? "Lua probe injected. Open a control unit context menu and click Edit Lua."
@@ -1856,6 +1871,12 @@ ORDER BY table_schema, table_name, ordinal_position";
                 var packetData = parsedPacket["data"] as JObject ?? new JObject();
                 await ProcessThemeCatalogRequest(playerId, packetData);
             }
+            else if (string.Equals(packetType, "lua_runtime_module_toggle", StringComparison.OrdinalIgnoreCase))
+            {
+                var packetData = parsedPacket["data"] as JObject ?? new JObject();
+                PersistLuaProbeRuntimeModuleToggle(packetData);
+                await AppendMcpBridgeEvent("lua_editor", "runtime_module_toggle", playerId, packetData);
+            }
         }
 
         if (envelope?.type == "ui_dump_complete")
@@ -2070,6 +2091,193 @@ ORDER BY table_schema, table_name, ordinal_position";
         {
             logger.LogWarning(ex, "UIExtractor failed to create runtime override file for {ScriptLabel}: {Path}", scriptLabel, path);
         }
+    }
+
+    private static string SanitizeLuaProbeRuntimeModuleId(string rawValue, string fallbackValue)
+    {
+        var source = string.IsNullOrWhiteSpace(rawValue) ? fallbackValue : rawValue;
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            source = "module";
+        }
+
+        var builder = new StringBuilder(source.Length);
+        foreach (var ch in source.Trim().ToLowerInvariant())
+        {
+            if ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-' || ch == '_')
+            {
+                builder.Append(ch);
+            }
+            else if (builder.Length == 0 || builder[^1] != '-')
+            {
+                builder.Append('-');
+            }
+        }
+
+        var sanitized = builder.ToString().Trim('-');
+        return string.IsNullOrWhiteSpace(sanitized) ? "module" : sanitized;
+    }
+
+    private Dictionary<string, bool> LoadLuaProbeRuntimeModuleState()
+    {
+        var result = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            if (!File.Exists(runtimeLuaProbeRuntimeModulesStatePath))
+            {
+                return result;
+            }
+
+            var root = JObject.Parse(File.ReadAllText(runtimeLuaProbeRuntimeModulesStatePath, Encoding.UTF8));
+            var modules = root["modules"] as JObject;
+            if (modules is null)
+            {
+                return result;
+            }
+
+            foreach (var prop in modules.Properties())
+            {
+                var moduleId = SanitizeLuaProbeRuntimeModuleId(prop.Name, prop.Name);
+                if (string.IsNullOrWhiteSpace(moduleId))
+                {
+                    continue;
+                }
+
+                result[moduleId] = prop.Value.Value<bool?>() ?? false;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "UIExtractor failed to read runtime lua probe module state from {Path}", runtimeLuaProbeRuntimeModulesStatePath);
+        }
+
+        return result;
+    }
+
+    private void SaveLuaProbeRuntimeModuleState(Dictionary<string, bool> stateMap)
+    {
+        try
+        {
+            var modules = new JObject();
+            foreach (var pair in stateMap.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                modules[pair.Key] = pair.Value;
+            }
+
+            var payload = new JObject
+            {
+                ["updatedAtUtc"] = DateTime.UtcNow.ToString("O"),
+                ["modules"] = modules
+            };
+
+            File.WriteAllText(runtimeLuaProbeRuntimeModulesStatePath, payload.ToString(Newtonsoft.Json.Formatting.Indented), Encoding.UTF8);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "UIExtractor failed to persist runtime lua probe module state to {Path}", runtimeLuaProbeRuntimeModulesStatePath);
+        }
+    }
+
+    private void PersistLuaProbeRuntimeModuleToggle(JObject packetData)
+    {
+        var moduleId = SanitizeLuaProbeRuntimeModuleId(
+            packetData["moduleId"]?.Value<string>() ?? "",
+            "module");
+        if (string.IsNullOrWhiteSpace(moduleId))
+        {
+            return;
+        }
+
+        var enabled = packetData["enabled"]?.Value<bool?>() ?? false;
+        var stateMap = LoadLuaProbeRuntimeModuleState();
+        stateMap[moduleId] = enabled;
+        SaveLuaProbeRuntimeModuleState(stateMap);
+    }
+
+    private JArray LoadLuaProbeRuntimeModulesConfig()
+    {
+        var result = new List<JObject>();
+        var stateMap = LoadLuaProbeRuntimeModuleState();
+
+        try
+        {
+            if (!Directory.Exists(runtimeLuaProbeRuntimeModulesDirectoryPath))
+            {
+                return new JArray();
+            }
+
+            foreach (var moduleDir in Directory.GetDirectories(runtimeLuaProbeRuntimeModulesDirectoryPath))
+            {
+                try
+                {
+                    var moduleJsonPath = Path.Combine(moduleDir, "module.json");
+                    if (!File.Exists(moduleJsonPath))
+                    {
+                        continue;
+                    }
+
+                    var moduleDirName = Path.GetFileName(moduleDir);
+                    var metadata = JObject.Parse(File.ReadAllText(moduleJsonPath, Encoding.UTF8));
+                    var id = SanitizeLuaProbeRuntimeModuleId(
+                        metadata["id"]?.Value<string>() ?? "",
+                        moduleDirName);
+                    var entryFile = metadata["entry"]?.Value<string>()?.Trim();
+                    if (string.IsNullOrWhiteSpace(entryFile))
+                    {
+                        entryFile = "module.js";
+                    }
+
+                    var moduleRootFull = Path.GetFullPath(moduleDir);
+                    var entryPath = Path.GetFullPath(Path.Combine(moduleDir, entryFile));
+                    var moduleRootPrefix = moduleRootFull.EndsWith(Path.DirectorySeparatorChar)
+                        ? moduleRootFull
+                        : moduleRootFull + Path.DirectorySeparatorChar;
+                    if (!entryPath.StartsWith(moduleRootPrefix, StringComparison.OrdinalIgnoreCase) || !File.Exists(entryPath))
+                    {
+                        logger.LogWarning(
+                            "UIExtractor ignored runtime lua probe module {ModuleId} because entry file is invalid: {EntryPath}",
+                            id,
+                            entryPath);
+                        continue;
+                    }
+
+                    var code = File.ReadAllText(entryPath, Encoding.UTF8);
+                    if (string.IsNullOrWhiteSpace(code))
+                    {
+                        continue;
+                    }
+
+                    var defaultEnabled = metadata["defaultEnabled"]?.Value<bool?>() ?? false;
+                    var enabled = stateMap.TryGetValue(id, out var persistedEnabled) ? persistedEnabled : defaultEnabled;
+                    var order = metadata["order"]?.Value<int?>() ?? 0;
+
+                    result.Add(new JObject
+                    {
+                        ["id"] = id,
+                        ["name"] = metadata["name"]?.Value<string>() ?? id,
+                        ["description"] = metadata["description"]?.Value<string>() ?? "",
+                        ["version"] = metadata["version"]?.Value<string>() ?? "",
+                        ["enabled"] = enabled,
+                        ["order"] = order,
+                        ["code"] = code,
+                        ["config"] = metadata["config"] is JObject config ? config.DeepClone() : new JObject()
+                    });
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "UIExtractor failed to load runtime lua probe module from {ModuleDir}", moduleDir);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "UIExtractor failed to enumerate runtime lua probe modules from {ModuleDir}", runtimeLuaProbeRuntimeModulesDirectoryPath);
+        }
+
+        return new JArray(result
+            .OrderBy(m => m["order"]?.Value<int?>() ?? 0)
+            .ThenBy(m => m["name"]?.Value<string>() ?? "", StringComparer.OrdinalIgnoreCase));
     }
 
     private string ResolveLuaProbeScript(out bool usingRuntimeOverride, out bool usingRuntimeModules)

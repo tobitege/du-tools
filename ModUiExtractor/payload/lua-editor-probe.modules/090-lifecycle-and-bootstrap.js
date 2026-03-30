@@ -97,6 +97,7 @@
     refreshEditorState();
     ensureScreenEditorFacelift();
     ensureChatPlainTextCopyButton();
+    ensureRuntimeModuleMenuUi();
   }
 
   function startObservers() {
@@ -243,6 +244,10 @@
         }
       } catch (_ignoreRemove) {}
     }
+
+    try {
+      teardownRuntimeModules(reason || "uninstall");
+    } catch (_ignoreRuntimeModules) {}
 
     try {
       window.__UI_EXTRACTOR_LUA_PROBE_INSTALLED__ = false;

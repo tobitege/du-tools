@@ -1,0 +1,10 @@
+{
+  "entry": "module.js",
+  "order": 200,
+  "config": {},
+  "name": "HUD Editor",
+  "id": "hud-editor",
+  "defaultEnabled": false,
+  "description": "Paint-with-Lua HUD layout editor",
+  "version": "0.1.0"
+}

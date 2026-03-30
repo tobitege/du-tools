@@ -1,0 +1,13 @@
+# HUD Editor Probe - Module Load Order
+000-core.js
+010-start-screen.js
+020-editor-shell.js
+030-canvas-renderer.js
+040-tool-handlers.js
+050-selection-manager.js
+070-properties-panel.js
+080-bridge-commands.js
+090-databank-sync.js
+100-file-sync.js
+110-undo-redo.js
+120-dialogs.js

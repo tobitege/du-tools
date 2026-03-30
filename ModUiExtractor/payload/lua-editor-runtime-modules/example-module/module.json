@@ -1,0 +1,12 @@
+{
+  "id": "example-module",
+  "name": "Example Module",
+  "description": "Tiny test module for runtime toggling and cleanup.",
+  "version": "0.1.0",
+  "order": 100,
+  "defaultEnabled": false,
+  "entry": "module.js",
+  "config": {
+    "label": "Example module active"
+  }
+}
