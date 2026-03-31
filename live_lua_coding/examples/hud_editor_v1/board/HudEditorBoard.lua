@@ -1,18 +1,18 @@
 -- HudEditorBoard.lua
--- Board script for Paint-with-Lua HUD Editor
+-- Library onStart handler Board script for Paint-with-Lua HUD Editor
 -- Handles: command processing, element state, databank persistence, screen rendering
 -- Project: D:\github\du-tobi\live_lua_coding\examples\hud_editor_v1
 
 local HudEditorBoard = {}
 HudEditorBoard.__index = HudEditorBoard
 
--- ─── Constants ───────────────────────────────────────────────────────
+--  Constants 
 
 HudEditorBoard.COMMAND_PREFIX = "he:"  -- All HUD editor commands start with "he:"
 HudEditorBoard.DB_KEY_DOC = "hud_editor:document"
 HudEditorBoard.DB_KEY_INDEX = "hud_editor:index"
 
--- ─── Command types ──────────────────────────────────────────────────
+--  Command types 
 
 local CMD = {
     PING = "ping",
@@ -30,7 +30,7 @@ local CMD = {
     RENDER = "rend",
 }
 
--- ─── Utility functions ───────────────────────────────────────────────
+--  Utility functions 
 
 local function dp(msg)
     if type(system) == "table" and type(system.print) == "function" then
@@ -68,7 +68,7 @@ local function generateId()
     return "el_" .. string.format("%08x", math.floor(math.random() * 0xFFFFFFFF))
 end
 
--- ─── State ─────────────────────────────────────────────────────────
+--  State 
 
 local state = {
     mode = "start",           -- "start", "loaded", "editing"
@@ -82,7 +82,7 @@ local state = {
     renderRevision = 0,       -- Incremented on each render change
 }
 
--- ─── Document operations ────────────────────────────────────────────
+--  Document operations 
 
 function HudEditorBoard.newDocument(screenW, screenH)
     screenW = screenW or 1920
@@ -187,7 +187,7 @@ function HudEditorBoard.deleteElement(id)
     return false
 end
 
--- ─── Persistence ───────────────────────────────────────────────────
+--  Persistence 
 
 function HudEditorBoard.persistToDatabank()
     if type(databank) ~= "userdata" or type(databank.setValue) ~= "function" then
@@ -272,7 +272,7 @@ function HudEditorBoard.deserializeDocument(json)
     return result
 end
 
--- ─── Command processing ──────────────────────────────────────────────
+--  Command processing 
 
 function HudEditorBoard.processCommand(input)
     if not input or type(input) ~= "string" then
@@ -516,7 +516,7 @@ function HudEditorBoard.cmdRender()
     }
 end
 
--- ─── Screen rendering ──────────────────────────────────────────────
+--  Screen rendering 
 
 function HudEditorBoard.renderElement(layer, element)
     if not element then return end
@@ -589,7 +589,7 @@ function HudEditorBoard.render(layer)
     end
 end
 
--- ─── Input handling ────────────────────────────────────────────────
+--  Input handling 
 
 function HudEditorBoard.onInputReceived(input)
     local ok, result = pcall(HudEditorBoard.processCommand, input)
@@ -600,7 +600,7 @@ function HudEditorBoard.onInputReceived(input)
     return result
 end
 
--- ─── Lifecycle ─────────────────────────────────────────────────────
+--  Lifecycle 
 
 function HudEditorBoard.init(bootDocument)
     dp("Initializing HUD Editor Board")
@@ -694,13 +694,13 @@ end
     return script
 end
 
--- ─── Public API for screen script ──────────────────────────────────
+--  Public API for screen script 
 
 HudEditorBoard.renderLayer = function(layer)
     HudEditorBoard.render(layer)
 end
 
--- ─── Module export ─────────────────────────────────────────────────
+--  Module export 
 
 if _ENV then
     _ENV.HudEditorBoard = HudEditorBoard
