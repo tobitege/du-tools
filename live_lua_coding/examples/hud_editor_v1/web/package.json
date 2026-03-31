@@ -1,0 +1,13 @@
+{
+  "name": "lua-painter-web-harness",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node ./server.mjs",
+    "test": "pnpm exec playwright test -c ./playwright.config.mjs",
+    "test:headed": "pnpm exec playwright test -c ./playwright.config.mjs --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}

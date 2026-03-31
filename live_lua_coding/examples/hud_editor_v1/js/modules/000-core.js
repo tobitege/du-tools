@@ -158,12 +158,26 @@
     });
   }
 
+  function isEscapeEvent(e) {
+    if (!e) {
+      return false;
+    }
+    return e.code === "Escape" || e.key === "Escape" || e.key === "Esc" || e.keyCode === 27 || e.which === 27;
+  }
+
   function onKeyDown(e) {
     if (!state.editModeActive) {
       return;
     }
 
-    if (e.code === "Escape") {
+    if (isEscapeEvent(e)) {
+      if (state.currentScreen === "start") {
+        if (typeof e.stopPropagation === "function") e.stopPropagation();
+        exitEditMode();
+        updateToggleButton();
+        e.preventDefault();
+        return;
+      }
       state.selectedElementId = null;
       emit("deselect-all");
       return;
@@ -208,10 +222,6 @@
     if (!state.editModeActive) {
       return;
     }
-    var root = getRoot();
-    if (root.contains(e.target)) {
-      e.stopPropagation();
-    }
   }
 
   function updateToggleButton() {
@@ -230,6 +240,45 @@
     }
   }
 
+  function getToastContainer() {
+    var container = DOC.getElementById("hud-editor-toast-container");
+    if (!container) {
+      container = DOC.createElement("div");
+      container.id = "hud-editor-toast-container";
+      container.className = "toast-container";
+      (DOC.body || DOC.documentElement).appendChild(container);
+    }
+    return container;
+  }
+
+  function showToast(payload) {
+    var data = payload && typeof payload === "object" ? payload : { text: String(payload || "") };
+    var text = String(data.text || "").trim();
+    if (!text) {
+      return;
+    }
+    var container = getToastContainer();
+    var toast = DOC.createElement("div");
+    toast.className = "toast " + (data.type || "info");
+    toast.textContent = text;
+    container.appendChild(toast);
+
+    WIN.setTimeout(function () {
+      try {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(-6px)";
+      } catch (_ignoreToastFade) {}
+    }, 1800);
+
+    WIN.setTimeout(function () {
+      try {
+        if (toast.parentNode) {
+          toast.parentNode.removeChild(toast);
+        }
+      } catch (_ignoreToastRemove) {}
+    }, 2200);
+  }
+
   function createToggleButton() {
     var existing = DOC.getElementById("hud-editor-toggle");
     if (existing && existing.parentNode) {
@@ -240,7 +289,7 @@
     button.id = "hud-editor-toggle";
     button.type = "button";
     button.textContent = "HUD Editor: OFF";
-    button.style.cssText = "position:fixed;top:10px;left:52px;display:inline-flex;align-items:center;justify-content:center;min-width:156px;height:38px;background:#333;color:#fff;z-index:2147482400;font:600 14px/1.2 'Segoe UI',Tahoma,sans-serif;padding:8px 16px;border:2px solid #0ee9e7;border-radius:8px;cursor:pointer;white-space:nowrap;box-sizing:border-box;";
+    button.style.cssText = "position:fixed;top:10px;right:16px;display:inline-flex;align-items:center;justify-content:center;min-width:164px;height:40px;background:#333;color:#fff;z-index:2147482400;font:700 14px/1.2 'Segoe UI',Tahoma,sans-serif;padding:8px 16px;border:2px solid #0ee9e7;border-radius:10px;cursor:pointer;white-space:nowrap;box-sizing:border-box;box-shadow:0 8px 24px rgba(0,0,0,0.28);";
     button.addEventListener("click", function () {
       if (state.editModeActive) {
         exitEditMode();
@@ -268,6 +317,7 @@
     state.initialized = true;
 
     DOC.addEventListener("keydown", onKeyDown, true);
+    WIN.addEventListener("keydown", onKeyDown, true);
     DOC.addEventListener("mousedown", onMouseCapture, true);
     DOC.addEventListener("mousemove", onMouseCapture, true);
     DOC.addEventListener("mouseup", onMouseCapture, true);
@@ -275,6 +325,7 @@
 
     addCleanup(function () {
       DOC.removeEventListener("keydown", onKeyDown, true);
+      WIN.removeEventListener("keydown", onKeyDown, true);
       DOC.removeEventListener("mousedown", onMouseCapture, true);
       DOC.removeEventListener("mousemove", onMouseCapture, true);
       DOC.removeEventListener("mouseup", onMouseCapture, true);
@@ -293,6 +344,15 @@
         DOC.removeEventListener("DOMContentLoaded", onReady);
       });
     }
+
+    on("toast", showToast);
+
+    addCleanup(function () {
+      var container = DOC.getElementById("hud-editor-toast-container");
+      if (container && container.parentNode) {
+        container.parentNode.removeChild(container);
+      }
+    });
   }
 
   function destroy(reason) {

@@ -7,6 +7,7 @@
 050-selection-manager.js
 070-properties-panel.js
 080-bridge-commands.js
+085-ide-export.js
 090-databank-sync.js
 100-file-sync.js
 110-undo-redo.js

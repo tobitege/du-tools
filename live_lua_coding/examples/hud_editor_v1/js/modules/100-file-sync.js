@@ -90,8 +90,11 @@
     var doc = APP.state.document;
     if (!doc) return null;
 
-    var id = doc.id || ("layout_" + Date.now());
-    var success = saveLayoutLocally(id, name || "Unnamed", deepCopyDoc(doc));
+    var id = doc.id || generateLayoutId();
+    var finalName = (name || doc.name || "Layout").trim();
+    doc.id = id;
+    doc.name = finalName;
+    var success = saveLayoutLocally(id, finalName, deepCopyDoc(doc));
 
     if (success) {
       APP.state.isDirty = false;
@@ -112,6 +115,7 @@
     if (!stored) return null;
 
     APP.state.document = deepCopyDoc(stored.document);
+    APP.state.selectedElementId = null;
     APP.state.isDirty = false;
     APP.emit("document-loaded", APP.state.document);
     return stored;
@@ -134,8 +138,14 @@
         return { error: "Invalid layout format" };
       }
       APP.state.document = doc;
+      APP.state.selectedElementId = null;
       APP.state.isDirty = true;
       APP.emit("document-loaded", doc);
+      setTimeout(function () {
+        if (APP.canvas && typeof APP.canvas.render === "function") {
+          APP.canvas.render();
+        }
+      }, 0);
       return { success: true, document: doc };
     } catch (e) {
       return { error: e.message };
@@ -172,6 +182,16 @@
     }
   });
 
+  APP.on("save-exit", function () {
+    var id = saveCurrentLayout(APP.state.document && APP.state.document.name || "Layout");
+    if (id) {
+      APP.emit("toast", { type: "success", text: "Layout saved" });
+      APP.goToStart();
+    } else {
+      APP.emit("toast", { type: "error", text: "Save failed" });
+    }
+  });
+
   APP.on("saveas-confirm", function (name) {
     var id = saveCurrentLayout(name);
     if (id) {
@@ -185,6 +205,14 @@
     var loaded = loadLayout(id);
     if (loaded) {
       APP.emit("toast", { type: "success", text: "Layout loaded" });
+      if (typeof APP.goToEditor === "function") {
+        APP.goToEditor();
+      }
+      setTimeout(function () {
+        if (APP.canvas && typeof APP.canvas.render === "function") {
+          APP.canvas.render();
+        }
+      }, 0);
     } else {
       APP.emit("toast", { type: "error", text: "Load failed" });
     }

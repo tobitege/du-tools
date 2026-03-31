@@ -24,24 +24,12 @@
 
         // Tool buttons
         el("div", { className: "toolbar-section tools" }, [
-          el("button", { className: "tool-btn active", dataset: { tool: "select" }, title: "Select (V)" }, [
-            el("span", { textContent: "\u25FB" }),
-          ]),
-          el("button", { className: "tool-btn", dataset: { tool: "box" }, title: "Box (B)" }, [
-            el("span", { textContent: "\u25A1" }),
-          ]),
-          el("button", { className: "tool-btn", dataset: { tool: "rounded" }, title: "Rounded Box (R)" }, [
-            el("span", { textContent: "\u25A0" }),
-          ]),
-          el("button", { className: "tool-btn", dataset: { tool: "circle" }, title: "Circle (C)" }, [
-            el("span", { textContent: "\u25CB" }),
-          ]),
-          el("button", { className: "tool-btn", dataset: { tool: "line" }, title: "Line (L)" }, [
-            el("span", { textContent: "/" }),
-          ]),
-          el("button", { className: "tool-btn", dataset: { tool: "text" }, title: "Text (T)" }, [
-            el("span", { textContent: "T" }),
-          ]),
+          el("button", { className: "tool-btn active", dataset: { tool: "select" }, title: "Select (V)", textContent: "Select" }),
+          el("button", { className: "tool-btn", dataset: { tool: "box" }, title: "Box (B)", textContent: "Box" }),
+          el("button", { className: "tool-btn", dataset: { tool: "rounded" }, title: "Rounded Box (R)", textContent: "Round" }),
+          el("button", { className: "tool-btn", dataset: { tool: "circle" }, title: "Circle (C)", textContent: "Circle" }),
+          el("button", { className: "tool-btn", dataset: { tool: "line" }, title: "Line (L)", textContent: "Line" }),
+          el("button", { className: "tool-btn", dataset: { tool: "text" }, title: "Text (T)", textContent: "Text" }),
         ]),
 
         el("div", { className: "toolbar-divider" }),
@@ -160,12 +148,12 @@
           el("button", {
             className: "status-btn primary",
             dataset: { action: "save" },
-            textContent: "\u{1F4BE} Save",
+            textContent: "Save",
           }),
           el("button", {
             className: "status-btn",
             dataset: { action: "save-exit" },
-            textContent: "\u{1F4BE} Save + Exit",
+            textContent: "Save + Exit",
           }),
         ]),
         el("div", { className: "statusbar-center" }, [
@@ -174,9 +162,19 @@
         ]),
         el("div", { className: "statusbar-right" }, [
           el("button", {
+            className: "status-btn",
+            dataset: { action: "export-board" },
+            textContent: "Export Board",
+          }),
+          el("button", {
+            className: "status-btn",
+            dataset: { action: "export-screen" },
+            textContent: "Export Screen",
+          }),
+          el("button", {
             className: "status-btn danger",
             dataset: { action: "close" },
-            textContent: "\u2715 Close",
+            textContent: "Close",
           }),
         ]),
       ]),
@@ -191,6 +189,7 @@
     var btn = e.target.closest("[data-tool]");
     if (btn) {
       APP.state.currentTool = btn.dataset.tool;
+      updateToolButtons(APP.state.currentTool);
       APP.emit("tool-changed", APP.state.currentTool);
       return;
     }
@@ -203,6 +202,8 @@
     else if (action === "redo") APP.emit("redo");
     else if (action === "save") APP.emit("save");
     else if (action === "save-exit") APP.emit("save-exit");
+    else if (action === "export-board") APP.emit("export-board");
+    else if (action === "export-screen") APP.emit("export-screen");
     else if (action === "close") APP.emit("close-editor");
     else if (action === "delete-element" && APP.state.selectedElementId) {
       APP.emit("delete-element", APP.state.selectedElementId);
@@ -217,6 +218,23 @@
 
   function goToEditor() {
     APP.showScreen("editor");
+    setTimeout(function () {
+      APP.emit("resize");
+    }, 0);
+    requestAnimationFrame(function () {
+      APP.emit("resize");
+    });
+  }
+
+  function updateToolButtons(activeTool) {
+    var root = APP.getRoot();
+    qsa("#editor-toolbar .tool-btn", root).forEach(function (button) {
+      if (button.dataset.tool === activeTool) {
+        button.classList.add("active");
+      } else {
+        button.classList.remove("active");
+      }
+    });
   }
 
   // ─── Register with core ──────────────────────────────────────────────
@@ -225,9 +243,8 @@
     goToEditor();
   });
 
-  APP.on("save-exit", function () {
-    APP.state.isDirty = false;
-    goToStart();
+  APP.on("tool-changed", function (tool) {
+    updateToolButtons(tool || APP.state.currentTool);
   });
 
   function mountEditorShell() {
@@ -258,4 +275,5 @@
   // Expose
   APP.goToStart = goToStart;
   APP.goToEditor = goToEditor;
+  APP.updateToolButtons = updateToolButtons;
 })();

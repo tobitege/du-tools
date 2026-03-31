@@ -602,7 +602,7 @@ end
 
 -- ─── Lifecycle ─────────────────────────────────────────────────────
 
-function HudEditorBoard.init()
+function HudEditorBoard.init(bootDocument)
     dp("Initializing HUD Editor Board")
 
     -- Debug: report what's available for screen linking
@@ -614,18 +614,32 @@ function HudEditorBoard.init()
         dp("DEBUG: #Screens=" .. #Screens)
     end
 
-    -- Try to restore last document (before checking databank)
-    -- This allows working even without databank initially
-    local doc = HudEditorBoard.restoreFromDatabank()
-    if doc then
+    -- If boot document is provided, it overrides persisted state and becomes the new base document.
+    if type(bootDocument) == "table" then
+        state.document = deepCopy(bootDocument)
+        state.mode = "editing"
+        state.selectedId = nil
+        state.isDirty = false
+        if type(state.document.revision) ~= "number" then
+            state.document.revision = 0
+        end
+        state.renderRevision = state.renderRevision + 1
+        HudEditorBoard.persistToDatabank()
+        dp("Loaded boot document from exported HUD layout")
+    else
+        -- Try to restore last document (before checking databank)
+        -- This allows working even without databank initially
+        local doc = HudEditorBoard.restoreFromDatabank()
+        if doc then
         state.document = doc
         state.mode = "loaded"
         dp("Restored document from databank")
-    else
+        else
         -- Create empty document if nothing to restore
         state.document = HudEditorBoard.newDocument(1920, 1080)
         state.mode = "editing"
         dp("Created new empty document")
+        end
     end
 
     -- Link screens if available

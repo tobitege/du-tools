@@ -7,14 +7,18 @@
 
 #hud-editor-root {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   z-index: 99999;
   pointer-events: none;
   font-family: 'Rajdhani', 'Segoe UI', Tahoma, sans-serif;
   font-size: 14px;
   color: #ccc;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.70);
   display: none;
+  overflow: hidden;
 }
 
 #hud-editor-root[style*="block"] {
@@ -26,7 +30,10 @@
 .hud-screen {
   display: none;
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
 }
 
 .hud-screen.active {
@@ -38,9 +45,17 @@
 /* ══════════════════════════════════════════════════════════════════════ */
 
 [data-screen="start"] {
+  width: 80vw;
+  height: 80vh;
+  top: 10vh;
+  left: 10vw;
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  overflow: auto;
 }
 
 .start-container {
@@ -142,8 +157,16 @@
 /* ══════════════════════════════════════════════════════════════════════ */
 
 [data-screen="editor"] {
+  top: 8vh;
+  left: 6vw;
+  width: 88vw;
+  height: 84vh;
   flex-direction: column;
   background: #12121a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
 }
 
 /* ─── Toolbar ────────────────────────────────────────────────────────── */
@@ -156,7 +179,7 @@
   background: #1a1a24;
   border-bottom: 1px solid #2a2a3a;
   flex-shrink: 0;
-  min-height: 48px;
+  min-height: 56px;
 }
 
 .toolbar-section {
@@ -166,7 +189,7 @@
 }
 
 .toolbar-section label {
-  font-size: 12px;
+  font-size: 13px;
   color: #888;
   margin-left: 8px;
   margin-right: 4px;
@@ -189,17 +212,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  min-width: 60px;
+  height: 40px;
+  padding: 0 10px;
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
   color: #aaa;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 13px;
+  font-weight: 600;
   transition: all 0.15s ease;
   font-family: inherit;
-  padding: 0;
+  white-space: nowrap;
 }
 
 .tool-btn:hover,
@@ -234,13 +259,13 @@
 }
 
 .size-input {
-  width: 48px;
-  height: 30px;
+  width: 56px;
+  height: 36px;
   background: #1a1a24;
   border: 1px solid #3a3a4a;
   border-radius: 6px;
   color: #ccc;
-  font-size: 13px;
+  font-size: 14px;
   padding: 0 6px;
   text-align: center;
   font-family: inherit;
@@ -259,7 +284,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 20px;
   background: #0a0a10;
   position: relative;
 }
@@ -268,7 +293,7 @@
   position: relative;
   background: #1a1a24;
   border: 1px solid #3a3a4a;
-  border-radius: 4px;
+  border-radius: 8px;
   box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
@@ -434,7 +459,7 @@
   background: #1a1a24;
   border-top: 1px solid #2a2a3a;
   flex-shrink: 0;
-  min-height: 44px;
+  min-height: 60px;
 }
 
 .statusbar-left,
@@ -451,15 +476,22 @@
 }
 
 .status-btn {
-  padding: 6px 16px;
+  min-width: 140px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
   border: 1px solid #3a3a4a;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.04);
   color: #aaa;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 15px;
+  font-weight: 600;
   font-family: inherit;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .status-btn:hover {
@@ -488,13 +520,13 @@
 }
 
 .status-mode {
-  font-size: 12px;
+  font-size: 15px;
   color: #0ee9e7;
   font-weight: 600;
 }
 
 .status-hint {
-  font-size: 11px;
+  font-size: 13px;
   color: #555;
 }
 
@@ -503,8 +535,11 @@
 /* ══════════════════════════════════════════════════════════════════════ */
 
 .dialog-overlay {
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
@@ -711,13 +746,14 @@
 
 .toast-container {
   position: fixed;
-  bottom: 60px;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   z-index: 200000;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  align-items: center;
   pointer-events: none;
 }
 
@@ -730,6 +766,7 @@
   font-size: 13px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   animation: toast-in 0.3s ease;
+  transition: opacity 0.25s ease, transform 0.25s ease;
   pointer-events: auto;
 }
 

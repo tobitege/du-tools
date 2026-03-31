@@ -20,7 +20,7 @@
     }, [
       el("div", { className: "start-container" }, [
         el("div", { className: "start-header" }, [
-          el("h1", { textContent: "Paint-with-Lua" }),
+          el("h1", { textContent: "Lua Painter" }),
           el("p", { className: "subtitle", textContent: "HUD Layout Editor" }),
         ]),
         el("div", { className: "start-menu" }, [

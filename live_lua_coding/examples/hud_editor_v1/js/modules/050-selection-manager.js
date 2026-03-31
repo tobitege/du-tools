@@ -34,7 +34,10 @@
   // ─── Selection ─────────────────────────────────────────────────────
 
   function selectElement(elementId) {
-    if (APP.state.selectedElementId === elementId) return;
+    if (APP.state.selectedElementId === elementId) {
+      APP.emit("selection-changed", elementId);
+      return;
+    }
 
     APP.state.selectedElementId = elementId;
     APP.emit("selection-changed", elementId);
@@ -89,6 +92,12 @@
     if (e.target.closest("#editor-toolbar")) return;
     if (e.target.closest("#editor-statusbar")) return;
 
+    var clickedElement = e.target.closest(".canvas-element");
+    if (clickedElement && clickedElement.dataset && clickedElement.dataset.elementId) {
+      selectElement(clickedElement.dataset.elementId);
+      return;
+    }
+
     var rect = preview.getBoundingClientRect();
     var canvasX = e.clientX - rect.left;
     var canvasY = e.clientY - rect.top;
@@ -116,6 +125,16 @@
     origW: 0,
     origH: 0,
   };
+
+  function ensureCanvasSelectionListeners() {
+    var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
+    if (!preview) return;
+    if (!preview.__hudEditorSelectBound) {
+      preview.__hudEditorSelectBound = true;
+      preview.addEventListener("click", onCanvasClick);
+      preview.addEventListener("mousedown", onResizeHandleMouseDown, true);
+    }
+  }
 
   function onResizeHandleMouseDown(e) {
     e.stopPropagation();
@@ -217,21 +236,15 @@
 
   APP.on("enter-edit", function () {
     if (APP.state.currentScreen !== "editor") return;
+    setTimeout(ensureCanvasSelectionListeners, 0);
+  });
 
-    var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
-    if (!preview) {
-      setTimeout(function () {
-        var p = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
-        if (p) {
-          p.addEventListener("click", onCanvasClick);
-          p.addEventListener("mousedown", onResizeHandleMouseDown, true);
-        }
-      }, 100);
-      return;
-    }
+  APP.on("document-created", function () {
+    setTimeout(ensureCanvasSelectionListeners, 0);
+  });
 
-    preview.addEventListener("click", onCanvasClick);
-    preview.addEventListener("mousedown", onResizeHandleMouseDown, true);
+  APP.on("document-loaded", function () {
+    setTimeout(ensureCanvasSelectionListeners, 0);
   });
 
   // Handle resize handles added later via mutation or render
@@ -244,6 +257,12 @@
         h.addEventListener("mousedown", onResizeHandleMouseDown);
       });
     }, 10);
+  });
+
+  APP.on("tool-changed", function (tool) {
+    if (tool !== "select") {
+      deselectAll();
+    }
   });
 
   // ─── Public API ────────────────────────────────────────────────────

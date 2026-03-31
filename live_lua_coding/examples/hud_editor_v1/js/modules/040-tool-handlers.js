@@ -16,6 +16,16 @@
   var tempElement = null;
   var tempDom = null;
 
+  function ensureCanvasCreateListeners() {
+    var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
+    if (!preview) return;
+    if (preview.__hudEditorCreateBound) return;
+    preview.__hudEditorCreateBound = true;
+    preview.addEventListener("mousedown", onCanvasMouseDown);
+    preview.addEventListener("mousemove", onCanvasMouseMove);
+    preview.addEventListener("mouseup", onCanvasMouseUp);
+  }
+
   // ─── Tool to element type mapping ─────────────────────────────────
 
   var toolToType = {
@@ -97,8 +107,8 @@
     tempElement.h = Math.max(10, ey - sy);
 
     // Update the temp DOM
-    if (tempDom && APP.canvas) {
-      APP.canvas.updateElement(tempElement.id);
+    if (tempDom && APP.canvas && typeof APP.canvas.applyElementStyles === "function") {
+      APP.canvas.applyElementStyles(tempDom, tempElement);
     }
   }
 
@@ -118,16 +128,16 @@
       return null;
     }
 
-    // Add to document
+    // Add to document once
     if (APP.state.document && APP.state.document.elements) {
       APP.state.document.elements.push(tempElement);
       APP.state.isDirty = true;
 
-      // Emit event
-      APP.emit("element-added", tempElement);
-
       // Select the new element
       APP.state.selectedElementId = tempElement.id;
+
+      // Emit events
+      APP.emit("element-added", tempElement);
       APP.emit("selection-changed", tempElement.id);
     }
 
@@ -187,12 +197,6 @@
 
     isCreating = true;
 
-    // Add temp element to document (invisible until finalized)
-    if (APP.state.document && APP.state.document.elements) {
-      // Add temporarily without event
-      APP.state.document.elements.push(tempElement);
-    }
-
     // Create temp DOM
     tempDom = document.createElement("div");
     tempDom.className = "canvas-element creating";
@@ -200,7 +204,9 @@
     tempDom.style.opacity = "0.6";
     preview.appendChild(tempDom);
 
-    APP.canvas.updateElement(tempElement.id);
+    if (APP.canvas && typeof APP.canvas.applyElementStyles === "function") {
+      APP.canvas.applyElementStyles(tempDom, tempElement);
+    }
     APP.emit("creation-started", tempElement);
   }
 
@@ -230,24 +236,15 @@
 
   APP.on("enter-edit", function () {
     if (APP.state.currentScreen !== "editor") return;
+    setTimeout(ensureCanvasCreateListeners, 0);
+  });
 
-    var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
-    if (!preview) {
-      // Wait for canvas to be ready
-      setTimeout(function () {
-        var p = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
-        if (p) {
-          p.addEventListener("mousedown", onCanvasMouseDown);
-          p.addEventListener("mousemove", onCanvasMouseMove);
-          p.addEventListener("mouseup", onCanvasMouseUp);
-        }
-      }, 100);
-      return;
-    }
+  APP.on("document-created", function () {
+    setTimeout(ensureCanvasCreateListeners, 0);
+  });
 
-    preview.addEventListener("mousedown", onCanvasMouseDown);
-    preview.addEventListener("mousemove", onCanvasMouseMove);
-    preview.addEventListener("mouseup", onCanvasMouseUp);
+  APP.on("document-loaded", function () {
+    setTimeout(ensureCanvasCreateListeners, 0);
   });
 
   // Expose for selection manager

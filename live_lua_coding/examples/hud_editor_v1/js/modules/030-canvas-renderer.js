@@ -200,6 +200,16 @@
     return overlay;
   }
 
+  function clearSelectionOverlays() {
+    var preview = getCanvasPreview();
+    if (!preview) return;
+    qsa('.selection-overlay', preview).forEach(function (node) {
+      if (node && node.parentNode) {
+        node.parentNode.removeChild(node);
+      }
+    });
+  }
+
   // ─── Render all elements ────────────────────────────────────────────
 
   function getCanvasPreview() {
@@ -239,6 +249,7 @@
     });
 
     // Render selection if something is selected
+    clearSelectionOverlays();
     if (APP.state.selectedElementId) {
       var selectedEl = findElementById(APP.state.selectedElementId);
       if (selectedEl) {
@@ -318,10 +329,7 @@
     applyElementStyles(dom, element);
 
     // Update selection overlay if selected
-    var selOverlay = qs('[data-element-id="' + elementId + '_sel"]', preview);
-    if (selOverlay) {
-      preview.removeChild(selOverlay);
-    }
+    clearSelectionOverlays();
     if (APP.state.selectedElementId === elementId) {
       var overlay = createSelectionOverlay(element);
       preview.appendChild(overlay);
@@ -413,6 +421,8 @@
     getScale: function () { return scale; },
     getElementById: findElementById,
     sizePreview: sizeCanvasPreview,
+    applyElementStyles: applyElementStyles,
+    clearSelectionOverlays: clearSelectionOverlays,
     _getPreview: getCanvasPreview,
   };
 

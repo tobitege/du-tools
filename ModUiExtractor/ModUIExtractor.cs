@@ -1883,6 +1883,12 @@ ORDER BY table_schema, table_name, ordinal_position";
                 PersistLuaProbeRuntimeModuleState(packetData);
                 await AppendMcpBridgeEvent("lua_editor", "runtime_module_state_set", playerId, packetData);
             }
+            else if (string.Equals(packetType, "hud_editor_ide_export", StringComparison.OrdinalIgnoreCase))
+            {
+                var packetData = parsedPacket["data"] as JObject ?? new JObject();
+                await ProcessHudEditorIdeExport(playerId, packetData);
+                await AppendMcpBridgeEvent("lua_editor", "hud_editor_ide_export", playerId, packetData);
+            }
         }
 
         if (envelope?.type == "ui_dump_complete")
@@ -2221,6 +2227,49 @@ ORDER BY table_schema, table_name, ordinal_position";
         }
 
         return new JObject();
+    }
+
+    private async Task ProcessHudEditorIdeExport(ulong playerId, JObject packetData)
+    {
+        try
+        {
+            var requestId = packetData["requestId"]?.Value<string>()?.Trim();
+            if (string.IsNullOrWhiteSpace(requestId))
+            {
+                requestId = $"hud-editor-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}";
+            }
+
+            var rawTargetKind = packetData["targetKind"]?.Value<string>()?.Trim();
+            var targetKind = string.Equals(rawTargetKind, "screen_editor", StringComparison.OrdinalIgnoreCase)
+                ? "screen_editor"
+                : "lua_editor";
+            var code = packetData["code"]?.Value<string>() ?? string.Empty;
+
+            var safeSuffix = targetKind == "screen_editor" ? "screen_editor" : "lua_editor";
+            var importPath = Path.Combine(payloadOverridesDirectory, $"ide_import.player-{playerId}.{safeSuffix}.json");
+            var payload = new JObject
+            {
+                ["playerId"] = playerId,
+                ["requestId"] = requestId,
+                ["targetKind"] = targetKind,
+                ["code"] = code,
+                ["source"] = "hud-editor"
+            };
+
+            File.WriteAllText(importPath, payload.ToString(Newtonsoft.Json.Formatting.Indented), Encoding.UTF8);
+
+            await Notify(
+                playerId,
+                targetKind == "screen_editor"
+                    ? "HUD Editor export queued for screen editor"
+                    : "HUD Editor export queued for Lua editor (open board onStart)"
+            );
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "UIExtractor failed to write HUD editor IDE export for player {PlayerId}", playerId);
+            await Notify(playerId, "HUD Editor export failed. Check logs.");
+        }
     }
 
     private void PersistLuaProbeRuntimeModuleToggle(JObject packetData)
