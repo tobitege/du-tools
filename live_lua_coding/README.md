@@ -21,8 +21,10 @@ If a step says to verify state first, do that before continuing.
 The root of `live_lua_coding/` contains the shared workflow documentation, fallback helpers, and test notes for working against Dual Universe through the bridge.
 
 Concrete demos now live under `live_lua_coding/examples/`.
-The first example is `live_lua_coding/examples/form_editor/`.
-It was developed with help from the Du MCP Bridge and shows a screen-side form editor where a board restores persisted layout state, renders a reduced screen script, and accepts move or resize deltas back from the screen.
+
+- `examples/form_editor/` — First example. Screen-side form editor where a board restores persisted layout state, renders a reduced screen script, and accepts move or resize deltas back from the screen.
+- `examples/form_editor_v2/` — Simplified form editor workflow using a library-onStart pattern.
+- `examples/hud_editor_v1/` — **Lua Painter**: a self-contained JavaScript WYSIWYG HUD overlay for designing screen layouts with Lua-drawn elements. See section 4A below.
 
 That split keeps the root folder reusable for future examples without tying every workflow note to one specific demo.
 
@@ -486,6 +488,69 @@ First example in `live_lua_coding/examples/form_editor/`:
   Shared module used to build the render script, serialize layout patches, and handle persistence helpers.
 - `scripts/Test-ScreenLayoutEditorOffline.ps1`
   Offline check for the ScreenLayoutEditor serialization and persistence pipeline.
+
+Second example in `live_lua_coding/examples/form_editor_v2/`:
+
+- `unit-onStart.lua`
+  Board `unit.onStart` script using the simplified library-onStart pattern.
+- `unit-onTimer-UPD.lua`
+  Board `unit.onTimer("UPD")` script.
+- `library-onStart.lua`
+  Library-slot onStart entry point.
+- `ScreenLayoutEditor.lua`
+  Shared ScreenLayoutEditor module.
+
+### 4A. HUD Editor (Lua Painter) — `examples/hud_editor_v1/`
+
+This example is a **self-contained** JavaScript project, completely independent from ModUiExtractor core.
+It provides a WYSIWYG HUD overlay for designing screen layouts with Lua-drawn elements ("Paint-with-Lua").
+
+Architecture:
+
+- 13 plain-JS IIFE modules in `js/modules/` (numbered `000-` through `120-`), concatenated by `scripts/build.ps1`
+- CSS embedded in the JS bundle, injected at runtime via `000-core.js`
+- All modules share `window.HudEditor` (`APP.state`, `APP.emit()`, `APP.on()`, `APP.el()`, `APP.qs()`)
+- Build produces a single payload: `build/hud-editor-probe.js`
+- Board-side Lua in `board/` handles databank persistence
+- Screen-side Lua in `screen/` handles rendering
+
+Modules (in load order):
+
+- `000-core.js` — App namespace, event bus, DOM helpers, style injection
+- `010-start-screen.js` — Start menu (New Script, Load, etc.)
+- `020-editor-shell.js` — Editor DOM structure: toolbar, canvas area, properties panel, status bar
+- `030-canvas-renderer.js` — DOM-based element rendering, selection overlays, coordinate mapping
+- `040-tool-handlers.js` — Shape creation tools (box, rounded, circle, line, text)
+- `050-selection-manager.js` — Click-to-select, hit testing, resize handles
+- `070-properties-panel.js` — Property editing UI, stepper controls, color sync, panel drag/persistence
+- `080-bridge-commands.js` — DuMcpBridge command integration
+- `085-ide-export.js` — IDE export functionality
+- `090-databank-sync.js` — Databank read/write for layout persistence
+- `100-file-sync.js` — JSON import/export for layout files
+- `110-undo-redo.js` — Undo/redo stack (snapshots full document state)
+- `120-dialogs.js` — Modal dialogs (save-as, load, confirm)
+
+Web test harness (`web/`):
+
+- `server.mjs` — Static file server on port 4173 (no-cache headers for development)
+- `harness.js` — Test harness entry point: loads the built payload, provides fake runtime context
+- `index.html` — Harness UI with fixture loading, state display, and log viewer
+- `tests/hud-editor.spec.js` — Playwright end-to-end tests
+- `fixtures/` — Test fixture JSON files (e.g. `layout-all-shapes.json`)
+
+Build and test:
+
+```powershell
+# Build the payload
+powershell -File live_lua_coding\examples\hud_editor_v1\scripts\build.ps1
+
+# Start the dev server
+node live_lua_coding\examples\hud_editor_v1\web\server.mjs
+
+# Run Playwright tests
+cd live_lua_coding\examples\hud_editor_v1\web
+pnpm exec playwright test
+```
 
 Use tracked repo files from the example you are actively editing as the source for editor push workflows.
 For the currently documented example, that usually means files in `live_lua_coding/examples/form_editor/`.
@@ -1148,6 +1213,7 @@ Action:
 - [Client Pixel Live Tests](/d:/github/du-tobi/live_lua_coding/du-client-pixel-live-tests.md)
 - [Camera Steering Tests](/d:/github/du-tobi/live_lua_coding/du-camera-steering-tests.md)
 - [DU Visual Subagent Notes](/d:/github/du-tobi/du-visual-subagent.md)
+- [HUD Editor Plan](/d:/github/du-tobi/live_lua_coding/examples/hud_editor_v1/hud-editor.md)
 
 ## 18. Maintaining The Tracked Live Snapshots
 

@@ -24,6 +24,7 @@
     currentScreen: "start",
     currentTool: "select",
     selectedElementId: null,
+    selectedElementIds: [],
     isDirty: false,
     document: null,
     connectedScreen: false

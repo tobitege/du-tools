@@ -54,7 +54,10 @@
     // Restore previous state
     var snapshot = undoStack.pop();
     APP.state.document = snapshot;
+    APP.state.selectedElementId = null;
+    APP.state.selectedElementIds = [];
     APP.state.isDirty = true;
+    APP.emit("selection-changed", null);
     APP.emit("document-loaded", snapshot);
     APP.emit("toast", { type: "info", text: "Undone" });
 
@@ -80,7 +83,10 @@
     // Restore next redo state
     var snapshot = redoStack.pop();
     APP.state.document = snapshot;
+    APP.state.selectedElementId = null;
+    APP.state.selectedElementIds = [];
     APP.state.isDirty = true;
+    APP.emit("selection-changed", null);
     APP.emit("document-loaded", snapshot);
     APP.emit("toast", { type: "info", text: "Redone" });
 
@@ -111,13 +117,13 @@
     redo();
   });
 
-  // Clear on new document
+  // Clear on new document (but not during undo/redo which also emits document-loaded)
   APP.on("document-created", function() {
-    clear();
+    if (!isUndoRedoAction) clear();
   });
 
   APP.on("document-loaded", function() {
-    clear();
+    if (!isUndoRedoAction) clear();
   });
 
   // ─── Public API ─────────────────────────────────────────────────

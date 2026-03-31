@@ -10,6 +10,22 @@
   var qs = APP.qs;
   var qsa = APP.qsa;
 
+  // ─── Stepper builder ────────────────────────────────────────────────
+
+  var STROKE_PRESETS = [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20];
+  var RADIUS_PRESETS = [0, 2, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 50, 75, 100];
+
+  function buildStepper(prop, presets) {
+    var options = presets.map(function (v) {
+      return el("option", { value: String(v), textContent: String(v) });
+    });
+    return el("div", { className: "stepper-ctrl" }, [
+      el("button", { className: "stepper-dec", dataset: { stepperProp: prop }, textContent: "\u2212" }),
+      el("select", { className: "stepper-select", dataset: { prop: prop } }, options),
+      el("button", { className: "stepper-inc", dataset: { stepperProp: prop }, textContent: "+" }),
+    ]);
+  }
+
   // ─── Build editor shell DOM ──────────────────────────────────────────
 
   function buildEditorShell() {
@@ -22,69 +38,93 @@
       // ── Toolbar ──
       el("div", { id: "editor-toolbar" }, [
 
-        // Tool buttons
-        el("div", { className: "toolbar-section tools" }, [
-          el("button", { className: "tool-btn active", dataset: { tool: "select" }, title: "Select (V)", textContent: "Select" }),
-          el("button", { className: "tool-btn", dataset: { tool: "box" }, title: "Box (B)", textContent: "Box" }),
-          el("button", { className: "tool-btn", dataset: { tool: "rounded" }, title: "Rounded Box (R)", textContent: "Round" }),
-          el("button", { className: "tool-btn", dataset: { tool: "circle" }, title: "Circle (C)", textContent: "Circle" }),
-          el("button", { className: "tool-btn", dataset: { tool: "line" }, title: "Line (L)", textContent: "Line" }),
-          el("button", { className: "tool-btn", dataset: { tool: "text" }, title: "Text (T)", textContent: "Text" }),
+        // Tool buttons — SVG icon + key hint
+        el("div", { className: "toolbar-group" }, [
+          el("button", { className: "tool-btn active", dataset: { tool: "select" }, title: "Select (V)" }, [
+            el("span", { className: "tb-icon tb-icon-select" }),
+            el("span", { className: "tb-key", textContent: "V" }),
+          ]),
+          el("button", { className: "tool-btn", dataset: { tool: "box" }, title: "Box (B)" }, [
+            el("span", { className: "tb-icon tb-icon-box" }),
+            el("span", { className: "tb-key", textContent: "B" }),
+          ]),
+          el("button", { className: "tool-btn", dataset: { tool: "rounded" }, title: "Rounded Box (R)" }, [
+            el("span", { className: "tb-icon tb-icon-rounded" }),
+            el("span", { className: "tb-key", textContent: "R" }),
+          ]),
+          el("button", { className: "tool-btn", dataset: { tool: "circle" }, title: "Circle (C)" }, [
+            el("span", { className: "tb-icon tb-icon-circle" }),
+            el("span", { className: "tb-key", textContent: "C" }),
+          ]),
+          el("button", { className: "tool-btn", dataset: { tool: "line" }, title: "Line (L)" }, [
+            el("span", { className: "tb-icon tb-icon-line" }),
+            el("span", { className: "tb-key", textContent: "L" }),
+          ]),
+          el("button", { className: "tool-btn", dataset: { tool: "text" }, title: "Text (T)" }, [
+            el("span", { className: "tb-icon tb-icon-text" }),
+            el("span", { className: "tb-key", textContent: "T" }),
+          ]),
         ]),
 
         el("div", { className: "toolbar-divider" }),
 
-        // Color pickers
-        el("div", { className: "toolbar-section colors" }, [
-          el("label", { textContent: "Fill" }),
-          el("input", {
-            type: "color",
-            className: "color-picker",
-            value: "#3366FF",
-            dataset: { prop: "fill" },
-          }),
-          el("label", { textContent: "Stroke" }),
-          el("input", {
-            type: "color",
-            className: "color-picker",
-            value: "#FFFFFF",
-            dataset: { prop: "stroke" },
-          }),
+        // Color swatches
+        el("div", { className: "toolbar-group colors" }, [
+          el("div", { className: "swatch-pair" }, [
+            el("input", {
+              type: "color",
+              className: "color-swatch",
+              value: "#3366FF",
+              title: "Fill color",
+              dataset: { prop: "fill" },
+            }),
+            el("span", { className: "swatch-label", textContent: "Fill" }),
+          ]),
+          el("div", { className: "swatch-pair" }, [
+            el("input", {
+              type: "color",
+              className: "color-swatch",
+              value: "#FFFFFF",
+              title: "Stroke color",
+              dataset: { prop: "stroke" },
+            }),
+            el("span", { className: "swatch-label", textContent: "Stroke" }),
+          ]),
         ]),
 
         el("div", { className: "toolbar-divider" }),
 
-        // Size inputs
-        el("div", { className: "toolbar-section size" }, [
-          el("label", { textContent: "Stroke W" }),
-          el("input", {
-            type: "number",
-            className: "size-input",
-            value: "2",
-            min: "0",
-            max: "20",
-            dataset: { prop: "strokeWidth" },
-          }),
-          el("label", { textContent: "Radius" }),
-          el("input", {
-            type: "number",
-            className: "size-input",
-            value: "12",
-            min: "0",
-            max: "200",
-            dataset: { prop: "radius" },
-          }),
+        // Alignment
+        el("div", { className: "toolbar-group align-group" }, [
+          el("button", { className: "action-btn", dataset: { action: "align-left" }, title: "Align left" }, [
+            el("span", { className: "tb-icon tb-icon-align-left" }),
+          ]),
+          el("button", { className: "action-btn", dataset: { action: "align-center-h" }, title: "Align center horizontal" }, [
+            el("span", { className: "tb-icon tb-icon-align-center-h" }),
+          ]),
+          el("button", { className: "action-btn", dataset: { action: "align-right" }, title: "Align right" }, [
+            el("span", { className: "tb-icon tb-icon-align-right" }),
+          ]),
+          el("button", { className: "action-btn", dataset: { action: "align-top" }, title: "Align top" }, [
+            el("span", { className: "tb-icon tb-icon-align-top" }),
+          ]),
+          el("button", { className: "action-btn", dataset: { action: "align-center-v" }, title: "Align center vertical" }, [
+            el("span", { className: "tb-icon tb-icon-align-center-v" }),
+          ]),
+          el("button", { className: "action-btn", dataset: { action: "align-bottom" }, title: "Align bottom" }, [
+            el("span", { className: "tb-icon tb-icon-align-bottom" }),
+          ]),
         ]),
 
         el("div", { className: "toolbar-spacer" }),
 
         // Undo/Redo
-        el("div", { className: "toolbar-section actions" }, [
+        el("div", { className: "toolbar-group actions" }, [
           el("button", { className: "action-btn", dataset: { action: "undo" }, title: "Undo (Ctrl+Z)" }, [
-            el("span", { textContent: "\u21A9" }),
+            el("span", { className: "tb-icon", textContent: "\u21A9" }),
           ]),
           el("button", { className: "action-btn", dataset: { action: "redo" }, title: "Redo (Ctrl+Y)" }, [
-            el("span", { textContent: "\u21AA" }),
+            el("span", { className: "tb-icon", textContent: "\u21AA" }),
           ]),
         ]),
       ]),
@@ -98,6 +138,7 @@
       el("div", { id: "properties-panel", className: "docked-panel" }, [
         el("div", { className: "panel-header" }, [
           el("span", { textContent: "Properties" }),
+          el("button", { className: "panel-toggle", dataset: { action: "toggle-collapse" }, textContent: "\u25BE" }),
         ]),
         el("div", { className: "panel-content" }, [
           el("div", { className: "prop-row" }, [
@@ -122,11 +163,11 @@
           ]),
           el("div", { className: "prop-row" }, [
             el("label", { textContent: "Stroke W" }),
-            el("input", { type: "number", className: "prop-input", dataset: { prop: "strokeWidth" } }),
+            buildStepper("strokeWidth", STROKE_PRESETS),
           ]),
-          el("div", { className: "prop-row" }, [
+          el("div", { className: "prop-row", dataset: { propRow: "radius" } }, [
             el("label", { textContent: "Radius" }),
-            el("input", { type: "number", className: "prop-input", dataset: { prop: "radius" } }),
+            buildStepper("radius", RADIUS_PRESETS),
           ]),
           el("div", { className: "prop-row vertical" }, [
             el("label", { textContent: "Text" }),
@@ -207,6 +248,12 @@
     else if (action === "close") APP.emit("close-editor");
     else if (action === "delete-element" && APP.state.selectedElementId) {
       APP.emit("delete-element", APP.state.selectedElementId);
+    }
+    else if (action.indexOf("align-") === 0) {
+      APP.emit("align", action.replace("align-", ""));
+    }
+    else if (action === "toggle-collapse") {
+      APP.emit("toggle-props-collapse");
     }
   }
 

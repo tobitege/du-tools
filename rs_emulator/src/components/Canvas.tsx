@@ -1,4 +1,4 @@
-import { useEffect, useRef, forwardRef, useImperativeHandle, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, forwardRef, useImperativeHandle, useState, useCallback, type PointerEvent as ReactPointerEvent } from "react";
 import { DrawBuffer, renderBuffer } from "../emulator";
 
 const CANVAS_SHELL_PADDING = 16;
@@ -36,6 +36,8 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
     const resizeFrameRef = useRef<number>(0);
     const [shellSize, setShellSize] = useState({ width: 0, height: 0 });
     const [stats, setStats] = useState({ renderCost: 0, textCalls: 0, frameMs: 0, fps: 0 });
+    const [screenshotState, setScreenshotState] = useState<"idle" | "copied" | "failed">("idle");
+    const screenshotTimerRef = useRef<ReturnType<typeof setTimeout>>(0 as never);
     const normalizedRotation = normalizeRotation(rotationDegrees);
     const rotatedByQuarterTurn = normalizedRotation % 180 !== 0;
     const rotatedWidth = rotatedByQuarterTurn ? height : width;
@@ -230,6 +232,25 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
       });
     };
 
+    const handleScreenshot = useCallback(async () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      try {
+        const blob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/png");
+        });
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+        clearTimeout(screenshotTimerRef.current);
+        setScreenshotState("copied");
+        screenshotTimerRef.current = setTimeout(() => setScreenshotState("idle"), 1500);
+      } catch {
+        clearTimeout(screenshotTimerRef.current);
+        setScreenshotState("failed");
+        screenshotTimerRef.current = setTimeout(() => setScreenshotState("idle"), 1500);
+      }
+    }, []);
+
     return (
       <div
         ref={shellRef}
@@ -345,6 +366,29 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(
             />
           </div>
         </div>
+        <button
+          type="button"
+          onClick={handleScreenshot}
+          className="btn btn-ghost btn-sm btn-square"
+          title={screenshotState === "copied" ? "Copied!" : screenshotState === "failed" ? "Copy failed" : "Copy canvas to clipboard"}
+          aria-label="Copy canvas screenshot to clipboard"
+          style={{
+            position: "absolute",
+            bottom: 8,
+            left: 8,
+            zIndex: 2,
+            borderRadius: 12,
+            border: "1px solid color-mix(in srgb, var(--color-base-300) 82%, transparent)",
+            background: "color-mix(in srgb, var(--color-base-100) 88%, transparent)",
+            backdropFilter: "blur(12px)",
+            transition: "opacity 0.15s",
+            opacity: screenshotState === "idle" ? 0.7 : 1,
+          }}
+          onMouseEnter={(e) => { if (screenshotState === "idle") e.currentTarget.style.opacity = "1"; }}
+          onMouseLeave={(e) => { if (screenshotState === "idle") e.currentTarget.style.opacity = "0.7"; }}
+        >
+          {screenshotState === "copied" ? <CheckIcon /> : screenshotState === "failed" ? <CrossIcon /> : <CameraIcon />}
+        </button>
         {showFps && (
           <div
             style={{
@@ -397,6 +441,31 @@ function ResetCanvasRotationIcon() {
     <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
       <path d="M7 7h10v10H7z" fill="none" stroke="currentColor" strokeWidth="1.7" />
       <path d="M12 3v3M21 12h-3M12 21v-3M3 12h3" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CameraIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="13" r="4" fill="none" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path d="M20 6L9 17L4 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CrossIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

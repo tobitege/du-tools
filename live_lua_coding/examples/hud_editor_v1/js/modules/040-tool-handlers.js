@@ -73,6 +73,7 @@
     var element = {
       id: generateId(),
       type: type,
+      visible: true,
       x: Math.max(0, Math.min(screenX - defaultSize / 2, sw - defaultSize)),
       y: Math.max(0, Math.min(screenY - defaultSize / 2, sh - defaultSize)),
       w: defaultSize,

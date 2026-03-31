@@ -22,7 +22,12 @@ const mimeTypes = {
 }
 
 function send(res, statusCode, body, contentType) {
-  res.writeHead(statusCode, { 'content-type': contentType || 'text/plain; charset=utf-8' })
+  res.writeHead(statusCode, {
+    'content-type': contentType || 'text/plain; charset=utf-8',
+    'cache-control': 'no-cache, no-store, must-revalidate',
+    'pragma': 'no-cache',
+    'expires': '0'
+  })
   res.end(body)
 }
 

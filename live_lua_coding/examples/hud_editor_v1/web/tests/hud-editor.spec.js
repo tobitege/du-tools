@@ -22,3 +22,103 @@ test('loads all-shapes fixture into the canvas', async ({ page }) => {
   await expect(page.locator('#canvas-preview .canvas-element')).toHaveCount(5)
   await expect(page.locator('#harness-state')).toContainText('All Shapes Fixture')
 })
+
+test('selects each shape from the all-shapes fixture by clicking', async ({ page }) => {
+  await page.goto('/web/index.html')
+
+  await page.getByRole('button', { name: 'Load Fixture' }).click()
+  await expect(page.locator('#canvas-preview .canvas-element')).toHaveCount(5)
+
+  // Ensure the select tool is active
+  await page.locator('button[data-tool="select"]').click()
+  await expect(page.locator('button[data-tool="select"]')).toHaveClass(/active/)
+
+  const shapes = ['box_1', 'rounded_1', 'circle_1', 'line_1', 'text_1']
+
+  for (const id of shapes) {
+    await page.locator(`.canvas-element[data-element-id="${id}"]`).click()
+
+    // State must reflect the selection immediately (selectElement is synchronous)
+    const selectedId = await page.evaluate(() => window.HudEditor.state.selectedElementId)
+    expect(selectedId).toBe(id)
+
+    // Selection overlay must appear after the next animation frame render
+    await expect(page.locator('.selection-overlay')).toBeVisible()
+  }
+
+  // Click an empty area of the canvas to deselect
+  // canvas-preview is ~697×393px; panel covers left ~0-100px; shapes are elsewhere
+  // Use bottom-right quadrant, no shapes there
+  await page.locator('#canvas-preview').click({ position: { x: 620, y: 360 } })
+  const finalId = await page.evaluate(() => window.HudEditor.state.selectedElementId)
+  expect(finalId).toBeNull()
+})
+
+test('properties panel shows selected shape fill/stroke and steppers', async ({ page }) => {
+  await page.goto('/web/index.html')
+  await page.getByRole('button', { name: 'Load Fixture' }).click()
+  await expect(page.locator('#canvas-preview .canvas-element')).toHaveCount(5)
+
+  // Collapse harness panel so it doesn't overlap the properties panel
+  await page.locator('#harness-rollup-btn').click()
+  await expect(page.locator('#harness-body')).toBeHidden()
+
+  await page.locator('button[data-tool="select"]').click()
+
+  // box_1: fill [0.15, 0.25, 0.45, 0.92] → #264073, strokeWidth 4, radius 0
+  await page.locator('.canvas-element[data-element-id="box_1"]').click()
+  await expect(page.locator('#properties-panel')).toBeVisible()
+
+  const fillHex = await page.locator('#properties-panel input[data-prop="fill"]').inputValue()
+  expect(fillHex.toLowerCase()).toBe('#264073')
+
+  const swVal = await page.locator('#properties-panel .stepper-select[data-prop="strokeWidth"]').inputValue()
+  expect(Number(swVal)).toBe(4)
+
+  const rVal = await page.locator('#properties-panel .stepper-select[data-prop="radius"]').inputValue()
+  expect(Number(rVal)).toBe(0)
+
+  // Click + on strokeWidth → moves from 4 to next preset (5), applies to element
+  await page.locator('#properties-panel .stepper-inc[data-stepper-prop="strokeWidth"]').click()
+  const newSw = await page.locator('#properties-panel .stepper-select[data-prop="strokeWidth"]').inputValue()
+  expect(Number(newSw)).toBe(5)
+  const elementSw = await page.evaluate(() => {
+    var doc = window.HudEditor.state.document
+    return doc.elements.find(function (e) { return e.id === 'box_1' }).strokeWidth
+  })
+  expect(elementSw).toBe(5)
+})
+
+test('toolbar fill/stroke pickers sync when shape selected', async ({ page }) => {
+  await page.goto('/web/index.html')
+  await page.getByRole('button', { name: 'Load Fixture' }).click()
+  await expect(page.locator('#canvas-preview .canvas-element')).toHaveCount(5)
+
+  await page.locator('button[data-tool="select"]').click()
+  await page.locator('.canvas-element[data-element-id="box_1"]').click()
+
+  // Toolbar fill should now reflect box_1's fill (#264073)
+  const toolbarFill = await page.locator('#editor-toolbar input[data-prop="fill"]').inputValue()
+  expect(toolbarFill.toLowerCase()).toBe('#264073')
+})
+
+test('switching away from select tool clears selection', async ({ page }) => {
+  await page.goto('/web/index.html')
+
+  await page.getByRole('button', { name: 'Load Fixture' }).click()
+  await expect(page.locator('#canvas-preview .canvas-element')).toHaveCount(5)
+
+  // Select a shape
+  await page.locator('button[data-tool="select"]').click()
+  await page.locator('.canvas-element[data-element-id="box_1"]').click()
+  const afterSelect = await page.evaluate(() => window.HudEditor.state.selectedElementId)
+  expect(afterSelect).toBe('box_1')
+
+  // Switch to box tool — selection-manager deselects on tool-changed
+  await page.locator('button[data-tool="box"]').click()
+  const afterToolSwitch = await page.evaluate(() => window.HudEditor.state.selectedElementId)
+  expect(afterToolSwitch).toBeNull()
+
+  // No selection overlay should remain
+  await expect(page.locator('.selection-overlay')).toHaveCount(0)
+})

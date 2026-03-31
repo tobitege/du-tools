@@ -78,7 +78,7 @@ function updateState() {
 function loadPayload() {
   return new Promise((resolve, reject) => {
     const script = document.createElement("script")
-    script.src = "/build/hud-editor-probe.js"
+    script.src = "/build/hud-editor-probe.js?t=" + Date.now()
     script.onload = () => resolve()
     script.onerror = (event) => reject(new Error(`Failed to load payload: ${event?.message || "unknown error"}`))
     document.head.appendChild(script)

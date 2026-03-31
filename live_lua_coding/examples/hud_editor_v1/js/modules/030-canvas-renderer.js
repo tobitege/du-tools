@@ -159,11 +159,18 @@
         dom.style.border = strokeWidth + "px solid " + stroke;
         dom.style.boxSizing = "border-box";
     }
+
+    // Hide element when visibility is off; restore when toggled back
+    if (element.visible === false) {
+      dom.style.display = "none";
+    } else if (dom.style.display === "none") {
+      dom.style.display = "";
+    }
   }
 
   // ─── Selection overlay ─────────────────────────────────────────────
 
-  function createSelectionOverlay(element) {
+  function createSelectionOverlay(element, showHandles) {
     var overlay = el("div", {
       className: "selection-overlay",
       dataset: { elementId: element.id + "_sel" },
@@ -173,15 +180,17 @@
     var outline = el("div", { className: "selection-outline" });
     overlay.appendChild(outline);
 
-    // 8 resize handles
-    var handles = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
-    handles.forEach(function (h) {
-      var handle = el("div", {
-        className: "resize-handle",
-        dataset: { h: h, elementId: element.id },
+    // 8 resize handles — only for focus element
+    if (showHandles !== false) {
+      var handles = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+      handles.forEach(function (h) {
+        var handle = el("div", {
+          className: "resize-handle",
+          dataset: { h: h, elementId: element.id },
+        });
+        overlay.appendChild(handle);
       });
-      overlay.appendChild(handle);
-    });
+    }
 
     // Size/position the overlay
     var pos = screenToCanvas(element.x, element.y);
@@ -248,12 +257,15 @@
       preview.appendChild(dom);
     });
 
-    // Render selection if something is selected
+    // Render selection overlays for all selected elements
     clearSelectionOverlays();
-    if (APP.state.selectedElementId) {
-      var selectedEl = findElementById(APP.state.selectedElementId);
-      if (selectedEl) {
-        var overlay = createSelectionOverlay(selectedEl);
+    var selIds = APP.state.selectedElementIds || [];
+    var focusId = APP.state.selectedElementId;
+    for (var si = 0; si < selIds.length; si++) {
+      var selEl = findElementById(selIds[si]);
+      if (selEl) {
+        var isFocus = selIds[si] === focusId;
+        var overlay = createSelectionOverlay(selEl, isFocus);
         preview.appendChild(overlay);
       }
     }
@@ -328,11 +340,16 @@
 
     applyElementStyles(dom, element);
 
-    // Update selection overlay if selected
+    // Rebuild all selection overlays
     clearSelectionOverlays();
-    if (APP.state.selectedElementId === elementId) {
-      var overlay = createSelectionOverlay(element);
-      preview.appendChild(overlay);
+    var selIds = APP.state.selectedElementIds || [];
+    var focusId = APP.state.selectedElementId;
+    for (var si = 0; si < selIds.length; si++) {
+      var selEl = findElementById(selIds[si]);
+      if (selEl) {
+        var ov = createSelectionOverlay(selEl, selIds[si] === focusId);
+        preview.appendChild(ov);
+      }
     }
   }
 

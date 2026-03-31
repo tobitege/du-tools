@@ -1,6 +1,6 @@
 // HUD Editor Probe - Lua Painter
 // Project: D:\github\du-tobi\live_lua_coding\examples\hud_editor_v1
-// Built: 2026-03-31T03:14:25Z
+// Built: 2026-03-31T10:37:49Z
 
 // Inlined CSS
 (function injectCSS() {
@@ -10,7 +10,7 @@
   }
   var style = document.createElement('style');
   style.id = 'hud-editor-styles';
-  style.textContent = "/* hud-editor.css - All HUD Editor styles\n   Project: D:\\\\github\\\\du-tobi\\\\live_lua_coding\\\\examples\\\\hud_editor_v1\n   Self-contained - does NOT use ModUiExtractor core styles\n*/\n\n/* ─── Root container ────────────────────────────────────────────────── */\n\n#hud-editor-root {\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n  z-index: 99999;\n  pointer-events: none;\n  font-family: 'Rajdhani', 'Segoe UI', Tahoma, sans-serif;\n  font-size: 14px;\n  color: #ccc;\n  background: rgba(0, 0, 0, 0.70);\n  display: none;\n  overflow: hidden;\n}\n\n#hud-editor-root[style*=\"block\"] {\n  pointer-events: auto;\n}\n\n/* ─── Screens ────────────────────────────────────────────────────────── */\n\n.hud-screen {\n  display: none;\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n}\n\n.hud-screen.active {\n  display: flex;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           START SCREEN                                */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"start\"] {\n  width: 80vw;\n  height: 80vh;\n  top: 10vh;\n  left: 10vw;\n  align-items: center;\n  justify-content: center;\n  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);\n  overflow: auto;\n}\n\n.start-container {\n  text-align: center;\n  max-width: 520px;\n  padding: 48px;\n}\n\n.start-header h1 {\n  font-size: 52px;\n  font-weight: 700;\n  color: #fff;\n  margin: 0 0 8px 0;\n  text-shadow: 0 0 30px rgba(14, 233, 231, 0.4);\n  letter-spacing: 1px;\n}\n\n.start-header .subtitle {\n  color: #777;\n  font-size: 18px;\n  margin: 0 0 48px 0;\n}\n\n.start-menu {\n  display: flex;\n  flex-direction: column;\n  gap: 14px;\n}\n\n.menu-btn {\n  display: flex;\n  align-items: center;\n  width: 100%;\n  padding: 18px 24px;\n  background: rgba(255, 255, 255, 0.04);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 12px;\n  cursor: pointer;\n  transition: all 0.2s ease;\n  text-align: left;\n  color: inherit;\n  font-family: inherit;\n  font-size: 16px;\n}\n\n.menu-btn:hover {\n  background: rgba(14, 233, 231, 0.08);\n  border-color: rgba(14, 233, 231, 0.3);\n  transform: translateX(6px);\n}\n\n.menu-btn.primary {\n  background: rgba(14, 233, 231, 0.10);\n  border-color: rgba(14, 233, 231, 0.3);\n}\n\n.menu-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.18);\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.menu-btn .icon {\n  font-size: 26px;\n  margin-right: 18px;\n  width: 32px;\n  text-align: center;\n  flex-shrink: 0;\n}\n\n.menu-btn .label-group {\n  display: flex;\n  flex-direction: column;\n}\n\n.menu-btn .label {\n  color: #fff;\n  font-size: 20px;\n  font-weight: 600;\n}\n\n.menu-btn .desc {\n  color: #666;\n  font-size: 13px;\n  margin-top: 3px;\n}\n\n.start-footer {\n  margin-top: 40px;\n}\n\n.hint {\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EDITOR SCREEN                               */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"editor\"] {\n  top: 8vh;\n  left: 6vw;\n  width: 88vw;\n  height: 84vh;\n  flex-direction: column;\n  background: #12121a;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* ─── Toolbar ────────────────────────────────────────────────────────── */\n\n#editor-toolbar {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 8px 12px;\n  background: #1a1a24;\n  border-bottom: 1px solid #2a2a3a;\n  flex-shrink: 0;\n  min-height: 56px;\n}\n\n.toolbar-section {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n}\n\n.toolbar-section label {\n  font-size: 13px;\n  color: #888;\n  margin-left: 8px;\n  margin-right: 4px;\n  white-space: nowrap;\n}\n\n.toolbar-divider {\n  width: 1px;\n  height: 28px;\n  background: #2a2a3a;\n  margin: 0 6px;\n}\n\n.toolbar-spacer {\n  flex: 1;\n}\n\n.tool-btn,\n.action-btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  min-width: 60px;\n  height: 40px;\n  padding: 0 10px;\n  border: 1px solid transparent;\n  border-radius: 6px;\n  background: transparent;\n  color: #aaa;\n  cursor: pointer;\n  font-size: 13px;\n  font-weight: 600;\n  transition: all 0.15s ease;\n  font-family: inherit;\n  white-space: nowrap;\n}\n\n.tool-btn:hover,\n.action-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.tool-btn.active {\n  background: rgba(14, 233, 231, 0.15);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n}\n\n.color-picker {\n  width: 30px;\n  height: 30px;\n  border: 1px solid #444;\n  border-radius: 6px;\n  cursor: pointer;\n  background: none;\n  padding: 2px;\n}\n\n.color-picker::-webkit-color-swatch-wrapper {\n  padding: 0;\n}\n\n.color-picker::-webkit-color-swatch {\n  border: none;\n  border-radius: 4px;\n}\n\n.size-input {\n  width: 56px;\n  height: 36px;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 6px;\n  text-align: center;\n  font-family: inherit;\n}\n\n.size-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n/* ─── Canvas area ────────────────────────────────────────────────────── */\n\n#canvas-container {\n  flex: 1;\n  overflow: hidden;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 20px;\n  background: #0a0a10;\n  position: relative;\n}\n\n#canvas-preview {\n  position: relative;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* Canvas elements (rendered from document.elements) */\n.canvas-element {\n  position: absolute;\n  box-sizing: border-box;\n  cursor: pointer;\n  transition: opacity 0.1s ease;\n}\n\n.canvas-element:hover {\n  opacity: 0.85;\n}\n\n.canvas-element.selected {\n  outline: 2px solid rgba(14, 233, 231, 0.9);\n  outline-offset: 2px;\n}\n\n/* Selection handles */\n.resize-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #0ee9e7;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.resize-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.resize-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.resize-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.resize-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.resize-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.resize-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n/* ─── Properties panel ──────────────────────────────────────────────── */\n\n#properties-panel {\n  position: absolute;\n  right: 12px;\n  top: 72px;\n  width: 260px;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 50;\n  overflow: hidden;\n  display: none;\n}\n\n#properties-panel.visible {\n  display: block;\n}\n\n.panel-header {\n  padding: 10px 14px;\n  background: #1e1e2a;\n  border-bottom: 1px solid #2a2a3a;\n  font-weight: 600;\n  font-size: 13px;\n  color: #aaa;\n}\n\n.panel-content {\n  padding: 12px;\n}\n\n.prop-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-bottom: 10px;\n}\n\n.prop-row.vertical {\n  flex-direction: column;\n  align-items: flex-start;\n}\n\n.prop-row label {\n  font-size: 12px;\n  color: #777;\n  min-width: 28px;\n}\n\n.prop-input {\n  flex: 1;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 6px;\n  font-family: inherit;\n}\n\n.prop-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-color {\n  width: 32px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  cursor: pointer;\n  background: none;\n  padding: 1px;\n}\n\n.prop-textarea {\n  width: 100%;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 6px;\n  font-family: inherit;\n  resize: vertical;\n}\n\n.prop-textarea:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-delete {\n  width: 100%;\n  padding: 8px;\n  background: rgba(255, 70, 70, 0.12);\n  border: 1px solid rgba(255, 70, 70, 0.3);\n  border-radius: 6px;\n  color: #ff6666;\n  cursor: pointer;\n  font-size: 13px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.prop-delete:hover {\n  background: rgba(255, 70, 70, 0.22);\n  border-color: rgba(255, 70, 70, 0.5);\n}\n\n/* ─── Status bar ────────────────────────────────────────────────────── */\n\n#editor-statusbar {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 8px 12px;\n  background: #1a1a24;\n  border-top: 1px solid #2a2a3a;\n  flex-shrink: 0;\n  min-height: 60px;\n}\n\n.statusbar-left,\n.statusbar-right {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n\n.statusbar-center {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n}\n\n.status-btn {\n  min-width: 140px;\n  height: 40px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  padding: 0 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 15px;\n  font-weight: 600;\n  font-family: inherit;\n  transition: all 0.15s ease;\n  white-space: nowrap;\n}\n\n.status-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.status-btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.status-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.status-btn.danger {\n  background: rgba(255, 70, 70, 0.08);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.status-btn.danger:hover {\n  background: rgba(255, 70, 70, 0.18);\n}\n\n.status-mode {\n  font-size: 15px;\n  color: #0ee9e7;\n  font-weight: 600;\n}\n\n.status-hint {\n  font-size: 13px;\n  color: #555;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           DIALOGS                                     */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.dialog-overlay {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  background: rgba(0, 0, 0, 0.7);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 100000;\n}\n\n.dialog {\n  background: #1e1e2a;\n  border: 1px solid #3a3a4a;\n  border-radius: 12px;\n  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);\n  width: 420px;\n  max-width: 90vw;\n  max-height: 80vh;\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n}\n\n.dialog-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 16px 20px;\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.dialog-header h3 {\n  margin: 0;\n  font-size: 18px;\n  color: #fff;\n  font-weight: 600;\n}\n\n.dialog-close {\n  width: 28px;\n  height: 28px;\n  border: none;\n  background: none;\n  color: #777;\n  font-size: 20px;\n  cursor: pointer;\n  border-radius: 4px;\n}\n\n.dialog-close:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.dialog-content {\n  padding: 20px;\n  overflow-y: auto;\n}\n\n.dialog-footer {\n  display: flex;\n  align-items: center;\n  justify-content: flex-end;\n  gap: 10px;\n  padding: 14px 20px;\n  border-top: 1px solid #2a2a3a;\n}\n\n.dialog-footer.centered {\n  justify-content: center;\n}\n\n/* Script list in load dialog */\n.script-list {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  max-height: 300px;\n  overflow-y: auto;\n}\n\n.script-item {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 10px 14px;\n  background: rgba(255, 255, 255, 0.03);\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  cursor: pointer;\n  transition: all 0.15s ease;\n}\n\n.script-item:hover {\n  background: rgba(14, 233, 231, 0.06);\n  border-color: rgba(14, 233, 231, 0.2);\n}\n\n.script-item .script-name {\n  font-size: 14px;\n  color: #ddd;\n}\n\n.script-item .script-meta {\n  font-size: 11px;\n  color: #666;\n}\n\n/* Save As dialog input */\n.saveas-input {\n  width: 100%;\n  height: 36px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 12px;\n  font-family: inherit;\n  margin-top: 8px;\n}\n\n.saveas-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.save-note {\n  font-size: 12px;\n  color: #666;\n  margin-top: 8px;\n}\n\n/* Confirm dialog icon */\n.confirm-icon {\n  font-size: 36px;\n  text-align: center;\n  margin-bottom: 8px;\n}\n\n/* ─── Dialog buttons ─────────────────────────────────────────────────── */\n\n.btn {\n  padding: 8px 20px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 14px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.btn.danger {\n  background: rgba(255, 70, 70, 0.10);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.btn.danger:hover {\n  background: rgba(255, 70, 70, 0.20);\n}\n\n.btn.secondary {\n  background: rgba(255, 255, 255, 0.04);\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EMPTY STATE                                 */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.empty-state {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  color: #444;\n  font-size: 16px;\n  gap: 12px;\n}\n\n.empty-state .icon {\n  font-size: 48px;\n  opacity: 0.3;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           TOAST NOTIFICATIONS                         */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.toast-container {\n  position: fixed;\n  top: 50%;\n  left: 50%;\n  transform: translate(-50%, -50%);\n  z-index: 200000;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  align-items: center;\n  pointer-events: none;\n}\n\n.toast {\n  padding: 10px 20px;\n  background: #2a2a3a;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  color: #ccc;\n  font-size: 13px;\n  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);\n  animation: toast-in 0.3s ease;\n  transition: opacity 0.25s ease, transform 0.25s ease;\n  pointer-events: auto;\n}\n\n.toast.success {\n  border-color: rgba(50, 200, 100, 0.4);\n  background: rgba(50, 200, 100, 0.1);\n  color: #6fd898;\n}\n\n.toast.error {\n  border-color: rgba(255, 70, 70, 0.4);\n  background: rgba(255, 70, 70, 0.1);\n  color: #ff8888;\n}\n\n.toast.info {\n  border-color: rgba(14, 233, 231, 0.3);\n  background: rgba(14, 233, 231, 0.08);\n  color: #0ee9e7;\n}\n\n@keyframes toast-in {\n  from { opacity: 0; transform: translateY(10px); }\n  to { opacity: 1; transform: translateY(0); }\n}\n";
+  style.textContent = "/* hud-editor.css - All HUD Editor styles\n   Project: D:\\\\github\\\\du-tobi\\\\live_lua_coding\\\\examples\\\\hud_editor_v1\n   Self-contained - does NOT use ModUiExtractor core styles\n*/\n\n/* ─── Root container ────────────────────────────────────────────────── */\n\n#hud-editor-root {\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n  z-index: 99999;\n  pointer-events: none;\n  font-family: 'Rajdhani', 'Segoe UI', Tahoma, sans-serif;\n  font-size: 14px;\n  color: #ccc;\n  background: rgba(0, 0, 0, 0.70);\n  display: none;\n  overflow: hidden;\n}\n\n#hud-editor-root[style*=\"block\"] {\n  pointer-events: auto;\n}\n\n/* ─── Screens ────────────────────────────────────────────────────────── */\n\n.hud-screen {\n  display: none;\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n}\n\n.hud-screen.active {\n  display: flex;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           START SCREEN                                */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"start\"] {\n  width: 80vw;\n  height: 80vh;\n  top: 10vh;\n  left: 10vw;\n  align-items: center;\n  justify-content: center;\n  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);\n  overflow: auto;\n}\n\n.start-container {\n  text-align: center;\n  max-width: 520px;\n  padding: 48px;\n}\n\n.start-header h1 {\n  font-size: 52px;\n  font-weight: 700;\n  color: #fff;\n  margin: 0 0 8px 0;\n  text-shadow: 0 0 30px rgba(14, 233, 231, 0.4);\n  letter-spacing: 1px;\n}\n\n.start-header .subtitle {\n  color: #777;\n  font-size: 18px;\n  margin: 0 0 48px 0;\n}\n\n.start-menu {\n  display: flex;\n  flex-direction: column;\n  gap: 14px;\n}\n\n.menu-btn {\n  display: flex;\n  align-items: center;\n  width: 100%;\n  padding: 18px 24px;\n  background: rgba(255, 255, 255, 0.04);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 12px;\n  cursor: pointer;\n  transition: all 0.2s ease;\n  text-align: left;\n  color: inherit;\n  font-family: inherit;\n  font-size: 16px;\n}\n\n.menu-btn:hover {\n  background: rgba(14, 233, 231, 0.08);\n  border-color: rgba(14, 233, 231, 0.3);\n  transform: translateX(6px);\n}\n\n.menu-btn.primary {\n  background: rgba(14, 233, 231, 0.10);\n  border-color: rgba(14, 233, 231, 0.3);\n}\n\n.menu-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.18);\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.menu-btn .icon {\n  font-size: 26px;\n  margin-right: 18px;\n  width: 32px;\n  text-align: center;\n  flex-shrink: 0;\n}\n\n.menu-btn .label-group {\n  display: flex;\n  flex-direction: column;\n}\n\n.menu-btn .label {\n  color: #fff;\n  font-size: 20px;\n  font-weight: 600;\n}\n\n.menu-btn .desc {\n  color: #666;\n  font-size: 13px;\n  margin-top: 3px;\n}\n\n.start-footer {\n  margin-top: 40px;\n}\n\n.hint {\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EDITOR SCREEN                               */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"editor\"] {\n  top: 8vh;\n  left: 6vw;\n  width: 88vw;\n  height: 84vh;\n  flex-direction: column;\n  background: #12121a;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* ─── Toolbar ────────────────────────────────────────────────────────── */\n\n#editor-toolbar {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  padding: 5px 10px;\n  background: linear-gradient(180deg, #1c1c28 0%, #16161e 100%);\n  border-bottom: 1px solid #0e0e14;\n  flex-shrink: 0;\n  height: 44px;\n}\n\n.toolbar-group {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n}\n\n.toolbar-divider {\n  width: 1px;\n  height: 26px;\n  background: linear-gradient(180deg, transparent 0%, #2a2a3a 30%, #2a2a3a 70%, transparent 100%);\n  margin: 0 8px;\n}\n\n.toolbar-spacer {\n  flex: 1;\n}\n\n/* Tool & action buttons — bordered, recessed panel look */\n.tool-btn,\n.action-btn {\n  position: relative;\n  display: inline-flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  width: 36px;\n  height: 34px;\n  padding: 0;\n  border: 1px solid #2a2a36;\n  border-radius: 5px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  color: #6b7080;\n  cursor: pointer;\n  transition: all 0.12s ease;\n  font-family: inherit;\n}\n\n.tool-btn:hover,\n.action-btn:hover {\n  background: linear-gradient(180deg, #2a2a38 0%, #22222e 100%);\n  border-color: #3a3a4a;\n  color: #b0b8c8;\n}\n\n.tool-btn:active,\n.action-btn:active {\n  background: linear-gradient(180deg, #181822 0%, #1e1e28 100%);\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);\n}\n\n.tool-btn.active {\n  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);\n}\n\n/* Icon shape — rendered via CSS */\n.tb-icon {\n  display: block;\n  width: 16px;\n  height: 16px;\n  position: relative;\n}\n\n/* Select tool — mouse pointer arrow */\n.tb-icon-select::before {\n  content: \"\";\n  position: absolute;\n  top: 1px;\n  left: 4px;\n  width: 0;\n  height: 0;\n  border-style: solid;\n  border-width: 12px 4.5px 0 4.5px;\n  border-color: currentColor transparent transparent transparent;\n}\n\n.tb-icon-select::after {\n  content: \"\";\n  position: absolute;\n  top: 10px;\n  left: 6px;\n  width: 2px;\n  height: 5px;\n  background: currentColor;\n  transform: rotate(-15deg);\n  transform-origin: top center;\n}\n\n/* Box tool — rectangle outline */\n.tb-icon-box::before {\n  content: \"\";\n  position: absolute;\n  inset: 1px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Rounded box — rounded rectangle outline */\n.tb-icon-rounded::before {\n  content: \"\";\n  position: absolute;\n  inset: 1px;\n  border: 1.5px solid currentColor;\n  border-radius: 4px;\n}\n\n/* Circle tool */\n.tb-icon-circle::before {\n  content: \"\";\n  position: absolute;\n  inset: 1px;\n  border: 1.5px solid currentColor;\n  border-radius: 50%;\n}\n\n/* Line tool — diagonal */\n.tb-icon-line::before {\n  content: \"\";\n  position: absolute;\n  top: 7px;\n  left: 0;\n  width: 18px;\n  height: 0;\n  border-top: 1.5px solid currentColor;\n  transform: rotate(-35deg);\n  transform-origin: center;\n}\n\n/* Text tool */\n.tb-icon-text::before {\n  content: \"T\";\n  position: absolute;\n  inset: 0;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-size: 13px;\n  font-weight: 700;\n  font-family: inherit;\n  color: currentColor;\n}\n\n/* Alignment icons — bar + rectangle pattern */\n.tb-icon-align-left::before,\n.tb-icon-align-right::before,\n.tb-icon-align-center-h::before,\n.tb-icon-align-top::before,\n.tb-icon-align-bottom::before,\n.tb-icon-align-center-v::before {\n  content: \"\";\n  position: absolute;\n  background: currentColor;\n}\n\n.tb-icon-align-left::after,\n.tb-icon-align-right::after,\n.tb-icon-align-center-h::after,\n.tb-icon-align-top::after,\n.tb-icon-align-bottom::after,\n.tb-icon-align-center-v::after {\n  content: \"\";\n  position: absolute;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Align left:  bar on left edge, rect offset right */\n.tb-icon-align-left::before  { left: 0; top: 0; width: 1.5px; height: 16px; }\n.tb-icon-align-left::after   { left: 3px; top: 50%; width: 10px; height: 8px; transform: translateY(-50%); }\n\n/* Align right: bar on right edge, rect offset left */\n.tb-icon-align-right::before { right: 0; top: 0; width: 1.5px; height: 16px; }\n.tb-icon-align-right::after  { right: 3px; top: 50%; width: 10px; height: 8px; transform: translateY(-50%); }\n\n/* Align center horizontal: bar centered, rect centered */\n.tb-icon-align-center-h::before { left: 50%; top: 0; width: 1.5px; height: 16px; transform: translateX(-50%); }\n.tb-icon-align-center-h::after  { left: 50%; top: 50%; width: 10px; height: 8px; transform: translate(-50%, -50%); }\n\n/* Align top: bar on top edge, rect offset down */\n.tb-icon-align-top::before { top: 0; left: 0; height: 1.5px; width: 16px; }\n.tb-icon-align-top::after  { top: 3px; left: 50%; width: 8px; height: 10px; transform: translateX(-50%); }\n\n/* Align bottom: bar on bottom edge, rect offset up */\n.tb-icon-align-bottom::before { bottom: 0; left: 0; height: 1.5px; width: 16px; }\n.tb-icon-align-bottom::after  { bottom: 3px; left: 50%; width: 8px; height: 10px; transform: translateX(-50%); }\n\n/* Align center vertical: bar centered, rect centered */\n.tb-icon-align-center-v::before { top: 50%; left: 0; height: 1.5px; width: 16px; transform: translateY(-50%); }\n.tb-icon-align-center-v::after  { top: 50%; left: 50%; width: 8px; height: 10px; transform: translate(-50%, -50%); }\n\n/* Keyboard hint */\n.tb-key {\n  font-size: 8px;\n  line-height: 1;\n  font-weight: 600;\n  letter-spacing: 0.3px;\n  opacity: 0.35;\n  margin-top: 0;\n}\n\n.tool-btn.active .tb-key {\n  opacity: 0.65;\n}\n\n/* Action buttons (undo/redo) */\n.action-btn {\n  width: 32px;\n  height: 32px;\n}\n\n.action-btn .tb-icon {\n  font-size: 15px;\n  width: auto;\n  height: auto;\n}\n\n/* ─── Color swatches ─────────────────────────────────────────────────── */\n\n.toolbar-group.colors {\n  gap: 10px;\n}\n\n.swatch-pair {\n  display: flex;\n  align-items: center;\n  gap: 5px;\n}\n\n.swatch-label {\n  font-size: 10px;\n  font-weight: 600;\n  color: #4a4f5e;\n  text-transform: uppercase;\n  letter-spacing: 0.5px;\n}\n\n.color-swatch {\n  width: 24px;\n  height: 24px;\n  border: 1px solid #2a2a36;\n  border-radius: 4px;\n  cursor: pointer;\n  background: none;\n  padding: 2px;\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  transition: border-color 0.12s ease;\n}\n\n.color-swatch:hover {\n  border-color: #4a4a5a;\n}\n\n.color-swatch::-webkit-color-swatch-wrapper {\n  padding: 0;\n}\n\n.color-swatch::-webkit-color-swatch {\n  border: none;\n  border-radius: 2px;\n}\n\n.size-input {\n  width: 56px;\n  height: 36px;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 6px;\n  text-align: center;\n  font-family: inherit;\n}\n\n.size-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n/* ─── Canvas area ────────────────────────────────────────────────────── */\n\n#canvas-container {\n  flex: 1;\n  overflow: hidden;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 20px;\n  background: #0a0a10;\n  position: relative;\n}\n\n#canvas-preview {\n  position: relative;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* Canvas elements (rendered from document.elements) */\n.canvas-element {\n  position: absolute;\n  box-sizing: border-box;\n  cursor: pointer;\n  transition: opacity 0.1s ease;\n}\n\n.canvas-element:hover {\n  opacity: 0.85;\n}\n\n.canvas-element.selected {\n  outline: 2px solid rgba(14, 233, 231, 0.9);\n  outline-offset: 2px;\n  cursor: move;\n}\n\n/* Selection handles */\n.resize-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #0ee9e7;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.resize-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.resize-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.resize-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.resize-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.resize-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.resize-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n/* ─── Layers / shapes panel ────────────────────────────────────────── */\n\n#shapes-panel {\n  position: absolute;\n  right: 12px;\n  top: 72px;\n  width: 240px;\n  min-width: 180px;\n  min-height: 80px;\n  max-height: 60vh;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow: hidden;\n  resize: both;\n  display: none;\n  flex-direction: column;\n}\n\n#shapes-panel.visible {\n  display: flex;\n}\n\n.shapes-list {\n  flex: 1;\n  overflow-y: auto;\n  overflow-x: hidden;\n  padding: 4px 0;\n}\n\n.layers-empty {\n  padding: 16px;\n  text-align: center;\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* Layer item row */\n.layer-item {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 5px 8px;\n  cursor: pointer;\n  transition: background 0.1s ease;\n  border-left: 3px solid transparent;\n}\n\n.layer-item:hover {\n  background: rgba(255, 255, 255, 0.04);\n}\n\n.layer-item.selected {\n  background: rgba(14, 233, 231, 0.10);\n  border-left-color: #0ee9e7;\n}\n\n.layer-icon {\n  width: 18px;\n  text-align: center;\n  font-size: 14px;\n  color: #666;\n  flex-shrink: 0;\n}\n\n.layer-item.selected .layer-icon {\n  color: #0ee9e7;\n}\n\n.layer-name {\n  flex: 1;\n  font-size: 12px;\n  color: #aaa;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.layer-item.selected .layer-name {\n  color: #ddd;\n}\n\n/* Layer action buttons (visibility, z-order) */\n.layer-btn {\n  width: 22px;\n  height: 22px;\n  border: none;\n  background: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 12px;\n  border-radius: 3px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  flex-shrink: 0;\n  padding: 0;\n  transition: all 0.1s ease;\n}\n\n.layer-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #ccc;\n}\n\n/* Visibility eye toggle */\n.layer-vis {\n  font-size: 11px;\n  width: 20px;\n}\n\n.layer-vis::before {\n  content: \"\";\n  display: block;\n  width: 14px;\n  height: 10px;\n  border: 2px solid #0ee9e7;\n  border-radius: 75% / 100%;\n  position: relative;\n  box-sizing: border-box;\n}\n\n.layer-vis::after {\n  content: \"\";\n  display: block;\n  width: 4px;\n  height: 4px;\n  border-radius: 50%;\n  background: #0ee9e7;\n  position: relative;\n  top: -8px;\n  left: 5px;\n}\n\n.layer-vis.off::before {\n  border-color: #333;\n}\n\n.layer-vis.off::after {\n  background: #333;\n}\n\n/* Z-order arrows */\n.layer-z {\n  font-size: 14px;\n  min-width: 22px;\n  min-height: 22px;\n  color: #555;\n}\n\n.layer-z:hover {\n  color: #0ee9e7;\n  background: rgba(14, 233, 231, 0.08);\n}\n\n/* ─── Properties panel ──────────────────────────────────────────────── */\n\n#properties-panel {\n  position: absolute;\n  left: 12px;\n  top: 72px;\n  width: 340px;\n  min-width: 280px;\n  min-height: 80px;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow-x: hidden;\n  overflow-y: auto;\n  resize: both;\n  display: none;\n}\n\n#properties-panel.visible {\n  display: block;\n}\n\n.panel-header {\n  display: flex;\n  align-items: center;\n  padding: 10px 14px;\n  background: #1e1e2a;\n  border-bottom: 1px solid #2a2a3a;\n  font-weight: 600;\n  font-size: 13px;\n  color: #aaa;\n  cursor: grab;\n  user-select: none;\n}\n\n.panel-header:active {\n  cursor: grabbing;\n}\n\n/* Collapse / expand toggle */\n.panel-toggle {\n  margin-left: auto;\n  background: none;\n  border: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 14px;\n  padding: 0 2px;\n  line-height: 1;\n  border-radius: 3px;\n  transition: color 0.1s ease;\n}\n\n.panel-toggle:hover {\n  color: #ccc;\n}\n\n/* Collapsed state — hide content, disable resize */\n#properties-panel.collapsed .panel-content,\n#shapes-panel.collapsed .shapes-list {\n  display: none !important;\n}\n\n#properties-panel.collapsed,\n#shapes-panel.collapsed {\n  resize: none;\n  min-height: auto;\n}\n\n#properties-panel.collapsed .panel-header,\n#shapes-panel.collapsed .panel-header {\n  border-bottom: none;\n}\n\n.panel-content {\n  padding: 12px;\n}\n\n.prop-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-bottom: 10px;\n}\n\n.prop-row.vertical {\n  flex-direction: column;\n  align-items: flex-start;\n}\n\n.prop-row label {\n  font-size: 12px;\n  color: #777;\n  min-width: 28px;\n}\n\n.prop-input {\n  width: 72px;\n  flex: 0 0 72px;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 6px;\n  font-family: inherit;\n  text-align: right;\n}\n\n.prop-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-color {\n  width: 32px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  cursor: pointer;\n  background: none;\n  padding: 1px;\n}\n\n.prop-textarea {\n  width: 100%;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 6px;\n  font-family: inherit;\n  resize: vertical;\n}\n\n.prop-textarea:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-delete {\n  width: 100%;\n  padding: 8px;\n  background: rgba(255, 70, 70, 0.12);\n  border: 1px solid rgba(255, 70, 70, 0.3);\n  border-radius: 6px;\n  color: #ff6666;\n  cursor: pointer;\n  font-size: 13px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.prop-delete:hover {\n  background: rgba(255, 70, 70, 0.22);\n  border-color: rgba(255, 70, 70, 0.5);\n}\n\n/* ─── Status bar ────────────────────────────────────────────────────── */\n\n#editor-statusbar {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 8px 12px;\n  background: #1a1a24;\n  border-top: 1px solid #2a2a3a;\n  flex-shrink: 0;\n  min-height: 60px;\n}\n\n.statusbar-left,\n.statusbar-right {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n\n.statusbar-center {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n}\n\n.status-btn {\n  min-width: 140px;\n  height: 40px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  padding: 0 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 15px;\n  font-weight: 600;\n  font-family: inherit;\n  transition: all 0.15s ease;\n  white-space: nowrap;\n}\n\n.status-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.status-btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.status-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.status-btn.danger {\n  background: rgba(255, 70, 70, 0.08);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.status-btn.danger:hover {\n  background: rgba(255, 70, 70, 0.18);\n}\n\n.status-mode {\n  font-size: 15px;\n  color: #0ee9e7;\n  font-weight: 600;\n}\n\n.status-hint {\n  font-size: 13px;\n  color: #555;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           DIALOGS                                     */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.dialog-overlay {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  background: rgba(0, 0, 0, 0.7);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 100000;\n}\n\n.dialog {\n  background: #1e1e2a;\n  border: 1px solid #3a3a4a;\n  border-radius: 12px;\n  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);\n  width: 420px;\n  max-width: 90vw;\n  max-height: 80vh;\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n}\n\n.dialog-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 16px 20px;\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.dialog-header h3 {\n  margin: 0;\n  font-size: 18px;\n  color: #fff;\n  font-weight: 600;\n}\n\n.dialog-close {\n  width: 28px;\n  height: 28px;\n  border: none;\n  background: none;\n  color: #777;\n  font-size: 20px;\n  cursor: pointer;\n  border-radius: 4px;\n}\n\n.dialog-close:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.dialog-content {\n  padding: 20px;\n  overflow-y: auto;\n}\n\n.dialog-footer {\n  display: flex;\n  align-items: center;\n  justify-content: flex-end;\n  gap: 10px;\n  padding: 14px 20px;\n  border-top: 1px solid #2a2a3a;\n}\n\n.dialog-footer.centered {\n  justify-content: center;\n}\n\n/* Script list in load dialog */\n.script-list {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  max-height: 300px;\n  overflow-y: auto;\n}\n\n.script-item {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 10px 14px;\n  background: rgba(255, 255, 255, 0.03);\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  cursor: pointer;\n  transition: all 0.15s ease;\n}\n\n.script-item:hover {\n  background: rgba(14, 233, 231, 0.06);\n  border-color: rgba(14, 233, 231, 0.2);\n}\n\n.script-item .script-name {\n  font-size: 14px;\n  color: #ddd;\n}\n\n.script-item .script-meta {\n  font-size: 11px;\n  color: #666;\n}\n\n/* Save As dialog input */\n.saveas-input {\n  width: 100%;\n  height: 36px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 12px;\n  font-family: inherit;\n  margin-top: 8px;\n}\n\n.saveas-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.save-note {\n  font-size: 12px;\n  color: #666;\n  margin-top: 8px;\n}\n\n/* Confirm dialog icon */\n.confirm-icon {\n  font-size: 36px;\n  text-align: center;\n  margin-bottom: 8px;\n}\n\n/* ─── Dialog buttons ─────────────────────────────────────────────────── */\n\n.btn {\n  padding: 8px 20px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 14px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.btn.danger {\n  background: rgba(255, 70, 70, 0.10);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.btn.danger:hover {\n  background: rgba(255, 70, 70, 0.20);\n}\n\n.btn.secondary {\n  background: rgba(255, 255, 255, 0.04);\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EMPTY STATE                                 */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.empty-state {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  color: #444;\n  font-size: 16px;\n  gap: 12px;\n}\n\n.empty-state .icon {\n  font-size: 48px;\n  opacity: 0.3;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           TOAST NOTIFICATIONS                         */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.toast-container {\n  position: fixed;\n  /* Below toolbar: editor starts at 8vh, toolbar ~56px tall */\n  top: calc(8vh + 64px);\n  left: 50%;\n  transform: translateX(-50%);\n  z-index: 200000;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  align-items: center;\n  pointer-events: none;\n}\n\n.toast {\n  padding: 10px 20px;\n  background: #2a2a3a;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  color: #ccc;\n  font-size: 13px;\n  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);\n  animation: toast-in 0.3s ease;\n  transition: opacity 0.25s ease, transform 0.25s ease;\n  pointer-events: auto;\n}\n\n.toast.success {\n  border-color: rgba(50, 200, 100, 0.4);\n  background: rgba(50, 200, 100, 0.1);\n  color: #6fd898;\n}\n\n.toast.error {\n  border-color: rgba(255, 70, 70, 0.4);\n  background: rgba(255, 70, 70, 0.1);\n  color: #ff8888;\n}\n\n.toast.info {\n  border-color: rgba(14, 233, 231, 0.3);\n  background: rgba(14, 233, 231, 0.08);\n  color: #0ee9e7;\n}\n\n@keyframes toast-in {\n  from { opacity: 0; transform: translateY(10px); }\n  to { opacity: 1; transform: translateY(0); }\n}\n\n/* ─── Stepper controls ───────────────────────────────────────────────── */\n\n.stepper-ctrl {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n  flex: 1;\n}\n\n.stepper-dec,\n.stepper-inc {\n  flex-shrink: 0;\n  width: 26px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  background: #12121a;\n  color: #ccc;\n  cursor: pointer;\n  font-size: 16px;\n  line-height: 1;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-family: inherit;\n}\n\n.stepper-dec:hover,\n.stepper-inc:hover {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n}\n\n.stepper-select {\n  flex: 1;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 4px;\n  font-family: inherit;\n  text-align: center;\n  cursor: pointer;\n}\n\n.stepper-select:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n";
   document.head.appendChild(style);
 })();
 // --- 000-core.js ---
@@ -40,6 +40,7 @@
     currentScreen: "start",
     currentTool: "select",
     selectedElementId: null,
+    selectedElementIds: [],
     isDirty: false,
     document: null,
     connectedScreen: false
@@ -569,6 +570,22 @@
   var qs = APP.qs;
   var qsa = APP.qsa;
 
+  // ─── Stepper builder ────────────────────────────────────────────────
+
+  var STROKE_PRESETS = [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20];
+  var RADIUS_PRESETS = [0, 2, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 50, 75, 100];
+
+  function buildStepper(prop, presets) {
+    var options = presets.map(function (v) {
+      return el("option", { value: String(v), textContent: String(v) });
+    });
+    return el("div", { className: "stepper-ctrl" }, [
+      el("button", { className: "stepper-dec", dataset: { stepperProp: prop }, textContent: "\u2212" }),
+      el("select", { className: "stepper-select", dataset: { prop: prop } }, options),
+      el("button", { className: "stepper-inc", dataset: { stepperProp: prop }, textContent: "+" }),
+    ]);
+  }
+
   // ─── Build editor shell DOM ──────────────────────────────────────────
 
   function buildEditorShell() {
@@ -581,69 +598,93 @@
       // ── Toolbar ──
       el("div", { id: "editor-toolbar" }, [
 
-        // Tool buttons
-        el("div", { className: "toolbar-section tools" }, [
-          el("button", { className: "tool-btn active", dataset: { tool: "select" }, title: "Select (V)", textContent: "Select" }),
-          el("button", { className: "tool-btn", dataset: { tool: "box" }, title: "Box (B)", textContent: "Box" }),
-          el("button", { className: "tool-btn", dataset: { tool: "rounded" }, title: "Rounded Box (R)", textContent: "Round" }),
-          el("button", { className: "tool-btn", dataset: { tool: "circle" }, title: "Circle (C)", textContent: "Circle" }),
-          el("button", { className: "tool-btn", dataset: { tool: "line" }, title: "Line (L)", textContent: "Line" }),
-          el("button", { className: "tool-btn", dataset: { tool: "text" }, title: "Text (T)", textContent: "Text" }),
+        // Tool buttons — SVG icon + key hint
+        el("div", { className: "toolbar-group" }, [
+          el("button", { className: "tool-btn active", dataset: { tool: "select" }, title: "Select (V)" }, [
+            el("span", { className: "tb-icon tb-icon-select" }),
+            el("span", { className: "tb-key", textContent: "V" }),
+          ]),
+          el("button", { className: "tool-btn", dataset: { tool: "box" }, title: "Box (B)" }, [
+            el("span", { className: "tb-icon tb-icon-box" }),
+            el("span", { className: "tb-key", textContent: "B" }),
+          ]),
+          el("button", { className: "tool-btn", dataset: { tool: "rounded" }, title: "Rounded Box (R)" }, [
+            el("span", { className: "tb-icon tb-icon-rounded" }),
+            el("span", { className: "tb-key", textContent: "R" }),
+          ]),
+          el("button", { className: "tool-btn", dataset: { tool: "circle" }, title: "Circle (C)" }, [
+            el("span", { className: "tb-icon tb-icon-circle" }),
+            el("span", { className: "tb-key", textContent: "C" }),
+          ]),
+          el("button", { className: "tool-btn", dataset: { tool: "line" }, title: "Line (L)" }, [
+            el("span", { className: "tb-icon tb-icon-line" }),
+            el("span", { className: "tb-key", textContent: "L" }),
+          ]),
+          el("button", { className: "tool-btn", dataset: { tool: "text" }, title: "Text (T)" }, [
+            el("span", { className: "tb-icon tb-icon-text" }),
+            el("span", { className: "tb-key", textContent: "T" }),
+          ]),
         ]),
 
         el("div", { className: "toolbar-divider" }),
 
-        // Color pickers
-        el("div", { className: "toolbar-section colors" }, [
-          el("label", { textContent: "Fill" }),
-          el("input", {
-            type: "color",
-            className: "color-picker",
-            value: "#3366FF",
-            dataset: { prop: "fill" },
-          }),
-          el("label", { textContent: "Stroke" }),
-          el("input", {
-            type: "color",
-            className: "color-picker",
-            value: "#FFFFFF",
-            dataset: { prop: "stroke" },
-          }),
+        // Color swatches
+        el("div", { className: "toolbar-group colors" }, [
+          el("div", { className: "swatch-pair" }, [
+            el("input", {
+              type: "color",
+              className: "color-swatch",
+              value: "#3366FF",
+              title: "Fill color",
+              dataset: { prop: "fill" },
+            }),
+            el("span", { className: "swatch-label", textContent: "Fill" }),
+          ]),
+          el("div", { className: "swatch-pair" }, [
+            el("input", {
+              type: "color",
+              className: "color-swatch",
+              value: "#FFFFFF",
+              title: "Stroke color",
+              dataset: { prop: "stroke" },
+            }),
+            el("span", { className: "swatch-label", textContent: "Stroke" }),
+          ]),
         ]),
 
         el("div", { className: "toolbar-divider" }),
 
-        // Size inputs
-        el("div", { className: "toolbar-section size" }, [
-          el("label", { textContent: "Stroke W" }),
-          el("input", {
-            type: "number",
-            className: "size-input",
-            value: "2",
-            min: "0",
-            max: "20",
-            dataset: { prop: "strokeWidth" },
-          }),
-          el("label", { textContent: "Radius" }),
-          el("input", {
-            type: "number",
-            className: "size-input",
-            value: "12",
-            min: "0",
-            max: "200",
-            dataset: { prop: "radius" },
-          }),
+        // Alignment
+        el("div", { className: "toolbar-group align-group" }, [
+          el("button", { className: "action-btn", dataset: { action: "align-left" }, title: "Align left" }, [
+            el("span", { className: "tb-icon tb-icon-align-left" }),
+          ]),
+          el("button", { className: "action-btn", dataset: { action: "align-center-h" }, title: "Align center horizontal" }, [
+            el("span", { className: "tb-icon tb-icon-align-center-h" }),
+          ]),
+          el("button", { className: "action-btn", dataset: { action: "align-right" }, title: "Align right" }, [
+            el("span", { className: "tb-icon tb-icon-align-right" }),
+          ]),
+          el("button", { className: "action-btn", dataset: { action: "align-top" }, title: "Align top" }, [
+            el("span", { className: "tb-icon tb-icon-align-top" }),
+          ]),
+          el("button", { className: "action-btn", dataset: { action: "align-center-v" }, title: "Align center vertical" }, [
+            el("span", { className: "tb-icon tb-icon-align-center-v" }),
+          ]),
+          el("button", { className: "action-btn", dataset: { action: "align-bottom" }, title: "Align bottom" }, [
+            el("span", { className: "tb-icon tb-icon-align-bottom" }),
+          ]),
         ]),
 
         el("div", { className: "toolbar-spacer" }),
 
         // Undo/Redo
-        el("div", { className: "toolbar-section actions" }, [
+        el("div", { className: "toolbar-group actions" }, [
           el("button", { className: "action-btn", dataset: { action: "undo" }, title: "Undo (Ctrl+Z)" }, [
-            el("span", { textContent: "\u21A9" }),
+            el("span", { className: "tb-icon", textContent: "\u21A9" }),
           ]),
           el("button", { className: "action-btn", dataset: { action: "redo" }, title: "Redo (Ctrl+Y)" }, [
-            el("span", { textContent: "\u21AA" }),
+            el("span", { className: "tb-icon", textContent: "\u21AA" }),
           ]),
         ]),
       ]),
@@ -657,6 +698,7 @@
       el("div", { id: "properties-panel", className: "docked-panel" }, [
         el("div", { className: "panel-header" }, [
           el("span", { textContent: "Properties" }),
+          el("button", { className: "panel-toggle", dataset: { action: "toggle-collapse" }, textContent: "\u25BE" }),
         ]),
         el("div", { className: "panel-content" }, [
           el("div", { className: "prop-row" }, [
@@ -681,11 +723,11 @@
           ]),
           el("div", { className: "prop-row" }, [
             el("label", { textContent: "Stroke W" }),
-            el("input", { type: "number", className: "prop-input", dataset: { prop: "strokeWidth" } }),
+            buildStepper("strokeWidth", STROKE_PRESETS),
           ]),
-          el("div", { className: "prop-row" }, [
+          el("div", { className: "prop-row", dataset: { propRow: "radius" } }, [
             el("label", { textContent: "Radius" }),
-            el("input", { type: "number", className: "prop-input", dataset: { prop: "radius" } }),
+            buildStepper("radius", RADIUS_PRESETS),
           ]),
           el("div", { className: "prop-row vertical" }, [
             el("label", { textContent: "Text" }),
@@ -766,6 +808,12 @@
     else if (action === "close") APP.emit("close-editor");
     else if (action === "delete-element" && APP.state.selectedElementId) {
       APP.emit("delete-element", APP.state.selectedElementId);
+    }
+    else if (action.indexOf("align-") === 0) {
+      APP.emit("align", action.replace("align-", ""));
+    }
+    else if (action === "toggle-collapse") {
+      APP.emit("toggle-props-collapse");
     }
   }
 
@@ -999,11 +1047,18 @@
         dom.style.border = strokeWidth + "px solid " + stroke;
         dom.style.boxSizing = "border-box";
     }
+
+    // Hide element when visibility is off; restore when toggled back
+    if (element.visible === false) {
+      dom.style.display = "none";
+    } else if (dom.style.display === "none") {
+      dom.style.display = "";
+    }
   }
 
   // ─── Selection overlay ─────────────────────────────────────────────
 
-  function createSelectionOverlay(element) {
+  function createSelectionOverlay(element, showHandles) {
     var overlay = el("div", {
       className: "selection-overlay",
       dataset: { elementId: element.id + "_sel" },
@@ -1013,15 +1068,17 @@
     var outline = el("div", { className: "selection-outline" });
     overlay.appendChild(outline);
 
-    // 8 resize handles
-    var handles = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
-    handles.forEach(function (h) {
-      var handle = el("div", {
-        className: "resize-handle",
-        dataset: { h: h, elementId: element.id },
+    // 8 resize handles — only for focus element
+    if (showHandles !== false) {
+      var handles = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+      handles.forEach(function (h) {
+        var handle = el("div", {
+          className: "resize-handle",
+          dataset: { h: h, elementId: element.id },
+        });
+        overlay.appendChild(handle);
       });
-      overlay.appendChild(handle);
-    });
+    }
 
     // Size/position the overlay
     var pos = screenToCanvas(element.x, element.y);
@@ -1088,12 +1145,15 @@
       preview.appendChild(dom);
     });
 
-    // Render selection if something is selected
+    // Render selection overlays for all selected elements
     clearSelectionOverlays();
-    if (APP.state.selectedElementId) {
-      var selectedEl = findElementById(APP.state.selectedElementId);
-      if (selectedEl) {
-        var overlay = createSelectionOverlay(selectedEl);
+    var selIds = APP.state.selectedElementIds || [];
+    var focusId = APP.state.selectedElementId;
+    for (var si = 0; si < selIds.length; si++) {
+      var selEl = findElementById(selIds[si]);
+      if (selEl) {
+        var isFocus = selIds[si] === focusId;
+        var overlay = createSelectionOverlay(selEl, isFocus);
         preview.appendChild(overlay);
       }
     }
@@ -1168,11 +1228,16 @@
 
     applyElementStyles(dom, element);
 
-    // Update selection overlay if selected
+    // Rebuild all selection overlays
     clearSelectionOverlays();
-    if (APP.state.selectedElementId === elementId) {
-      var overlay = createSelectionOverlay(element);
-      preview.appendChild(overlay);
+    var selIds = APP.state.selectedElementIds || [];
+    var focusId = APP.state.selectedElementId;
+    for (var si = 0; si < selIds.length; si++) {
+      var selEl = findElementById(selIds[si]);
+      if (selEl) {
+        var ov = createSelectionOverlay(selEl, selIds[si] === focusId);
+        preview.appendChild(ov);
+      }
     }
   }
 
@@ -1365,6 +1430,7 @@
     var element = {
       id: generateId(),
       type: type,
+      visible: true,
       x: Math.max(0, Math.min(screenX - defaultSize / 2, sw - defaultSize)),
       y: Math.max(0, Math.min(screenY - defaultSize / 2, sh - defaultSize)),
       w: defaultSize,
@@ -1549,13 +1615,23 @@
 })();
 
 // --- 050-selection-manager.js ---
-// 050-selection-manager.js - Element selection and hit testing
+// 050-selection-manager.js - Element selection, hit testing, drag, resize
 (function hudEditorSelectionManager() {
   "use strict";
 
   var NS = "HudEditor";
   var APP = window[NS];
   if (!APP) return;
+
+  // ─── Helpers ──────────────────────────────────────────────────────
+
+  function ids() { return APP.state.selectedElementIds; }
+
+  function isSelected(id) {
+    var arr = ids();
+    for (var i = 0; i < arr.length; i++) { if (arr[i] === id) return true; }
+    return false;
+  }
 
   // ─── Hit testing ───────────────────────────────────────────────────
 
@@ -1570,14 +1646,11 @@
   function hitTest(screenX, screenY) {
     var doc = APP.state.document;
     if (!doc || !doc.elements) return null;
-
-    // Test in reverse order (top-most first)
     var elements = doc.elements;
     for (var i = elements.length - 1; i >= 0; i--) {
       var el = elements[i];
-      if (pointInElement(screenX, screenY, el)) {
-        return el;
-      }
+      if (el.visible === false) continue;
+      if (pointInElement(screenX, screenY, el)) return el;
     }
     return null;
   }
@@ -1585,41 +1658,56 @@
   // ─── Selection ─────────────────────────────────────────────────────
 
   function selectElement(elementId) {
-    if (APP.state.selectedElementId === elementId) {
-      APP.emit("selection-changed", elementId);
-      return;
-    }
-
     APP.state.selectedElementId = elementId;
+    APP.state.selectedElementIds = elementId ? [elementId] : [];
     APP.emit("selection-changed", elementId);
   }
 
+  function toggleInSelection(elementId) {
+    var arr = ids();
+    if (isSelected(elementId)) {
+      // Remove from selection
+      var next = [];
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i] !== elementId) next.push(arr[i]);
+      }
+      APP.state.selectedElementIds = next;
+      APP.state.selectedElementId = next.length > 0 ? next[next.length - 1] : null;
+    } else {
+      // Add to selection
+      arr.push(elementId);
+      APP.state.selectedElementId = elementId;
+    }
+    APP.emit("selection-changed", APP.state.selectedElementId);
+  }
+
   function deselectAll() {
-    if (!APP.state.selectedElementId) return;
+    if (ids().length === 0 && !APP.state.selectedElementId) return;
     APP.state.selectedElementId = null;
+    APP.state.selectedElementIds = [];
     APP.emit("selection-changed", null);
     APP.emit("deselect-all");
   }
 
   function deleteSelected() {
-    var id = APP.state.selectedElementId;
-    if (!id) return;
+    var arr = ids().slice();
+    if (arr.length === 0) return;
 
     var doc = APP.state.document;
     if (!doc || !doc.elements) return;
 
-    var idx = -1;
-    for (var i = 0; i < doc.elements.length; i++) {
-      if (doc.elements[i].id === id) {
-        idx = i;
-        break;
-      }
-    }
+    if (APP.undoRedo) APP.undoRedo.push();
 
-    if (idx >= 0) {
-      doc.elements.splice(idx, 1);
-      APP.state.isDirty = true;
-      APP.emit("element-deleted", id);
+    for (var s = 0; s < arr.length; s++) {
+      var id = arr[s];
+      for (var i = doc.elements.length - 1; i >= 0; i--) {
+        if (doc.elements[i].id === id) {
+          doc.elements.splice(i, 1);
+          APP.state.isDirty = true;
+          APP.emit("element-deleted", id);
+          break;
+        }
+      }
     }
 
     deselectAll();
@@ -1628,25 +1716,89 @@
   // ─── Canvas click handler ──────────────────────────────────────────
 
   function onCanvasClick(e) {
+    if (dragState.suppressClick) {
+      dragState.suppressClick = false;
+      return;
+    }
+
     if (!APP.state.editModeActive) return;
     if (APP.state.currentScreen !== "editor") return;
     if (APP.state.currentTool !== "select") return;
 
-    // Ignore clicks on resize handles
     if (e.target.classList && e.target.classList.contains("resize-handle")) return;
 
     var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
     if (!preview) return;
 
-    // Don't process if clicking on UI panels
     if (e.target.closest("#properties-panel")) return;
+    if (e.target.closest("#shapes-panel")) return;
+    if (e.target.closest("#editor-toolbar")) return;
+    if (e.target.closest("#editor-statusbar")) return;
+
+    var hitId = null;
+    var clickedElement = e.target.closest(".canvas-element");
+    if (clickedElement && clickedElement.dataset && clickedElement.dataset.elementId) {
+      hitId = clickedElement.dataset.elementId;
+    } else {
+      var rect = preview.getBoundingClientRect();
+      var canvasX = e.clientX - rect.left;
+      var canvasY = e.clientY - rect.top;
+      var screen = APP.canvas.canvasToScreen(canvasX, canvasY);
+      var hit = hitTest(screen.x, screen.y);
+      if (hit) hitId = hit.id;
+    }
+
+    if (hitId) {
+      if (e.shiftKey || e.ctrlKey) {
+        toggleInSelection(hitId);
+      } else {
+        selectElement(hitId);
+      }
+    } else {
+      deselectAll();
+    }
+  }
+
+  // ─── Drag/move state (multi-element) ───────────────────────────────
+
+  var dragState = {
+    active: false,
+    startX: 0,
+    startY: 0,
+    origins: null,   // [{id, origX, origY}, ...]
+    moved: false,
+    suppressClick: false,
+  };
+
+  function onElementMouseDown(e) {
+    if (!APP.state.editModeActive) return;
+    if (APP.state.currentScreen !== "editor") return;
+    if (APP.state.currentTool !== "select") return;
+
+    if (e.target.classList && e.target.classList.contains("resize-handle")) return;
+
+    if (e.target.closest("#properties-panel")) return;
+    if (e.target.closest("#shapes-panel")) return;
     if (e.target.closest("#editor-toolbar")) return;
     if (e.target.closest("#editor-statusbar")) return;
 
     var clickedElement = e.target.closest(".canvas-element");
-    if (clickedElement && clickedElement.dataset && clickedElement.dataset.elementId) {
-      selectElement(clickedElement.dataset.elementId);
-      return;
+    if (!clickedElement || !clickedElement.dataset || !clickedElement.dataset.elementId) return;
+
+    var elementId = clickedElement.dataset.elementId;
+    var element = APP.canvas.getElementById(elementId);
+    if (!element) return;
+
+    var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
+    if (!preview) return;
+
+    // If clicking an already-selected element in a multi-select, drag all.
+    // If clicking unselected without shift, replace selection then drag.
+    // If shift-clicking, the click handler handles toggle; don't initiate drag.
+    if (e.shiftKey || e.ctrlKey) return;
+
+    if (!isSelected(elementId)) {
+      selectElement(elementId);
     }
 
     var rect = preview.getBoundingClientRect();
@@ -1654,12 +1806,73 @@
     var canvasY = e.clientY - rect.top;
     var screen = APP.canvas.canvasToScreen(canvasX, canvasY);
 
-    var hit = hitTest(screen.x, screen.y);
+    // Capture origins for all selected elements
+    var origins = [];
+    var arr = ids();
+    for (var i = 0; i < arr.length; i++) {
+      var el = APP.canvas.getElementById(arr[i]);
+      if (el) origins.push({ id: arr[i], origX: el.x, origY: el.y });
+    }
 
-    if (hit) {
-      selectElement(hit.id);
-    } else {
-      deselectAll();
+    dragState.active = true;
+    dragState.startX = screen.x;
+    dragState.startY = screen.y;
+    dragState.origins = origins;
+    dragState.moved = false;
+    dragState.suppressClick = false;
+
+    e.preventDefault();
+
+    document.addEventListener("mousemove", onDragMouseMove);
+    document.addEventListener("mouseup", onDragMouseUp);
+  }
+
+  function onDragMouseMove(e) {
+    if (!dragState.active) return;
+
+    var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
+    if (!preview) return;
+
+    var rect = preview.getBoundingClientRect();
+    var canvasX = e.clientX - rect.left;
+    var canvasY = e.clientY - rect.top;
+    var screen = APP.canvas.canvasToScreen(canvasX, canvasY);
+
+    var dx = screen.x - dragState.startX;
+    var dy = screen.y - dragState.startY;
+
+    if (!dragState.moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+    if (!dragState.moved && APP.undoRedo) APP.undoRedo.push();
+    dragState.moved = true;
+
+    var origins = dragState.origins;
+    for (var i = 0; i < origins.length; i++) {
+      var o = origins[i];
+      var elem = APP.canvas.getElementById(o.id);
+      if (!elem) continue;
+      elem.x = o.origX + dx;
+      elem.y = o.origY + dy;
+      APP.canvas.updateElement(o.id);
+    }
+    APP.state.isDirty = true;
+  }
+
+  function onDragMouseUp() {
+    if (!dragState.active) return;
+
+    var wasMoved = dragState.moved;
+    dragState.active = false;
+    dragState.moved = false;
+
+    document.removeEventListener("mousemove", onDragMouseMove);
+    document.removeEventListener("mouseup", onDragMouseUp);
+
+    if (wasMoved) {
+      dragState.suppressClick = true;
+      var origins = dragState.origins;
+      for (var i = 0; i < origins.length; i++) {
+        APP.emit("element-updated", origins[i].id);
+      }
     }
   }
 
@@ -1683,17 +1896,20 @@
     if (!preview.__hudEditorSelectBound) {
       preview.__hudEditorSelectBound = true;
       preview.addEventListener("click", onCanvasClick);
+      preview.addEventListener("mousedown", onElementMouseDown);
       preview.addEventListener("mousedown", onResizeHandleMouseDown, true);
     }
   }
 
   function onResizeHandleMouseDown(e) {
+    var handle = e.target;
+    if (!handle.classList || !handle.classList.contains("resize-handle")) return;
+
     e.stopPropagation();
     e.preventDefault();
 
     if (!APP.state.editModeActive) return;
 
-    var handle = e.target;
     var elementId = handle.dataset.elementId;
     var handleType = handle.dataset.h;
 
@@ -1707,6 +1923,8 @@
     var canvasX = e.clientX - rect.left;
     var canvasY = e.clientY - rect.top;
     var screen = APP.canvas.canvasToScreen(canvasX, canvasY);
+
+    if (APP.undoRedo) APP.undoRedo.push();
 
     resizeState.active = true;
     resizeState.elementId = elementId;
@@ -1741,18 +1959,13 @@
 
     var h = resizeState.handle;
 
-    // Calculate new bounds based on handle
     var newX = resizeState.origX;
     var newY = resizeState.origY;
     var newW = resizeState.origW;
     var newH = resizeState.origH;
 
-    if (h.includes("e")) {
-      newW = Math.max(10, resizeState.origW + dx);
-    }
-    if (h.includes("s")) {
-      newH = Math.max(10, resizeState.origH + dy);
-    }
+    if (h.includes("e")) { newW = Math.max(10, resizeState.origW + dx); }
+    if (h.includes("s")) { newH = Math.max(10, resizeState.origH + dy); }
     if (h.includes("w")) {
       var nw = Math.max(10, resizeState.origW - dx);
       newX = resizeState.origX + resizeState.origW - nw;
@@ -1773,7 +1986,7 @@
     APP.canvas.updateElement(resizeState.elementId);
   }
 
-  function onResizeMouseUp(e) {
+  function onResizeMouseUp() {
     if (!resizeState.active) return;
 
     resizeState.active = false;
@@ -1798,9 +2011,7 @@
     setTimeout(ensureCanvasSelectionListeners, 0);
   });
 
-  // Handle resize handles added later via mutation or render
   APP.on("selection-changed", function () {
-    // Attach resize handle listeners when selection changes
     setTimeout(function () {
       var handles = document.querySelectorAll(".resize-handle");
       handles.forEach(function (h) {
@@ -1811,27 +2022,443 @@
   });
 
   APP.on("tool-changed", function (tool) {
-    if (tool !== "select") {
-      deselectAll();
+    if (tool !== "select") { deselectAll(); }
+  });
+
+  APP.on("delete-element", function () {
+    deleteSelected();
+  });
+
+  // ─── Alignment ─────────────────────────────────────────────────────
+
+  function alignSelected(mode) {
+    var arr = ids();
+    if (arr.length < 2) {
+      // Single element: align to canvas
+      if (arr.length === 1) alignToCanvas(mode);
+      return;
     }
+
+    var elems = [];
+    for (var i = 0; i < arr.length; i++) {
+      var e = APP.canvas.getElementById(arr[i]);
+      if (e) elems.push(e);
+    }
+    if (elems.length < 2) return;
+
+    if (APP.undoRedo) APP.undoRedo.push();
+
+    // Compute bounding box of all selected
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (var j = 0; j < elems.length; j++) {
+      var el = elems[j];
+      if (el.x < minX) minX = el.x;
+      if (el.y < minY) minY = el.y;
+      if (el.x + el.w > maxX) maxX = el.x + el.w;
+      if (el.y + el.h > maxY) maxY = el.y + el.h;
+    }
+
+    for (var k = 0; k < elems.length; k++) {
+      var elem = elems[k];
+      switch (mode) {
+        case "left":      elem.x = minX; break;
+        case "right":     elem.x = maxX - elem.w; break;
+        case "center-h":  elem.x = minX + (maxX - minX) / 2 - elem.w / 2; break;
+        case "top":       elem.y = minY; break;
+        case "bottom":    elem.y = maxY - elem.h; break;
+        case "center-v":  elem.y = minY + (maxY - minY) / 2 - elem.h / 2; break;
+      }
+      APP.canvas.updateElement(elem.id);
+    }
+
+    APP.state.isDirty = true;
+    APP.canvas.scheduleRender();
+    APP.emit("element-updated", arr[0]);
+  }
+
+  function alignToCanvas(mode) {
+    var arr = ids();
+    if (arr.length !== 1) return;
+    var elem = APP.canvas.getElementById(arr[0]);
+    if (!elem) return;
+
+    var doc = APP.state.document;
+    var sw = (doc && doc.screenWidth) || 1920;
+    var sh = (doc && doc.screenHeight) || 1080;
+
+    if (APP.undoRedo) APP.undoRedo.push();
+
+    switch (mode) {
+      case "left":      elem.x = 0; break;
+      case "right":     elem.x = sw - elem.w; break;
+      case "center-h":  elem.x = (sw - elem.w) / 2; break;
+      case "top":       elem.y = 0; break;
+      case "bottom":    elem.y = sh - elem.h; break;
+      case "center-v":  elem.y = (sh - elem.h) / 2; break;
+    }
+
+    APP.state.isDirty = true;
+    APP.canvas.updateElement(elem.id);
+    APP.emit("element-updated", elem.id);
+  }
+
+  APP.on("align", function (mode) {
+    alignSelected(mode);
   });
 
   // ─── Public API ────────────────────────────────────────────────────
 
   APP.selection = {
     select: selectElement,
+    toggleIn: toggleInSelection,
     deselect: deselectAll,
     deleteSelected: deleteSelected,
     hitTest: hitTest,
+    isSelected: isSelected,
+    getIds: function () { return ids().slice(); },
   };
 
   if (typeof APP.cleanup === "function") {
     APP.cleanup(function () {
+      dragState.active = false;
+      document.removeEventListener("mousemove", onDragMouseMove);
+      document.removeEventListener("mouseup", onDragMouseUp);
       resizeState.active = false;
       document.removeEventListener("mousemove", onResizeMouseMove);
       document.removeEventListener("mouseup", onResizeMouseUp);
     });
   }
+
+})();
+
+// --- 060-shapes-panel.js ---
+// 060-shapes-panel.js - Floating layers / shapes list panel
+(function hudEditorShapesPanel() {
+  "use strict";
+
+  var NS = "HudEditor";
+  var APP = window[NS];
+  if (!APP) return;
+
+  var el = APP.el;
+  var qs = APP.qs;
+
+  // ─── Type display info ──────────────────────────────────────────────
+
+  var TYPE_INFO = {
+    box:        { icon: "\u25AD", label: "Box" },
+    boxRounded: { icon: "\u25A2", label: "Rounded" },
+    circle:     { icon: "\u25CB", label: "Circle" },
+    line:       { icon: "\u2571", label: "Line" },
+    text:       { icon: "T",      label: "Text" },
+  };
+
+  // ─── Panel DOM ──────────────────────────────────────────────────────
+
+  var panelEl = null;
+  var listEl = null;
+
+  function buildPanel() {
+    listEl = el("div", { className: "shapes-list" });
+
+    panelEl = el("div", { id: "shapes-panel" }, [
+      el("div", { className: "panel-header" }, [
+        el("span", { textContent: "Layers" }),
+        el("button", { className: "panel-toggle", dataset: { action: "toggle-collapse" }, textContent: "\u25BE" }),
+      ]),
+      listEl,
+    ]);
+
+    return panelEl;
+  }
+
+  // ─── Render the layer list ──────────────────────────────────────────
+
+  function refreshList() {
+    if (!listEl) return;
+
+    var doc = APP.state.document;
+    var elements = (doc && doc.elements) || [];
+    var selIds = APP.state.selectedElementIds || [];
+
+    // Clear
+    listEl.innerHTML = "";
+
+    if (elements.length === 0) {
+      listEl.appendChild(
+        el("div", { className: "layers-empty", textContent: "No shapes yet" })
+      );
+      return;
+    }
+
+    // Show top-most first (reverse of array order)
+    for (var i = elements.length - 1; i >= 0; i--) {
+      var elem = elements[i];
+      var info = TYPE_INFO[elem.type] || { icon: "?", label: elem.type };
+      var isSelected = APP.selection.isSelected(elem.id);
+      var isVisible = elem.visible !== false;
+
+      var item = el("div", {
+        className: "layer-item" + (isSelected ? " selected" : ""),
+        dataset: { elementId: elem.id },
+      }, [
+        // Visibility toggle
+        el("button", {
+          className: "layer-btn layer-vis" + (isVisible ? "" : " off"),
+          dataset: { action: "toggle-vis", elementId: elem.id },
+          title: isVisible ? "Hide" : "Show",
+        }),
+        // Type icon
+        el("span", { className: "layer-icon", textContent: info.icon }),
+        // Name
+        el("span", {
+          className: "layer-name",
+          textContent: info.label + " " + elem.id.replace("el_", "#"),
+        }),
+        // Z-order: move forward (toward top of stack)
+        el("button", {
+          className: "layer-btn layer-z",
+          dataset: { action: "move-up", elementId: elem.id },
+          title: "Move forward",
+          textContent: "\u25B4",
+        }),
+        // Z-order: move backward (toward bottom of stack)
+        el("button", {
+          className: "layer-btn layer-z",
+          dataset: { action: "move-down", elementId: elem.id },
+          title: "Move backward",
+          textContent: "\u25BE",
+        }),
+      ]);
+
+      listEl.appendChild(item);
+    }
+  }
+
+  // ─── Actions ────────────────────────────────────────────────────────
+
+  function toggleVisibility(elementId) {
+    var elem = APP.canvas.getElementById(elementId);
+    if (!elem) return;
+
+    if (APP.undoRedo) APP.undoRedo.push();
+    elem.visible = (elem.visible === false) ? true : false;
+    APP.state.isDirty = true;
+    APP.canvas.updateElement(elementId);
+    APP.emit("element-updated", elementId);
+    refreshList();
+  }
+
+  function moveElement(elementId, direction) {
+    var doc = APP.state.document;
+    if (!doc || !doc.elements) return;
+
+    var idx = -1;
+    for (var i = 0; i < doc.elements.length; i++) {
+      if (doc.elements[i].id === elementId) { idx = i; break; }
+    }
+    if (idx < 0) return;
+
+    // "up" in visual list = higher z-order = move toward end of array
+    var newIdx = direction === "up" ? idx + 1 : idx - 1;
+    if (newIdx < 0 || newIdx >= doc.elements.length) return;
+
+    if (APP.undoRedo) APP.undoRedo.push();
+    var tmp = doc.elements[idx];
+    doc.elements[idx] = doc.elements[newIdx];
+    doc.elements[newIdx] = tmp;
+
+    APP.state.isDirty = true;
+    APP.canvas.render();
+    refreshList();
+  }
+
+  // ─── Click delegation ──────────────────────────────────────────────
+
+  function onPanelClick(e) {
+    var btn = e.target.closest("[data-action]");
+    if (btn) {
+      var action = btn.dataset.action;
+      var id = btn.dataset.elementId;
+      if (action === "toggle-collapse") { toggleCollapse(); return; }
+      if (action === "toggle-vis") { toggleVisibility(id); return; }
+      if (action === "move-up")    { moveElement(id, "up"); return; }
+      if (action === "move-down")  { moveElement(id, "down"); return; }
+    }
+
+    // Click on item body -> select (shift = toggle in multi-select)
+    var item = e.target.closest(".layer-item");
+    if (item && item.dataset.elementId) {
+      if (e.shiftKey || e.ctrlKey) {
+        APP.selection.toggleIn(item.dataset.elementId);
+      } else {
+        APP.selection.select(item.dataset.elementId);
+      }
+    }
+  }
+
+  // ─── Collapse / expand ──────────────────────────────────────────────
+
+  var COLLAPSE_KEY = "hud_shapes_panel_collapsed";
+
+  function toggleCollapse() {
+    if (!panelEl) return;
+    var collapsed = !panelEl.classList.contains("collapsed");
+    panelEl.classList.toggle("collapsed", collapsed);
+    var btn = qs(".panel-toggle", panelEl);
+    if (btn) btn.textContent = collapsed ? "\u25B8" : "\u25BE";
+    try { localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : ""); } catch (e) { /* ignore */ }
+  }
+
+  function restoreCollapse() {
+    if (!panelEl) return;
+    var collapsed = false;
+    try { collapsed = localStorage.getItem(COLLAPSE_KEY) === "1"; } catch (e) { /* ignore */ }
+    panelEl.classList.toggle("collapsed", collapsed);
+    var btn = qs(".panel-toggle", panelEl);
+    if (btn) btn.textContent = collapsed ? "\u25B8" : "\u25BE";
+  }
+
+  // ─── Panel visibility ──────────────────────────────────────────────
+
+  function showPanel() {
+    if (!panelEl) return;
+    panelEl.classList.add("visible");
+    restorePanelPos(panelEl);
+    restoreCollapse();
+    refreshList();
+  }
+
+  function hidePanel() {
+    if (panelEl) panelEl.classList.remove("visible");
+  }
+
+  // ─── Panel position persistence ────────────────────────────────────
+
+  var POS_KEY = "hud_shapes_panel_pos";
+
+  function savePanelPos(panel) {
+    try {
+      localStorage.setItem(POS_KEY, JSON.stringify({
+        left: panel.style.left,
+        top: panel.style.top,
+      }));
+    } catch (e) { /* ignore */ }
+  }
+
+  function restorePanelPos(panel) {
+    var left = null;
+    var top = 72;
+    try {
+      var saved = localStorage.getItem(POS_KEY);
+      if (saved) {
+        var pos = JSON.parse(saved);
+        if (pos.left) left = parseFloat(pos.left);
+        if (pos.top)  top  = parseFloat(pos.top) || 72;
+      }
+    } catch (e) { /* ignore */ }
+
+    // Default: right side of editor
+    var editorScreen = panel.closest('[data-screen="editor"]');
+    if (left === null && editorScreen) {
+      left = editorScreen.clientWidth - (panel.offsetWidth || 240) - 12;
+    }
+    if (left === null) left = 12;
+
+    // Clamp to editor bounds
+    if (editorScreen) {
+      left = Math.max(0, Math.min(left, editorScreen.clientWidth  - (panel.offsetWidth  || 240)));
+      top  = Math.max(0, Math.min(top,  editorScreen.clientHeight - (panel.offsetHeight || 80)));
+    }
+
+    panel.style.left  = left + "px";
+    panel.style.top   = top  + "px";
+    panel.style.right = "auto";
+  }
+
+  // ─── Panel header drag ─────────────────────────────────────────────
+
+  var drag = { active: false, offX: 0, offY: 0, editorRect: null };
+
+  function attachDragListener() {
+    if (!panelEl) return;
+    var header = qs(".panel-header", panelEl);
+    if (!header || header.__hudShapesDragBound) return;
+    header.__hudShapesDragBound = true;
+
+    header.addEventListener("mousedown", function (e) {
+      if (e.button !== 0) return;
+      if (e.target.closest(".panel-toggle")) return;
+      var editorScreen = panelEl.closest('[data-screen="editor"]');
+      if (!editorScreen) return;
+      var editorRect = editorScreen.getBoundingClientRect();
+      var panelRect  = panelEl.getBoundingClientRect();
+
+      drag.active = true;
+      drag.offX = e.clientX - panelRect.left;
+      drag.offY = e.clientY - panelRect.top;
+      drag.editorRect = editorRect;
+
+      panelEl.style.right = "auto";
+      panelEl.style.left  = (panelRect.left - editorRect.left) + "px";
+      panelEl.style.top   = (panelRect.top  - editorRect.top)  + "px";
+
+      e.preventDefault();
+    });
+
+    document.addEventListener("mousemove", function (e) {
+      if (!drag.active) return;
+      var er = drag.editorRect;
+      var x = e.clientX - drag.offX - er.left;
+      var y = e.clientY - drag.offY - er.top;
+      x = Math.max(0, Math.min(x, er.width  - panelEl.offsetWidth));
+      y = Math.max(0, Math.min(y, er.height - panelEl.offsetHeight));
+      panelEl.style.left = x + "px";
+      panelEl.style.top  = y + "px";
+    });
+
+    document.addEventListener("mouseup", function () {
+      if (drag.active) savePanelPos(panelEl);
+      drag.active = false;
+    });
+  }
+
+  // ─── Mount into editor screen ──────────────────────────────────────
+
+  function mount() {
+    var root = APP.getRoot ? APP.getRoot() : document;
+    var editorScreen = qs('[data-screen="editor"]', root);
+    if (!editorScreen) return;
+    if (qs("#shapes-panel", editorScreen)) return;
+
+    var panel = buildPanel();
+    editorScreen.appendChild(panel);
+    panel.addEventListener("click", onPanelClick);
+    attachDragListener();
+  }
+
+  // ─── Events ────────────────────────────────────────────────────────
+
+  APP.on("enter-edit", function () {
+    setTimeout(function () { mount(); showPanel(); }, 0);
+  });
+
+  APP.on("document-created", function () {
+    setTimeout(function () { mount(); showPanel(); }, 0);
+  });
+
+  APP.on("document-loaded", function () {
+    setTimeout(function () { mount(); showPanel(); }, 0);
+  });
+
+  APP.on("exit-edit", function () {
+    hidePanel();
+  });
+
+  APP.on("element-added",     function () { refreshList(); });
+  APP.on("element-deleted",   function () { refreshList(); });
+  APP.on("element-updated",   function () { refreshList(); });
+  APP.on("selection-changed", function () { refreshList(); });
 
 })();
 
@@ -1874,14 +2501,28 @@
     if (yInput) yInput.value = Math.round(element.y);
     if (wInput) wInput.value = Math.round(element.w);
     if (hInput) hInput.value = Math.round(element.h);
-    if (radiusInput) radiusInput.value = element.radius || 0;
-    if (strokeWidthInput) strokeWidthInput.value = element.strokeWidth || 0;
+    // Radius only applies to box / boxRounded
+    var radiusRow = qs('[data-prop-row="radius"]', panel);
+    var showRadius = (element.type === "box" || element.type === "boxRounded");
+    if (radiusRow) radiusRow.style.display = showRadius ? "" : "none";
 
-    // Colors
+    if (radiusInput && showRadius) setStepperValue(radiusInput, element.radius || 0);
+    if (strokeWidthInput) setStepperValue(strokeWidthInput, element.strokeWidth || 0);
+
+    // Colors — update both panel and toolbar pickers
+    var fillHex   = rgbaToHex(element.fill);
+    var strokeHex = rgbaToHex(element.stroke);
     var fillInput = qs('[data-prop="fill"]', panel);
     var strokeInput = qs('[data-prop="stroke"]', panel);
-    if (fillInput) fillInput.value = rgbaToHex(element.fill);
-    if (strokeInput) strokeInput.value = rgbaToHex(element.stroke);
+    if (fillInput) fillInput.value = fillHex;
+    if (strokeInput) strokeInput.value = strokeHex;
+
+    // Sync toolbar color pickers too
+    var root = APP.getRoot ? APP.getRoot() : document;
+    var toolbarFill   = qs('#editor-toolbar [data-prop="fill"]', root);
+    var toolbarStroke = qs('#editor-toolbar [data-prop="stroke"]', root);
+    if (toolbarFill)   toolbarFill.value   = fillHex;
+    if (toolbarStroke) toolbarStroke.value = strokeHex;
 
     // Text
     if (textArea) {
@@ -1892,57 +2533,76 @@
 
   // ─── Property sync: panel → document ──────────────────────────────
 
+  // Properties that should apply to all selected elements
+  var MULTI_PROPS = { fill: 1, stroke: 1, strokeWidth: 1 };
+
   function applyPanelChange(prop, value) {
     var elementId = APP.state.selectedElementId;
     if (!elementId) return;
 
-    var element = APP.canvas.getElementById(elementId);
-    if (!element) return;
+    APP.emit("before-element-change");
+
+    // Determine which elements to update
+    var targetIds;
+    if (MULTI_PROPS[prop]) {
+      targetIds = (APP.state.selectedElementIds || []).slice();
+      if (targetIds.length === 0) targetIds = [elementId];
+    } else {
+      targetIds = [elementId];
+    }
 
     var changed = false;
 
-    switch (prop) {
-      case "x":
-        element.x = parseFloat(value) || 0;
-        changed = true;
-        break;
-      case "y":
-        element.y = parseFloat(value) || 0;
-        changed = true;
-        break;
-      case "w":
-        element.w = Math.max(1, parseFloat(value) || 1);
-        changed = true;
-        break;
-      case "h":
-        element.h = Math.max(1, parseFloat(value) || 1);
-        changed = true;
-        break;
-      case "radius":
-        element.radius = Math.max(0, parseFloat(value) || 0);
-        changed = true;
-        break;
-      case "strokeWidth":
-        element.strokeWidth = Math.max(0, parseFloat(value) || 0);
-        changed = true;
-        break;
-      case "fill":
-        element.fill = hexToRgba(value);
-        changed = true;
-        break;
-      case "stroke":
-        element.stroke = hexToRgba(value);
-        changed = true;
-        break;
-      case "textLines":
-        element.textLines = value.split("\n");
-        changed = true;
-        break;
+    for (var t = 0; t < targetIds.length; t++) {
+      var element = APP.canvas.getElementById(targetIds[t]);
+      if (!element) continue;
+
+      switch (prop) {
+        case "x":
+          element.x = parseFloat(value) || 0;
+          changed = true;
+          break;
+        case "y":
+          element.y = parseFloat(value) || 0;
+          changed = true;
+          break;
+        case "w":
+          element.w = Math.max(1, parseFloat(value) || 1);
+          changed = true;
+          break;
+        case "h":
+          element.h = Math.max(1, parseFloat(value) || 1);
+          changed = true;
+          break;
+        case "radius":
+          element.radius = Math.max(0, parseFloat(value) || 0);
+          changed = true;
+          break;
+        case "strokeWidth":
+          element.strokeWidth = Math.max(0, parseFloat(value) || 0);
+          changed = true;
+          break;
+        case "fill":
+          element.fill = hexToRgba(value);
+          changed = true;
+          break;
+        case "stroke":
+          element.stroke = hexToRgba(value);
+          changed = true;
+          break;
+        case "textLines":
+          element.textLines = value.split("\n");
+          changed = true;
+          break;
+      }
+
+      if (changed) {
+        APP.canvas.updateElement(targetIds[t]);
+      }
     }
 
     if (changed) {
       APP.state.isDirty = true;
-      APP.canvas.updateElement(elementId);
       APP.emit("element-updated", elementId);
     }
   }
@@ -1972,16 +2632,63 @@
     return [r, g, b, 1];
   }
 
+  // ─── Collapse / expand ─────────────────────────────────────────────
+
+  var COLLAPSE_KEY = "hud_props_panel_collapsed";
+
+  function toggleCollapse() {
+    var panel = qs("#properties-panel");
+    if (!panel) return;
+    var collapsed = !panel.classList.contains("collapsed");
+    panel.classList.toggle("collapsed", collapsed);
+    var btn = qs(".panel-toggle", panel);
+    if (btn) btn.textContent = collapsed ? "\u25B8" : "\u25BE";
+    try { localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : ""); } catch (e) { /* ignore */ }
+  }
+
+  function restoreCollapse() {
+    var panel = qs("#properties-panel");
+    if (!panel) return;
+    var collapsed = false;
+    try { collapsed = localStorage.getItem(COLLAPSE_KEY) === "1"; } catch (e) { /* ignore */ }
+    panel.classList.toggle("collapsed", collapsed);
+    var btn = qs(".panel-toggle", panel);
+    if (btn) btn.textContent = collapsed ? "\u25B8" : "\u25BE";
+  }
+
   // ─── Panel visibility ─────────────────────────────────────────────
 
   function showPanel() {
     var panel = qs("#properties-panel");
-    if (panel) panel.classList.add("visible");
+    if (!panel) return;
+    panel.classList.add("visible");
+    restorePanelPos(panel);
+    restoreCollapse();
   }
 
   function hidePanel() {
     var panel = qs("#properties-panel");
     if (panel) panel.classList.remove("visible");
+  }
+
+  // ─── Stepper value helper ─────────────────────────────────────────
+
+  function setStepperValue(select, value) {
+    // Try exact match first
+    for (var i = 0; i < select.options.length; i++) {
+      if (Number(select.options[i].value) === value) {
+        select.selectedIndex = i;
+        return;
+      }
+    }
+    // Closest option
+    var best = 0;
+    var bestDiff = Infinity;
+    for (var j = 0; j < select.options.length; j++) {
+      var diff = Math.abs(Number(select.options[j].value) - value);
+      if (diff < bestDiff) { bestDiff = diff; best = j; }
+    }
+    select.selectedIndex = best;
   }
 
   // ─── Input event handlers ─────────────────────────────────────────
@@ -1990,9 +2697,7 @@
     var input = e.target;
     var prop = input.dataset.prop;
     if (!prop) return;
-
-    var value = input.type === "number" ? input.value : input.value;
-    applyPanelChange(prop, value);
+    applyPanelChange(prop, input.value);
   }
 
   function onColorChange(e) {
@@ -2000,6 +2705,132 @@
     var prop = input.dataset.prop;
     if (!prop) return;
     applyPanelChange(prop, input.value);
+  }
+
+  function onStepperClick(e) {
+    var btn = e.target.closest(".stepper-dec, .stepper-inc");
+    if (!btn) return;
+    var prop = btn.dataset.stepperProp;
+    if (!prop) return;
+    var panel = qs("#properties-panel");
+    var select = panel && qs('.stepper-select[data-prop="' + prop + '"]', panel);
+    if (!select) return;
+    var dir = btn.classList.contains("stepper-inc") ? 1 : -1;
+    var newIdx = select.selectedIndex + dir;
+    newIdx = Math.max(0, Math.min(newIdx, select.options.length - 1));
+    select.selectedIndex = newIdx;
+    applyPanelChange(prop, select.value);
+  }
+
+  function onStepperChange(e) {
+    var select = e.target;
+    if (!select.classList.contains("stepper-select")) return;
+    var prop = select.dataset.prop;
+    if (!prop) return;
+    applyPanelChange(prop, select.value);
+  }
+
+  // ─── Panel position persistence ───────────────────────────────────────
+
+  var POS_KEY = "hud_props_panel_pos";
+
+  function savePanelPos(panel) {
+    try {
+      localStorage.setItem(POS_KEY, JSON.stringify({ left: panel.style.left, top: panel.style.top }));
+    } catch (e) {}
+  }
+
+  function restorePanelPos(panel) {
+    var left = 12, top = 72;
+    try {
+      var saved = localStorage.getItem(POS_KEY);
+      if (saved) {
+        var pos = JSON.parse(saved);
+        if (pos.left) left = parseFloat(pos.left) || 12;
+        if (pos.top)  top  = parseFloat(pos.top)  || 72;
+        // Clamp to editor bounds so a stale position can't hide the panel
+        var editorScreen = panel.closest('[data-screen="editor"]');
+        if (editorScreen) {
+          left = Math.max(0, Math.min(left, editorScreen.clientWidth  - (panel.offsetWidth  || 340)));
+          top  = Math.max(0, Math.min(top,  editorScreen.clientHeight - (panel.offsetHeight || 80)));
+        }
+      }
+    } catch (e) {}
+    // Always set position — defaults (12, 72) when no stored data
+    panel.style.left  = left + "px";
+    panel.style.top   = top  + "px";
+    panel.style.right = "auto";
+  }
+
+  // ─── Panel drag ──────────────────────────────────────────────────────
+
+  var drag = { active: false, offX: 0, offY: 0, editorRect: null };
+
+  function attachDragListener() {
+    var panel = qs("#properties-panel");
+    var header = panel && qs(".panel-header", panel);
+    if (!header || header.__hudPanelDragBound) return;
+    header.__hudPanelDragBound = true;
+
+    header.addEventListener("mousedown", function (e) {
+      if (e.button !== 0) return;
+      if (e.target.closest(".panel-toggle")) return;
+      var editorScreen = panel.closest('[data-screen="editor"]');
+      if (!editorScreen) return;
+      var editorRect = editorScreen.getBoundingClientRect();
+      var panelRect  = panel.getBoundingClientRect();
+
+      drag.active = true;
+      drag.offX = e.clientX - panelRect.left;
+      drag.offY = e.clientY - panelRect.top;
+      drag.editorRect = editorRect;
+
+      // Panel is left-anchored by default; normalise on drag start
+      panel.style.right = "auto";
+      panel.style.left  = (panelRect.left - editorRect.left) + "px";
+      panel.style.top   = (panelRect.top  - editorRect.top)  + "px";
+
+      e.preventDefault();
+    });
+
+    document.addEventListener("mousemove", function (e) {
+      if (!drag.active) return;
+      var er = drag.editorRect;
+      var x = e.clientX - drag.offX - er.left;
+      var y = e.clientY - drag.offY - er.top;
+      x = Math.max(0, Math.min(x, er.width  - panel.offsetWidth));
+      y = Math.max(0, Math.min(y, er.height - panel.offsetHeight));
+      panel.style.left = x + "px";
+      panel.style.top  = y + "px";
+    });
+
+    document.addEventListener("mouseup", function () {
+      if (drag.active) savePanelPos(panel);
+      drag.active = false;
+    });
+  }
+
+  // ─── Toolbar color picker sync ─────────────────────────────────────
+
+  function attachToolbarColorListeners() {
+    var root = APP.getRoot ? APP.getRoot() : document;
+    var toolbar = qs("#editor-toolbar", root);
+    if (!toolbar || toolbar.__hudToolbarColorBound) return;
+    toolbar.__hudToolbarColorBound = true;
+
+    toolbar.addEventListener("input", function (e) {
+      var input = e.target;
+      if (input.type !== "color") return;
+      var prop = input.dataset.prop;
+      if (prop !== "fill" && prop !== "stroke") return;
+      applyPanelChange(prop, input.value);
+      // Sync panel color picker too
+      var panel = qs("#properties-panel");
+      if (panel) {
+        var panelInput = qs('[data-prop="' + prop + '"]', panel);
+        if (panelInput) panelInput.value = input.value;
+      }
+    });
   }
 
   // ─── Attach panel events ───────────────────────────────────────────
@@ -2028,6 +2859,12 @@
       c.removeEventListener("input", onColorChange);
       c.addEventListener("input", onColorChange);
     });
+
+    // Stepper clicks (+/−) and select changes — use delegation on panel
+    panel.removeEventListener("click",  onStepperClick);
+    panel.removeEventListener("change", onStepperChange);
+    panel.addEventListener("click",  onStepperClick);
+    panel.addEventListener("change", onStepperChange);
   }
 
   // ─── Event listeners ──────────────────────────────────────────────
@@ -2037,20 +2874,28 @@
       populatePanel(elementId);
       showPanel();
       attachPanelListeners();
+      attachDragListener();
     } else {
       hidePanel();
     }
   });
 
   APP.on("enter-edit", function () {
-    // Re-attach listeners when entering edit mode
-    setTimeout(attachPanelListeners, 200);
+    setTimeout(function () {
+      attachPanelListeners();
+      attachDragListener();
+      attachToolbarColorListeners();
+    }, 200);
   });
 
   APP.on("element-updated", function (elementId) {
     if (elementId === APP.state.selectedElementId) {
       populatePanel(elementId);
     }
+  });
+
+  APP.on("toggle-props-collapse", function () {
+    toggleCollapse();
   });
 
 })();
@@ -2954,7 +3799,10 @@
     // Restore previous state
     var snapshot = undoStack.pop();
     APP.state.document = snapshot;
+    APP.state.selectedElementId = null;
+    APP.state.selectedElementIds = [];
     APP.state.isDirty = true;
+    APP.emit("selection-changed", null);
     APP.emit("document-loaded", snapshot);
     APP.emit("toast", { type: "info", text: "Undone" });
 
@@ -2980,7 +3828,10 @@
     // Restore next redo state
     var snapshot = redoStack.pop();
     APP.state.document = snapshot;
+    APP.state.selectedElementId = null;
+    APP.state.selectedElementIds = [];
     APP.state.isDirty = true;
+    APP.emit("selection-changed", null);
     APP.emit("document-loaded", snapshot);
     APP.emit("toast", { type: "info", text: "Redone" });
 
@@ -3011,13 +3862,13 @@
     redo();
   });
 
-  // Clear on new document
+  // Clear on new document (but not during undo/redo which also emits document-loaded)
   APP.on("document-created", function() {
-    clear();
+    if (!isUndoRedoAction) clear();
   });
 
   APP.on("document-loaded", function() {
-    clear();
+    if (!isUndoRedoAction) clear();
   });
 
   // ─── Public API ─────────────────────────────────────────────────

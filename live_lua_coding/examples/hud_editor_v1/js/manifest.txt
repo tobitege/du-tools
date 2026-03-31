@@ -5,6 +5,7 @@
 030-canvas-renderer.js
 040-tool-handlers.js
 050-selection-manager.js
+060-shapes-panel.js
 070-properties-panel.js
 080-bridge-commands.js
 085-ide-export.js
