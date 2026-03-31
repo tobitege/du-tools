@@ -209,6 +209,60 @@
     return overlay;
   }
 
+  // ─── Render selection / group overlays ──────────────────────────────
+
+  function computeMultiSelectBounds(selIds) {
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (var i = 0; i < selIds.length; i++) {
+      var el = findElementById(selIds[i]);
+      if (!el) continue;
+      if (el.x < minX) minX = el.x;
+      if (el.y < minY) minY = el.y;
+      if (el.x + el.w > maxX) maxX = el.x + el.w;
+      if (el.y + el.h > maxY) maxY = el.y + el.h;
+    }
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  }
+
+  function createGroupOverlay(bounds, isGroup, showHandles) {
+    var overlay = el("div", {
+      className: "group-overlay",
+      dataset: { groupId: isGroup ? "group_sel" : "multi_sel" },
+    });
+
+    // Orange outline — non-interactive
+    var outline = el("div", { className: "group-outline" });
+    outline.style.position = "absolute";
+    outline.style.inset = "0";
+    outline.style.pointerEvents = "none";
+    overlay.appendChild(outline);
+
+    if (showHandles !== false) {
+      // 8 resize handles — interactive, on top
+      var handles = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+      handles.forEach(function (h) {
+        var handle = el("div", {
+          className: "group-handle",
+          dataset: { h: h },
+        });
+        overlay.appendChild(handle);
+      });
+    }
+
+    // Size/position the overlay
+    var pos = screenToCanvas(bounds.x, bounds.y);
+    var size = screenToCanvas(bounds.w, bounds.h);
+
+    overlay.style.position = "absolute";
+    overlay.style.left = (pos.x - 2) + "px";
+    overlay.style.top = (pos.y - 2) + "px";
+    overlay.style.width = (size.x + 4) + "px";
+    overlay.style.height = (size.y + 4) + "px";
+    overlay.style.pointerEvents = "none";
+
+    return overlay;
+  }
+
   function clearSelectionOverlays() {
     var preview = getCanvasPreview();
     if (!preview) return;
@@ -217,6 +271,46 @@
         node.parentNode.removeChild(node);
       }
     });
+    qsa('.group-overlay', preview).forEach(function (node) {
+      if (node && node.parentNode) {
+        node.parentNode.removeChild(node);
+      }
+    });
+  }
+
+  function renderSelectionOverlays() {
+    var preview = getCanvasPreview();
+    if (!preview) return;
+    clearSelectionOverlays();
+
+    var selIds = APP.state.selectedElementIds || [];
+    var sel = APP.selection;
+    var isGrouped = sel && sel.hasGroup && sel.hasGroup();
+    var isGroupSelected = sel && sel.isGroupSelected && sel.isGroupSelected();
+    var isMultiSelect = selIds.length >= 2;
+
+    if (isGrouped) {
+      var groupBounds = sel.getGroupBounds();
+      if (groupBounds && groupBounds.w > 0 && groupBounds.h > 0) {
+        preview.appendChild(createGroupOverlay(groupBounds, true, isGroupSelected));
+      }
+    }
+
+    if (isMultiSelect) {
+      var multiBounds = computeMultiSelectBounds(selIds);
+      if (multiBounds && multiBounds.w > 0 && multiBounds.h > 0) {
+        preview.appendChild(createGroupOverlay(multiBounds, false, true));
+      }
+      return;
+    }
+
+    if (selIds.length === 1) {
+      var selEl = findElementById(selIds[0]);
+      if (selEl) {
+        var overlay = createSelectionOverlay(selEl, true);
+        preview.appendChild(overlay);
+      }
+    }
   }
 
   // ─── Render all elements ────────────────────────────────────────────
@@ -257,18 +351,8 @@
       preview.appendChild(dom);
     });
 
-    // Render selection overlays for all selected elements
-    clearSelectionOverlays();
-    var selIds = APP.state.selectedElementIds || [];
-    var focusId = APP.state.selectedElementId;
-    for (var si = 0; si < selIds.length; si++) {
-      var selEl = findElementById(selIds[si]);
-      if (selEl) {
-        var isFocus = selIds[si] === focusId;
-        var overlay = createSelectionOverlay(selEl, isFocus);
-        preview.appendChild(overlay);
-      }
-    }
+    // Render selection / group overlays
+    renderSelectionOverlays();
 
     renderPending = false;
   }
@@ -340,17 +424,8 @@
 
     applyElementStyles(dom, element);
 
-    // Rebuild all selection overlays
-    clearSelectionOverlays();
-    var selIds = APP.state.selectedElementIds || [];
-    var focusId = APP.state.selectedElementId;
-    for (var si = 0; si < selIds.length; si++) {
-      var selEl = findElementById(selIds[si]);
-      if (selEl) {
-        var ov = createSelectionOverlay(selEl, selIds[si] === focusId);
-        preview.appendChild(ov);
-      }
-    }
+    // Rebuild selection / group overlays
+    renderSelectionOverlays();
   }
 
   // ─── Remove element from DOM ──────────────────────────────────────

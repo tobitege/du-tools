@@ -1,6 +1,6 @@
 // HUD Editor Probe - Lua Painter
 // Project: D:\github\du-tobi\live_lua_coding\examples\hud_editor_v1
-// Built: 2026-03-31T10:37:49Z
+// Built: 2026-03-31T20:04:25Z
 
 // Inlined CSS
 (function injectCSS() {
@@ -10,7 +10,7 @@
   }
   var style = document.createElement('style');
   style.id = 'hud-editor-styles';
-  style.textContent = "/* hud-editor.css - All HUD Editor styles\n   Project: D:\\\\github\\\\du-tobi\\\\live_lua_coding\\\\examples\\\\hud_editor_v1\n   Self-contained - does NOT use ModUiExtractor core styles\n*/\n\n/* ─── Root container ────────────────────────────────────────────────── */\n\n#hud-editor-root {\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n  z-index: 99999;\n  pointer-events: none;\n  font-family: 'Rajdhani', 'Segoe UI', Tahoma, sans-serif;\n  font-size: 14px;\n  color: #ccc;\n  background: rgba(0, 0, 0, 0.70);\n  display: none;\n  overflow: hidden;\n}\n\n#hud-editor-root[style*=\"block\"] {\n  pointer-events: auto;\n}\n\n/* ─── Screens ────────────────────────────────────────────────────────── */\n\n.hud-screen {\n  display: none;\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n}\n\n.hud-screen.active {\n  display: flex;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           START SCREEN                                */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"start\"] {\n  width: 80vw;\n  height: 80vh;\n  top: 10vh;\n  left: 10vw;\n  align-items: center;\n  justify-content: center;\n  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);\n  overflow: auto;\n}\n\n.start-container {\n  text-align: center;\n  max-width: 520px;\n  padding: 48px;\n}\n\n.start-header h1 {\n  font-size: 52px;\n  font-weight: 700;\n  color: #fff;\n  margin: 0 0 8px 0;\n  text-shadow: 0 0 30px rgba(14, 233, 231, 0.4);\n  letter-spacing: 1px;\n}\n\n.start-header .subtitle {\n  color: #777;\n  font-size: 18px;\n  margin: 0 0 48px 0;\n}\n\n.start-menu {\n  display: flex;\n  flex-direction: column;\n  gap: 14px;\n}\n\n.menu-btn {\n  display: flex;\n  align-items: center;\n  width: 100%;\n  padding: 18px 24px;\n  background: rgba(255, 255, 255, 0.04);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 12px;\n  cursor: pointer;\n  transition: all 0.2s ease;\n  text-align: left;\n  color: inherit;\n  font-family: inherit;\n  font-size: 16px;\n}\n\n.menu-btn:hover {\n  background: rgba(14, 233, 231, 0.08);\n  border-color: rgba(14, 233, 231, 0.3);\n  transform: translateX(6px);\n}\n\n.menu-btn.primary {\n  background: rgba(14, 233, 231, 0.10);\n  border-color: rgba(14, 233, 231, 0.3);\n}\n\n.menu-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.18);\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.menu-btn .icon {\n  font-size: 26px;\n  margin-right: 18px;\n  width: 32px;\n  text-align: center;\n  flex-shrink: 0;\n}\n\n.menu-btn .label-group {\n  display: flex;\n  flex-direction: column;\n}\n\n.menu-btn .label {\n  color: #fff;\n  font-size: 20px;\n  font-weight: 600;\n}\n\n.menu-btn .desc {\n  color: #666;\n  font-size: 13px;\n  margin-top: 3px;\n}\n\n.start-footer {\n  margin-top: 40px;\n}\n\n.hint {\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EDITOR SCREEN                               */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"editor\"] {\n  top: 8vh;\n  left: 6vw;\n  width: 88vw;\n  height: 84vh;\n  flex-direction: column;\n  background: #12121a;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* ─── Toolbar ────────────────────────────────────────────────────────── */\n\n#editor-toolbar {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  padding: 5px 10px;\n  background: linear-gradient(180deg, #1c1c28 0%, #16161e 100%);\n  border-bottom: 1px solid #0e0e14;\n  flex-shrink: 0;\n  height: 44px;\n}\n\n.toolbar-group {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n}\n\n.toolbar-divider {\n  width: 1px;\n  height: 26px;\n  background: linear-gradient(180deg, transparent 0%, #2a2a3a 30%, #2a2a3a 70%, transparent 100%);\n  margin: 0 8px;\n}\n\n.toolbar-spacer {\n  flex: 1;\n}\n\n/* Tool & action buttons — bordered, recessed panel look */\n.tool-btn,\n.action-btn {\n  position: relative;\n  display: inline-flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  width: 36px;\n  height: 34px;\n  padding: 0;\n  border: 1px solid #2a2a36;\n  border-radius: 5px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  color: #6b7080;\n  cursor: pointer;\n  transition: all 0.12s ease;\n  font-family: inherit;\n}\n\n.tool-btn:hover,\n.action-btn:hover {\n  background: linear-gradient(180deg, #2a2a38 0%, #22222e 100%);\n  border-color: #3a3a4a;\n  color: #b0b8c8;\n}\n\n.tool-btn:active,\n.action-btn:active {\n  background: linear-gradient(180deg, #181822 0%, #1e1e28 100%);\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);\n}\n\n.tool-btn.active {\n  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);\n}\n\n/* Icon shape — rendered via CSS */\n.tb-icon {\n  display: block;\n  width: 16px;\n  height: 16px;\n  position: relative;\n}\n\n/* Select tool — mouse pointer arrow */\n.tb-icon-select::before {\n  content: \"\";\n  position: absolute;\n  top: 1px;\n  left: 4px;\n  width: 0;\n  height: 0;\n  border-style: solid;\n  border-width: 12px 4.5px 0 4.5px;\n  border-color: currentColor transparent transparent transparent;\n}\n\n.tb-icon-select::after {\n  content: \"\";\n  position: absolute;\n  top: 10px;\n  left: 6px;\n  width: 2px;\n  height: 5px;\n  background: currentColor;\n  transform: rotate(-15deg);\n  transform-origin: top center;\n}\n\n/* Box tool — rectangle outline */\n.tb-icon-box::before {\n  content: \"\";\n  position: absolute;\n  inset: 1px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Rounded box — rounded rectangle outline */\n.tb-icon-rounded::before {\n  content: \"\";\n  position: absolute;\n  inset: 1px;\n  border: 1.5px solid currentColor;\n  border-radius: 4px;\n}\n\n/* Circle tool */\n.tb-icon-circle::before {\n  content: \"\";\n  position: absolute;\n  inset: 1px;\n  border: 1.5px solid currentColor;\n  border-radius: 50%;\n}\n\n/* Line tool — diagonal */\n.tb-icon-line::before {\n  content: \"\";\n  position: absolute;\n  top: 7px;\n  left: 0;\n  width: 18px;\n  height: 0;\n  border-top: 1.5px solid currentColor;\n  transform: rotate(-35deg);\n  transform-origin: center;\n}\n\n/* Text tool */\n.tb-icon-text::before {\n  content: \"T\";\n  position: absolute;\n  inset: 0;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-size: 13px;\n  font-weight: 700;\n  font-family: inherit;\n  color: currentColor;\n}\n\n/* Alignment icons — bar + rectangle pattern */\n.tb-icon-align-left::before,\n.tb-icon-align-right::before,\n.tb-icon-align-center-h::before,\n.tb-icon-align-top::before,\n.tb-icon-align-bottom::before,\n.tb-icon-align-center-v::before {\n  content: \"\";\n  position: absolute;\n  background: currentColor;\n}\n\n.tb-icon-align-left::after,\n.tb-icon-align-right::after,\n.tb-icon-align-center-h::after,\n.tb-icon-align-top::after,\n.tb-icon-align-bottom::after,\n.tb-icon-align-center-v::after {\n  content: \"\";\n  position: absolute;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Align left:  bar on left edge, rect offset right */\n.tb-icon-align-left::before  { left: 0; top: 0; width: 1.5px; height: 16px; }\n.tb-icon-align-left::after   { left: 3px; top: 50%; width: 10px; height: 8px; transform: translateY(-50%); }\n\n/* Align right: bar on right edge, rect offset left */\n.tb-icon-align-right::before { right: 0; top: 0; width: 1.5px; height: 16px; }\n.tb-icon-align-right::after  { right: 3px; top: 50%; width: 10px; height: 8px; transform: translateY(-50%); }\n\n/* Align center horizontal: bar centered, rect centered */\n.tb-icon-align-center-h::before { left: 50%; top: 0; width: 1.5px; height: 16px; transform: translateX(-50%); }\n.tb-icon-align-center-h::after  { left: 50%; top: 50%; width: 10px; height: 8px; transform: translate(-50%, -50%); }\n\n/* Align top: bar on top edge, rect offset down */\n.tb-icon-align-top::before { top: 0; left: 0; height: 1.5px; width: 16px; }\n.tb-icon-align-top::after  { top: 3px; left: 50%; width: 8px; height: 10px; transform: translateX(-50%); }\n\n/* Align bottom: bar on bottom edge, rect offset up */\n.tb-icon-align-bottom::before { bottom: 0; left: 0; height: 1.5px; width: 16px; }\n.tb-icon-align-bottom::after  { bottom: 3px; left: 50%; width: 8px; height: 10px; transform: translateX(-50%); }\n\n/* Align center vertical: bar centered, rect centered */\n.tb-icon-align-center-v::before { top: 50%; left: 0; height: 1.5px; width: 16px; transform: translateY(-50%); }\n.tb-icon-align-center-v::after  { top: 50%; left: 50%; width: 8px; height: 10px; transform: translate(-50%, -50%); }\n\n/* Keyboard hint */\n.tb-key {\n  font-size: 8px;\n  line-height: 1;\n  font-weight: 600;\n  letter-spacing: 0.3px;\n  opacity: 0.35;\n  margin-top: 0;\n}\n\n.tool-btn.active .tb-key {\n  opacity: 0.65;\n}\n\n/* Action buttons (undo/redo) */\n.action-btn {\n  width: 32px;\n  height: 32px;\n}\n\n.action-btn .tb-icon {\n  font-size: 15px;\n  width: auto;\n  height: auto;\n}\n\n/* ─── Color swatches ─────────────────────────────────────────────────── */\n\n.toolbar-group.colors {\n  gap: 10px;\n}\n\n.swatch-pair {\n  display: flex;\n  align-items: center;\n  gap: 5px;\n}\n\n.swatch-label {\n  font-size: 10px;\n  font-weight: 600;\n  color: #4a4f5e;\n  text-transform: uppercase;\n  letter-spacing: 0.5px;\n}\n\n.color-swatch {\n  width: 24px;\n  height: 24px;\n  border: 1px solid #2a2a36;\n  border-radius: 4px;\n  cursor: pointer;\n  background: none;\n  padding: 2px;\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  transition: border-color 0.12s ease;\n}\n\n.color-swatch:hover {\n  border-color: #4a4a5a;\n}\n\n.color-swatch::-webkit-color-swatch-wrapper {\n  padding: 0;\n}\n\n.color-swatch::-webkit-color-swatch {\n  border: none;\n  border-radius: 2px;\n}\n\n.size-input {\n  width: 56px;\n  height: 36px;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 6px;\n  text-align: center;\n  font-family: inherit;\n}\n\n.size-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n/* ─── Canvas area ────────────────────────────────────────────────────── */\n\n#canvas-container {\n  flex: 1;\n  overflow: hidden;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 20px;\n  background: #0a0a10;\n  position: relative;\n}\n\n#canvas-preview {\n  position: relative;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* Canvas elements (rendered from document.elements) */\n.canvas-element {\n  position: absolute;\n  box-sizing: border-box;\n  cursor: pointer;\n  transition: opacity 0.1s ease;\n}\n\n.canvas-element:hover {\n  opacity: 0.85;\n}\n\n.canvas-element.selected {\n  outline: 2px solid rgba(14, 233, 231, 0.9);\n  outline-offset: 2px;\n  cursor: move;\n}\n\n/* Selection handles */\n.resize-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #0ee9e7;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.resize-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.resize-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.resize-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.resize-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.resize-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.resize-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n/* ─── Layers / shapes panel ────────────────────────────────────────── */\n\n#shapes-panel {\n  position: absolute;\n  right: 12px;\n  top: 72px;\n  width: 240px;\n  min-width: 180px;\n  min-height: 80px;\n  max-height: 60vh;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow: hidden;\n  resize: both;\n  display: none;\n  flex-direction: column;\n}\n\n#shapes-panel.visible {\n  display: flex;\n}\n\n.shapes-list {\n  flex: 1;\n  overflow-y: auto;\n  overflow-x: hidden;\n  padding: 4px 0;\n}\n\n.layers-empty {\n  padding: 16px;\n  text-align: center;\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* Layer item row */\n.layer-item {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 5px 8px;\n  cursor: pointer;\n  transition: background 0.1s ease;\n  border-left: 3px solid transparent;\n}\n\n.layer-item:hover {\n  background: rgba(255, 255, 255, 0.04);\n}\n\n.layer-item.selected {\n  background: rgba(14, 233, 231, 0.10);\n  border-left-color: #0ee9e7;\n}\n\n.layer-icon {\n  width: 18px;\n  text-align: center;\n  font-size: 14px;\n  color: #666;\n  flex-shrink: 0;\n}\n\n.layer-item.selected .layer-icon {\n  color: #0ee9e7;\n}\n\n.layer-name {\n  flex: 1;\n  font-size: 12px;\n  color: #aaa;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.layer-item.selected .layer-name {\n  color: #ddd;\n}\n\n/* Layer action buttons (visibility, z-order) */\n.layer-btn {\n  width: 22px;\n  height: 22px;\n  border: none;\n  background: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 12px;\n  border-radius: 3px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  flex-shrink: 0;\n  padding: 0;\n  transition: all 0.1s ease;\n}\n\n.layer-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #ccc;\n}\n\n/* Visibility eye toggle */\n.layer-vis {\n  font-size: 11px;\n  width: 20px;\n}\n\n.layer-vis::before {\n  content: \"\";\n  display: block;\n  width: 14px;\n  height: 10px;\n  border: 2px solid #0ee9e7;\n  border-radius: 75% / 100%;\n  position: relative;\n  box-sizing: border-box;\n}\n\n.layer-vis::after {\n  content: \"\";\n  display: block;\n  width: 4px;\n  height: 4px;\n  border-radius: 50%;\n  background: #0ee9e7;\n  position: relative;\n  top: -8px;\n  left: 5px;\n}\n\n.layer-vis.off::before {\n  border-color: #333;\n}\n\n.layer-vis.off::after {\n  background: #333;\n}\n\n/* Z-order arrows */\n.layer-z {\n  font-size: 14px;\n  min-width: 22px;\n  min-height: 22px;\n  color: #555;\n}\n\n.layer-z:hover {\n  color: #0ee9e7;\n  background: rgba(14, 233, 231, 0.08);\n}\n\n/* ─── Properties panel ──────────────────────────────────────────────── */\n\n#properties-panel {\n  position: absolute;\n  left: 12px;\n  top: 72px;\n  width: 340px;\n  min-width: 280px;\n  min-height: 80px;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow-x: hidden;\n  overflow-y: auto;\n  resize: both;\n  display: none;\n}\n\n#properties-panel.visible {\n  display: block;\n}\n\n.panel-header {\n  display: flex;\n  align-items: center;\n  padding: 10px 14px;\n  background: #1e1e2a;\n  border-bottom: 1px solid #2a2a3a;\n  font-weight: 600;\n  font-size: 13px;\n  color: #aaa;\n  cursor: grab;\n  user-select: none;\n}\n\n.panel-header:active {\n  cursor: grabbing;\n}\n\n/* Collapse / expand toggle */\n.panel-toggle {\n  margin-left: auto;\n  background: none;\n  border: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 14px;\n  padding: 0 2px;\n  line-height: 1;\n  border-radius: 3px;\n  transition: color 0.1s ease;\n}\n\n.panel-toggle:hover {\n  color: #ccc;\n}\n\n/* Collapsed state — hide content, disable resize */\n#properties-panel.collapsed .panel-content,\n#shapes-panel.collapsed .shapes-list {\n  display: none !important;\n}\n\n#properties-panel.collapsed,\n#shapes-panel.collapsed {\n  resize: none;\n  min-height: auto;\n}\n\n#properties-panel.collapsed .panel-header,\n#shapes-panel.collapsed .panel-header {\n  border-bottom: none;\n}\n\n.panel-content {\n  padding: 12px;\n}\n\n.prop-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-bottom: 10px;\n}\n\n.prop-row.vertical {\n  flex-direction: column;\n  align-items: flex-start;\n}\n\n.prop-row label {\n  font-size: 12px;\n  color: #777;\n  min-width: 28px;\n}\n\n.prop-input {\n  width: 72px;\n  flex: 0 0 72px;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 6px;\n  font-family: inherit;\n  text-align: right;\n}\n\n.prop-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-color {\n  width: 32px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  cursor: pointer;\n  background: none;\n  padding: 1px;\n}\n\n.prop-textarea {\n  width: 100%;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 6px;\n  font-family: inherit;\n  resize: vertical;\n}\n\n.prop-textarea:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-delete {\n  width: 100%;\n  padding: 8px;\n  background: rgba(255, 70, 70, 0.12);\n  border: 1px solid rgba(255, 70, 70, 0.3);\n  border-radius: 6px;\n  color: #ff6666;\n  cursor: pointer;\n  font-size: 13px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.prop-delete:hover {\n  background: rgba(255, 70, 70, 0.22);\n  border-color: rgba(255, 70, 70, 0.5);\n}\n\n/* ─── Status bar ────────────────────────────────────────────────────── */\n\n#editor-statusbar {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 8px 12px;\n  background: #1a1a24;\n  border-top: 1px solid #2a2a3a;\n  flex-shrink: 0;\n  min-height: 60px;\n}\n\n.statusbar-left,\n.statusbar-right {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n\n.statusbar-center {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n}\n\n.status-btn {\n  min-width: 140px;\n  height: 40px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  padding: 0 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 15px;\n  font-weight: 600;\n  font-family: inherit;\n  transition: all 0.15s ease;\n  white-space: nowrap;\n}\n\n.status-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.status-btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.status-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.status-btn.danger {\n  background: rgba(255, 70, 70, 0.08);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.status-btn.danger:hover {\n  background: rgba(255, 70, 70, 0.18);\n}\n\n.status-mode {\n  font-size: 15px;\n  color: #0ee9e7;\n  font-weight: 600;\n}\n\n.status-hint {\n  font-size: 13px;\n  color: #555;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           DIALOGS                                     */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.dialog-overlay {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  background: rgba(0, 0, 0, 0.7);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 100000;\n}\n\n.dialog {\n  background: #1e1e2a;\n  border: 1px solid #3a3a4a;\n  border-radius: 12px;\n  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);\n  width: 420px;\n  max-width: 90vw;\n  max-height: 80vh;\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n}\n\n.dialog-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 16px 20px;\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.dialog-header h3 {\n  margin: 0;\n  font-size: 18px;\n  color: #fff;\n  font-weight: 600;\n}\n\n.dialog-close {\n  width: 28px;\n  height: 28px;\n  border: none;\n  background: none;\n  color: #777;\n  font-size: 20px;\n  cursor: pointer;\n  border-radius: 4px;\n}\n\n.dialog-close:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.dialog-content {\n  padding: 20px;\n  overflow-y: auto;\n}\n\n.dialog-footer {\n  display: flex;\n  align-items: center;\n  justify-content: flex-end;\n  gap: 10px;\n  padding: 14px 20px;\n  border-top: 1px solid #2a2a3a;\n}\n\n.dialog-footer.centered {\n  justify-content: center;\n}\n\n/* Script list in load dialog */\n.script-list {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  max-height: 300px;\n  overflow-y: auto;\n}\n\n.script-item {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 10px 14px;\n  background: rgba(255, 255, 255, 0.03);\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  cursor: pointer;\n  transition: all 0.15s ease;\n}\n\n.script-item:hover {\n  background: rgba(14, 233, 231, 0.06);\n  border-color: rgba(14, 233, 231, 0.2);\n}\n\n.script-item .script-name {\n  font-size: 14px;\n  color: #ddd;\n}\n\n.script-item .script-meta {\n  font-size: 11px;\n  color: #666;\n}\n\n/* Save As dialog input */\n.saveas-input {\n  width: 100%;\n  height: 36px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 12px;\n  font-family: inherit;\n  margin-top: 8px;\n}\n\n.saveas-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.save-note {\n  font-size: 12px;\n  color: #666;\n  margin-top: 8px;\n}\n\n/* Confirm dialog icon */\n.confirm-icon {\n  font-size: 36px;\n  text-align: center;\n  margin-bottom: 8px;\n}\n\n/* ─── Dialog buttons ─────────────────────────────────────────────────── */\n\n.btn {\n  padding: 8px 20px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 14px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.btn.danger {\n  background: rgba(255, 70, 70, 0.10);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.btn.danger:hover {\n  background: rgba(255, 70, 70, 0.20);\n}\n\n.btn.secondary {\n  background: rgba(255, 255, 255, 0.04);\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EMPTY STATE                                 */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.empty-state {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  color: #444;\n  font-size: 16px;\n  gap: 12px;\n}\n\n.empty-state .icon {\n  font-size: 48px;\n  opacity: 0.3;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           TOAST NOTIFICATIONS                         */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.toast-container {\n  position: fixed;\n  /* Below toolbar: editor starts at 8vh, toolbar ~56px tall */\n  top: calc(8vh + 64px);\n  left: 50%;\n  transform: translateX(-50%);\n  z-index: 200000;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  align-items: center;\n  pointer-events: none;\n}\n\n.toast {\n  padding: 10px 20px;\n  background: #2a2a3a;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  color: #ccc;\n  font-size: 13px;\n  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);\n  animation: toast-in 0.3s ease;\n  transition: opacity 0.25s ease, transform 0.25s ease;\n  pointer-events: auto;\n}\n\n.toast.success {\n  border-color: rgba(50, 200, 100, 0.4);\n  background: rgba(50, 200, 100, 0.1);\n  color: #6fd898;\n}\n\n.toast.error {\n  border-color: rgba(255, 70, 70, 0.4);\n  background: rgba(255, 70, 70, 0.1);\n  color: #ff8888;\n}\n\n.toast.info {\n  border-color: rgba(14, 233, 231, 0.3);\n  background: rgba(14, 233, 231, 0.08);\n  color: #0ee9e7;\n}\n\n@keyframes toast-in {\n  from { opacity: 0; transform: translateY(10px); }\n  to { opacity: 1; transform: translateY(0); }\n}\n\n/* ─── Stepper controls ───────────────────────────────────────────────── */\n\n.stepper-ctrl {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n  flex: 1;\n}\n\n.stepper-dec,\n.stepper-inc {\n  flex-shrink: 0;\n  width: 26px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  background: #12121a;\n  color: #ccc;\n  cursor: pointer;\n  font-size: 16px;\n  line-height: 1;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-family: inherit;\n}\n\n.stepper-dec:hover,\n.stepper-inc:hover {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n}\n\n.stepper-select {\n  flex: 1;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 4px;\n  font-family: inherit;\n  text-align: center;\n  cursor: pointer;\n}\n\n.stepper-select:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n";
+  style.textContent = "/* hud-editor.css - All HUD Editor styles\n   Project: D:\\\\github\\\\du-tobi\\\\live_lua_coding\\\\examples\\\\hud_editor_v1\n   Self-contained - does NOT use ModUiExtractor core styles\n*/\n\n/* ─── Root container ────────────────────────────────────────────────── */\n\n#hud-editor-root {\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n  z-index: 99999;\n  pointer-events: none;\n  font-family: 'Rajdhani', 'Segoe UI', Tahoma, sans-serif;\n  font-size: 14px;\n  color: #ccc;\n  background: rgba(0, 0, 0, 0.70);\n  display: none;\n  overflow: hidden;\n  user-select: none;\n  -webkit-user-select: none;\n  -moz-user-select: none;\n  -ms-user-select: none;\n}\n\n#hud-editor-root[style*=\"block\"] {\n  pointer-events: auto;\n}\n\n/* ─── Screens ────────────────────────────────────────────────────────── */\n\n.hud-screen {\n  display: none;\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n}\n\n.hud-screen.active {\n  display: flex;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           START SCREEN                                */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"start\"] {\n  width: 80vw;\n  height: 80vh;\n  top: 10vh;\n  left: 10vw;\n  align-items: center;\n  justify-content: center;\n  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);\n  overflow: auto;\n}\n\n.start-container {\n  text-align: center;\n  max-width: 520px;\n  padding: 48px;\n}\n\n.start-header h1 {\n  font-size: 52px;\n  font-weight: 700;\n  color: #fff;\n  margin: 0 0 8px 0;\n  text-shadow: 0 0 30px rgba(14, 233, 231, 0.4);\n  letter-spacing: 1px;\n}\n\n.start-header .subtitle {\n  color: #777;\n  font-size: 18px;\n  margin: 0 0 48px 0;\n}\n\n.start-menu {\n  display: flex;\n  flex-direction: column;\n  gap: 14px;\n}\n\n.menu-btn {\n  display: flex;\n  align-items: center;\n  width: 100%;\n  padding: 18px 24px;\n  background: rgba(255, 255, 255, 0.04);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 12px;\n  cursor: pointer;\n  transition: all 0.2s ease;\n  text-align: left;\n  color: inherit;\n  font-family: inherit;\n  font-size: 16px;\n}\n\n.menu-btn:hover {\n  background: rgba(14, 233, 231, 0.08);\n  border-color: rgba(14, 233, 231, 0.3);\n  transform: translateX(6px);\n}\n\n.menu-btn.primary {\n  background: rgba(14, 233, 231, 0.10);\n  border-color: rgba(14, 233, 231, 0.3);\n}\n\n.menu-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.18);\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.menu-btn .icon {\n  font-size: 26px;\n  margin-right: 18px;\n  width: 32px;\n  text-align: center;\n  flex-shrink: 0;\n}\n\n.menu-btn .label-group {\n  display: flex;\n  flex-direction: column;\n}\n\n.menu-btn .label {\n  color: #fff;\n  font-size: 20px;\n  font-weight: 600;\n}\n\n.menu-btn .desc {\n  color: #666;\n  font-size: 13px;\n  margin-top: 3px;\n}\n\n.start-footer {\n  margin-top: 40px;\n}\n\n.hint {\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EDITOR SCREEN                               */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"editor\"] {\n  top: 8vh;\n  left: 6vw;\n  width: 88vw;\n  height: 84vh;\n  flex-direction: column;\n  background: #12121a;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* ─── Toolbar ────────────────────────────────────────────────────────── */\n\n#editor-toolbar {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  padding: 5px 10px;\n  background: linear-gradient(180deg, #1c1c28 0%, #16161e 100%);\n  border-bottom: 1px solid #0e0e14;\n  flex-shrink: 0;\n  height: 44px;\n}\n\n.toolbar-group {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n}\n\n.toolbar-divider {\n  width: 1px;\n  height: 26px;\n  background: linear-gradient(180deg, transparent 0%, #2a2a3a 30%, #2a2a3a 70%, transparent 100%);\n  margin: 0 8px;\n}\n\n.toolbar-spacer {\n  flex: 1;\n}\n\n/* Tool & action buttons — bordered, recessed panel look */\n.tool-btn,\n.action-btn {\n  position: relative;\n  display: inline-flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  width: 36px;\n  height: 34px;\n  padding: 0;\n  border: 1px solid #2a2a36;\n  border-radius: 5px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  color: #6b7080;\n  cursor: pointer;\n  transition: all 0.12s ease;\n  font-family: inherit;\n}\n\n.tool-btn:hover,\n.action-btn:hover {\n  background: linear-gradient(180deg, #2a2a38 0%, #22222e 100%);\n  border-color: #3a3a4a;\n  color: #b0b8c8;\n}\n\n.tool-btn:active,\n.action-btn:active {\n  background: linear-gradient(180deg, #181822 0%, #1e1e28 100%);\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);\n}\n\n.tool-btn.active {\n  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);\n}\n\n/* Icon shape — rendered via CSS */\n.tb-icon {\n  display: block;\n  width: 16px;\n  height: 16px;\n  position: relative;\n}\n\n/* Select tool — mouse pointer arrow */\n.tb-icon-select::before {\n  content: \"\";\n  position: absolute;\n  top: 1px;\n  left: 2px;\n  width: 12px;\n  height: 14px;\n  background: currentColor;\n  clip-path: polygon(0 0, 0 100%, 30% 72%, 46% 100%, 60% 92%, 44% 64%, 100% 64%);\n}\n\n.tb-icon-select::after {\n  content: none;\n}\n\n/* Box tool — rectangle outline */\n.tb-icon-box::before {\n  content: \"\";\n  position: absolute;\n  inset: 1px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Rounded box — rounded rectangle outline */\n.tb-icon-rounded::before {\n  content: \"\";\n  position: absolute;\n  inset: 1px;\n  border: 1.5px solid currentColor;\n  border-radius: 4px;\n}\n\n/* Circle tool */\n.tb-icon-circle::before {\n  content: \"\";\n  position: absolute;\n  inset: 1px;\n  border: 1.5px solid currentColor;\n  border-radius: 50%;\n}\n\n/* Line tool — diagonal */\n.tb-icon-line::before {\n  content: \"\";\n  position: absolute;\n  top: 7px;\n  left: 0;\n  width: 18px;\n  height: 0;\n  border-top: 1.5px solid currentColor;\n  transform: rotate(-35deg);\n  transform-origin: center;\n}\n\n/* Text tool */\n.tb-icon-text::before {\n  content: \"T\";\n  position: absolute;\n  inset: 0;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-size: 13px;\n  font-weight: 700;\n  font-family: inherit;\n  color: currentColor;\n}\n\n/* Alignment icons — bar + rectangle pattern */\n.tb-icon-align-left::before,\n.tb-icon-align-right::before,\n.tb-icon-align-center-h::before,\n.tb-icon-align-top::before,\n.tb-icon-align-bottom::before,\n.tb-icon-align-center-v::before {\n  content: \"\";\n  position: absolute;\n  background: currentColor;\n}\n\n.tb-icon-align-left::after,\n.tb-icon-align-right::after,\n.tb-icon-align-center-h::after,\n.tb-icon-align-top::after,\n.tb-icon-align-bottom::after,\n.tb-icon-align-center-v::after {\n  content: \"\";\n  position: absolute;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Align icons use a tighter centered draw box */\n.tb-icon-align-left::before  { left: 2px; top: 2px; width: 1.5px; height: 12px; }\n.tb-icon-align-left::after   { left: 5px; top: 50%; width: 7px; height: 5px; transform: translateY(-50%); }\n\n.tb-icon-align-right::before { right: 2px; top: 2px; width: 1.5px; height: 12px; }\n.tb-icon-align-right::after  { right: 5px; top: 50%; width: 7px; height: 5px; transform: translateY(-50%); }\n\n.tb-icon-align-center-h::before { left: 50%; top: 2px; width: 1.5px; height: 12px; transform: translateX(-50%); }\n.tb-icon-align-center-h::after  { left: 50%; top: 50%; width: 7px; height: 5px; transform: translate(-50%, -50%); }\n\n.tb-icon-align-top::before { top: 2px; left: 2px; height: 1.5px; width: 12px; }\n.tb-icon-align-top::after  { top: 5px; left: 50%; width: 5px; height: 7px; transform: translateX(-50%); }\n\n.tb-icon-align-bottom::before { bottom: 2px; left: 2px; height: 1.5px; width: 12px; }\n.tb-icon-align-bottom::after  { bottom: 5px; left: 50%; width: 5px; height: 7px; transform: translateX(-50%); }\n\n.tb-icon-align-center-v::before { top: 50%; left: 2px; height: 1.5px; width: 12px; transform: translateY(-50%); }\n.tb-icon-align-center-v::after  { top: 50%; left: 50%; width: 5px; height: 7px; transform: translate(-50%, -50%); }\n\n/* Clone tool — two overlapping rectangles with plus */\n.tb-icon-clone::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-clone::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  background-image:\n    linear-gradient(currentColor, currentColor),\n    linear-gradient(currentColor, currentColor);\n  background-repeat: no-repeat;\n  background-size: 5px 1.5px, 1.5px 5px;\n  background-position: center center, center center;\n}\n\n/* Group tool — overlapping grouped rectangles */\n.tb-icon-group::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-group::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  opacity: 0.9;\n}\n\n/* Ungroup tool — two separated rectangles */\n.tb-icon-ungroup::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  bottom: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-ungroup::after {\n  content: \"\";\n  position: absolute;\n  right: 0;\n  top: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Keyboard hint */\n.tb-key {\n  font-size: 8px;\n  line-height: 1;\n  font-weight: 600;\n  letter-spacing: 0.3px;\n  opacity: 0.35;\n  margin-top: 0;\n}\n\n.tool-btn.active .tb-key {\n  opacity: 0.65;\n}\n\n/* Action buttons (undo/redo) */\n.action-btn {\n  width: 32px;\n  height: 32px;\n}\n\n.action-btn .tb-icon {\n  font-size: 15px;\n  width: 16px;\n  height: 16px;\n}\n\n/* ─── Color swatches ─────────────────────────────────────────────────── */\n\n.toolbar-group.colors {\n  gap: 10px;\n}\n\n.swatch-pair {\n  display: flex;\n  align-items: center;\n  gap: 5px;\n}\n\n.swatch-label {\n  font-size: 10px;\n  font-weight: 600;\n  color: #4a4f5e;\n  text-transform: uppercase;\n  letter-spacing: 0.5px;\n}\n\n.color-swatch {\n  width: 24px;\n  height: 24px;\n  border: 1px solid #2a2a36;\n  border-radius: 4px;\n  cursor: pointer;\n  background: none;\n  padding: 2px;\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  transition: border-color 0.12s ease;\n}\n\n.color-swatch:hover {\n  border-color: #4a4a5a;\n}\n\n.color-swatch::-webkit-color-swatch-wrapper {\n  padding: 0;\n}\n\n.color-swatch::-webkit-color-swatch {\n  border: none;\n  border-radius: 2px;\n}\n\n.size-input {\n  width: 56px;\n  height: 36px;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 6px;\n  text-align: center;\n  font-family: inherit;\n}\n\n.size-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n/* ─── Canvas area ────────────────────────────────────────────────────── */\n\n#canvas-container {\n  flex: 1;\n  overflow: hidden;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 20px;\n  background: #0a0a10;\n  position: relative;\n}\n\n#canvas-preview {\n  position: relative;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* Canvas elements (rendered from document.elements) */\n.canvas-element {\n  position: absolute;\n  box-sizing: border-box;\n  cursor: pointer;\n  transition: opacity 0.1s ease;\n}\n\n.canvas-element:hover {\n  opacity: 0.85;\n}\n\n.canvas-element.selected {\n  outline: 2px solid rgba(14, 233, 231, 0.9);\n  outline-offset: 2px;\n  cursor: move;\n}\n\n/* Selection handles */\n.resize-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #0ee9e7;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.resize-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.resize-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.resize-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.resize-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.resize-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.resize-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n/* Group selection overlay — orange bounding box */\n.group-overlay {\n  position: absolute;\n  pointer-events: none;\n  z-index: 90;\n}\n\n.group-outline {\n  position: absolute;\n  inset: 0;\n  border: 2px solid rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.04);\n}\n\n/* Group resize handles — same as individual but orange */\n.group-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #ff8c00;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.group-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.group-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.group-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.group-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.group-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.group-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n.toolbar-check {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  padding: 0 8px;\n  min-height: 32px;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(35, 39, 56, 0.96), rgba(23, 25, 36, 0.96));\n  color: #9aa4ba;\n  cursor: pointer;\n  user-select: none;\n}\n\n.toolbar-check:hover {\n  border-color: #3b465f;\n  color: #cfd8e8;\n}\n\n.toolbar-check-input {\n  position: absolute;\n  opacity: 0;\n  pointer-events: none;\n}\n\n.toolbar-check-box {\n  width: 13px;\n  height: 13px;\n  border: 1px solid #4a556d;\n  border-radius: 3px;\n  background: rgba(9, 12, 18, 0.85);\n  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);\n  position: relative;\n  flex-shrink: 0;\n}\n\n.toolbar-check-input:checked + .toolbar-check-box {\n  border-color: rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.18);\n}\n\n.toolbar-check-input:checked + .toolbar-check-box::after {\n  content: \"\";\n  position: absolute;\n  left: 3px;\n  top: 1px;\n  width: 4px;\n  height: 7px;\n  border: solid #ffb04d;\n  border-width: 0 2px 2px 0;\n  transform: rotate(45deg);\n}\n\n.toolbar-check-label {\n  font-size: 11px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  white-space: nowrap;\n}\n\n/* ─── Layers / shapes panel ────────────────────────────────────────── */\n\n#shapes-panel {\n  position: absolute;\n  right: 12px;\n  top: 72px;\n  width: 240px;\n  min-width: 180px;\n  min-height: 80px;\n  max-height: 60vh;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow: hidden;\n  resize: both;\n  display: none;\n  flex-direction: column;\n}\n\n#shapes-panel.visible {\n  display: flex;\n}\n\n.shapes-list {\n  flex: 1;\n  overflow-y: auto;\n  overflow-x: hidden;\n  padding: 6px;\n}\n\n.layers-empty {\n  padding: 16px;\n  text-align: center;\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* Layer item row */\n.layer-item {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 5px 8px;\n  margin-bottom: 6px;\n  cursor: pointer;\n  transition: background 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;\n  border: 1px solid #2a2a36;\n  border-left: 3px solid transparent;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);\n}\n\n.layer-item:hover {\n  background: linear-gradient(180deg, #272734 0%, #1d1d28 100%);\n  border-color: #363646;\n}\n\n.layer-item.selected {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.12) 0%, rgba(14, 233, 231, 0.07) 100%);\n  border-color: rgba(14, 233, 231, 0.22);\n  border-left-color: #0ee9e7;\n}\n\n.layer-group-box {\n  margin-bottom: 8px;\n  padding: 6px;\n  border: 1px solid rgba(255, 140, 0, 0.42);\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(255, 140, 0, 0.08) 0%, rgba(72, 44, 17, 0.26) 100%);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.04);\n}\n\n.layer-group-box.selected {\n  border-color: rgba(255, 140, 0, 0.85);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.10);\n}\n\n.layer-item.grouped-member {\n  padding-left: 10px;\n}\n\n.layer-group-sep {\n  height: 1px;\n  margin: 2px 6px 8px;\n  background: linear-gradient(90deg, transparent 0%, #2f3242 18%, #2f3242 82%, transparent 100%);\n}\n\n.layer-icon {\n  width: 18px;\n  text-align: center;\n  font-size: 14px;\n  color: #666;\n  flex-shrink: 0;\n}\n\n.layer-item.selected .layer-icon {\n  color: #0ee9e7;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-icon {\n  color: #ffb04d;\n}\n\n.layer-name {\n  flex: 1;\n  font-size: 12px;\n  color: #aaa;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.layer-item.selected .layer-name {\n  color: #ddd;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-name {\n  color: #e5d0b4;\n}\n\n/* Layer action buttons (visibility, z-order) */\n.layer-btn {\n  width: 22px;\n  height: 22px;\n  border: none;\n  background: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 12px;\n  border-radius: 3px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  flex-shrink: 0;\n  padding: 0;\n  transition: all 0.1s ease;\n}\n\n.layer-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #ccc;\n}\n\n/* Visibility eye toggle */\n.layer-vis {\n  font-size: 11px;\n  width: 20px;\n}\n\n.layer-vis::before {\n  content: \"\";\n  display: block;\n  width: 14px;\n  height: 10px;\n  border: 2px solid #0ee9e7;\n  border-radius: 75% / 100%;\n  position: relative;\n  box-sizing: border-box;\n}\n\n.layer-vis::after {\n  content: \"\";\n  display: block;\n  width: 4px;\n  height: 4px;\n  border-radius: 50%;\n  background: #0ee9e7;\n  position: relative;\n  top: -8px;\n  left: 5px;\n}\n\n.layer-vis.off::before {\n  border-color: #333;\n}\n\n.layer-vis.off::after {\n  background: #333;\n}\n\n/* Z-order arrows */\n.layer-z {\n  font-size: 14px;\n  min-width: 22px;\n  min-height: 22px;\n  color: #555;\n}\n\n.layer-z:hover {\n  color: #0ee9e7;\n  background: rgba(14, 233, 231, 0.08);\n}\n\n/* ─── Properties panel ──────────────────────────────────────────────── */\n\n#properties-panel {\n  position: absolute;\n  left: 12px;\n  top: 72px;\n  width: 340px;\n  min-width: 280px;\n  min-height: 80px;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow-x: hidden;\n  overflow-y: auto;\n  resize: both;\n  display: none;\n}\n\n#properties-panel.visible {\n  display: block;\n}\n\n.panel-header {\n  display: flex;\n  align-items: center;\n  padding: 10px 14px;\n  background: #1e1e2a;\n  border-bottom: 1px solid #2a2a3a;\n  font-weight: 600;\n  font-size: 13px;\n  color: #aaa;\n  cursor: grab;\n  user-select: none;\n}\n\n.panel-header:active {\n  cursor: grabbing;\n}\n\n/* Collapse / expand toggle */\n.panel-toggle {\n  margin-left: auto;\n  background: none;\n  border: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 14px;\n  padding: 0 2px;\n  line-height: 1;\n  border-radius: 3px;\n  transition: color 0.1s ease;\n}\n\n.panel-toggle:hover {\n  color: #ccc;\n}\n\n/* Collapsed state — hide content, disable resize */\n#properties-panel.collapsed .panel-content,\n#shapes-panel.collapsed .shapes-list {\n  display: none !important;\n}\n\n#properties-panel.collapsed.hover-open .panel-content,\n#shapes-panel.collapsed.hover-open .shapes-list {\n  display: block !important;\n}\n\n#properties-panel.collapsed,\n#shapes-panel.collapsed {\n  resize: none;\n  min-height: auto;\n}\n\n#properties-panel.collapsed.hover-open,\n#shapes-panel.collapsed.hover-open {\n  resize: both;\n}\n\n#properties-panel.collapsed .panel-header,\n#shapes-panel.collapsed .panel-header {\n  border-bottom: none;\n}\n\n#properties-panel.collapsed.hover-open .panel-header,\n#shapes-panel.collapsed.hover-open .panel-header {\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.panel-content {\n  padding: 12px;\n}\n\n.prop-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-bottom: 10px;\n}\n\n.prop-row.vertical {\n  flex-direction: column;\n  align-items: flex-start;\n}\n\n.prop-row label {\n  font-size: 12px;\n  color: #777;\n  min-width: 28px;\n}\n\n.prop-input {\n  width: 72px;\n  flex: 0 0 72px;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 6px;\n  font-family: inherit;\n  text-align: right;\n}\n\n.prop-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-color {\n  width: 32px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  cursor: pointer;\n  background: none;\n  padding: 1px;\n}\n\n.prop-textarea {\n  width: 100%;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 6px;\n  font-family: inherit;\n  resize: vertical;\n}\n\n.prop-textarea:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-delete {\n  width: 100%;\n  padding: 8px;\n  background: rgba(255, 70, 70, 0.12);\n  border: 1px solid rgba(255, 70, 70, 0.3);\n  border-radius: 6px;\n  color: #ff6666;\n  cursor: pointer;\n  font-size: 13px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.prop-delete:hover {\n  background: rgba(255, 70, 70, 0.22);\n  border-color: rgba(255, 70, 70, 0.5);\n}\n\n/* ─── Status bar ────────────────────────────────────────────────────── */\n\n#editor-statusbar {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 8px 12px;\n  background: #1a1a24;\n  border-top: 1px solid #2a2a3a;\n  flex-shrink: 0;\n  min-height: 60px;\n}\n\n.statusbar-left,\n.statusbar-right {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n\n.statusbar-center {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n}\n\n.status-btn {\n  min-width: 140px;\n  height: 40px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  padding: 0 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 15px;\n  font-weight: 600;\n  font-family: inherit;\n  transition: all 0.15s ease;\n  white-space: nowrap;\n}\n\n.status-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.status-btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.status-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.status-btn.danger {\n  background: rgba(255, 70, 70, 0.08);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.status-btn.danger:hover {\n  background: rgba(255, 70, 70, 0.18);\n}\n\n.status-mode {\n  font-size: 15px;\n  color: #0ee9e7;\n  font-weight: 600;\n}\n\n.status-hint {\n  font-size: 13px;\n  color: #555;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           DIALOGS                                     */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.dialog-overlay {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  background: rgba(0, 0, 0, 0.7);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 100000;\n}\n\n.dialog {\n  background: #1e1e2a;\n  border: 1px solid #3a3a4a;\n  border-radius: 12px;\n  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);\n  width: 420px;\n  max-width: 90vw;\n  max-height: 80vh;\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n}\n\n.dialog-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 16px 20px;\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.dialog-header h3 {\n  margin: 0;\n  font-size: 18px;\n  color: #fff;\n  font-weight: 600;\n}\n\n.dialog-close {\n  width: 28px;\n  height: 28px;\n  border: none;\n  background: none;\n  color: #777;\n  font-size: 20px;\n  cursor: pointer;\n  border-radius: 4px;\n}\n\n.dialog-close:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.dialog-content {\n  padding: 20px;\n  overflow-y: auto;\n}\n\n.dialog-footer {\n  display: flex;\n  align-items: center;\n  justify-content: flex-end;\n  gap: 10px;\n  padding: 14px 20px;\n  border-top: 1px solid #2a2a3a;\n}\n\n.dialog-footer.centered {\n  justify-content: center;\n}\n\n/* Script list in load dialog */\n.script-list {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  max-height: 300px;\n  overflow-y: auto;\n}\n\n.script-item {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 10px 14px;\n  background: rgba(255, 255, 255, 0.03);\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  cursor: pointer;\n  transition: all 0.15s ease;\n}\n\n.script-item:hover {\n  background: rgba(14, 233, 231, 0.06);\n  border-color: rgba(14, 233, 231, 0.2);\n}\n\n.script-item .script-name {\n  font-size: 14px;\n  color: #ddd;\n}\n\n.script-item .script-meta {\n  font-size: 11px;\n  color: #666;\n}\n\n/* Save As dialog input */\n.saveas-input {\n  width: 100%;\n  height: 36px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 12px;\n  font-family: inherit;\n  margin-top: 8px;\n}\n\n.saveas-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.save-note {\n  font-size: 12px;\n  color: #666;\n  margin-top: 8px;\n}\n\n/* Confirm dialog icon */\n.confirm-icon {\n  font-size: 36px;\n  text-align: center;\n  margin-bottom: 8px;\n}\n\n/* ─── Dialog buttons ─────────────────────────────────────────────────── */\n\n.btn {\n  padding: 8px 20px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 14px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.btn.danger {\n  background: rgba(255, 70, 70, 0.10);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.btn.danger:hover {\n  background: rgba(255, 70, 70, 0.20);\n}\n\n.btn.secondary {\n  background: rgba(255, 255, 255, 0.04);\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EMPTY STATE                                 */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.empty-state {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  color: #444;\n  font-size: 16px;\n  gap: 12px;\n}\n\n.empty-state .icon {\n  font-size: 48px;\n  opacity: 0.3;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           TOAST NOTIFICATIONS                         */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.toast-container {\n  position: fixed;\n  /* Below toolbar: editor starts at 8vh, toolbar ~56px tall */\n  top: calc(8vh + 64px);\n  left: 50%;\n  transform: translateX(-50%);\n  z-index: 200000;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  align-items: center;\n  pointer-events: none;\n}\n\n.toast {\n  padding: 10px 20px;\n  background: #2a2a3a;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  color: #ccc;\n  font-size: 13px;\n  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);\n  animation: toast-in 0.3s ease;\n  transition: opacity 0.25s ease, transform 0.25s ease;\n  pointer-events: auto;\n}\n\n.toast.success {\n  border-color: rgba(50, 200, 100, 0.4);\n  background: rgba(50, 200, 100, 0.1);\n  color: #6fd898;\n}\n\n.toast.error {\n  border-color: rgba(255, 70, 70, 0.4);\n  background: rgba(255, 70, 70, 0.1);\n  color: #ff8888;\n}\n\n.toast.info {\n  border-color: rgba(14, 233, 231, 0.3);\n  background: rgba(14, 233, 231, 0.08);\n  color: #0ee9e7;\n}\n\n@keyframes toast-in {\n  from { opacity: 0; transform: translateY(10px); }\n  to { opacity: 1; transform: translateY(0); }\n}\n\n/* ─── Stepper controls ───────────────────────────────────────────────── */\n\n.stepper-ctrl {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n  flex: 1;\n}\n\n.stepper-dec,\n.stepper-inc {\n  flex-shrink: 0;\n  width: 26px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  background: #12121a;\n  color: #ccc;\n  cursor: pointer;\n  font-size: 16px;\n  line-height: 1;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-family: inherit;\n}\n\n.stepper-dec:hover,\n.stepper-inc:hover {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n}\n\n.stepper-select {\n  flex: 1;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 4px;\n  font-family: inherit;\n  text-align: center;\n  cursor: pointer;\n}\n\n.stepper-select:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n";
   document.head.appendChild(style);
 })();
 // --- 000-core.js ---
@@ -33,12 +33,14 @@
 
   var listeners = {};
   var cleanupFns = [];
+  var activeToasts = {};
 
   var state = {
     initialized: false,
     editModeActive: false,
     currentScreen: "start",
     currentTool: "select",
+    autoOpenPanels: false,
     selectedElementId: null,
     selectedElementIds: [],
     isDirty: false,
@@ -268,32 +270,83 @@
     return container;
   }
 
+  function getToastKey(data, text) {
+    return String(data.type || "info") + "::" + text;
+  }
+
+  function setToastText(meta) {
+    if (!meta || !meta.toast) return;
+    meta.toast.textContent = meta.count > 1 ? (meta.text + " x" + meta.count) : meta.text;
+  }
+
+  function clearToastTimers(meta) {
+    if (!meta) return;
+    if (meta.fadeTimer) WIN.clearTimeout(meta.fadeTimer);
+    if (meta.removeTimer) WIN.clearTimeout(meta.removeTimer);
+    meta.fadeTimer = null;
+    meta.removeTimer = null;
+  }
+
+  function removeToast(meta) {
+    if (!meta) return;
+    clearToastTimers(meta);
+    if (activeToasts[meta.key] === meta) {
+      delete activeToasts[meta.key];
+    }
+    try {
+      if (meta.toast && meta.toast.parentNode) {
+        meta.toast.parentNode.removeChild(meta.toast);
+      }
+    } catch (_ignoreToastRemove) {}
+  }
+
+  function scheduleToast(meta) {
+    clearToastTimers(meta);
+    meta.toast.style.opacity = "1";
+    meta.toast.style.transform = "translateY(0)";
+    meta.fadeTimer = WIN.setTimeout(function () {
+      try {
+        meta.toast.style.opacity = "0";
+        meta.toast.style.transform = "translateY(-6px)";
+      } catch (_ignoreToastFade) {}
+    }, 1800);
+
+    meta.removeTimer = WIN.setTimeout(function () {
+      removeToast(meta);
+    }, 2200);
+  }
+
   function showToast(payload) {
     var data = payload && typeof payload === "object" ? payload : { text: String(payload || "") };
     var text = String(data.text || "").trim();
     if (!text) {
       return;
     }
+
+    var key = getToastKey(data, text);
+    var existing = activeToasts[key];
+    if (existing) {
+      existing.count += 1;
+      setToastText(existing);
+      scheduleToast(existing);
+      return;
+    }
+
     var container = getToastContainer();
     var toast = DOC.createElement("div");
     toast.className = "toast " + (data.type || "info");
-    toast.textContent = text;
+    var meta = {
+      key: key,
+      text: text,
+      count: 1,
+      toast: toast,
+      fadeTimer: null,
+      removeTimer: null,
+    };
+    setToastText(meta);
     container.appendChild(toast);
-
-    WIN.setTimeout(function () {
-      try {
-        toast.style.opacity = "0";
-        toast.style.transform = "translateY(-6px)";
-      } catch (_ignoreToastFade) {}
-    }, 1800);
-
-    WIN.setTimeout(function () {
-      try {
-        if (toast.parentNode) {
-          toast.parentNode.removeChild(toast);
-        }
-      } catch (_ignoreToastRemove) {}
-    }, 2200);
+    activeToasts[key] = meta;
+    scheduleToast(meta);
   }
 
   function createToggleButton() {
@@ -365,6 +418,10 @@
     on("toast", showToast);
 
     addCleanup(function () {
+      Object.keys(activeToasts).forEach(function (key) {
+        removeToast(activeToasts[key]);
+      });
+      activeToasts = {};
       var container = DOC.getElementById("hud-editor-toast-container");
       if (container && container.parentNode) {
         container.parentNode.removeChild(container);
@@ -569,6 +626,23 @@
   var el = APP.el;
   var qs = APP.qs;
   var qsa = APP.qsa;
+  var AUTO_OPEN_PANELS_KEY = "hud_auto_open_panels";
+
+  function loadAutoOpenPanels() {
+    try {
+      return localStorage.getItem(AUTO_OPEN_PANELS_KEY) === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function setAutoOpenPanels(enabled) {
+    APP.state.autoOpenPanels = !!enabled;
+    try {
+      localStorage.setItem(AUTO_OPEN_PANELS_KEY, enabled ? "1" : "");
+    } catch (e) { /* ignore */ }
+    APP.emit("auto-open-panels-changed", APP.state.autoOpenPanels);
+  }
 
   // ─── Stepper builder ────────────────────────────────────────────────
 
@@ -654,6 +728,27 @@
 
         el("div", { className: "toolbar-divider" }),
 
+        // Grouping
+        el("div", { className: "toolbar-group actions" }, [
+          el("button", { className: "action-btn", dataset: { action: "group" }, title: "Group (Ctrl+G)" }, [
+            el("span", { className: "tb-icon tb-icon-group" }),
+          ]),
+          el("button", { className: "action-btn", dataset: { action: "ungroup" }, title: "Ungroup (Ctrl+Shift+G)" }, [
+            el("span", { className: "tb-icon tb-icon-ungroup" }),
+          ]),
+        ]),
+
+        el("div", { className: "toolbar-divider" }),
+
+        // Clone
+        el("div", { className: "toolbar-group actions" }, [
+          el("button", { className: "action-btn", dataset: { action: "clone" }, title: "Clone (Ctrl+D)" }, [
+            el("span", { className: "tb-icon tb-icon-clone" }),
+          ]),
+        ]),
+
+        el("div", { className: "toolbar-divider" }),
+
         // Alignment
         el("div", { className: "toolbar-group align-group" }, [
           el("button", { className: "action-btn", dataset: { action: "align-left" }, title: "Align left" }, [
@@ -674,6 +769,18 @@
           el("button", { className: "action-btn", dataset: { action: "align-bottom" }, title: "Align bottom" }, [
             el("span", { className: "tb-icon tb-icon-align-bottom" }),
           ]),
+        ]),
+
+        el("div", { className: "toolbar-divider" }),
+
+        el("label", { className: "toolbar-check", title: "Auto-open collapsed panels on hover" }, [
+          el("input", {
+            type: "checkbox",
+            className: "toolbar-check-input",
+            id: "auto-open-panels-toggle",
+          }),
+          el("span", { className: "toolbar-check-box" }),
+          el("span", { className: "toolbar-check-label", textContent: "Auto Panels" }),
         ]),
 
         el("div", { className: "toolbar-spacer" }),
@@ -812,6 +919,15 @@
     else if (action.indexOf("align-") === 0) {
       APP.emit("align", action.replace("align-", ""));
     }
+    else if (action === "group") {
+      APP.emit("group-selection");
+    }
+    else if (action === "ungroup") {
+      APP.emit("ungroup-selection");
+    }
+    else if (action === "clone") {
+      APP.emit("clone-selection");
+    }
     else if (action === "toggle-collapse") {
       APP.emit("toggle-props-collapse");
     }
@@ -844,6 +960,25 @@
     });
   }
 
+  function syncToolbarSettings() {
+    var root = APP.getRoot();
+    var input = qs("#auto-open-panels-toggle", root);
+    if (input) input.checked = !!APP.state.autoOpenPanels;
+  }
+
+  function attachToolbarSettingListeners() {
+    var root = APP.getRoot();
+    var toolbar = qs("#editor-toolbar", root);
+    if (!toolbar || toolbar.__hudSettingsBound) return;
+    toolbar.__hudSettingsBound = true;
+
+    toolbar.addEventListener("change", function (e) {
+      var input = e.target;
+      if (!input || input.id !== "auto-open-panels-toggle") return;
+      setAutoOpenPanels(!!input.checked);
+    });
+  }
+
   // ─── Register with core ──────────────────────────────────────────────
 
   APP.on("document-created", function () {
@@ -854,6 +989,10 @@
     updateToolButtons(tool || APP.state.currentTool);
   });
 
+  APP.on("auto-open-panels-changed", function () {
+    syncToolbarSettings();
+  });
+
   function mountEditorShell() {
     var root = APP.getRoot();
     if (qs('[data-screen="editor"]', root)) return;
@@ -862,6 +1001,9 @@
 
     var toolbar = qs("#editor-toolbar", root);
     if (toolbar) toolbar.addEventListener("click", onToolbarClick);
+    attachToolbarSettingListeners();
+    APP.state.autoOpenPanels = loadAutoOpenPanels();
+    syncToolbarSettings();
 
     var statusbar = qs("#editor-statusbar", root);
     if (statusbar) statusbar.addEventListener("click", onToolbarClick);
@@ -1097,6 +1239,60 @@
     return overlay;
   }
 
+  // ─── Render selection / group overlays ──────────────────────────────
+
+  function computeMultiSelectBounds(selIds) {
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (var i = 0; i < selIds.length; i++) {
+      var el = findElementById(selIds[i]);
+      if (!el) continue;
+      if (el.x < minX) minX = el.x;
+      if (el.y < minY) minY = el.y;
+      if (el.x + el.w > maxX) maxX = el.x + el.w;
+      if (el.y + el.h > maxY) maxY = el.y + el.h;
+    }
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  }
+
+  function createGroupOverlay(bounds, isGroup, showHandles) {
+    var overlay = el("div", {
+      className: "group-overlay",
+      dataset: { groupId: isGroup ? "group_sel" : "multi_sel" },
+    });
+
+    // Orange outline — non-interactive
+    var outline = el("div", { className: "group-outline" });
+    outline.style.position = "absolute";
+    outline.style.inset = "0";
+    outline.style.pointerEvents = "none";
+    overlay.appendChild(outline);
+
+    if (showHandles !== false) {
+      // 8 resize handles — interactive, on top
+      var handles = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+      handles.forEach(function (h) {
+        var handle = el("div", {
+          className: "group-handle",
+          dataset: { h: h },
+        });
+        overlay.appendChild(handle);
+      });
+    }
+
+    // Size/position the overlay
+    var pos = screenToCanvas(bounds.x, bounds.y);
+    var size = screenToCanvas(bounds.w, bounds.h);
+
+    overlay.style.position = "absolute";
+    overlay.style.left = (pos.x - 2) + "px";
+    overlay.style.top = (pos.y - 2) + "px";
+    overlay.style.width = (size.x + 4) + "px";
+    overlay.style.height = (size.y + 4) + "px";
+    overlay.style.pointerEvents = "none";
+
+    return overlay;
+  }
+
   function clearSelectionOverlays() {
     var preview = getCanvasPreview();
     if (!preview) return;
@@ -1105,6 +1301,46 @@
         node.parentNode.removeChild(node);
       }
     });
+    qsa('.group-overlay', preview).forEach(function (node) {
+      if (node && node.parentNode) {
+        node.parentNode.removeChild(node);
+      }
+    });
+  }
+
+  function renderSelectionOverlays() {
+    var preview = getCanvasPreview();
+    if (!preview) return;
+    clearSelectionOverlays();
+
+    var selIds = APP.state.selectedElementIds || [];
+    var sel = APP.selection;
+    var isGrouped = sel && sel.hasGroup && sel.hasGroup();
+    var isGroupSelected = sel && sel.isGroupSelected && sel.isGroupSelected();
+    var isMultiSelect = selIds.length >= 2;
+
+    if (isGrouped) {
+      var groupBounds = sel.getGroupBounds();
+      if (groupBounds && groupBounds.w > 0 && groupBounds.h > 0) {
+        preview.appendChild(createGroupOverlay(groupBounds, true, isGroupSelected));
+      }
+    }
+
+    if (isMultiSelect) {
+      var multiBounds = computeMultiSelectBounds(selIds);
+      if (multiBounds && multiBounds.w > 0 && multiBounds.h > 0) {
+        preview.appendChild(createGroupOverlay(multiBounds, false, true));
+      }
+      return;
+    }
+
+    if (selIds.length === 1) {
+      var selEl = findElementById(selIds[0]);
+      if (selEl) {
+        var overlay = createSelectionOverlay(selEl, true);
+        preview.appendChild(overlay);
+      }
+    }
   }
 
   // ─── Render all elements ────────────────────────────────────────────
@@ -1145,18 +1381,8 @@
       preview.appendChild(dom);
     });
 
-    // Render selection overlays for all selected elements
-    clearSelectionOverlays();
-    var selIds = APP.state.selectedElementIds || [];
-    var focusId = APP.state.selectedElementId;
-    for (var si = 0; si < selIds.length; si++) {
-      var selEl = findElementById(selIds[si]);
-      if (selEl) {
-        var isFocus = selIds[si] === focusId;
-        var overlay = createSelectionOverlay(selEl, isFocus);
-        preview.appendChild(overlay);
-      }
-    }
+    // Render selection / group overlays
+    renderSelectionOverlays();
 
     renderPending = false;
   }
@@ -1228,17 +1454,8 @@
 
     applyElementStyles(dom, element);
 
-    // Rebuild all selection overlays
-    clearSelectionOverlays();
-    var selIds = APP.state.selectedElementIds || [];
-    var focusId = APP.state.selectedElementId;
-    for (var si = 0; si < selIds.length; si++) {
-      var selEl = findElementById(selIds[si]);
-      if (selEl) {
-        var ov = createSelectionOverlay(selEl, selIds[si] === focusId);
-        preview.appendChild(ov);
-      }
-    }
+    // Rebuild selection / group overlays
+    renderSelectionOverlays();
   }
 
   // ─── Remove element from DOM ──────────────────────────────────────
@@ -1615,7 +1832,7 @@
 })();
 
 // --- 050-selection-manager.js ---
-// 050-selection-manager.js - Element selection, hit testing, drag, resize
+// 050-selection-manager.js - Element selection, hit testing, drag, resize, grouping, cloning
 (function hudEditorSelectionManager() {
   "use strict";
 
@@ -1631,6 +1848,41 @@
     var arr = ids();
     for (var i = 0; i < arr.length; i++) { if (arr[i] === id) return true; }
     return false;
+  }
+
+  // ─── Group state ──────────────────────────────────────────────────
+
+  var groupState = {
+    active: false,        // true when a group selection is active
+    selected: false,      // true when the persistent group is the active UI target
+    memberIds: [],        // element IDs that are members of the group
+  };
+
+  function hasGroup() { return groupState.active && groupState.memberIds.length >= 2; }
+  function isGroupSelected() { return hasGroup() && groupState.selected; }
+
+  // Aggregate selection: selected group members or selected loose elements.
+  function activeIds() {
+    if (isGroupSelected()) return groupState.memberIds.slice();
+    return ids().slice();
+  }
+
+  function isAggregateSelection() {
+    return activeIds().length >= 2;
+  }
+
+  function getGroupBounds() {
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    var members = groupState.memberIds.slice();
+    for (var i = 0; i < members.length; i++) {
+      var el = APP.canvas.getElementById(members[i]);
+      if (!el) continue;
+      if (el.x < minX) minX = el.x;
+      if (el.y < minY) minY = el.y;
+      if (el.x + el.w > maxX) maxX = el.x + el.w;
+      if (el.y + el.h > maxY) maxY = el.y + el.h;
+    }
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
   }
 
   // ─── Hit testing ───────────────────────────────────────────────────
@@ -1657,16 +1909,25 @@
 
   // ─── Selection ─────────────────────────────────────────────────────
 
+  function selectGroup() {
+    if (!hasGroup()) return;
+    groupState.selected = true;
+    APP.state.selectedElementId = null;
+    APP.state.selectedElementIds = [];
+    APP.emit("selection-changed", null);
+  }
+
   function selectElement(elementId) {
+    groupState.selected = false;
     APP.state.selectedElementId = elementId;
     APP.state.selectedElementIds = elementId ? [elementId] : [];
     APP.emit("selection-changed", elementId);
   }
 
   function toggleInSelection(elementId) {
+    groupState.selected = false;
     var arr = ids();
     if (isSelected(elementId)) {
-      // Remove from selection
       var next = [];
       for (var i = 0; i < arr.length; i++) {
         if (arr[i] !== elementId) next.push(arr[i]);
@@ -1674,7 +1935,6 @@
       APP.state.selectedElementIds = next;
       APP.state.selectedElementId = next.length > 0 ? next[next.length - 1] : null;
     } else {
-      // Add to selection
       arr.push(elementId);
       APP.state.selectedElementId = elementId;
     }
@@ -1682,15 +1942,16 @@
   }
 
   function deselectAll() {
-    if (ids().length === 0 && !APP.state.selectedElementId) return;
+    if (ids().length === 0 && !APP.state.selectedElementId && !groupState.active) return;
     APP.state.selectedElementId = null;
     APP.state.selectedElementIds = [];
+    groupState.selected = false;
     APP.emit("selection-changed", null);
     APP.emit("deselect-all");
   }
 
   function deleteSelected() {
-    var arr = ids().slice();
+    var arr = activeIds();
     if (arr.length === 0) return;
 
     var doc = APP.state.document;
@@ -1710,7 +1971,113 @@
       }
     }
 
+    if (hasGroup()) {
+      groupState.memberIds = groupState.memberIds.filter(function (groupId) {
+        return !!APP.canvas.getElementById(groupId);
+      });
+      if (groupState.memberIds.length < 2) {
+        groupState.active = false;
+        groupState.selected = false;
+        groupState.memberIds = [];
+      }
+    }
     deselectAll();
+  }
+
+  // ─── Grouping ──────────────────────────────────────────────────────
+
+  function groupSelection() {
+    var arr = ids();
+    if (arr.length < 2) return;
+
+    if (APP.undoRedo) APP.undoRedo.push();
+
+    groupState.active = true;
+    groupState.selected = true;
+    groupState.memberIds = arr.slice();
+    APP.state.selectedElementId = null;
+    APP.state.selectedElementIds = [];
+    APP.emit("group-activated");
+    APP.emit("selection-changed", null);
+    APP.canvas.scheduleRender();
+  }
+
+  function ungroupSelection() {
+    if (!hasGroup()) return;
+
+    if (APP.undoRedo) APP.undoRedo.push();
+
+    var members = groupState.memberIds.slice();
+    groupState.active = false;
+    groupState.selected = false;
+    groupState.memberIds = [];
+    APP.state.selectedElementIds = members;
+    APP.state.selectedElementId = members.length > 0 ? members[members.length - 1] : null;
+    APP.emit("group-deactivated");
+    APP.emit("selection-changed", APP.state.selectedElementId);
+    APP.canvas.scheduleRender();
+  }
+
+  // ─── Cloning ───────────────────────────────────────────────────────
+
+  var CLONE_OFFSET_X = 24;
+  var CLONE_OFFSET_Y = 24;
+
+  function cloneSelection() {
+    var sourceIds;
+    if (isGroupSelected()) {
+      sourceIds = groupState.memberIds.slice();
+    } else {
+      sourceIds = ids().slice();
+    }
+    if (sourceIds.length === 0) return;
+
+    var doc = APP.state.document;
+    if (!doc || !doc.elements) return;
+
+    if (APP.undoRedo) APP.undoRedo.push();
+
+    var newIds = [];
+    for (var i = 0; i < sourceIds.length; i++) {
+      var src = APP.canvas.getElementById(sourceIds[i]);
+      if (!src) continue;
+      var clone = JSON.parse(JSON.stringify(src));
+      clone.id = generateId();
+      clone.x += CLONE_OFFSET_X;
+      clone.y += CLONE_OFFSET_Y;
+      doc.elements.push(clone);
+      newIds.push(clone.id);
+      APP.emit("element-added", clone);
+    }
+
+    if (newIds.length === 0) return;
+
+    APP.state.isDirty = true;
+    groupState.selected = false;
+
+    if (newIds.length === 1) {
+      selectElement(newIds[0]);
+    } else {
+      APP.state.selectedElementIds = newIds;
+      APP.state.selectedElementId = newIds[newIds.length - 1];
+      APP.emit("selection-changed", APP.state.selectedElementId);
+    }
+
+    APP.canvas.scheduleRender();
+    APP.emit("toast", { type: "success", text: newIds.length > 1 ? "Cloned selection" : "Cloned element" });
+  }
+
+  function generateId() {
+    var doc = APP.state.document;
+    if (!doc || !doc.elements) return "el_" + Date.now();
+    var base = "el";
+    var counter = doc.elements.length + 1;
+    var id = base + "_" + counter;
+    while (doc.elements.find(function (e) { return e.id === id; })) {
+      counter++;
+      id = base + "_" + counter;
+    }
+    return id;
   }
 
   // ─── Canvas click handler ──────────────────────────────────────────
@@ -1726,6 +2093,7 @@
     if (APP.state.currentTool !== "select") return;
 
     if (e.target.classList && e.target.classList.contains("resize-handle")) return;
+    if (e.target.classList && e.target.classList.contains("group-handle")) return;
 
     var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
     if (!preview) return;
@@ -1736,6 +2104,7 @@
     if (e.target.closest("#editor-statusbar")) return;
 
     var hitId = null;
+    var screen = null;
     var clickedElement = e.target.closest(".canvas-element");
     if (clickedElement && clickedElement.dataset && clickedElement.dataset.elementId) {
       hitId = clickedElement.dataset.elementId;
@@ -1743,9 +2112,22 @@
       var rect = preview.getBoundingClientRect();
       var canvasX = e.clientX - rect.left;
       var canvasY = e.clientY - rect.top;
-      var screen = APP.canvas.canvasToScreen(canvasX, canvasY);
+      screen = APP.canvas.canvasToScreen(canvasX, canvasY);
       var hit = hitTest(screen.x, screen.y);
       if (hit) hitId = hit.id;
+    }
+
+    if (hasGroup()) {
+      if (hitId && groupState.memberIds.indexOf(hitId) !== -1) {
+        selectGroup();
+        return;
+      }
+
+      var bounds = getGroupBounds();
+      if (!hitId && pointInElement(screen.x, screen.y, bounds)) {
+        selectGroup();
+        return;
+      }
     }
 
     if (hitId) {
@@ -1759,7 +2141,7 @@
     }
   }
 
-  // ─── Drag/move state (multi-element) ───────────────────────────────
+  // ─── Drag/move state (multi-element + group) ───────────────────────
 
   var dragState = {
     active: false,
@@ -1776,6 +2158,7 @@
     if (APP.state.currentTool !== "select") return;
 
     if (e.target.classList && e.target.classList.contains("resize-handle")) return;
+    if (e.target.classList && e.target.classList.contains("group-handle")) return;
 
     if (e.target.closest("#properties-panel")) return;
     if (e.target.closest("#shapes-panel")) return;
@@ -1783,7 +2166,22 @@
     if (e.target.closest("#editor-statusbar")) return;
 
     var clickedElement = e.target.closest(".canvas-element");
-    if (!clickedElement || !clickedElement.dataset || !clickedElement.dataset.elementId) return;
+    if (!clickedElement || !clickedElement.dataset || !clickedElement.dataset.elementId) {
+      if (!hasGroup()) return;
+
+      var previewRect = preview.getBoundingClientRect();
+      var previewCanvasX = e.clientX - previewRect.left;
+      var previewCanvasY = e.clientY - previewRect.top;
+      var previewScreen = APP.canvas.canvasToScreen(previewCanvasX, previewCanvasY);
+      var groupBounds = getGroupBounds();
+      var groupHit = hitTest(previewScreen.x, previewScreen.y);
+      if (groupHit || !pointInElement(previewScreen.x, previewScreen.y, groupBounds)) return;
+
+      selectGroup();
+      startAggregateDrag(previewScreen.x, previewScreen.y, groupState.memberIds.slice());
+      e.preventDefault();
+      return;
+    }
 
     var elementId = clickedElement.dataset.elementId;
     var element = APP.canvas.getElementById(elementId);
@@ -1792,10 +2190,19 @@
     var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
     if (!preview) return;
 
-    // If clicking an already-selected element in a multi-select, drag all.
-    // If clicking unselected without shift, replace selection then drag.
-    // If shift-clicking, the click handler handles toggle; don't initiate drag.
     if (e.shiftKey || e.ctrlKey) return;
+
+    // Clicking a grouped member targets the persistent group.
+    if (hasGroup() && groupState.memberIds.indexOf(elementId) !== -1) {
+      var groupRect = preview.getBoundingClientRect();
+      var groupCanvasX = e.clientX - groupRect.left;
+      var groupCanvasY = e.clientY - groupRect.top;
+      var groupScreen = APP.canvas.canvasToScreen(groupCanvasX, groupCanvasY);
+      selectGroup();
+      startAggregateDrag(groupScreen.x, groupScreen.y, groupState.memberIds.slice());
+      e.preventDefault();
+      return;
+    }
 
     if (!isSelected(elementId)) {
       selectElement(elementId);
@@ -1806,22 +2213,23 @@
     var canvasY = e.clientY - rect.top;
     var screen = APP.canvas.canvasToScreen(canvasX, canvasY);
 
-    // Capture origins for all selected elements
+    startAggregateDrag(screen.x, screen.y, ids().slice());
+    e.preventDefault();
+  }
+
+  function startAggregateDrag(screenX, screenY, targetIds) {
     var origins = [];
-    var arr = ids();
-    for (var i = 0; i < arr.length; i++) {
-      var el = APP.canvas.getElementById(arr[i]);
-      if (el) origins.push({ id: arr[i], origX: el.x, origY: el.y });
+    for (var i = 0; i < targetIds.length; i++) {
+      var el = APP.canvas.getElementById(targetIds[i]);
+      if (el) origins.push({ id: targetIds[i], origX: el.x, origY: el.y });
     }
 
     dragState.active = true;
-    dragState.startX = screen.x;
-    dragState.startY = screen.y;
+    dragState.startX = screenX;
+    dragState.startY = screenY;
     dragState.origins = origins;
     dragState.moved = false;
     dragState.suppressClick = false;
-
-    e.preventDefault();
 
     document.addEventListener("mousemove", onDragMouseMove);
     document.addEventListener("mouseup", onDragMouseUp);
@@ -1890,6 +2298,17 @@
     origH: 0,
   };
 
+  // ─── Group resize state ───────────────────────────────────────────
+
+  var groupResizeState = {
+    active: false,
+    handle: null,
+    startX: 0,
+    startY: 0,
+    bounds: null,  // {x, y, w, h}
+    memberOrigins: null, // [{id, origX, origY, origW, origH}, ...]
+  };
+
   function ensureCanvasSelectionListeners() {
     var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
     if (!preview) return;
@@ -1898,6 +2317,7 @@
       preview.addEventListener("click", onCanvasClick);
       preview.addEventListener("mousedown", onElementMouseDown);
       preview.addEventListener("mousedown", onResizeHandleMouseDown, true);
+      preview.addEventListener("mousedown", onGroupHandleMouseDown, true);
     }
   }
 
@@ -1996,6 +2416,142 @@
     APP.emit("element-updated", resizeState.elementId);
   }
 
+  // ─── Group handle mouse handlers ──────────────────────────────────
+
+  function onGroupHandleMouseDown(e) {
+    var handle = e.target;
+    if (!handle.classList || !handle.classList.contains("group-handle")) return;
+
+    e.stopPropagation();
+    e.preventDefault();
+
+    if (!APP.state.editModeActive) return;
+    if (!isAggregateSelection()) return;
+
+    var handleType = handle.dataset.h;
+    var bounds = getGroupBounds();
+
+    var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
+    if (!preview) return;
+
+    var rect = preview.getBoundingClientRect();
+    var canvasX = e.clientX - rect.left;
+    var canvasY = e.clientY - rect.top;
+    var screen = APP.canvas.canvasToScreen(canvasX, canvasY);
+
+    if (APP.undoRedo) APP.undoRedo.push();
+
+    // Capture member origins
+    var aIds = activeIds();
+    var memberOrigins = [];
+    for (var i = 0; i < aIds.length; i++) {
+      var el = APP.canvas.getElementById(aIds[i]);
+      if (el) {
+        memberOrigins.push({ id: el.id, origX: el.x, origY: el.y, origW: el.w, origH: el.h });
+      }
+    }
+
+    groupResizeState.active = true;
+    groupResizeState.handle = handleType;
+    groupResizeState.startX = screen.x;
+    groupResizeState.startY = screen.y;
+    groupResizeState.bounds = bounds;
+    groupResizeState.memberOrigins = memberOrigins;
+
+    document.addEventListener("mousemove", onGroupResizeMouseMove);
+    document.addEventListener("mouseup", onGroupResizeMouseUp);
+  }
+
+  function onGroupResizeMouseMove(e) {
+    if (!groupResizeState.active) return;
+
+    var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
+    if (!preview) return;
+
+    var rect = preview.getBoundingClientRect();
+    var canvasX = e.clientX - rect.left;
+    var canvasY = e.clientY - rect.top;
+    var screen = APP.canvas.canvasToScreen(canvasX, canvasY);
+
+    var dx = screen.x - groupResizeState.startX;
+    var dy = screen.y - groupResizeState.startY;
+
+    var oldBounds = groupResizeState.bounds;
+    var h = groupResizeState.handle;
+
+    var newX = oldBounds.x;
+    var newY = oldBounds.y;
+    var newW = oldBounds.w;
+    var newH = oldBounds.h;
+
+    if (h.includes("e")) { newW = Math.max(20, oldBounds.w + dx); }
+    if (h.includes("s")) { newH = Math.max(20, oldBounds.h + dy); }
+    if (h.includes("w")) {
+      var nw = Math.max(20, oldBounds.w - dx);
+      newX = oldBounds.x + oldBounds.w - nw;
+      newW = nw;
+    }
+    if (h.includes("n")) {
+      var nh = Math.max(20, oldBounds.h - dy);
+      newY = oldBounds.y + oldBounds.h - nh;
+      newH = nh;
+    }
+
+    // Compute scale factors
+    var scaleX = newW / oldBounds.w;
+    var scaleY = newH / oldBounds.h;
+
+    // Compute translation of the group's top-left
+    var transX = newX - oldBounds.x;
+    var transY = newY - oldBounds.y;
+
+    var origins = groupResizeState.memberOrigins;
+    for (var i = 0; i < origins.length; i++) {
+      var o = origins[i];
+      var elem = APP.canvas.getElementById(o.id);
+      if (!elem) continue;
+
+      if (elem.type === "circle") {
+        // Circle: move center point, keep radius (scale doesn't apply to radius visually here)
+        var oldCx = o.origX + o.origW / 2;
+        var oldCy = o.origY + o.origH / 2;
+        var newCx = (oldCx - oldBounds.x) * scaleX + oldBounds.x + transX;
+        var newCy = (oldCy - oldBounds.y) * scaleY + oldBounds.y + transY;
+        elem.x = newCx - o.origW / 2;
+        elem.y = newCy - o.origH / 2;
+      } else if (elem.type === "line") {
+        // Line: scale both position and dimensions
+        elem.x = (o.origX - oldBounds.x) * scaleX + oldBounds.x + transX;
+        elem.y = (o.origY - oldBounds.y) * scaleY + oldBounds.y + transY;
+        elem.w = o.origW * scaleX;
+        elem.h = o.origH * scaleY;
+      } else {
+        // Box, boxRounded, text: scale position and dimensions
+        elem.x = (o.origX - oldBounds.x) * scaleX + oldBounds.x + transX;
+        elem.y = (o.origY - oldBounds.y) * scaleY + oldBounds.y + transY;
+        elem.w = Math.max(10, o.origW * scaleX);
+        elem.h = Math.max(10, o.origH * scaleY);
+      }
+
+      APP.canvas.updateElement(elem.id);
+    }
+
+    APP.state.isDirty = true;
+  }
+
+  function onGroupResizeMouseUp() {
+    if (!groupResizeState.active) return;
+
+    groupResizeState.active = false;
+    document.removeEventListener("mousemove", onGroupResizeMouseMove);
+    document.removeEventListener("mouseup", onGroupResizeMouseUp);
+
+    var aIds = activeIds();
+    for (var i = 0; i < aIds.length; i++) {
+      APP.emit("element-updated", aIds[i]);
+    }
+  }
+
   // ─── Attach events ─────────────────────────────────────────────────
 
   APP.on("enter-edit", function () {
@@ -2018,6 +2574,11 @@
         h.removeEventListener("mousedown", onResizeHandleMouseDown);
         h.addEventListener("mousedown", onResizeHandleMouseDown);
       });
+      var gHandles = document.querySelectorAll(".group-handle");
+      gHandles.forEach(function (h) {
+        h.removeEventListener("mousedown", onGroupHandleMouseDown);
+        h.addEventListener("mousedown", onGroupHandleMouseDown);
+      });
     }, 10);
   });
 
@@ -2029,12 +2590,23 @@
     deleteSelected();
   });
 
+  APP.on("group-selection", function () {
+    groupSelection();
+  });
+
+  APP.on("ungroup-selection", function () {
+    ungroupSelection();
+  });
+
+  APP.on("clone-selection", function () {
+    cloneSelection();
+  });
+
   // ─── Alignment ─────────────────────────────────────────────────────
 
   function alignSelected(mode) {
-    var arr = ids();
+    var arr = activeIds();
     if (arr.length < 2) {
-      // Single element: align to canvas
       if (arr.length === 1) alignToCanvas(mode);
       return;
     }
@@ -2048,7 +2620,6 @@
 
     if (APP.undoRedo) APP.undoRedo.push();
 
-    // Compute bounding box of all selected
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (var j = 0; j < elems.length; j++) {
       var el = elems[j];
@@ -2110,12 +2681,20 @@
 
   APP.selection = {
     select: selectElement,
+    selectGroup: selectGroup,
     toggleIn: toggleInSelection,
     deselect: deselectAll,
     deleteSelected: deleteSelected,
     hitTest: hitTest,
     isSelected: isSelected,
     getIds: function () { return ids().slice(); },
+    groupSelection: groupSelection,
+    ungroupSelection: ungroupSelection,
+    cloneSelection: cloneSelection,
+    hasGroup: hasGroup,
+    isGroupSelected: isGroupSelected,
+    getGroupBounds: getGroupBounds,
+    getGroupMemberIds: function () { return groupState.memberIds.slice(); },
   };
 
   if (typeof APP.cleanup === "function") {
@@ -2126,6 +2705,9 @@
       resizeState.active = false;
       document.removeEventListener("mousemove", onResizeMouseMove);
       document.removeEventListener("mouseup", onResizeMouseUp);
+      groupResizeState.active = false;
+      document.removeEventListener("mousemove", onGroupResizeMouseMove);
+      document.removeEventListener("mouseup", onGroupResizeMouseUp);
     });
   }
 
@@ -2158,6 +2740,10 @@
   var panelEl = null;
   var listEl = null;
 
+  function isAutoOpenEnabled() {
+    return !!APP.state.autoOpenPanels;
+  }
+
   function buildPanel() {
     listEl = el("div", { className: "shapes-list" });
 
@@ -2174,12 +2760,49 @@
 
   // ─── Render the layer list ──────────────────────────────────────────
 
+  function buildLayerItem(elem, hasGroup, groupMemberIds) {
+    var info = TYPE_INFO[elem.type] || { icon: "?", label: elem.type };
+    var isSelected = APP.selection.isSelected(elem.id);
+    var isVisible = elem.visible !== false;
+    var isGroupedMember = hasGroup && groupMemberIds.indexOf(elem.id) !== -1;
+
+    return el("div", {
+      className: "layer-item" + (isSelected ? " selected" : "") + (isGroupedMember ? " grouped-member" : ""),
+      dataset: { elementId: elem.id },
+    }, [
+      el("button", {
+        className: "layer-btn layer-vis" + (isVisible ? "" : " off"),
+        dataset: { action: "toggle-vis", elementId: elem.id },
+        title: isVisible ? "Hide" : "Show",
+      }),
+      el("span", { className: "layer-icon", textContent: info.icon }),
+      el("span", {
+        className: "layer-name",
+        textContent: info.label + " " + elem.id.replace("el_", "#"),
+      }),
+      el("button", {
+        className: "layer-btn layer-z",
+        dataset: { action: "move-up", elementId: elem.id },
+        title: "Move forward",
+        textContent: "\u25B4",
+      }),
+      el("button", {
+        className: "layer-btn layer-z",
+        dataset: { action: "move-down", elementId: elem.id },
+        title: "Move backward",
+        textContent: "\u25BE",
+      }),
+    ]);
+  }
+
   function refreshList() {
     if (!listEl) return;
 
     var doc = APP.state.document;
     var elements = (doc && doc.elements) || [];
-    var selIds = APP.state.selectedElementIds || [];
+    var hasGroup = APP.selection && APP.selection.hasGroup && APP.selection.hasGroup();
+    var isGroupSelected = APP.selection && APP.selection.isGroupSelected && APP.selection.isGroupSelected();
+    var groupMemberIds = hasGroup && APP.selection.getGroupMemberIds ? APP.selection.getGroupMemberIds() : [];
 
     // Clear
     listEl.innerHTML = "";
@@ -2191,47 +2814,36 @@
       return;
     }
 
+    var grouped = [];
+    var ungrouped = [];
+
     // Show top-most first (reverse of array order)
     for (var i = elements.length - 1; i >= 0; i--) {
       var elem = elements[i];
-      var info = TYPE_INFO[elem.type] || { icon: "?", label: elem.type };
-      var isSelected = APP.selection.isSelected(elem.id);
-      var isVisible = elem.visible !== false;
+      if (hasGroup && groupMemberIds.indexOf(elem.id) !== -1) {
+        grouped.push(elem);
+      } else {
+        ungrouped.push(elem);
+      }
+    }
 
-      var item = el("div", {
-        className: "layer-item" + (isSelected ? " selected" : ""),
-        dataset: { elementId: elem.id },
-      }, [
-        // Visibility toggle
-        el("button", {
-          className: "layer-btn layer-vis" + (isVisible ? "" : " off"),
-          dataset: { action: "toggle-vis", elementId: elem.id },
-          title: isVisible ? "Hide" : "Show",
-        }),
-        // Type icon
-        el("span", { className: "layer-icon", textContent: info.icon }),
-        // Name
-        el("span", {
-          className: "layer-name",
-          textContent: info.label + " " + elem.id.replace("el_", "#"),
-        }),
-        // Z-order: move forward (toward top of stack)
-        el("button", {
-          className: "layer-btn layer-z",
-          dataset: { action: "move-up", elementId: elem.id },
-          title: "Move forward",
-          textContent: "\u25B4",
-        }),
-        // Z-order: move backward (toward bottom of stack)
-        el("button", {
-          className: "layer-btn layer-z",
-          dataset: { action: "move-down", elementId: elem.id },
-          title: "Move backward",
-          textContent: "\u25BE",
-        }),
-      ]);
+    if (grouped.length > 0) {
+      var groupBox = el("div", {
+        className: "layer-group-box" + (isGroupSelected ? " selected" : ""),
+        dataset: { groupId: "persistent_group" },
+      });
+      for (var g = 0; g < grouped.length; g++) {
+        groupBox.appendChild(buildLayerItem(grouped[g], hasGroup, groupMemberIds));
+      }
+      listEl.appendChild(groupBox);
+    }
 
-      listEl.appendChild(item);
+    if (grouped.length > 0 && ungrouped.length > 0) {
+      listEl.appendChild(el("div", { className: "layer-group-sep" }));
+    }
+
+    for (var u = 0; u < ungrouped.length; u++) {
+      listEl.appendChild(buildLayerItem(ungrouped[u], hasGroup, groupMemberIds));
     }
   }
 
@@ -2286,6 +2898,12 @@
       if (action === "move-down")  { moveElement(id, "down"); return; }
     }
 
+    var groupBox = e.target.closest(".layer-group-box");
+    if (groupBox && !e.target.closest(".layer-item")) {
+      APP.selection.selectGroup();
+      return;
+    }
+
     // Click on item body -> select (shift = toggle in multi-select)
     var item = e.target.closest(".layer-item");
     if (item && item.dataset.elementId) {
@@ -2305,6 +2923,7 @@
     if (!panelEl) return;
     var collapsed = !panelEl.classList.contains("collapsed");
     panelEl.classList.toggle("collapsed", collapsed);
+    if (!collapsed) panelEl.classList.remove("hover-open");
     var btn = qs(".panel-toggle", panelEl);
     if (btn) btn.textContent = collapsed ? "\u25B8" : "\u25BE";
     try { localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : ""); } catch (e) { /* ignore */ }
@@ -2315,6 +2934,7 @@
     var collapsed = false;
     try { collapsed = localStorage.getItem(COLLAPSE_KEY) === "1"; } catch (e) { /* ignore */ }
     panelEl.classList.toggle("collapsed", collapsed);
+    if (!collapsed) panelEl.classList.remove("hover-open");
     var btn = qs(".panel-toggle", panelEl);
     if (btn) btn.textContent = collapsed ? "\u25B8" : "\u25BE";
   }
@@ -2423,6 +3043,22 @@
     });
   }
 
+  function attachHoverOpenListener() {
+    if (!panelEl || panelEl.__hudShapesHoverBound) return;
+    panelEl.__hudShapesHoverBound = true;
+
+    panelEl.addEventListener("mouseenter", function () {
+      if (!isAutoOpenEnabled()) return;
+      if (!panelEl.classList.contains("collapsed")) return;
+      panelEl.classList.add("hover-open");
+    });
+
+    panelEl.addEventListener("mouseleave", function () {
+      if (!panelEl.classList.contains("collapsed")) return;
+      panelEl.classList.remove("hover-open");
+    });
+  }
+
   // ─── Mount into editor screen ──────────────────────────────────────
 
   function mount() {
@@ -2435,6 +3071,7 @@
     editorScreen.appendChild(panel);
     panel.addEventListener("click", onPanelClick);
     attachDragListener();
+    attachHoverOpenListener();
   }
 
   // ─── Events ────────────────────────────────────────────────────────
@@ -2455,10 +3092,15 @@
     hidePanel();
   });
 
-  APP.on("element-added",     function () { refreshList(); });
-  APP.on("element-deleted",   function () { refreshList(); });
-  APP.on("element-updated",   function () { refreshList(); });
-  APP.on("selection-changed", function () { refreshList(); });
+  APP.on("element-added",      function () { refreshList(); });
+  APP.on("element-deleted",    function () { refreshList(); });
+  APP.on("element-updated",    function () { refreshList(); });
+  APP.on("selection-changed",  function () { refreshList(); });
+  APP.on("group-activated",    function () { refreshList(); });
+  APP.on("group-deactivated",  function () { refreshList(); });
+  APP.on("auto-open-panels-changed", function (enabled) {
+    if (!enabled && panelEl) panelEl.classList.remove("hover-open");
+  });
 
 })();
 
@@ -2473,6 +3115,10 @@
 
   var qs = APP.qs;
   var qsa = APP.qsa;
+
+  function isAutoOpenEnabled() {
+    return !!APP.state.autoOpenPanels;
+  }
 
   // ─── Property sync: document → panel ───────────────────────────────
 
@@ -2641,6 +3287,7 @@
     if (!panel) return;
     var collapsed = !panel.classList.contains("collapsed");
     panel.classList.toggle("collapsed", collapsed);
+    if (!collapsed) panel.classList.remove("hover-open");
     var btn = qs(".panel-toggle", panel);
     if (btn) btn.textContent = collapsed ? "\u25B8" : "\u25BE";
     try { localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : ""); } catch (e) { /* ignore */ }
@@ -2652,6 +3299,7 @@
     var collapsed = false;
     try { collapsed = localStorage.getItem(COLLAPSE_KEY) === "1"; } catch (e) { /* ignore */ }
     panel.classList.toggle("collapsed", collapsed);
+    if (!collapsed) panel.classList.remove("hover-open");
     var btn = qs(".panel-toggle", panel);
     if (btn) btn.textContent = collapsed ? "\u25B8" : "\u25BE";
   }
@@ -2810,6 +3458,23 @@
     });
   }
 
+  function attachHoverOpenListener() {
+    var panel = qs("#properties-panel");
+    if (!panel || panel.__hudPropsHoverBound) return;
+    panel.__hudPropsHoverBound = true;
+
+    panel.addEventListener("mouseenter", function () {
+      if (!isAutoOpenEnabled()) return;
+      if (!panel.classList.contains("collapsed")) return;
+      panel.classList.add("hover-open");
+    });
+
+    panel.addEventListener("mouseleave", function () {
+      if (!panel.classList.contains("collapsed")) return;
+      panel.classList.remove("hover-open");
+    });
+  }
+
   // ─── Toolbar color picker sync ─────────────────────────────────────
 
   function attachToolbarColorListeners() {
@@ -2884,6 +3549,7 @@
     setTimeout(function () {
       attachPanelListeners();
       attachDragListener();
+      attachHoverOpenListener();
       attachToolbarColorListeners();
     }, 200);
   });
@@ -2896,6 +3562,11 @@
 
   APP.on("toggle-props-collapse", function () {
     toggleCollapse();
+  });
+
+  APP.on("auto-open-panels-changed", function (enabled) {
+    var panel = qs("#properties-panel");
+    if (!enabled && panel) panel.classList.remove("hover-open");
   });
 
 })();

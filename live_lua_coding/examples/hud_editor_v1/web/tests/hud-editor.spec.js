@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test'
 
+async function ensureHarnessExpanded(page) {
+  const body = page.locator('#harness-body')
+  if (!(await body.isVisible())) {
+    await page.locator('#harness-rollup-btn').click()
+    await expect(body).toBeVisible()
+  }
+}
+
 test('loads Lua Painter harness and opens editor', async ({ page }) => {
   await page.goto('/web/index.html')
 
@@ -8,6 +16,7 @@ test('loads Lua Painter harness and opens editor', async ({ page }) => {
   await expect(page.locator('#hud-editor-root')).toBeVisible()
   await expect(page.locator('#hud-editor-root [data-screen="start"] h1')).toHaveText('Lua Painter')
 
+  await ensureHarnessExpanded(page)
   await page.getByRole('button', { name: 'New Script' }).first().click()
 
   await expect(page.locator('#canvas-preview')).toBeVisible()
@@ -17,6 +26,7 @@ test('loads Lua Painter harness and opens editor', async ({ page }) => {
 test('loads all-shapes fixture into the canvas', async ({ page }) => {
   await page.goto('/web/index.html')
 
+  await ensureHarnessExpanded(page)
   await page.getByRole('button', { name: 'Load Fixture' }).click()
 
   await expect(page.locator('#canvas-preview .canvas-element')).toHaveCount(5)
@@ -26,6 +36,7 @@ test('loads all-shapes fixture into the canvas', async ({ page }) => {
 test('selects each shape from the all-shapes fixture by clicking', async ({ page }) => {
   await page.goto('/web/index.html')
 
+  await ensureHarnessExpanded(page)
   await page.getByRole('button', { name: 'Load Fixture' }).click()
   await expect(page.locator('#canvas-preview .canvas-element')).toHaveCount(5)
 
@@ -56,6 +67,8 @@ test('selects each shape from the all-shapes fixture by clicking', async ({ page
 
 test('properties panel shows selected shape fill/stroke and steppers', async ({ page }) => {
   await page.goto('/web/index.html')
+
+  await ensureHarnessExpanded(page)
   await page.getByRole('button', { name: 'Load Fixture' }).click()
   await expect(page.locator('#canvas-preview .canvas-element')).toHaveCount(5)
 
@@ -91,6 +104,8 @@ test('properties panel shows selected shape fill/stroke and steppers', async ({ 
 
 test('toolbar fill/stroke pickers sync when shape selected', async ({ page }) => {
   await page.goto('/web/index.html')
+
+  await ensureHarnessExpanded(page)
   await page.getByRole('button', { name: 'Load Fixture' }).click()
   await expect(page.locator('#canvas-preview .canvas-element')).toHaveCount(5)
 
@@ -105,6 +120,7 @@ test('toolbar fill/stroke pickers sync when shape selected', async ({ page }) =>
 test('switching away from select tool clears selection', async ({ page }) => {
   await page.goto('/web/index.html')
 
+  await ensureHarnessExpanded(page)
   await page.getByRole('button', { name: 'Load Fixture' }).click()
   await expect(page.locator('#canvas-preview .canvas-element')).toHaveCount(5)
 

@@ -17,12 +17,14 @@
 
   var listeners = {};
   var cleanupFns = [];
+  var activeToasts = {};
 
   var state = {
     initialized: false,
     editModeActive: false,
     currentScreen: "start",
     currentTool: "select",
+    autoOpenPanels: false,
     selectedElementId: null,
     selectedElementIds: [],
     isDirty: false,
@@ -252,32 +254,83 @@
     return container;
   }
 
+  function getToastKey(data, text) {
+    return String(data.type || "info") + "::" + text;
+  }
+
+  function setToastText(meta) {
+    if (!meta || !meta.toast) return;
+    meta.toast.textContent = meta.count > 1 ? (meta.text + " x" + meta.count) : meta.text;
+  }
+
+  function clearToastTimers(meta) {
+    if (!meta) return;
+    if (meta.fadeTimer) WIN.clearTimeout(meta.fadeTimer);
+    if (meta.removeTimer) WIN.clearTimeout(meta.removeTimer);
+    meta.fadeTimer = null;
+    meta.removeTimer = null;
+  }
+
+  function removeToast(meta) {
+    if (!meta) return;
+    clearToastTimers(meta);
+    if (activeToasts[meta.key] === meta) {
+      delete activeToasts[meta.key];
+    }
+    try {
+      if (meta.toast && meta.toast.parentNode) {
+        meta.toast.parentNode.removeChild(meta.toast);
+      }
+    } catch (_ignoreToastRemove) {}
+  }
+
+  function scheduleToast(meta) {
+    clearToastTimers(meta);
+    meta.toast.style.opacity = "1";
+    meta.toast.style.transform = "translateY(0)";
+    meta.fadeTimer = WIN.setTimeout(function () {
+      try {
+        meta.toast.style.opacity = "0";
+        meta.toast.style.transform = "translateY(-6px)";
+      } catch (_ignoreToastFade) {}
+    }, 1800);
+
+    meta.removeTimer = WIN.setTimeout(function () {
+      removeToast(meta);
+    }, 2200);
+  }
+
   function showToast(payload) {
     var data = payload && typeof payload === "object" ? payload : { text: String(payload || "") };
     var text = String(data.text || "").trim();
     if (!text) {
       return;
     }
+
+    var key = getToastKey(data, text);
+    var existing = activeToasts[key];
+    if (existing) {
+      existing.count += 1;
+      setToastText(existing);
+      scheduleToast(existing);
+      return;
+    }
+
     var container = getToastContainer();
     var toast = DOC.createElement("div");
     toast.className = "toast " + (data.type || "info");
-    toast.textContent = text;
+    var meta = {
+      key: key,
+      text: text,
+      count: 1,
+      toast: toast,
+      fadeTimer: null,
+      removeTimer: null,
+    };
+    setToastText(meta);
     container.appendChild(toast);
-
-    WIN.setTimeout(function () {
-      try {
-        toast.style.opacity = "0";
-        toast.style.transform = "translateY(-6px)";
-      } catch (_ignoreToastFade) {}
-    }, 1800);
-
-    WIN.setTimeout(function () {
-      try {
-        if (toast.parentNode) {
-          toast.parentNode.removeChild(toast);
-        }
-      } catch (_ignoreToastRemove) {}
-    }, 2200);
+    activeToasts[key] = meta;
+    scheduleToast(meta);
   }
 
   function createToggleButton() {
@@ -349,6 +402,10 @@
     on("toast", showToast);
 
     addCleanup(function () {
+      Object.keys(activeToasts).forEach(function (key) {
+        removeToast(activeToasts[key]);
+      });
+      activeToasts = {};
       var container = DOC.getElementById("hud-editor-toast-container");
       if (container && container.parentNode) {
         container.parentNode.removeChild(container);

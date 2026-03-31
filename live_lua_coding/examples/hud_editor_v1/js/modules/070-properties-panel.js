@@ -9,6 +9,10 @@
   var qs = APP.qs;
   var qsa = APP.qsa;
 
+  function isAutoOpenEnabled() {
+    return !!APP.state.autoOpenPanels;
+  }
+
   // ─── Property sync: document → panel ───────────────────────────────
 
   function populatePanel(elementId) {
@@ -176,6 +180,7 @@
     if (!panel) return;
     var collapsed = !panel.classList.contains("collapsed");
     panel.classList.toggle("collapsed", collapsed);
+    if (!collapsed) panel.classList.remove("hover-open");
     var btn = qs(".panel-toggle", panel);
     if (btn) btn.textContent = collapsed ? "\u25B8" : "\u25BE";
     try { localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : ""); } catch (e) { /* ignore */ }
@@ -187,6 +192,7 @@
     var collapsed = false;
     try { collapsed = localStorage.getItem(COLLAPSE_KEY) === "1"; } catch (e) { /* ignore */ }
     panel.classList.toggle("collapsed", collapsed);
+    if (!collapsed) panel.classList.remove("hover-open");
     var btn = qs(".panel-toggle", panel);
     if (btn) btn.textContent = collapsed ? "\u25B8" : "\u25BE";
   }
@@ -345,6 +351,23 @@
     });
   }
 
+  function attachHoverOpenListener() {
+    var panel = qs("#properties-panel");
+    if (!panel || panel.__hudPropsHoverBound) return;
+    panel.__hudPropsHoverBound = true;
+
+    panel.addEventListener("mouseenter", function () {
+      if (!isAutoOpenEnabled()) return;
+      if (!panel.classList.contains("collapsed")) return;
+      panel.classList.add("hover-open");
+    });
+
+    panel.addEventListener("mouseleave", function () {
+      if (!panel.classList.contains("collapsed")) return;
+      panel.classList.remove("hover-open");
+    });
+  }
+
   // ─── Toolbar color picker sync ─────────────────────────────────────
 
   function attachToolbarColorListeners() {
@@ -419,6 +442,7 @@
     setTimeout(function () {
       attachPanelListeners();
       attachDragListener();
+      attachHoverOpenListener();
       attachToolbarColorListeners();
     }, 200);
   });
@@ -431,6 +455,11 @@
 
   APP.on("toggle-props-collapse", function () {
     toggleCollapse();
+  });
+
+  APP.on("auto-open-panels-changed", function (enabled) {
+    var panel = qs("#properties-panel");
+    if (!enabled && panel) panel.classList.remove("hover-open");
   });
 
 })();

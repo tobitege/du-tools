@@ -24,6 +24,10 @@
   var panelEl = null;
   var listEl = null;
 
+  function isAutoOpenEnabled() {
+    return !!APP.state.autoOpenPanels;
+  }
+
   function buildPanel() {
     listEl = el("div", { className: "shapes-list" });
 
@@ -40,12 +44,49 @@
 
   // ─── Render the layer list ──────────────────────────────────────────
 
+  function buildLayerItem(elem, hasGroup, groupMemberIds) {
+    var info = TYPE_INFO[elem.type] || { icon: "?", label: elem.type };
+    var isSelected = APP.selection.isSelected(elem.id);
+    var isVisible = elem.visible !== false;
+    var isGroupedMember = hasGroup && groupMemberIds.indexOf(elem.id) !== -1;
+
+    return el("div", {
+      className: "layer-item" + (isSelected ? " selected" : "") + (isGroupedMember ? " grouped-member" : ""),
+      dataset: { elementId: elem.id },
+    }, [
+      el("button", {
+        className: "layer-btn layer-vis" + (isVisible ? "" : " off"),
+        dataset: { action: "toggle-vis", elementId: elem.id },
+        title: isVisible ? "Hide" : "Show",
+      }),
+      el("span", { className: "layer-icon", textContent: info.icon }),
+      el("span", {
+        className: "layer-name",
+        textContent: info.label + " " + elem.id.replace("el_", "#"),
+      }),
+      el("button", {
+        className: "layer-btn layer-z",
+        dataset: { action: "move-up", elementId: elem.id },
+        title: "Move forward",
+        textContent: "\u25B4",
+      }),
+      el("button", {
+        className: "layer-btn layer-z",
+        dataset: { action: "move-down", elementId: elem.id },
+        title: "Move backward",
+        textContent: "\u25BE",
+      }),
+    ]);
+  }
+
   function refreshList() {
     if (!listEl) return;
 
     var doc = APP.state.document;
     var elements = (doc && doc.elements) || [];
-    var selIds = APP.state.selectedElementIds || [];
+    var hasGroup = APP.selection && APP.selection.hasGroup && APP.selection.hasGroup();
+    var isGroupSelected = APP.selection && APP.selection.isGroupSelected && APP.selection.isGroupSelected();
+    var groupMemberIds = hasGroup && APP.selection.getGroupMemberIds ? APP.selection.getGroupMemberIds() : [];
 
     // Clear
     listEl.innerHTML = "";
@@ -57,47 +98,36 @@
       return;
     }
 
+    var grouped = [];
+    var ungrouped = [];
+
     // Show top-most first (reverse of array order)
     for (var i = elements.length - 1; i >= 0; i--) {
       var elem = elements[i];
-      var info = TYPE_INFO[elem.type] || { icon: "?", label: elem.type };
-      var isSelected = APP.selection.isSelected(elem.id);
-      var isVisible = elem.visible !== false;
+      if (hasGroup && groupMemberIds.indexOf(elem.id) !== -1) {
+        grouped.push(elem);
+      } else {
+        ungrouped.push(elem);
+      }
+    }
 
-      var item = el("div", {
-        className: "layer-item" + (isSelected ? " selected" : ""),
-        dataset: { elementId: elem.id },
-      }, [
-        // Visibility toggle
-        el("button", {
-          className: "layer-btn layer-vis" + (isVisible ? "" : " off"),
-          dataset: { action: "toggle-vis", elementId: elem.id },
-          title: isVisible ? "Hide" : "Show",
-        }),
-        // Type icon
-        el("span", { className: "layer-icon", textContent: info.icon }),
-        // Name
-        el("span", {
-          className: "layer-name",
-          textContent: info.label + " " + elem.id.replace("el_", "#"),
-        }),
-        // Z-order: move forward (toward top of stack)
-        el("button", {
-          className: "layer-btn layer-z",
-          dataset: { action: "move-up", elementId: elem.id },
-          title: "Move forward",
-          textContent: "\u25B4",
-        }),
-        // Z-order: move backward (toward bottom of stack)
-        el("button", {
-          className: "layer-btn layer-z",
-          dataset: { action: "move-down", elementId: elem.id },
-          title: "Move backward",
-          textContent: "\u25BE",
-        }),
-      ]);
+    if (grouped.length > 0) {
+      var groupBox = el("div", {
+        className: "layer-group-box" + (isGroupSelected ? " selected" : ""),
+        dataset: { groupId: "persistent_group" },
+      });
+      for (var g = 0; g < grouped.length; g++) {
+        groupBox.appendChild(buildLayerItem(grouped[g], hasGroup, groupMemberIds));
+      }
+      listEl.appendChild(groupBox);
+    }
 
-      listEl.appendChild(item);
+    if (grouped.length > 0 && ungrouped.length > 0) {
+      listEl.appendChild(el("div", { className: "layer-group-sep" }));
+    }
+
+    for (var u = 0; u < ungrouped.length; u++) {
+      listEl.appendChild(buildLayerItem(ungrouped[u], hasGroup, groupMemberIds));
     }
   }
 
@@ -152,6 +182,12 @@
       if (action === "move-down")  { moveElement(id, "down"); return; }
     }
 
+    var groupBox = e.target.closest(".layer-group-box");
+    if (groupBox && !e.target.closest(".layer-item")) {
+      APP.selection.selectGroup();
+      return;
+    }
+
     // Click on item body -> select (shift = toggle in multi-select)
     var item = e.target.closest(".layer-item");
     if (item && item.dataset.elementId) {
@@ -171,6 +207,7 @@
     if (!panelEl) return;
     var collapsed = !panelEl.classList.contains("collapsed");
     panelEl.classList.toggle("collapsed", collapsed);
+    if (!collapsed) panelEl.classList.remove("hover-open");
     var btn = qs(".panel-toggle", panelEl);
     if (btn) btn.textContent = collapsed ? "\u25B8" : "\u25BE";
     try { localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : ""); } catch (e) { /* ignore */ }
@@ -181,6 +218,7 @@
     var collapsed = false;
     try { collapsed = localStorage.getItem(COLLAPSE_KEY) === "1"; } catch (e) { /* ignore */ }
     panelEl.classList.toggle("collapsed", collapsed);
+    if (!collapsed) panelEl.classList.remove("hover-open");
     var btn = qs(".panel-toggle", panelEl);
     if (btn) btn.textContent = collapsed ? "\u25B8" : "\u25BE";
   }
@@ -289,6 +327,22 @@
     });
   }
 
+  function attachHoverOpenListener() {
+    if (!panelEl || panelEl.__hudShapesHoverBound) return;
+    panelEl.__hudShapesHoverBound = true;
+
+    panelEl.addEventListener("mouseenter", function () {
+      if (!isAutoOpenEnabled()) return;
+      if (!panelEl.classList.contains("collapsed")) return;
+      panelEl.classList.add("hover-open");
+    });
+
+    panelEl.addEventListener("mouseleave", function () {
+      if (!panelEl.classList.contains("collapsed")) return;
+      panelEl.classList.remove("hover-open");
+    });
+  }
+
   // ─── Mount into editor screen ──────────────────────────────────────
 
   function mount() {
@@ -301,6 +355,7 @@
     editorScreen.appendChild(panel);
     panel.addEventListener("click", onPanelClick);
     attachDragListener();
+    attachHoverOpenListener();
   }
 
   // ─── Events ────────────────────────────────────────────────────────
@@ -321,9 +376,14 @@
     hidePanel();
   });
 
-  APP.on("element-added",     function () { refreshList(); });
-  APP.on("element-deleted",   function () { refreshList(); });
-  APP.on("element-updated",   function () { refreshList(); });
-  APP.on("selection-changed", function () { refreshList(); });
+  APP.on("element-added",      function () { refreshList(); });
+  APP.on("element-deleted",    function () { refreshList(); });
+  APP.on("element-updated",    function () { refreshList(); });
+  APP.on("selection-changed",  function () { refreshList(); });
+  APP.on("group-activated",    function () { refreshList(); });
+  APP.on("group-deactivated",  function () { refreshList(); });
+  APP.on("auto-open-panels-changed", function (enabled) {
+    if (!enabled && panelEl) panelEl.classList.remove("hover-open");
+  });
 
 })();

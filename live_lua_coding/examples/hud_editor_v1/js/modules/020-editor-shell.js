@@ -9,6 +9,23 @@
   var el = APP.el;
   var qs = APP.qs;
   var qsa = APP.qsa;
+  var AUTO_OPEN_PANELS_KEY = "hud_auto_open_panels";
+
+  function loadAutoOpenPanels() {
+    try {
+      return localStorage.getItem(AUTO_OPEN_PANELS_KEY) === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function setAutoOpenPanels(enabled) {
+    APP.state.autoOpenPanels = !!enabled;
+    try {
+      localStorage.setItem(AUTO_OPEN_PANELS_KEY, enabled ? "1" : "");
+    } catch (e) { /* ignore */ }
+    APP.emit("auto-open-panels-changed", APP.state.autoOpenPanels);
+  }
 
   // ─── Stepper builder ────────────────────────────────────────────────
 
@@ -94,6 +111,27 @@
 
         el("div", { className: "toolbar-divider" }),
 
+        // Grouping
+        el("div", { className: "toolbar-group actions" }, [
+          el("button", { className: "action-btn", dataset: { action: "group" }, title: "Group (Ctrl+G)" }, [
+            el("span", { className: "tb-icon tb-icon-group" }),
+          ]),
+          el("button", { className: "action-btn", dataset: { action: "ungroup" }, title: "Ungroup (Ctrl+Shift+G)" }, [
+            el("span", { className: "tb-icon tb-icon-ungroup" }),
+          ]),
+        ]),
+
+        el("div", { className: "toolbar-divider" }),
+
+        // Clone
+        el("div", { className: "toolbar-group actions" }, [
+          el("button", { className: "action-btn", dataset: { action: "clone" }, title: "Clone (Ctrl+D)" }, [
+            el("span", { className: "tb-icon tb-icon-clone" }),
+          ]),
+        ]),
+
+        el("div", { className: "toolbar-divider" }),
+
         // Alignment
         el("div", { className: "toolbar-group align-group" }, [
           el("button", { className: "action-btn", dataset: { action: "align-left" }, title: "Align left" }, [
@@ -114,6 +152,18 @@
           el("button", { className: "action-btn", dataset: { action: "align-bottom" }, title: "Align bottom" }, [
             el("span", { className: "tb-icon tb-icon-align-bottom" }),
           ]),
+        ]),
+
+        el("div", { className: "toolbar-divider" }),
+
+        el("label", { className: "toolbar-check", title: "Auto-open collapsed panels on hover" }, [
+          el("input", {
+            type: "checkbox",
+            className: "toolbar-check-input",
+            id: "auto-open-panels-toggle",
+          }),
+          el("span", { className: "toolbar-check-box" }),
+          el("span", { className: "toolbar-check-label", textContent: "Auto Panels" }),
         ]),
 
         el("div", { className: "toolbar-spacer" }),
@@ -252,6 +302,15 @@
     else if (action.indexOf("align-") === 0) {
       APP.emit("align", action.replace("align-", ""));
     }
+    else if (action === "group") {
+      APP.emit("group-selection");
+    }
+    else if (action === "ungroup") {
+      APP.emit("ungroup-selection");
+    }
+    else if (action === "clone") {
+      APP.emit("clone-selection");
+    }
     else if (action === "toggle-collapse") {
       APP.emit("toggle-props-collapse");
     }
@@ -284,6 +343,25 @@
     });
   }
 
+  function syncToolbarSettings() {
+    var root = APP.getRoot();
+    var input = qs("#auto-open-panels-toggle", root);
+    if (input) input.checked = !!APP.state.autoOpenPanels;
+  }
+
+  function attachToolbarSettingListeners() {
+    var root = APP.getRoot();
+    var toolbar = qs("#editor-toolbar", root);
+    if (!toolbar || toolbar.__hudSettingsBound) return;
+    toolbar.__hudSettingsBound = true;
+
+    toolbar.addEventListener("change", function (e) {
+      var input = e.target;
+      if (!input || input.id !== "auto-open-panels-toggle") return;
+      setAutoOpenPanels(!!input.checked);
+    });
+  }
+
   // ─── Register with core ──────────────────────────────────────────────
 
   APP.on("document-created", function () {
@@ -294,6 +372,10 @@
     updateToolButtons(tool || APP.state.currentTool);
   });
 
+  APP.on("auto-open-panels-changed", function () {
+    syncToolbarSettings();
+  });
+
   function mountEditorShell() {
     var root = APP.getRoot();
     if (qs('[data-screen="editor"]', root)) return;
@@ -302,6 +384,9 @@
 
     var toolbar = qs("#editor-toolbar", root);
     if (toolbar) toolbar.addEventListener("click", onToolbarClick);
+    attachToolbarSettingListeners();
+    APP.state.autoOpenPanels = loadAutoOpenPanels();
+    syncToolbarSettings();
 
     var statusbar = qs("#editor-statusbar", root);
     if (statusbar) statusbar.addEventListener("click", onToolbarClick);
