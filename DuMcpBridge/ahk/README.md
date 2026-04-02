@@ -9,7 +9,7 @@ Current helper:
 Current supported action:
 
 - `ctrl_l`: send explicit left-`Ctrl+L` (`LCtrl`) to the `Dual Universe` window to open the currently targeted element code editor (`lua_editor` or `screen_editor`)
-- `camera_move`: center the `Dual Universe` client and apply one relative camera move with explicit `--x`, `--y`, and `--settle-ms` values
+- `camera_move`: move the cursor to the center of the `Dual Universe` client area, then apply one relative camera move with explicit `--x`, `--y`, and `--settle-ms` values
 
 Important behavior note:
 

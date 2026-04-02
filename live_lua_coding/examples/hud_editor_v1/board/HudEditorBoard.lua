@@ -6,13 +6,14 @@
 local HudEditorBoard = {}
 HudEditorBoard.__index = HudEditorBoard
 
---  Constants 
+--  Constants
 
 HudEditorBoard.COMMAND_PREFIX = "he:"  -- All HUD editor commands start with "he:"
 HudEditorBoard.DB_KEY_DOC = "hud_editor:document"
 HudEditorBoard.DB_KEY_INDEX = "hud_editor:index"
+HudEditorBoard.DB_KEY_DOC_PREFIX = "hud_editor:document:"
 
---  Command types 
+--  Command types
 
 local CMD = {
     PING = "ping",
@@ -30,7 +31,7 @@ local CMD = {
     RENDER = "rend",
 }
 
---  Utility functions 
+--  Utility functions
 
 local function dp(msg)
     if type(system) == "table" and type(system.print) == "function" then
@@ -68,28 +69,339 @@ local function generateId()
     return "el_" .. string.format("%08x", math.floor(math.random() * 0xFFFFFFFF))
 end
 
---  State 
+local function generateLayoutId()
+    return "ly_" .. string.format("%08x", math.floor(math.random() * 0xFFFFFFFF))
+end
+
+local function urlEncode(value)
+    return (tostring(value or ""):gsub("([^%w%-_%.~])", function(ch)
+        return string.format("%%%02X", string.byte(ch))
+    end))
+end
+
+local function encodeColor(rgba)
+    rgba = rgba or { 0, 0, 0, 1 }
+    return table.concat({
+        tostring(rgba[1] or 0),
+        tostring(rgba[2] or 0),
+        tostring(rgba[3] or 0),
+        tostring(rgba[4] or 1),
+    }, ",")
+end
+
+local function encodeTextLines(textLines)
+    if type(textLines) ~= "table" or #textLines == 0 then
+        return ""
+    end
+    local parts = {}
+    for i, line in ipairs(textLines) do
+        parts[i] = tostring(line or "")
+    end
+    return table.concat(parts, "\n")
+end
+
+local function encodeElementForBridge(element)
+    if type(element) ~= "table" then
+        return ""
+    end
+    return table.concat({
+        urlEncode(element.id or ""),
+        urlEncode(element.type or "box"),
+        element.visible == false and "0" or "1",
+        tostring(math.floor(element.x or 0)),
+        tostring(math.floor(element.y or 0)),
+        tostring(math.floor(element.w or 0)),
+        tostring(math.floor(element.h or 0)),
+        tostring(math.floor(element.radius or 0)),
+        encodeColor(element.fill),
+        encodeColor(element.stroke),
+        tostring(element.strokeWidth or 0),
+        urlEncode(encodeTextLines(element.textLines)),
+        encodeColor(element.textColor),
+        tostring(element.textSize or 16),
+        urlEncode(element.textAlign or "left")
+    }, "~")
+end
+
+local function encodeDocumentForBridge(doc)
+    if type(doc) ~= "table" then
+        return ""
+    end
+    local encodedElements = {}
+    for i, element in ipairs(doc.elements or {}) do
+        encodedElements[i] = encodeElementForBridge(element)
+    end
+    return table.concat({
+        tostring(doc.version or 1),
+        tostring(doc.revision or 0),
+        tostring(doc.screenWidth or 1920),
+        tostring(doc.screenHeight or 1080),
+        urlEncode(doc.id or ""),
+        urlEncode(doc.name or ""),
+        table.concat(encodedElements, "^")
+    }, "~")
+end
+
+local function encodeScriptsForBridge(scripts)
+    local encoded = {}
+    for i, script in ipairs(scripts or {}) do
+        encoded[i] = table.concat({
+            urlEncode(script.id or ""),
+            urlEncode(script.name or script.id or ""),
+            tostring(script.modified or 0)
+        }, "~")
+    end
+    return table.concat(encoded, "^")
+end
+
+local function hasMethod(target, methodName)
+    local targetType = type(target)
+    return (targetType == "table" or targetType == "userdata")
+        and type(target[methodName]) == "function"
+end
+
+local function hasDatabankIo(target)
+    return hasMethod(target, "setStringValue") and hasMethod(target, "getStringValue")
+end
+
+local function databankSet(target, key, value)
+    target.setStringValue(key, tostring(value or ""))
+end
+
+local function databankGet(target, key)
+    return target.getStringValue(key)
+end
+
+local function normalizeDocumentName(value)
+    local name = tostring(value or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if name == "" then
+        return "Layout"
+    end
+    return name
+end
+
+local function normalizeDocumentId(value)
+    local id = tostring(value or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if id == "" then
+        return nil
+    end
+    return id
+end
+
+local function normalizeDocumentMeta(doc)
+    if type(doc) ~= "table" then
+        return nil
+    end
+    doc.name = normalizeDocumentName(doc.name)
+    doc.id = normalizeDocumentId(doc.id)
+    if not doc.id then
+        return nil
+    end
+    return doc
+end
+
+local function getDocumentStorageKey(docId)
+    local id = normalizeDocumentId(docId)
+    if not id then
+        return nil
+    end
+    return HudEditorBoard.DB_KEY_DOC_PREFIX .. id
+end
+
+local function loadDocumentFromDatabankKey(db, docId)
+    if not db then
+        return nil
+    end
+    local docKey = getDocumentStorageKey(docId)
+    if not docKey then
+        return nil
+    end
+    local docJson = databankGet(db, docKey)
+    if not docJson or docJson == "" then
+        return nil
+    end
+    local ok, doc = pcall(HudEditorBoard.deserializeDocument, docJson)
+    if ok and type(doc) == "table" then
+        return normalizeDocumentMeta(doc)
+    end
+    return nil
+end
+
+local function readDatabankIndex(db)
+    local raw = databankGet(db, HudEditorBoard.DB_KEY_INDEX)
+    if not raw or raw == "" then
+        return { activeId = nil, scripts = {} }
+    end
+    local ok, index = pcall(HudEditorBoard.deserializeDocument, raw)
+    if ok and type(index) == "table" then
+        index.scripts = type(index.scripts) == "table" and index.scripts or {}
+        return index
+    end
+    return { activeId = nil, scripts = {} }
+end
+
+local function writeDatabankIndex(db, index)
+    databankSet(db, HudEditorBoard.DB_KEY_INDEX, HudEditorBoard.serializeDocument(index))
+end
+
+local function upsertDatabankIndex(index, docId, doc)
+    local scripts = index.scripts or {}
+    local found = false
+    for i, script in ipairs(scripts) do
+        if script.id == docId then
+            script.name = doc.name
+            script.modified = doc.revision or 0
+            found = true
+            break
+        end
+    end
+    if not found then
+        scripts[#scripts + 1] = {
+            id = docId,
+            name = doc.name,
+            modified = doc.revision or 0
+        }
+    end
+    table.sort(scripts, function(a, b)
+        local aName = string.lower(tostring(a.name or a.id or ""))
+        local bName = string.lower(tostring(b.name or b.id or ""))
+        if aName ~= bName then
+            return aName < bName
+        end
+        return tostring(a.id or "") < tostring(b.id or "")
+    end)
+    index.activeId = docId
+    index.scripts = scripts
+    return index
+end
+
+local function getNumericSuffix(value)
+    local match = tostring(value or ""):match("(%d+)$")
+    return match and tonumber(match) or nil
+end
+
+local function getElementClass(slot)
+    if not hasMethod(slot, "getClass") then
+        return nil
+    end
+    local ok, className = pcall(slot.getClass, slot)
+    if ok and type(className) == "string" and className ~= "" then
+        return string.lower(className)
+    end
+    return nil
+end
+
+local function getElementId(slot)
+    if not hasMethod(slot, "getLocalId") then
+        return nil
+    end
+    local ok, id = pcall(slot.getLocalId, slot)
+    if ok then
+        return id
+    end
+    return nil
+end
+
+local function resolveElementName(core, localId)
+    if localId == nil or not hasMethod(core, "getElementNameById") then
+        return nil
+    end
+    local ok, name = pcall(core.getElementNameById, core, localId)
+    if ok and type(name) == "string" and name ~= "" then
+        return name
+    end
+    return nil
+end
+
+local function compareLinkedSlots(a, b)
+    local aDbg = type(a.elementName) == "string" and a.elementName:match("^dbg_screen_([1-9])$")
+    local bDbg = type(b.elementName) == "string" and b.elementName:match("^dbg_screen_([1-9])$")
+    if aDbg and bDbg and aDbg ~= bDbg then
+        return tonumber(aDbg) < tonumber(bDbg)
+    end
+    if aDbg and not bDbg then
+        return true
+    end
+    if bDbg and not aDbg then
+        return false
+    end
+    local aSlot = getNumericSuffix(a.slotName)
+    local bSlot = getNumericSuffix(b.slotName)
+    if aSlot ~= nil and bSlot ~= nil and aSlot ~= bSlot then
+        return aSlot < bSlot
+    end
+    local aName = string.lower(tostring(a.elementName or a.slotName or ""))
+    local bName = string.lower(tostring(b.elementName or b.slotName or ""))
+    if aName ~= bName then
+        return aName < bName
+    end
+    return tostring(a.localId or "") < tostring(b.localId or "")
+end
+
+local function scanUnitLinks()
+    local links = {
+        core = nil,
+        screens = {},
+        databanks = {},
+        slots = {},
+    }
+    if type(unit) ~= "table" and type(unit) ~= "userdata" then
+        return links
+    end
+    for slotName, slot in pairs(unit) do
+        if type(slot) == "table" and type(slot.export) == "table" then
+            local elementClass = getElementClass(slot)
+            if elementClass then
+                slot.slotName = slotName
+                slot.elementClass = elementClass
+                slot.localId = getElementId(slot)
+                table.insert(links.slots, slot)
+                if string.find(elementClass, "coreunit", 1, true) then
+                    links.core = slot
+                elseif string.find(elementClass, "screen", 1, true) then
+                    table.insert(links.screens, slot)
+                elseif string.find(elementClass, "databankunit", 1, true) then
+                    table.insert(links.databanks, slot)
+                end
+            end
+        end
+    end
+    for _, slot in ipairs(links.slots) do
+        slot.elementName = resolveElementName(links.core, slot.localId)
+    end
+    table.sort(links.screens, compareLinkedSlots)
+    table.sort(links.databanks, compareLinkedSlots)
+    links.primaryScreen = links.screens[1]
+    links.primaryDatabank = links.databanks[1]
+    return links
+end
+
+--  State
 
 local state = {
     mode = "start",           -- "start", "loaded", "editing"
     document = nil,           -- Current document
-    selectedId = nil,        -- Currently selected element
-    isDirty = false,         -- Unsaved changes
+    selectedId = nil,         -- Currently selected element
+    isDirty = false,          -- Unsaved changes
     undoStack = {},
     redoStack = {},
     databankAvailable = false,
+    databank = nil,
+    links = nil,
     linkedScreens = {},       -- Linked screen elements
     renderRevision = 0,       -- Incremented on each render change
 }
 
---  Document operations 
+--  Document operations
 
 function HudEditorBoard.newDocument(screenW, screenH)
     screenW = screenW or 1920
     screenH = screenH or 1080
     return {
         version = 1,
-        revision = 0,
+        revision = 1,
+        id = generateLayoutId(),
+        name = "Layout",
         screenWidth = screenW,
         screenHeight = screenH,
         elements = {
@@ -104,7 +416,7 @@ function HudEditorBoard.newDocument(screenW, screenH)
                 fill = {0.10, 0.11, 0.12, 0.98},
                 stroke = {0.70, 0.72, 0.76, 1.0},
                 strokeWidth = 3,
-                textLines = {"HUD Editor"},
+                textLines = {"Lua Painter"},
                 textColor = {0.86, 0.88, 0.92, 1.0},
                 textSize = 24,
                 textAlign = "center",
@@ -187,44 +499,134 @@ function HudEditorBoard.deleteElement(id)
     return false
 end
 
---  Persistence 
+--  Persistence
+
+function HudEditorBoard.refreshLinks(verbose)
+    local links = scanUnitLinks()
+    state.links = links
+    state.linkedScreens = links.screens or {}
+    state.databank = links.primaryDatabank
+    state.databankAvailable = hasDatabankIo(state.databank)
+    if _ENV then
+        _ENV.HudEditorLinks = links
+        _ENV.Screens = state.linkedScreens
+        _ENV.Screen = links.primaryScreen
+        _ENV.Databanks = links.databanks
+        _ENV.databank = state.databank
+    end
+    if verbose then
+        local screenInfo = tostring(#state.linkedScreens)
+        local dbInfo = tostring(#(links.databanks or {}))
+        dp("Link scan: " .. screenInfo .. " screen(s), " .. dbInfo .. " databank(s)")
+        if links.primaryScreen then
+            dp("Primary screen: " .. tostring(links.primaryScreen.elementName or links.primaryScreen.slotName))
+        end
+        if state.databank then
+            dp("Primary databank: " .. tostring(state.databank.elementName or state.databank.slotName))
+        end
+    end
+    return links
+end
+
+function HudEditorBoard.getDatabank()
+    if hasDatabankIo(state.databank) then
+        return state.databank
+    end
+    HudEditorBoard.refreshLinks(false)
+    if hasDatabankIo(state.databank) then
+        return state.databank
+    end
+    return nil
+end
 
 function HudEditorBoard.persistToDatabank()
-    if type(databank) ~= "userdata" or type(databank.setValue) ~= "function" then
+    local db = HudEditorBoard.getDatabank()
+    if not db then
         dp("Databank not available, skipping persist")
         return false
     end
     if not state.document then return false end
 
-    local docJson = string.format("%q", HudEditorBoard.serializeDocument(state.document))
-    databank.setValue(HudEditorBoard.DB_KEY_DOC, docJson)
-    dp("Persisted document revision " .. tostring(state.document.revision))
+    local doc = normalizeDocumentMeta(state.document)
+    if not doc then
+        dp("Document missing id, skipping persist")
+        return false
+    end
+    local docKey = getDocumentStorageKey(doc.id)
+    local stored = loadDocumentFromDatabankKey(db, doc.id)
+    local revision = tonumber(doc.revision) or 0
+    if stored and type(stored.revision) == "number" and stored.revision > revision then
+        revision = stored.revision
+    end
+    if revision < 1 then
+        revision = 1
+    end
+    doc.revision = revision
+
+    local docPayload = HudEditorBoard.serializeDocument(doc)
+    databankSet(db, HudEditorBoard.DB_KEY_DOC, docPayload)
+    databankSet(db, docKey, docPayload)
+    writeDatabankIndex(db, upsertDatabankIndex(readDatabankIndex(db), doc.id, doc))
+    state.document = doc
+    dp("Persisted document revision " .. tostring(doc.revision))
     return true
 end
 
-function HudEditorBoard.restoreFromDatabank()
-    -- Check if databank is available
-    if type(databank) ~= "userdata" then
+function HudEditorBoard.restoreFromDatabank(scriptId)
+    local db = HudEditorBoard.getDatabank()
+    if not db then
         return nil
     end
 
-    -- Check if databank has the required methods
-    if type(databank.getValue) ~= "function" then
-        return nil
+    local doc = nil
+    if type(scriptId) == "string" and scriptId ~= "" and scriptId ~= "_current" then
+        doc = loadDocumentFromDatabankKey(db, scriptId)
+    end
+    if not doc then
+        local index = readDatabankIndex(db)
+        if type(index.activeId) == "string" and index.activeId ~= "" then
+            doc = loadDocumentFromDatabankKey(db, index.activeId)
+        end
+    end
+    if doc then
+        dp("Restored document revision " .. tostring(doc.revision))
+        return doc
     end
 
-    local docJson = databank.getValue(HudEditorBoard.DB_KEY_DOC)
+    local docJson = databankGet(db, HudEditorBoard.DB_KEY_DOC)
     if not docJson or docJson == "" then
         return nil
     end
 
-    local ok, doc = pcall(HudEditorBoard.deserializeDocument, docJson)
-    if ok and doc then
-        dp("Restored document revision " .. tostring(doc.revision))
-        return doc
+    local ok, loadedDoc = pcall(HudEditorBoard.deserializeDocument, docJson)
+    if ok and loadedDoc then
+        loadedDoc = normalizeDocumentMeta(loadedDoc)
+        if loadedDoc then
+            dp("Restored document revision " .. tostring(loadedDoc.revision))
+            return loadedDoc
+        end
     end
-    dp("Failed to restore document: " .. tostring(doc))
+    dp("Failed to restore document: " .. tostring(loadedDoc))
     return nil
+end
+
+function HudEditorBoard.listStoredScripts()
+    local db = HudEditorBoard.getDatabank()
+    if not db then
+        return {}
+    end
+    local index = readDatabankIndex(db)
+    local scripts = {}
+    for i, script in ipairs(index.scripts or {}) do
+        if normalizeDocumentId(script.id) then
+            scripts[#scripts + 1] = {
+                id = script.id,
+                name = script.name or "Layout",
+                modified = script.modified or 0
+            }
+        end
+    end
+    return scripts
 end
 
 function HudEditorBoard.serializeDocument(doc)
@@ -269,10 +671,19 @@ function HudEditorBoard.deserializeDocument(json)
     if not func then return nil end
     local ok, result = pcall(func)
     if not ok then return nil end
+    if type(result) == "string" and result ~= "" then
+        local nested = load("return " .. result)
+        if nested then
+            local nestedOk, nestedResult = pcall(nested)
+            if nestedOk and type(nestedResult) == "table" then
+                return nestedResult
+            end
+        end
+    end
     return result
 end
 
---  Command processing 
+--  Command processing
 
 function HudEditorBoard.processCommand(input)
     if not input or type(input) ~= "string" then
@@ -301,7 +712,7 @@ function HudEditorBoard.processCommand(input)
         return HudEditorBoard.cmdNew(w, h)
 
     elseif action == CMD.LOAD then
-        return HudEditorBoard.cmdLoad()
+        return HudEditorBoard.cmdLoad(parts[2])
 
     elseif action == CMD.SAVE then
         return HudEditorBoard.cmdSave()
@@ -356,15 +767,15 @@ function HudEditorBoard.cmdSync()
             state.mode = "loaded"
         end
     end
-    return {
-        status = "ok",
-        type = "sync_response",
-        mode = state.mode,
-        selectedId = state.selectedId,
-        isDirty = state.isDirty,
-        document = doc,
-        revision = state.renderRevision,
-    }
+    return table.concat({
+        "sync_response",
+        "ok",
+        urlEncode(state.mode or "start"),
+        urlEncode(state.selectedId or ""),
+        state.isDirty and "1" or "0",
+        tostring(state.renderRevision or 0),
+        encodeDocumentForBridge(doc)
+    }, "|")
 end
 
 function HudEditorBoard.cmdNew(w, h)
@@ -374,47 +785,56 @@ function HudEditorBoard.cmdNew(w, h)
     state.isDirty = false
     state.mode = "editing"
     HudEditorBoard.persistToDatabank()
-    return {
-        status = "ok",
-        type = "new_response",
-        document = state.document,
-    }
+    return "new_response|ok|" .. encodeDocumentForBridge(state.document)
 end
 
-function HudEditorBoard.cmdLoad()
-    local doc = HudEditorBoard.restoreFromDatabank()
+function HudEditorBoard.cmdLoad(scriptId)
+    local doc = nil
+    if type(scriptId) == "string" and scriptId ~= "" and scriptId ~= "_current" then
+        doc = HudEditorBoard.restoreFromDatabank(scriptId)
+    elseif state.document then
+        doc = state.document
+    else
+        doc = HudEditorBoard.restoreFromDatabank()
+    end
     if not doc then
-        return { status = "error", message = "no document found" }
+        return "load_response|error|no%20document%20found"
     end
     state.document = doc
     state.selectedId = nil
     state.isDirty = false
     state.mode = "loaded"
-    return {
-        status = "ok",
-        type = "load_response",
-        document = state.document,
-    }
+    return "load_response|ok|" .. encodeDocumentForBridge(state.document)
 end
 
 function HudEditorBoard.cmdSave()
     local ok = HudEditorBoard.persistToDatabank()
     if ok then
         state.isDirty = false
-        return { status = "ok", type = "save_response" }
+        return "save_response|ok"
     end
-    return { status = "error", message = "save failed" }
+    return "save_response|error"
 end
 
 function HudEditorBoard.cmdList()
-    -- For now, just return basic info
-    return {
-        status = "ok",
-        type = "list_response",
-        scripts = {
-            { id = "_current", name = "Current Layout", modified = state.document and state.document.revision or 0 }
+    local scripts = HudEditorBoard.listStoredScripts()
+    if #scripts == 0 and state.document then
+        local doc = normalizeDocumentMeta(state.document)
+        if doc then
+            scripts[1] = {
+                id = doc.id,
+                name = doc.name or "Layout",
+                modified = doc.revision or 0
+            }
+        end
+    elseif #scripts == 0 then
+        scripts[1] = {
+            id = "_current",
+            name = "Current Layout",
+            modified = 0
         }
-    }
+    end
+    return "list_response|ok|" .. encodeScriptsForBridge(scripts)
 end
 
 function HudEditorBoard.cmdAdd(elementJson)
@@ -516,7 +936,7 @@ function HudEditorBoard.cmdRender()
     }
 end
 
---  Screen rendering 
+--  Screen rendering
 
 function HudEditorBoard.renderElement(layer, element)
     if not element then return end
@@ -589,7 +1009,7 @@ function HudEditorBoard.render(layer)
     end
 end
 
---  Input handling 
+--  Input handling
 
 function HudEditorBoard.onInputReceived(input)
     local ok, result = pcall(HudEditorBoard.processCommand, input)
@@ -600,28 +1020,23 @@ function HudEditorBoard.onInputReceived(input)
     return result
 end
 
---  Lifecycle 
+--  Lifecycle
 
 function HudEditorBoard.init(bootDocument)
     dp("Initializing HUD Editor Board")
-
-    -- Debug: report what's available for screen linking
-    dp("DEBUG: type(Screens)=" .. tostring(type(Screens)))
-    dp("DEBUG: Screens=" .. tostring(Screens))
-    dp("DEBUG: type(Screen)=" .. tostring(type(Screen)))
-    dp("DEBUG: Screen=" .. tostring(Screen))
-    if type(Screens) == "table" then
-        dp("DEBUG: #Screens=" .. #Screens)
-    end
+    HudEditorBoard.refreshLinks(true)
 
     -- If boot document is provided, it overrides persisted state and becomes the new base document.
     if type(bootDocument) == "table" then
-        state.document = deepCopy(bootDocument)
+        state.document = normalizeDocumentMeta(deepCopy(bootDocument))
+        if not state.document then
+            error("boot document missing id")
+        end
         state.mode = "editing"
         state.selectedId = nil
         state.isDirty = false
         if type(state.document.revision) ~= "number" then
-            state.document.revision = 0
+            state.document.revision = 1
         end
         state.renderRevision = state.renderRevision + 1
         HudEditorBoard.persistToDatabank()
@@ -642,38 +1057,30 @@ function HudEditorBoard.init(bootDocument)
         end
     end
 
-    -- Link screens if available
-    -- Screens (plural) is an array of all linked screens
-    -- Screen (singular) is the first/only linked screen
-    state.linkedScreens = {}
-    if type(Screens) == "table" and #Screens > 0 then
-        state.linkedScreens = Screens
-        dp("Linked " .. #Screens .. " screen(s)")
-    elseif type(Screen) == "userdata" then
-        state.linkedScreens = {Screen}
-        dp("Linked 1 screen")
+    if #state.linkedScreens > 0 then
+        dp("Linked " .. tostring(#state.linkedScreens) .. " screen(s)")
     else
         dp("No screen linked - render output disabled")
     end
 
-    -- Start render loop only if we have screens and unit
-    if #state.linkedScreens > 0 and type(unit) == "userdata" then
+    if hasMethod(unit, "setTimer") then
         unit.setTimer("render", 0.5)  -- Slower initial render
-        dp("Render loop started")
+        dp("Render loop armed")
     end
 end
 
 function HudEditorBoard.onTimer(timerName)
     if timerName == "render" then
-        -- Only render if we have linked screens
         if #state.linkedScreens == 0 then
+            HudEditorBoard.refreshLinks(false)
             unit.setTimer("render", 1.0)  -- Check again in 1 second
             return
         end
-        -- Re-render to linked screens
         for _, screen in ipairs(state.linkedScreens) do
-            if type(screen) == "userdata" and type(screen.getRenderScript) == "function" then
-                screen.clearScriptOutput()
+            if hasMethod(screen, "getRenderScript") and hasMethod(screen, "setRenderScript") then
+                if hasMethod(screen, "clearScriptOutput") then
+                    screen.clearScriptOutput()
+                end
                 local script = HudEditorBoard.buildRenderScript()
                 screen.setRenderScript(script)
             end
@@ -685,7 +1092,7 @@ end
 function HudEditorBoard.buildRenderScript()
     local script = [=[
 local function renderLayer(layer)
-]=] .. "    local HudEditorBoard = HUDEditorBoard\n"
+]=] .. "    local HudEditorBoard = HudEditorBoard\n"
     script = script .. [=[
     if not HudEditorBoard then return end
     HudEditorBoard.render(layer)
@@ -694,13 +1101,13 @@ end
     return script
 end
 
---  Public API for screen script 
+--  Public API for screen script
 
 HudEditorBoard.renderLayer = function(layer)
     HudEditorBoard.render(layer)
 end
 
---  Module export 
+--  Module export
 
 if _ENV then
     _ENV.HudEditorBoard = HudEditorBoard

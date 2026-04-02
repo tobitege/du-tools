@@ -1,6 +1,6 @@
 # DU Client Pixel Live Tests
 
-Purpose: define the live test workflow for `ui_calibrate` and `click_client_px` using the existing screenshot MCP path described in [du-visual-subagent.md](/d:/github/du-tobi/du-visual-subagent.md#L1).
+Purpose: define the live test workflow for `ui_calibrate` and `click_client_px` using the existing screenshot MCP path described in [du-visual-subagent.md](du-visual-subagent.md#L1).
 
 This is a dev-process note for interactive verification against the real Dual Universe window.
 
@@ -10,7 +10,7 @@ This is a dev-process note for interactive verification against the real Dual Un
 - use `ScreenShotNet.capture_window_screenshot` for visual confirmation when the visible DU state matters
 - do not keep taking screenshots at every step
 
-That matches the repo-wide guidance in [du-visual-subagent.md](/d:/github/du-tobi/du-visual-subagent.md#L1):
+That matches the repo-wide guidance in [du-visual-subagent.md](du-visual-subagent.md#L1):
 
 - probe first when probe state exists
 - screenshots are for targeted confirmation
@@ -98,4 +98,4 @@ Do not add screenshots when:
 ## Notes
 
 - `Test-DuClientPixels.ps1` still has `-CaptureArtifacts` for standalone local runs, but the preferred repo workflow for agent-assisted live checks is the MCP screenshot path above.
-- If the DU UI scale or layout changes, retune `-CheckboxXRatio` and `-CheckboxYRatio` in [Test-DuClientPixels.ps1](/d:/github/du-tobi/live_lua_coding/Test-DuClientPixels.ps1#L1).
+- If the DU UI scale or layout changes, retune `-CheckboxXRatio` and `-CheckboxYRatio` in [Test-DuClientPixels.ps1](live_lua_coding/Test-DuClientPixels.ps1#L1).

@@ -481,7 +481,7 @@ export function registerNativeInputTools(
     {
       title: "Move Dual Universe Camera",
       description:
-        "Uses a native AutoHotkey v2 helper from `DuMcpBridge/ahk` to center the Dual Universe client and apply one relative camera move with explicit `x` and `y` deltas. This is the canonical live path for native camera steering.",
+        "Uses a native AutoHotkey v2 helper from `DuMcpBridge/ahk` to move the cursor to the center of the Dual Universe client area, then apply one relative camera move with explicit `x` and `y` deltas. This is the canonical live path for native camera steering.",
       inputSchema: {
         x: z.number().int().describe("Relative horizontal camera move in native mouse-event units"),
         y: z.number().int().describe("Relative vertical camera move in native mouse-event units"),

@@ -27,7 +27,7 @@ It exists to make HUD editor iteration fast outside Dual Universe:
 Use `pnpm` in this folder and ignore parent workspaces.
 
 ```powershell
-cd D:\github\du-tobi\live_lua_coding\examples\hud_editor_v1\web
+cd .\live_lua_coding\examples\hud_editor_v1\web
 pnpm install --ignore-workspace
 ```
 
@@ -41,7 +41,7 @@ Why `--ignore-workspace`:
 Before using the harness, rebuild the HUD payload:
 
 ```powershell
-cd D:\github\du-tobi
+cd .
 pwsh -File .\live_lua_coding\examples\hud_editor_v1\scripts\build.ps1
 ```
 
@@ -52,7 +52,7 @@ The harness loads:
 ## Run The Harness Manually
 
 ```powershell
-cd D:\github\du-tobi\live_lua_coding\examples\hud_editor_v1\web
+cd .\live_lua_coding\examples\hud_editor_v1\web
 pnpm run serve
 ```
 
@@ -65,7 +65,7 @@ http://127.0.0.1:4173/web/index.html
 ## Run Browser Tests
 
 ```powershell
-cd D:\github\du-tobi\live_lua_coding\examples\hud_editor_v1\web
+cd .\live_lua_coding\examples\hud_editor_v1\web
 pnpm test
 ```
 
@@ -272,8 +272,6 @@ Notes:
 
 - `Save`
   - saves the current layout to browser storage using the current layout name or `Layout`
-- `Save + Exit`
-  - saves the current layout and returns to the start screen
 - `Export Board`
   - present in the UI, but in the web harness it only writes a simulated packet entry to the harness log
 - `Export Screen`

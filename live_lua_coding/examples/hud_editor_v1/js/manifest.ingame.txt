@@ -1,4 +1,4 @@
-# HUD Editor Probe - Module Load Order
+# HUD Editor Probe - Ingame Module Load Order
 000-core.js
 010-start-screen.js
 020-editor-shell.js
@@ -7,7 +7,8 @@
 050-selection-manager.js
 060-shapes-panel.js
 070-properties-panel.js
+080-bridge-commands.js
 085-ide-export.js
-100-file-sync.web.js
+090-databank-sync.js
 110-undo-redo.js
 120-dialogs.js

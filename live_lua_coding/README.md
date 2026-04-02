@@ -24,7 +24,7 @@ Concrete demos now live under `live_lua_coding/examples/`.
 
 - `examples/form_editor/` — First example. Screen-side form editor where a board restores persisted layout state, renders a reduced screen script, and accepts move or resize deltas back from the screen.
 - `examples/form_editor_v2/` — Simplified form editor workflow using a library-onStart pattern.
-- `examples/hud_editor_v1/` — **Lua Painter**: a self-contained JavaScript WYSIWYG HUD overlay for designing screen layouts with Lua-drawn elements. See section 4A below.
+- `examples/hud_editor_v1/` — **Lua Painter**: an in-game layout painter delivered as an optional ModUiExtractor runtime plugin. Users paint shapes visually, save layouts on a programming board, and export generated Lua/RenderScript for screens and signs. See section 4A below.
 
 That split keeps the root folder reusable for future examples without tying every workflow note to one specific demo.
 
@@ -500,57 +500,53 @@ Second example in `live_lua_coding/examples/form_editor_v2/`:
 - `ScreenLayoutEditor.lua`
   Shared ScreenLayoutEditor module.
 
-### 4A. HUD Editor (Lua Painter) — `examples/hud_editor_v1/`
+### 4A. Lua Painter — `examples/hud_editor_v1/`
 
-This example is a **self-contained** JavaScript project, completely independent from ModUiExtractor core.
-It provides a WYSIWYG HUD overlay for designing screen layouts with Lua-drawn elements ("Paint-with-Lua").
+This example is an in-game Lua Painter for Dual Universe.
 
-Architecture:
+The actual product is not the browser harness. The actual product is an optional runtime plugin injected through the ModUiExtractor helper flow. Once injected, it can be enabled or disabled from the special kebab menu in the in-game mod UI.
 
-- 13 plain-JS IIFE modules in `js/modules/` (numbered `000-` through `120-`), concatenated by `scripts/build.ps1`
-- CSS embedded in the JS bundle, injected at runtime via `000-core.js`
-- All modules share `window.HudEditor` (`APP.state`, `APP.emit()`, `APP.on()`, `APP.el()`, `APP.qs()`)
-- Build produces a single payload: `build/hud-editor-probe.js`
-- Board-side Lua in `board/` handles databank persistence
-- Screen-side Lua in `screen/` handles rendering
+Purpose:
 
-Modules (in load order):
+- paint shapes visually onto a layout canvas
+- edit and arrange those shapes in-game
+- save the layout on a programming board
+- generate/export Lua-based RenderScript for linked screens and signs
 
-- `000-core.js` — App namespace, event bus, DOM helpers, style injection
-- `010-start-screen.js` — Start menu (New Script, Load, etc.)
-- `020-editor-shell.js` — Editor DOM structure: toolbar, canvas area, properties panel, status bar
-- `030-canvas-renderer.js` — DOM-based element rendering, selection overlays, coordinate mapping
-- `040-tool-handlers.js` — Shape creation tools (box, rounded, circle, line, text)
-- `050-selection-manager.js` — Click-to-select, hit testing, resize handles
-- `070-properties-panel.js` — Property editing UI, stepper controls, color sync, panel drag/persistence
-- `080-bridge-commands.js` — DuMcpBridge command integration
-- `085-ide-export.js` — IDE export functionality
-- `090-databank-sync.js` — Databank read/write for layout persistence
-- `100-file-sync.js` — JSON import/export for layout files
-- `110-undo-redo.js` — Undo/redo stack (snapshots full document state)
-- `120-dialogs.js` — Modal dialogs (save-as, load, confirm)
+Current structure:
 
-Web test harness (`web/`):
+- `js/modules/` — editor source modules
+- `js/assets/` — CSS
+- `board/` — programming board Lua files
+- `screen/` — screen runtime Lua
+- `scripts/build.ps1` — bundle builder
+- `scripts/publish.ps1` — publish into ModUiExtractor runtime modules
+- `web/` — browser-only development and test harness
 
-- `server.mjs` — Static file server on port 4173 (no-cache headers for development)
-- `harness.js` — Test harness entry point: loads the built payload, provides fake runtime context
-- `index.html` — Harness UI with fixture loading, state display, and log viewer
-- `tests/hud-editor.spec.js` — Playwright end-to-end tests
-- `fixtures/` — Test fixture JSON files (e.g. `layout-all-shapes.json`)
+Important editor modules:
 
-Build and test:
+- `000-core.js` — app bootstrap and shared state
+- `020-editor-shell.js` — main editor UI
+- `030-canvas-renderer.js` — preview rendering
+- `040-tool-handlers.js` — shape creation tools
+- `050-selection-manager.js` — selection, drag, resize, grouping
+- `085-ide-export.js` — generated board/screen export
+- `090-databank-sync.js` — in-game save/load integration
+
+Build and publish:
 
 ```powershell
-# Build the payload
-powershell -File live_lua_coding\examples\hud_editor_v1\scripts\build.ps1
+# Build web bundle
+pwsh -File .\live_lua_coding\examples\hud_editor_v1\scripts\build.ps1
 
-# Start the dev server
-node live_lua_coding\examples\hud_editor_v1\web\server.mjs
+# Build in-game bundle
+pwsh -File .\live_lua_coding\examples\hud_editor_v1\scripts\build.ps1 -Target ingame
 
-# Run Playwright tests
-cd live_lua_coding\examples\hud_editor_v1\web
-pnpm exec playwright test
+# Publish as ModUiExtractor runtime module
+pwsh -File .\live_lua_coding\examples\hud_editor_v1\scripts\publish.ps1
 ```
+
+The `web/` folder is only for faster local iteration and Playwright coverage. It is useful, but it is not the shipped workflow.
 
 Use tracked repo files from the example you are actively editing as the source for editor push workflows.
 For the currently documented example, that usually means files in `live_lua_coding/examples/form_editor/`.
@@ -956,6 +952,48 @@ After push or save, use:
 
 Use a screenshot only when the visible state matters more than the structured probe state.
 
+For DU visual verification, do not default to a full-window capture.
+The preferred reality-check capture is:
+
+- left-middle area of the client
+- up to about three quarters of the client width
+
+Why:
+
+- in UI mode, the left edge can show the game's green options/sidebar strip
+- that left-edge signal is enough to prove you are in UI mode
+- include enough width that the visual center of the client is still visible in the same capture
+- in UI mode, do not assume the visual center of the client still points at the board, screen, or current target
+- a centered capture can therefore miss the important state cue and create a false interpretation
+
+MUST READ before any visual board-target decision:
+
+- view `live_lua_coding/du-ref-board-screen-center.png`
+- treat it as the calibration reference for this setup
+- the large dark element at the top is the screen
+- the upper console-like element is the programming board
+- the smaller stacked box near the bottom is the databank
+- the red `+` marks the real client center in that reference image
+
+For board interaction, use this rule with no exceptions:
+
+- the only valid reference point for `Ctrl+L` is the real client center
+- use a centered capture when you need to decide whether `Ctrl+L` is allowed
+- `Ctrl+L` is allowed only if that centered capture shows the programming board at the real client center
+- if the centered capture does not show the board at the real client center, `Ctrl+L` is not allowed
+- if you changed state yourself, for example with `Tab` or `du_camera_move`, capture again before the next decision
+- after every camera move, treat the previous visual conclusion as invalid until a new centered capture confirms the new state
+- do not infer board targeting from nearby geometry, side captures, or a rough visual impression
+- do not assume a camera move helped; verify the exact result after every move
+
+Use a left-middle capture to answer the mode question.
+Use a centered capture to answer the board-target question.
+If the camera is not on the board, re-aim first and verify again.
+Do not confuse the programming board with nearby linked elements.
+In the current HUD editor setup, the upper console-like element is the programming board.
+The smaller stacked box element below it is a databank, not the board, and must not be used for `Ctrl+L`.
+Board targeting is confirmed only when the real client center is on the upper board element itself.
+
 For `lua_editor`, validation has two different questions:
 
 - "Did the bridge file-transfer path stage or apply what I expected?"
@@ -1208,12 +1246,12 @@ Action:
 
 ## 17. Related Documents
 
-- [DuMcpBridge README](/d:/github/du-tobi/DuMcpBridge/README.md)
-- [Bridge Live Test](/d:/github/du-tobi/DuMcpBridge/bridge-live-test.md)
-- [Client Pixel Live Tests](/d:/github/du-tobi/live_lua_coding/du-client-pixel-live-tests.md)
-- [Camera Steering Tests](/d:/github/du-tobi/live_lua_coding/du-camera-steering-tests.md)
-- [DU Visual Subagent Notes](/d:/github/du-tobi/du-visual-subagent.md)
-- [HUD Editor Plan](/d:/github/du-tobi/live_lua_coding/examples/hud_editor_v1/hud-editor.md)
+- [DuMcpBridge README](../DuMcpBridge/README.md)
+- [Bridge Live Test](../DuMcpBridge/bridge-live-test.md)
+- [Client Pixel Live Tests](du-client-pixel-live-tests.md)
+- [Camera Steering Tests](du-camera-steering-tests.md)
+- [DU Visual Subagent Notes](../du-visual-subagent.md)
+- [HUD Editor Plan](examples/hud_editor_v1/hud-editor.md)
 
 ## 18. Maintaining The Tracked Live Snapshots
 

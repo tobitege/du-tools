@@ -28,7 +28,7 @@ Die wichtigste praktische Lehre ist:
 
 Quelle:
 
-- [SimpleSignS-svg.lua](/d:/github/du-tobi/rs_emulator/examples/SilverZero/SimpleSignS-svg.lua)
+- [SimpleSignS-svg.lua](rs_emulator/examples/SilverZero/SimpleSignS-svg.lua)
 
 ### 1. Das innere Board besteht aktuell aus drei klar getrennten Teilen
 
@@ -72,7 +72,7 @@ Das ist der entscheidende praktische Patch, weil genau diese Formen vorher als p
 
 Quelle:
 
-- [SilverZeroRsLib.lua](/d:/github/du-tobi/rs_emulator/lib/SilverZeroRsLib.lua)
+- [SilverZeroRsLib.lua](rs_emulator/lib/SilverZeroRsLib.lua)
 
 Die Punktliste-zu-Quad-Logik ist nicht mehr lokal im Beispiel versteckt, sondern als oeffentliche Hilfsmethode vorhanden:
 
@@ -120,7 +120,7 @@ Kurz:
 
 Quelle:
 
-- [SimpleSignBoardPrepared.lua](/d:/github/du-tobi/rs_emulator/examples/SilverZero/SimpleSignBoardPrepared.lua)
+- [SimpleSignBoardPrepared.lua](rs_emulator/examples/SilverZero/SimpleSignBoardPrepared.lua)
 
 Es gab eine echte Duplikation des Bottom-Left-Highlight-Segments:
 
@@ -141,7 +141,7 @@ Wichtige Lehre:
 
 Quelle:
 
-- [SimpleSignSharedAssetsSelective.lua](/d:/github/du-tobi/rs_emulator/lib/SimpleSignSharedAssetsSelective.lua)
+- [SimpleSignSharedAssetsSelective.lua](rs_emulator/lib/SimpleSignSharedAssetsSelective.lua)
 
 Beim Umstellen von "nur Logo laden" auf "Board + Logo laden" trat Emulator-Flicker auf.
 

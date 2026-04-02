@@ -8,7 +8,7 @@ Extracts axis-aligned bounding boxes (AABB) from Dual Universe game client colli
    - `HKEY_LOCAL_MACHINE\SOFTWARE\Novaquark\DualUniverse\Settings-MYDU`
    - Value name: `InstallFolder`
 2. Falls back to hardcoded install path (`D:\MyDualUniverse`) if registry lookup is unavailable or fails.
-3. Resolves ItemBank JSON path from env var `ITEMBANK_JSON`, else falls back to `D:\github\du-tobi\ItemExport2Json\itembank.json`.
+3. Resolves ItemBank JSON path from env var `ITEMBANK_JSON`, else falls back to the repo-local `ItemExport2Json\itembank.json`.
 4. Loads ItemBank element names (DB export) for validation if that JSON exists.
    - Resolves inherited `hidden` flags through parent chains.
    - Hidden ItemBank elements are excluded from lookup candidates.

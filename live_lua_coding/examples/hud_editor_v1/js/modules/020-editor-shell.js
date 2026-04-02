@@ -58,27 +58,27 @@
         // Tool buttons — SVG icon + key hint
         el("div", { className: "toolbar-group" }, [
           el("button", { className: "tool-btn active", dataset: { tool: "select" }, title: "Select (V)" }, [
-            el("span", { className: "tb-icon tb-icon-select" }),
+            el("span", { className: "tb-icon tb-icon-select tb-icon-glyph tb-icon-glyph-select", textContent: "\u2196" }),
             el("span", { className: "tb-key", textContent: "V" }),
           ]),
           el("button", { className: "tool-btn", dataset: { tool: "box" }, title: "Box (B)" }, [
-            el("span", { className: "tb-icon tb-icon-box" }),
+            el("span", { className: "tb-icon tb-icon-box tb-icon-glyph tb-icon-glyph-box", textContent: "\u25A1" }),
             el("span", { className: "tb-key", textContent: "B" }),
           ]),
           el("button", { className: "tool-btn", dataset: { tool: "rounded" }, title: "Rounded Box (R)" }, [
-            el("span", { className: "tb-icon tb-icon-rounded" }),
+            el("span", { className: "tb-icon tb-icon-rounded tb-icon-glyph tb-icon-glyph-rounded", textContent: "\u25A2" }),
             el("span", { className: "tb-key", textContent: "R" }),
           ]),
           el("button", { className: "tool-btn", dataset: { tool: "circle" }, title: "Circle (C)" }, [
-            el("span", { className: "tb-icon tb-icon-circle" }),
+            el("span", { className: "tb-icon tb-icon-circle tb-icon-glyph tb-icon-glyph-circle", textContent: "\u25CB" }),
             el("span", { className: "tb-key", textContent: "C" }),
           ]),
           el("button", { className: "tool-btn", dataset: { tool: "line" }, title: "Line (L)" }, [
-            el("span", { className: "tb-icon tb-icon-line" }),
+            el("span", { className: "tb-icon tb-icon-line tb-icon-glyph tb-icon-glyph-line", textContent: "/" }),
             el("span", { className: "tb-key", textContent: "L" }),
           ]),
           el("button", { className: "tool-btn", dataset: { tool: "text" }, title: "Text (T)" }, [
-            el("span", { className: "tb-icon tb-icon-text" }),
+            el("span", { className: "tb-icon tb-icon-text tb-icon-glyph tb-icon-glyph-text", textContent: "T" }),
             el("span", { className: "tb-key", textContent: "T" }),
           ]),
         ]),
@@ -88,24 +88,26 @@
         // Color swatches
         el("div", { className: "toolbar-group colors" }, [
           el("div", { className: "swatch-pair" }, [
-            el("input", {
-              type: "color",
-              className: "color-swatch",
-              value: "#3366FF",
-              title: "Fill color",
-              dataset: { prop: "fill" },
-            }),
             el("span", { className: "swatch-label", textContent: "Fill" }),
+            el("button", {
+              type: "button",
+              className: "color-swatch-btn",
+              title: "Fill color",
+              dataset: { colorProp: "fill", colorHex: "#3366FF" },
+            }, [
+              el("span", { className: "color-swatch-chip" }),
+            ]),
           ]),
           el("div", { className: "swatch-pair" }, [
-            el("input", {
-              type: "color",
-              className: "color-swatch",
-              value: "#FFFFFF",
-              title: "Stroke color",
-              dataset: { prop: "stroke" },
-            }),
             el("span", { className: "swatch-label", textContent: "Stroke" }),
+            el("button", {
+              type: "button",
+              className: "color-swatch-btn",
+              title: "Stroke color",
+              dataset: { colorProp: "stroke", colorHex: "#FFFFFF" },
+            }, [
+              el("span", { className: "color-swatch-chip" }),
+            ]),
           ]),
         ]),
 
@@ -205,11 +207,25 @@
           ]),
           el("div", { className: "prop-row" }, [
             el("label", { textContent: "Fill" }),
-            el("input", { type: "color", className: "prop-color", dataset: { prop: "fill" } }),
+            el("button", {
+              type: "button",
+              className: "prop-color-btn",
+              title: "Fill color",
+              dataset: { colorProp: "fill", colorHex: "#3366FF" }
+            }, [
+              el("span", { className: "prop-color-chip" }),
+            ]),
           ]),
           el("div", { className: "prop-row" }, [
             el("label", { textContent: "Stroke" }),
-            el("input", { type: "color", className: "prop-color", dataset: { prop: "stroke" } }),
+            el("button", {
+              type: "button",
+              className: "prop-color-btn",
+              title: "Stroke color",
+              dataset: { colorProp: "stroke", colorHex: "#FFFFFF" }
+            }, [
+              el("span", { className: "prop-color-chip" }),
+            ]),
           ]),
           el("div", { className: "prop-row" }, [
             el("label", { textContent: "Stroke W" }),
@@ -239,17 +255,16 @@
           el("button", {
             className: "status-btn primary",
             dataset: { action: "save" },
-            textContent: "Save",
-          }),
-          el("button", {
-            className: "status-btn",
-            dataset: { action: "save-exit" },
-            textContent: "Save + Exit",
+            textContent: "Apply + Close HUD",
           }),
         ]),
         el("div", { className: "statusbar-center" }, [
-          el("span", { className: "status-mode", textContent: "Editing" }),
-          el("span", { className: "status-hint", textContent: "Use the HUD Editor button to close" }),
+          el("span", { id: "editor-context-pill", className: "editor-context-pill is-offline", textContent: "Preview Only" }),
+          el("span", {
+            id: "editor-status-hint",
+            className: "status-hint",
+            textContent: "Open the programming board Lua editor to load or save"
+          }),
         ]),
         el("div", { className: "statusbar-right" }, [
           el("button", {
@@ -292,7 +307,6 @@
     if (action === "undo") APP.emit("undo");
     else if (action === "redo") APP.emit("redo");
     else if (action === "save") APP.emit("save");
-    else if (action === "save-exit") APP.emit("save-exit");
     else if (action === "export-board") APP.emit("export-board");
     else if (action === "export-screen") APP.emit("export-screen");
     else if (action === "close") APP.emit("close-editor");
@@ -349,6 +363,33 @@
     if (input) input.checked = !!APP.state.autoOpenPanels;
   }
 
+  function updateEditorContext(status) {
+    var root = APP.getRoot();
+    var saveBtn = qs('[data-action="save"]', root);
+    var pill = qs("#editor-context-pill", root);
+    var hint = qs("#editor-status-hint", root);
+    var canUseBoard = !!(status && status.canAccessOnStart);
+
+    if (saveBtn) {
+      saveBtn.textContent = canUseBoard ? "Apply + Close HUD" : "Save";
+      saveBtn.title = canUseBoard
+        ? "Write to unit.onStart and close the HUD editor after apply"
+        : "Save current layout";
+    }
+
+    if (saveBtn) saveBtn.disabled = !canUseBoard;
+
+    if (pill) {
+      pill.className = "editor-context-pill " + (canUseBoard ? "is-online" : "is-offline");
+      pill.textContent = canUseBoard ? "Board Connected" : "Preview Only";
+    }
+    if (hint) {
+      hint.textContent = canUseBoard
+        ? "Save writes directly to the current programming board unit.onStart"
+        : "Open the programming board Lua editor to load or save";
+    }
+  }
+
   function attachToolbarSettingListeners() {
     var root = APP.getRoot();
     var toolbar = qs("#editor-toolbar", root);
@@ -376,6 +417,8 @@
     syncToolbarSettings();
   });
 
+  APP.on("editor-context", updateEditorContext);
+
   function mountEditorShell() {
     var root = APP.getRoot();
     if (qs('[data-screen="editor"]', root)) return;
@@ -387,6 +430,7 @@
     attachToolbarSettingListeners();
     APP.state.autoOpenPanels = loadAutoOpenPanels();
     syncToolbarSettings();
+    updateEditorContext(APP.state.editorContext || null);
 
     var statusbar = qs("#editor-statusbar", root);
     if (statusbar) statusbar.addEventListener("click", onToolbarClick);
@@ -399,6 +443,7 @@
     return function () {
       origInit();
       mountEditorShell();
+      updateEditorContext(APP.state.editorContext || null);
     };
   })(APP.init);
 

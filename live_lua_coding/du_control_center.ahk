@@ -16,6 +16,8 @@ GetMacroSpec(macroName) {
     specs["close_options"] := { action: "key", key: "{Escape}", actionName: "focus_and_close_options", settleMs: 120 }
     specs["click_client_percent"] := { action: "click_client_percent", settleMs: 120 }
     specs["click_client_px"] := { action: "click_client_px", settleMs: 120 }
+    specs["right_click_client_percent"] := { action: "right_click_client_percent", settleMs: 120 }
+    specs["right_click_client_px"] := { action: "right_click_client_px", settleMs: 120 }
     specs["ui_calibrate"] := { action: "ui_calibrate", settleMs: 120 }
 
     normalized := StrLower(Trim(String(macroName)))
@@ -24,9 +26,9 @@ GetMacroSpec(macroName) {
 
 PrintUsage() {
     StdOut('Usage: du_control_center.ahk <macro-name> [--window-title "Dual Universe"] [--dpi 1600] [--baseline-dpi 1600]')
-    StdOut("Macros: focus_center, open_screen_editor, close_screen_editor, press_f, press_esc, open_options, close_options, click_client_percent, click_client_px, ui_calibrate")
-    StdOut('Extra for click_client_percent: --x-percent <0-100> --y-percent <0-100>')
-    StdOut('Extra for click_client_px/ui_calibrate: --client-x <px> --client-y <px>')
+    StdOut("Macros: focus_center, open_screen_editor, close_screen_editor, press_f, press_esc, open_options, close_options, click_client_percent, click_client_px, right_click_client_percent, right_click_client_px, ui_calibrate")
+    StdOut('Extra for click_client_percent/right_click_client_percent: --x-percent <0-100> --y-percent <0-100>')
+    StdOut('Extra for click_client_px/right_click_client_px/ui_calibrate: --client-x <px> --client-y <px>')
 }
 
 Main() {
@@ -91,6 +93,12 @@ Main() {
             result.action := macroName
         case "click_client_px":
             result := FocusAndClickClientPoint(windowTitle, clientX, clientY, macroSpec.settleMs)
+            result.action := macroName
+        case "right_click_client_percent":
+            result := FocusAndClickClientPercent(windowTitle, xPercent, yPercent, macroSpec.settleMs, "right")
+            result.action := macroName
+        case "right_click_client_px":
+            result := FocusAndClickClientPoint(windowTitle, clientX, clientY, macroSpec.settleMs, "right")
             result.action := macroName
         case "ui_calibrate":
             result := FocusAndMoveClientPoint(windowTitle, clientX, clientY, macroSpec.settleMs)

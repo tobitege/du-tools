@@ -14,7 +14,9 @@
 # - CSS is inlined into the final payload so the JS is fully self-contained.
 # - Does NOT modify ModUiExtractor at all.
 param(
-    [string]$ProjectDir = ""
+    [string]$ProjectDir = "",
+    [ValidateSet("web", "ingame")]
+    [string]$Target = "web"
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,12 +29,14 @@ if ([string]::IsNullOrWhiteSpace($ProjectDir)) {
 }
 
 $moduleDir = Join-Path $ProjectDir "js\modules"
-$manifestPath = Join-Path $ProjectDir "js\manifest.txt"
+$manifestName = if ($Target -eq "ingame") { "manifest.ingame.txt" } else { "manifest.txt" }
+$manifestPath = Join-Path $ProjectDir ("js\" + $manifestName)
 $cssPath = Join-Path $ProjectDir "js\assets\hud-editor.css"
 $outDir = Join-Path $ProjectDir "build"
-$outFile = Join-Path $outDir "hud-editor-probe.js"
-$runtimeModuleJsFile = Join-Path $outDir "hud-editor-runtime-module.js"
-$runtimeModuleJsonFile = Join-Path $outDir "hud-editor-runtime-module.json"
+$artifactSuffix = if ($Target -eq "ingame") { ".ingame" } else { "" }
+$outFile = Join-Path $outDir ("hud-editor-probe" + $artifactSuffix + ".js")
+$runtimeModuleJsFile = Join-Path $outDir ("hud-editor-runtime-module" + $artifactSuffix + ".js")
+$runtimeModuleJsonFile = Join-Path $outDir ("hud-editor-runtime-module" + $artifactSuffix + ".json")
 
 # Validate paths
 if (-not (Test-Path $manifestPath)) {
@@ -195,7 +199,7 @@ if (Test-Path $runtimeModuleJsonFile) {
 }
 
 if ($existing -eq $composed -and $existingRuntimeModule -eq $runtimeModuleSource -and $existingRuntimeModuleJson -eq $runtimeModuleJson) {
-    Write-Host "hud-editor-probe.js is up to date."
+    Write-Host "hud-editor-probe ($Target) is up to date."
     exit 0
 }
 
@@ -223,10 +227,10 @@ $buildMeta = [ordered]@{
     moduleCount    = $moduleEntries.Count
 }
 $metaJson = ($buildMeta | ConvertTo-Json -Compress)
-$metaFile = Join-Path $outDir "hud-editor-probe.build.json"
+$metaFile = Join-Path $outDir ("hud-editor-probe" + $artifactSuffix + ".build.json")
 [System.IO.File]::WriteAllText($metaFile, $metaJson, $utf8NoBom)
 
-Write-Host "hud-editor-probe.js built from $($moduleEntries.Count) modules."
+Write-Host "hud-editor-probe ($Target) built from $($moduleEntries.Count) modules."
 Write-Host "  SHA256: $short"
 Write-Host "  Output: $outFile"
 Write-Host "  Module: $runtimeModuleJsFile"

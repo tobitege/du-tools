@@ -15,6 +15,7 @@
   var createCurrentY = 0;
   var tempElement = null;
   var tempDom = null;
+  var MIN_CREATE_SIZE = 10;
 
   function ensureCanvasCreateListeners() {
     var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
@@ -60,24 +61,14 @@
     var type = toolToType[tool];
     if (!type) return null;
 
-    var sw = APP.state.document ? APP.state.document.screenWidth : 1920;
-    var sh = APP.state.document ? APP.state.document.screenHeight : 1080;
-
-    var defaultSize = 100;
-    if (tool === "line") {
-      defaultSize = 150;
-    } else if (tool === "text") {
-      defaultSize = 200;
-    }
-
     var element = {
       id: generateId(),
       type: type,
       visible: true,
-      x: Math.max(0, Math.min(screenX - defaultSize / 2, sw - defaultSize)),
-      y: Math.max(0, Math.min(screenY - defaultSize / 2, sh - defaultSize)),
-      w: defaultSize,
-      h: defaultSize,
+      x: screenX,
+      y: screenY,
+      w: 0,
+      h: 0,
       radius: 12,
       fill: [0.15, 0.15, 0.18, 0.95],
       stroke: [0.70, 0.72, 0.76, 1.0],
@@ -97,20 +88,35 @@
     if (!tempElement) return;
 
     var tool = APP.state.currentTool;
-    var sx = Math.min(createStartX, screenX);
-    var sy = Math.min(createStartY, screenY);
-    var ex = Math.max(createStartX, screenX);
-    var ey = Math.max(createStartY, screenY);
+    if (tool === "line") {
+      tempElement.x = createStartX;
+      tempElement.y = createStartY;
+      tempElement.w = screenX - createStartX;
+      tempElement.h = screenY - createStartY;
+    } else {
+      var sx = Math.min(createStartX, screenX);
+      var sy = Math.min(createStartY, screenY);
+      var ex = Math.max(createStartX, screenX);
+      var ey = Math.max(createStartY, screenY);
 
-    tempElement.x = sx;
-    tempElement.y = sy;
-    tempElement.w = Math.max(10, ex - sx);
-    tempElement.h = Math.max(10, ey - sy);
+      tempElement.x = sx;
+      tempElement.y = sy;
+      tempElement.w = ex - sx;
+      tempElement.h = ey - sy;
+    }
 
     // Update the temp DOM
     if (tempDom && APP.canvas && typeof APP.canvas.applyElementStyles === "function") {
       APP.canvas.applyElementStyles(tempDom, tempElement);
     }
+  }
+
+  function hasMeaningfulSize(element) {
+    if (!element) return false;
+    if (element.type === "line") {
+      return Math.sqrt(element.w * element.w + element.h * element.h) >= MIN_CREATE_SIZE;
+    }
+    return element.w >= MIN_CREATE_SIZE && element.h >= MIN_CREATE_SIZE;
   }
 
   // ─── Finalize element creation ─────────────────────────────────────
@@ -119,7 +125,7 @@
     if (!tempElement) return null;
 
     // Only create if element has meaningful size
-    if (tempElement.w < 10 || tempElement.h < 10) {
+    if (!hasMeaningfulSize(tempElement)) {
       // Remove temp DOM
       if (tempDom) {
         var preview = APP.canvas && APP.canvas.getElementById ? null : null;
@@ -230,6 +236,14 @@
 
   function onCanvasMouseUp(e) {
     if (!isCreating) return;
+    var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
+    if (preview) {
+      var rect = preview.getBoundingClientRect();
+      var canvasX = e.clientX - rect.left;
+      var canvasY = e.clientY - rect.top;
+      var screen = APP.canvas.canvasToScreen(canvasX, canvasY);
+      updateTempElement(screen.x, screen.y);
+    }
     finalizeCreation();
   }
 

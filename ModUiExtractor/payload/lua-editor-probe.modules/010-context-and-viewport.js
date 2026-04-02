@@ -872,8 +872,8 @@
     badge.id = "ModUiExtractor-lua-probe-badge";
     badge.textContent = "LUA PROBE ACTIVE";
     badge.style.position = "fixed";
-    badge.style.top = "14px";
-    badge.style.right = "14px";
+    badge.style.bottom = "14px";
+    badge.style.left = "14px";
     badge.style.zIndex = "999999";
     badge.style.background = "rgba(8,16,20,0.9)";
     badge.style.color = "#fad47a";

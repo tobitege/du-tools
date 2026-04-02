@@ -16,12 +16,12 @@ $projectDir = [System.IO.Path]::GetFullPath((Join-Path $scriptDir ".."))
 
 $buildScript = Join-Path $scriptDir "build.ps1"
 $buildOutDir = Join-Path $projectDir "build"
-$runtimeModuleSrc = Join-Path $buildOutDir "hud-editor-runtime-module.js"
-$runtimeModuleMeta = Join-Path $buildOutDir "hud-editor-runtime-module.json"
-$debugPayload = Join-Path $buildOutDir "hud-editor-probe.js"
+$runtimeModuleSrc = Join-Path $buildOutDir "hud-editor-runtime-module.ingame.js"
+$runtimeModuleMeta = Join-Path $buildOutDir "hud-editor-runtime-module.ingame.json"
+$debugPayload = Join-Path $buildOutDir "hud-editor-probe.ingame.js"
 
 Write-Host "Building HUD Editor runtime module..."
-& $buildScript -ProjectDir $projectDir
+& $buildScript -ProjectDir $projectDir -Target ingame
 if ($LASTEXITCODE -ne 0) {
     throw "Build failed with exit code $LASTEXITCODE"
 }

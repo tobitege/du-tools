@@ -7,7 +7,7 @@ This is the next problem after the free-cursor UI tests: the useful interaction 
 ## Core Idea
 
 - use the bridge-native `du_camera_move(x, y)` semantics for relative camera movement
-- run controlled step sequences through [Test-DuCameraSteering.ps1](/d:/github/du-tobi/live_lua_coding/Test-DuCameraSteering.ps1#L1)
+- run controlled step sequences through [Test-DuCameraSteering.ps1](live_lua_coding/Test-DuCameraSteering.ps1#L1)
 - judge movement by what the center of the DU screen points at before and after each step
 
 Current confirmed behavior from live unattended capture runs:
@@ -22,8 +22,8 @@ Current confirmed behavior from live unattended capture runs:
 
 Reference artifacts:
 
-- vertical smoke: [direct-up-smoke-v4](/d:/github/du-tobi/live_lua_coding/test-artifacts/du-camera-steering/direct-up-smoke-v4)
-- horizontal smoke: [direct-x-smoke-v1](/d:/github/du-tobi/live_lua_coding/test-artifacts/du-camera-steering/direct-x-smoke-v1)
+- vertical smoke: [direct-up-smoke-v4](live_lua_coding/test-artifacts/du-camera-steering/direct-up-smoke-v4)
+- horizontal smoke: [direct-x-smoke-v1](live_lua_coding/test-artifacts/du-camera-steering/direct-x-smoke-v1)
 
 The screenshot reticle bug does not block this workflow the same way it blocked checkbox calibration, because the main thing to watch is the screen center and the scene target under it.
 

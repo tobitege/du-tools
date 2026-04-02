@@ -23,6 +23,20 @@ Rules:
 - Do not invent undocumented gameplay steps or fallback interactions.
 - Do not use speculative actions when the documented bridge/UI probes can verify state.
 - Before any mutation, confirm the live editor state with the documented tools.
+- Before any visual board-target decision, also view:
+  - `d:\github\du-tobi\live_lua_coding\du-ref-board-screen-center.png`
+- Treat that reference image as mandatory calibration for this setup:
+  - top dark element = screen
+  - upper console-like element = programming board
+  - smaller stacked box below = databank
+  - red `+` = real client center
+- Use a left-middle capture to answer the mode question.
+- Use a centered capture to answer the board-target question.
+- For `Ctrl+L`, only the real client center matters.
+- Do not use `Ctrl+L` unless the current centered capture shows the programming board at the real client center.
+- If you changed state yourself, for example with `Tab` or `du_camera_move`, capture again before the next decision.
+- After every camera move, treat the previous visual conclusion as invalid until a new centered capture confirms the new state.
+- Do not infer board targeting from nearby geometry, side captures, or rough visual similarity.
 - For Programming Board work, establish the correct `lua_editor` context before pushing code.
 - Prefer the canonical MCP tools over local helper scripts unless the manual explicitly allows a fallback.
 - If a step is ambiguous, inspect first and only then act.

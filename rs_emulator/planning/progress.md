@@ -135,18 +135,18 @@ Those families now run through shared classifier-to-library rules instead of loc
 
 ### Phase 27: Workflow Documentation
 
-- [shape-porter-workflow.md](/d:/github/du-tobi/rs_emulator/planning/shape-porter-workflow.md) now documents the workflow that was actually used.
+- [shape-porter-workflow.md](rs_emulator/planning/shape-porter-workflow.md) now documents the workflow that was actually used.
 - The file records what became reusable, what remained manual, why the process became so time-consuming, and which automation gap is now more important than continuing with more one-off family integrations.
 - That means the repository now captures not just the code state, but also the process lesson learned from the last sessions.
 
 ## Files Touched In The Latest Iteration
 
-- [SilverZeroRsLib.lua](/d:/github/du-tobi/rs_emulator/lib/SilverZeroRsLib.lua)
-- [SimpleSignS-svg.lua](/d:/github/du-tobi/rs_emulator/examples/SilverZero/SimpleSignS-svg.lua)
-- [luaRuntime.test.ts](/d:/github/du-tobi/rs_emulator/test/luaRuntime.test.ts)
-- [findings.md](/d:/github/du-tobi/rs_emulator/planning/findings.md)
-- [progress.md](/d:/github/du-tobi/rs_emulator/planning/progress.md)
-- [shape-porter-workflow.md](/d:/github/du-tobi/rs_emulator/planning/shape-porter-workflow.md)
+- [SilverZeroRsLib.lua](rs_emulator/lib/SilverZeroRsLib.lua)
+- [SimpleSignS-svg.lua](rs_emulator/examples/SilverZero/SimpleSignS-svg.lua)
+- [luaRuntime.test.ts](rs_emulator/test/luaRuntime.test.ts)
+- [findings.md](rs_emulator/planning/findings.md)
+- [progress.md](rs_emulator/planning/progress.md)
+- [shape-porter-workflow.md](rs_emulator/planning/shape-porter-workflow.md)
 
 ## Current Verification
 

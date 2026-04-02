@@ -1,4 +1,4 @@
-// 100-file-sync.js - Filesystem operations via localStorage or MCP bridge
+// 100-file-sync.web.js - Browser-only localStorage persistence for the web harness
 (function hudEditorFileSync() {
   "use strict";
 
@@ -60,6 +60,9 @@
     var list = [];
     for (var id in layouts) {
       if (layouts.hasOwnProperty(id)) {
+        if (!layouts[id] || !layouts[id].id || !layouts[id].document || !layouts[id].document.id) {
+          continue;
+        }
         list.push({
           id: layouts[id].id,
           name: layouts[id].name,
@@ -90,15 +93,16 @@
     var doc = APP.state.document;
     if (!doc) return null;
 
-    var id = doc.id || generateLayoutId();
     var finalName = (name || doc.name || "Layout").trim();
-    doc.id = id;
     doc.name = finalName;
-    var success = saveLayoutLocally(id, finalName, deepCopyDoc(doc));
+    if (!APP.normalizeDocumentMeta || !APP.normalizeDocumentMeta(doc)) {
+      return null;
+    }
+    var success = saveLayoutLocally(doc.id, doc.name, deepCopyDoc(doc));
 
     if (success) {
       APP.state.isDirty = false;
-      return id;
+      return doc.id;
     }
     return null;
   }
@@ -114,7 +118,11 @@
     var stored = loadLayoutLocally(id);
     if (!stored) return null;
 
-    APP.state.document = deepCopyDoc(stored.document);
+    var doc = deepCopyDoc(stored.document);
+    if (!APP.normalizeDocumentMeta || !APP.normalizeDocumentMeta(doc)) {
+      return null;
+    }
+    APP.state.document = doc;
     APP.state.selectedElementId = null;
     APP.state.isDirty = false;
     APP.emit("document-loaded", APP.state.document);
@@ -137,6 +145,9 @@
       if (!doc || !doc.elements) {
         return { error: "Invalid layout format" };
       }
+      if (!APP.normalizeDocumentMeta || !APP.normalizeDocumentMeta(doc)) {
+        return { error: "Layout id missing" };
+      }
       APP.state.document = doc;
       APP.state.selectedElementId = null;
       APP.state.isDirty = true;
@@ -155,8 +166,7 @@
   // ─── Generate unique ID ───────────────────────────────────────
 
   function generateLayoutId() {
-    return "layout_" + Math.floor(Date.now() / 1000).toString(36) +
-           "_" + Math.random().toString(36).substr(2, 5);
+    return APP.createLayoutId();
   }
 
   // ─── Bridge integration (for external file operations) ─────────
@@ -177,16 +187,6 @@
     var id = saveCurrentLayout(APP.state.document && APP.state.document.name || "Layout");
     if (id) {
       APP.emit("toast", { type: "success", text: "Layout saved" });
-    } else {
-      APP.emit("toast", { type: "error", text: "Save failed" });
-    }
-  });
-
-  APP.on("save-exit", function () {
-    var id = saveCurrentLayout(APP.state.document && APP.state.document.name || "Layout");
-    if (id) {
-      APP.emit("toast", { type: "success", text: "Layout saved" });
-      APP.goToStart();
     } else {
       APP.emit("toast", { type: "error", text: "Save failed" });
     }

@@ -143,7 +143,7 @@ This writes `all_scripts_manifest.json` plus `all_script_js_*.js` sections after
 Use `Release` only. `Debug` is not a supported workflow here.
 
 ```powershell
-cd D:\github\du-tobi\ModUiExtractor
+cd .\ModUiExtractor
 dotnet build -c Release -nologo -v:minimal
 ```
 
@@ -169,7 +169,7 @@ If the server is stopped, copy normally:
 
 ```powershell
 Copy-Item `
-  'D:\github\du-tobi\ModUiExtractor\bin\Release\net6.0\win-x64\ModUIExtractor.dll' `
+  '<repo-root>\ModUiExtractor\bin\Release\net6.0\win-x64\ModUIExtractor.dll' `
   'D:\MyDUserver\wincs\all\Mods\ModUIExtractor.dll' -Force
 ```
 
@@ -181,7 +181,7 @@ If the server is running, the DLL is usually locked:
 
 ```powershell
 Copy-Item `
-  'D:\github\du-tobi\ModUiExtractor\bin\Release\net6.0\win-x64\ModUIExtractor.dll' `
+  '<repo-root>\ModUiExtractor\bin\Release\net6.0\win-x64\ModUIExtractor.dll' `
   'D:\MyDUserver\wincs\all\Mods\ModUIExtractor.dll.new' -Force
 
 Move-Item 'D:\MyDUserver\wincs\all\Mods\ModUIExtractor.dll' 'D:\MyDUserver\wincs\all\Mods\ModUIExtractor.dll.bak' -Force
@@ -281,31 +281,31 @@ Useful sync commands:
 
 # Source extractor payload -> live override
 Copy-Item `
-  'D:\github\du-tobi\ModUiExtractor\payload\ModUiExtractor-payload.js' `
+  '<repo-root>\ModUiExtractor\payload\ModUiExtractor-payload.js' `
   'D:\MyDUserver\tmp\ui-dumps\payload-overrides\ModUiExtractor-payload.override.js' -Force
 
 # Source payload -> live override
 Copy-Item `
-  'D:\github\du-tobi\ModUiExtractor\payload\lua-editor-probe.js' `
+  '<repo-root>\ModUiExtractor\payload\lua-editor-probe.js' `
   'D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.override.js' -Force
 Copy-Item `
-  'D:\github\du-tobi\ModUiExtractor\payload\lua-editor-probe.build.json' `
+  '<repo-root>\ModUiExtractor\payload\lua-editor-probe.build.json' `
   'D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.build.json' -Force
 
 # Source module payloads -> live module override dir
 Copy-Item `
-  'D:\github\du-tobi\ModUiExtractor\payload\lua-editor-probe.modules\*' `
+  '<repo-root>\ModUiExtractor\payload\lua-editor-probe.modules\*' `
   'D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.modules' -Force
 
 # Live extractor override -> source payload (persist your live tweaks in repo)
 Copy-Item `
   'D:\MyDUserver\tmp\ui-dumps\payload-overrides\ModUiExtractor-payload.override.js' `
-  'D:\github\du-tobi\ModUiExtractor\payload\ModUiExtractor-payload.js' -Force
+  '<repo-root>\ModUiExtractor\payload\ModUiExtractor-payload.js' -Force
 
 # Live override -> source payload (persist your live tweaks in repo)
 Copy-Item `
   'D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.override.js' `
-  'D:\github\du-tobi\ModUiExtractor\payload\lua-editor-probe.js' -Force
+  '<repo-root>\ModUiExtractor\payload\lua-editor-probe.js' -Force
 ```
 
 ## Lua Editor Stabilization Runbook (Reproducible)

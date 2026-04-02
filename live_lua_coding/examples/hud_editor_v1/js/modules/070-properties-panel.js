@@ -13,6 +13,38 @@
     return !!APP.state.autoOpenPanels;
   }
 
+  function setColorButtonValue(button, hex) {
+    if (!button) return;
+    var color = String(hex || "#ffffff");
+    button.dataset.colorHex = color;
+    button.style.setProperty("--swatch-color", color);
+    button.style.backgroundColor = color;
+    button.style.backgroundImage = "none";
+    var chip = qs(".color-swatch-chip, .prop-color-chip", button);
+    if (chip) chip.style.background = color;
+  }
+
+  function getSelectedElement() {
+    return APP.state.selectedElementId ? APP.canvas.getElementById(APP.state.selectedElementId) : null;
+  }
+
+  function getColorValueForProp(prop) {
+    var element = getSelectedElement();
+    if (!element) return [1, 1, 1, 1];
+    if (prop === "fill") return Array.isArray(element.fill) ? element.fill.slice() : [1, 1, 1, 1];
+    if (prop === "stroke") return Array.isArray(element.stroke) ? element.stroke.slice() : [1, 1, 1, 1];
+    return [1, 1, 1, 1];
+  }
+
+  function openColorDialog(prop, rgba) {
+    if (!prop) return;
+    var value = Array.isArray(rgba) ? rgba.slice(0, 4) : getColorValueForProp(prop);
+    APP.emit("color-dialog-open", {
+      prop: prop,
+      rgba: value
+    });
+  }
+
   // ─── Property sync: document → panel ───────────────────────────────
 
   function populatePanel(elementId) {
@@ -51,17 +83,17 @@
     // Colors — update both panel and toolbar pickers
     var fillHex   = rgbaToHex(element.fill);
     var strokeHex = rgbaToHex(element.stroke);
-    var fillInput = qs('[data-prop="fill"]', panel);
-    var strokeInput = qs('[data-prop="stroke"]', panel);
-    if (fillInput) fillInput.value = fillHex;
-    if (strokeInput) strokeInput.value = strokeHex;
+    var fillInput = qs('[data-color-prop="fill"]', panel);
+    var strokeInput = qs('[data-color-prop="stroke"]', panel);
+    setColorButtonValue(fillInput, fillHex);
+    setColorButtonValue(strokeInput, strokeHex);
 
     // Sync toolbar color pickers too
     var root = APP.getRoot ? APP.getRoot() : document;
-    var toolbarFill   = qs('#editor-toolbar [data-prop="fill"]', root);
-    var toolbarStroke = qs('#editor-toolbar [data-prop="stroke"]', root);
-    if (toolbarFill)   toolbarFill.value   = fillHex;
-    if (toolbarStroke) toolbarStroke.value = strokeHex;
+    var toolbarFill   = qs('#editor-toolbar [data-color-prop="fill"]', root);
+    var toolbarStroke = qs('#editor-toolbar [data-color-prop="stroke"]', root);
+    setColorButtonValue(toolbarFill, fillHex);
+    setColorButtonValue(toolbarStroke, strokeHex);
 
     // Text
     if (textArea) {
@@ -122,11 +154,11 @@
           changed = true;
           break;
         case "fill":
-          element.fill = hexToRgba(value);
+          element.fill = Array.isArray(value) ? value.slice(0, 4) : hexToRgba(value);
           changed = true;
           break;
         case "stroke":
-          element.stroke = hexToRgba(value);
+          element.stroke = Array.isArray(value) ? value.slice(0, 4) : hexToRgba(value);
           changed = true;
           break;
         case "textLines":
@@ -241,11 +273,14 @@
     applyPanelChange(prop, input.value);
   }
 
-  function onColorChange(e) {
-    var input = e.target;
-    var prop = input.dataset.prop;
-    if (!prop) return;
-    applyPanelChange(prop, input.value);
+  function onColorPicked(payload) {
+    if (!payload || !payload.prop) return;
+    var value = Array.isArray(payload.rgba) ? payload.rgba : payload.value;
+    if (!value) return;
+    applyPanelChange(payload.prop, value);
+    if (APP.state.selectedElementId) {
+      populatePanel(APP.state.selectedElementId);
+    }
   }
 
   function onStepperClick(e) {
@@ -376,19 +411,21 @@
     if (!toolbar || toolbar.__hudToolbarColorBound) return;
     toolbar.__hudToolbarColorBound = true;
 
-    toolbar.addEventListener("input", function (e) {
-      var input = e.target;
-      if (input.type !== "color") return;
-      var prop = input.dataset.prop;
+    toolbar.addEventListener("click", function (e) {
+      var button = e.target.closest("[data-color-prop]");
+      if (!button) return;
+      var prop = button.dataset.colorProp;
       if (prop !== "fill" && prop !== "stroke") return;
-      applyPanelChange(prop, input.value);
-      // Sync panel color picker too
-      var panel = qs("#properties-panel");
-      if (panel) {
-        var panelInput = qs('[data-prop="' + prop + '"]', panel);
-        if (panelInput) panelInput.value = input.value;
-      }
+      openColorDialog(prop);
     });
+  }
+
+  function onPanelColorClick(e) {
+    var button = e.target.closest("#properties-panel [data-color-prop]");
+    if (!button) return;
+    var prop = button.dataset.colorProp;
+    if (prop !== "fill" && prop !== "stroke") return;
+    openColorDialog(prop);
   }
 
   // ─── Attach panel events ───────────────────────────────────────────
@@ -411,16 +448,11 @@
       ta.addEventListener("input", onInputChange);
     });
 
-    // Color inputs
-    var colors = qsa("input[type='color'][data-prop]", panel);
-    colors.forEach(function (c) {
-      c.removeEventListener("input", onColorChange);
-      c.addEventListener("input", onColorChange);
-    });
-
     // Stepper clicks (+/−) and select changes — use delegation on panel
+    panel.removeEventListener("click", onPanelColorClick);
     panel.removeEventListener("click",  onStepperClick);
     panel.removeEventListener("change", onStepperChange);
+    panel.addEventListener("click", onPanelColorClick);
     panel.addEventListener("click",  onStepperClick);
     panel.addEventListener("change", onStepperChange);
   }
@@ -452,6 +484,8 @@
       populatePanel(elementId);
     }
   });
+
+  APP.on("color-picked", onColorPicked);
 
   APP.on("toggle-props-collapse", function () {
     toggleCollapse();

@@ -69,6 +69,29 @@ const luaWaitEditorOutputSchema = {
   error: z.string().nullable()
 };
 
+const reinjectLuaProbeOutputSchema = {
+  found: z.boolean(),
+  commandId: z.string(),
+  method: z.string().nullable(),
+  success: z.boolean().nullable(),
+  createdAtUtc: z.string().nullable(),
+  dispatched: z.boolean(),
+  modName: z.string().nullable(),
+  injectActionId: z.number().int().nullable(),
+  constructId: z.number().int().nullable(),
+  reason: z.string().nullable(),
+  parseError: z.string().nullable(),
+  openEditorAfter: z.boolean(),
+  editorReady: z.boolean().nullable(),
+  editorVisible: z.boolean().nullable(),
+  editorTitle: z.string().nullable(),
+  editorSelectedSlot: z.string().nullable(),
+  editorSelectedFilter: z.string().nullable(),
+  nativeResultJson: z.string().nullable(),
+  resultJson: z.string().nullable(),
+  error: z.string().nullable()
+};
+
 const chatMessageOutputSchema = z.object({
   channelId: z.string().nullable(),
   channelName: z.string().nullable(),
@@ -737,6 +760,87 @@ function uiSnapshotLooksReady(uiKind: EditorUiKind, parsed: Record<string, unkno
     return screenEditorSnapshotLooksReady(parsed, requireVisible);
   }
   return luaEditorSnapshotLooksReady(parsed, requireVisible);
+}
+
+function parseJsonObject(value: string | null): Record<string, unknown> | null {
+  if (typeof value !== "string" || value.trim().length <= 0) {
+    return null;
+  }
+
+  const parsed = JSON.parse(value) as unknown;
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+    ? parsed as Record<string, unknown>
+    : null;
+}
+
+function parseReinjectLuaProbeResult(
+  payloadJson: string | null
+): {
+  dispatched: boolean;
+  modName: string | null;
+  injectActionId: number | null;
+  constructId: number | null;
+  reason: string | null;
+  parseError: string | null;
+} {
+  if (payloadJson === null) {
+    return {
+      dispatched: false,
+      modName: null,
+      injectActionId: null,
+      constructId: null,
+      reason: null,
+      parseError: null
+    };
+  }
+
+  try {
+    const parsed = parseJsonObject(payloadJson);
+    return {
+      dispatched: parsed?.ok === true,
+      modName: typeof parsed?.modName === "string" ? parsed.modName : null,
+      injectActionId: typeof parsed?.actionId === "number" && Number.isFinite(parsed.actionId) ? parsed.actionId : null,
+      constructId: typeof parsed?.constructId === "number" && Number.isFinite(parsed.constructId) ? parsed.constructId : null,
+      reason: typeof parsed?.reason === "string" ? parsed.reason : null,
+      parseError: null
+    };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      dispatched: false,
+      modName: null,
+      injectActionId: null,
+      constructId: null,
+      reason: null,
+      parseError: message
+    };
+  }
+}
+
+function parseEditorDescribeSnapshot(
+  payloadJson: string | null
+): {
+  visible: boolean | null;
+  title: string | null;
+  selectedSlot: string | null;
+  selectedFilter: string | null;
+} {
+  try {
+    const parsed = parseJsonObject(payloadJson);
+    return {
+      visible: typeof parsed?.visible === "boolean" ? parsed.visible : null,
+      title: typeof parsed?.title === "string" ? parsed.title : null,
+      selectedSlot: typeof parsed?.selectedSlot === "string" ? parsed.selectedSlot : null,
+      selectedFilter: typeof parsed?.selectedFilter === "string" ? parsed.selectedFilter : null
+    };
+  } catch {
+    return {
+      visible: null,
+      title: null,
+      selectedSlot: null,
+      selectedFilter: null
+    };
+  }
 }
 
 function sleepMs(ms: number): Promise<void> {
@@ -1450,6 +1554,142 @@ export function registerEditorTools(
         );
       }
       return formatProbeToolResult(probeResult, effectiveTimeout, method);
+    }
+  );
+
+  server.registerTool(
+    "du_reinject_lua_probe",
+    {
+      title: "Reinject Lua Probe",
+      description:
+        "Asks an already-injected Lua probe page to reinject itself through `CPPMod.sendModAction`. This is the stable post-bootstrap path and does not depend on menu clicks. Works only after the first probe has already been injected at least once for the active construct/page.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Target player ID"),
+        openEditorAfter: z.boolean().default(false).describe("When true, reopen the Lua editor after dispatching the reinject request"),
+        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the initial raw_eval probe result"),
+        reopenDelayMs: z.number().int().min(0).max(5000).default(400).describe("Delay before reopening the editor after dispatching reinject"),
+        reopenTimeoutMs: z.number().int().min(250).max(15000).default(8000).describe("How long to wait for the reopened editor describe snapshot"),
+        activateWindow: z.boolean().default(true).describe("When reopening, activate the Dual Universe window before sending Ctrl+L"),
+        ahkPath: z.string().optional().describe("Optional AutoHotkey v2 exe path or directory override for reopen"),
+        windowTitle: z.string().default("Dual Universe").describe("Window title substring used when reopening the editor")
+      },
+      outputSchema: reinjectLuaProbeOutputSchema
+    },
+    async ({ playerId, openEditorAfter, timeoutMs, reopenDelayMs, reopenTimeoutMs, activateWindow, ahkPath, windowTitle }) => {
+      const functionBody = [
+        "try {",
+        "  var cfg = window.__UI_EXTRACTOR_LUA_PROBE_CONFIG || {};",
+        "  var modName = cfg.modName || 'NQ.UIExtractor';",
+        "  var actionId = parseInt(cfg.injectActionId || 5, 10) || 5;",
+        "  if (!window.CPPMod || typeof window.CPPMod.sendModAction !== 'function') {",
+        "    return { ok: false, reason: 'sendModAction_unavailable', modName: modName, actionId: actionId };",
+        "  }",
+        "  window.CPPMod.sendModAction(modName, actionId, [], '');",
+        "  return { ok: true, modName: modName, actionId: actionId, constructId: cfg.constructId || null };",
+        "} catch (err) {",
+        "  return { ok: false, reason: String(err && err.message ? err.message : err) };",
+        "}"
+      ].join("\n");
+
+      const probeResult = await enqueueAndWaitUiProbe(
+        commandQueue,
+        eventStore,
+        "lua_editor",
+        playerId,
+        "raw_eval",
+        [functionBody],
+        timeoutMs
+      );
+
+      const parsed = parseReinjectLuaProbeResult(probeResult.resultJson);
+      let editorReady: boolean | null = null;
+      let editorVisible: boolean | null = null;
+      let editorTitle: string | null = null;
+      let editorSelectedSlot: string | null = null;
+      let editorSelectedFilter: string | null = null;
+      let nativeResultJson: string | null = null;
+      let combinedError: string | null = probeResult.error;
+
+      if (openEditorAfter && parsed.dispatched) {
+        if (reopenDelayMs > 0) {
+          await sleepMs(reopenDelayMs);
+        }
+
+        const native = await runNativeAhkInput(
+          "ctrl_l",
+          windowTitle,
+          activateWindow,
+          false,
+          null,
+          1,
+          120,
+          ahkPath ?? options?.defaultAhkPath ?? null
+        );
+        nativeResultJson = native.nativeResultJson;
+
+        if (native.nativeResult?.ok === true) {
+          const reopened = await enqueueAndWaitUiProbe(commandQueue, eventStore, "lua_editor", playerId, "describe", [], reopenTimeoutMs);
+          const snapshot = parseEditorDescribeSnapshot(reopened.resultJson);
+          editorReady = reopened.found && reopened.success === true;
+          editorVisible = snapshot.visible;
+          editorTitle = snapshot.title;
+          editorSelectedSlot = snapshot.selectedSlot;
+          editorSelectedFilter = snapshot.selectedFilter;
+          if (!editorReady && combinedError === null) {
+            combinedError = reopened.error ?? "lua_editor_reopen_not_ready";
+          }
+        } else if (combinedError === null) {
+          combinedError = native.nativeResult?.error || "native_reopen_failed";
+        }
+      }
+
+      const structuredContent = {
+        found: probeResult.found,
+        commandId: probeResult.commandId,
+        method: probeResult.method,
+        success: probeResult.success,
+        createdAtUtc: probeResult.createdAtUtc,
+        dispatched: parsed.dispatched,
+        modName: parsed.modName,
+        injectActionId: parsed.injectActionId,
+        constructId: parsed.constructId,
+        reason: parsed.reason,
+        parseError: parsed.parseError,
+        openEditorAfter,
+        editorReady,
+        editorVisible,
+        editorTitle,
+        editorSelectedSlot,
+        editorSelectedFilter,
+        nativeResultJson,
+        resultJson: probeResult.resultJson,
+        error: combinedError
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                dispatched: structuredContent.dispatched,
+                modName: structuredContent.modName,
+                injectActionId: structuredContent.injectActionId,
+                constructId: structuredContent.constructId,
+                openEditorAfter: structuredContent.openEditorAfter,
+                editorReady: structuredContent.editorReady,
+                editorVisible: structuredContent.editorVisible,
+                editorTitle: structuredContent.editorTitle,
+                error: structuredContent.error,
+                reason: structuredContent.reason
+              },
+              null,
+              2
+            )
+          }
+        ],
+        structuredContent
+      };
     }
   );
 

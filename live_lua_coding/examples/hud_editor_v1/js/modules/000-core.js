@@ -29,7 +29,14 @@
     selectedElementIds: [],
     isDirty: false,
     document: null,
-    connectedScreen: false
+    connectedScreen: false,
+    editorContext: {
+      available: false,
+      visible: false,
+      selectedSlot: null,
+      selectedFilter: null,
+      canAccessOnStart: false
+    }
   };
 
   function addCleanup(fn) {
@@ -46,6 +53,36 @@
       } catch (_ignoreCleanup) {}
     }
     cleanupFns = [];
+  }
+
+  function trimString(value) {
+    return String(value == null ? "" : value).replace(/^\s+|\s+$/g, "");
+  }
+
+  function padBase36(value, size) {
+    var text = Math.floor(Math.abs(Number(value) || 0)).toString(36);
+    while (text.length < size) {
+      text = "0" + text;
+    }
+    return text;
+  }
+
+  function createLayoutId() {
+    var now = Date.now ? Date.now() : new Date().getTime();
+    return "ly_" + now.toString(36) + padBase36(Math.random() * 1679616, 4) + padBase36(Math.random() * 1679616, 4);
+  }
+
+  function normalizeDocumentMeta(doc) {
+    if (!doc || typeof doc !== "object") {
+      return null;
+    }
+    var id = trimString(doc.id);
+    if (!id) {
+      return null;
+    }
+    doc.id = id;
+    doc.name = trimString(doc.name) || "Layout";
+    return doc;
   }
 
   function el(tag, attrs, children) {
@@ -441,6 +478,9 @@
     el: el,
     qs: qs,
     qsa: qsa,
+    trimString: trimString,
+    createLayoutId: createLayoutId,
+    normalizeDocumentMeta: normalizeDocumentMeta,
     showScreen: showScreen,
     enterEditMode: enterEditMode,
     exitEditMode: exitEditMode,

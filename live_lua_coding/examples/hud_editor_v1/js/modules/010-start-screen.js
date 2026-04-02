@@ -23,6 +23,14 @@
           el("h1", { textContent: "Lua Painter" }),
           el("p", { className: "subtitle", textContent: "HUD Layout Editor" }),
         ]),
+        el("div", { id: "start-editor-context", className: "start-context-card" }, [
+          el("div", { className: "start-context-title", textContent: "Lua Editor Connection" }),
+          el("div", { className: "start-context-pill is-offline", textContent: "Preview Only" }),
+          el("p", {
+            className: "start-context-copy",
+            textContent: "Open the programming board Lua editor to load from or save to unit.onStart."
+          }),
+        ]),
         el("div", { className: "start-menu" }, [
           el("button", {
             className: "menu-btn primary",
@@ -36,22 +44,24 @@
           ]),
           el("button", {
             className: "menu-btn",
+            id: "start-load-btn",
             dataset: { action: "load" },
           }, [
             el("span", { className: "icon", textContent: "\u27A4" }),
             el("div", { className: "label-group" }, [
               el("span", { className: "label", textContent: "Load" }),
-              el("span", { className: "desc", textContent: "Open existing layout from databank" }),
+              el("span", { className: "desc", textContent: "Open layout from unit.onStart" }),
             ]),
           ]),
           el("button", {
             className: "menu-btn",
+            id: "start-saveas-btn",
             dataset: { action: "saveas" },
           }, [
             el("span", { className: "icon", textContent: "\u2714" }),
             el("div", { className: "label-group" }, [
               el("span", { className: "label", textContent: "Save As" }),
-              el("span", { className: "desc", textContent: "Save current layout as new script" }),
+              el("span", { className: "desc", textContent: "Save current layout into unit.onStart" }),
             ]),
           ]),
         ]),
@@ -65,9 +75,11 @@
   function onNewScript() {
     var sw = 1920;
     var sh = 1080;
-    APP.state.document = {
+    APP.state.document = APP.normalizeDocumentMeta({
       version: 1,
-      revision: 0,
+      revision: 1,
+      id: APP.createLayoutId(),
+      name: "Layout",
       screenWidth: sw,
       screenHeight: sh,
       elements: [
@@ -88,7 +100,7 @@
           textAlign: "center",
         },
       ],
-    };
+    });
     APP.state.isDirty = false;
     APP.showScreen("editor");
     APP.emit("document-created", APP.state.document);
@@ -107,10 +119,31 @@
   function onMenuClick(e) {
     var btn = e.target.closest("[data-action]");
     if (!btn) return;
+    if (btn.disabled) return;
     var action = btn.dataset.action;
     if (action === "new") onNewScript();
     else if (action === "load") onLoad();
     else if (action === "saveas") onSaveAs();
+  }
+
+  function updateEditorContext(status) {
+    var root = APP.getRoot();
+    var loadBtn = qs("#start-load-btn", root);
+    var saveAsBtn = qs("#start-saveas-btn", root);
+    var card = qs("#start-editor-context", root);
+    var pill = qs(".start-context-pill", card);
+    var copy = qs(".start-context-copy", card);
+    var canUseBoard = !!(status && status.canAccessOnStart);
+
+    if (loadBtn) loadBtn.disabled = !canUseBoard;
+    if (saveAsBtn) saveAsBtn.disabled = !canUseBoard;
+
+    if (!pill || !copy) return;
+    pill.className = "start-context-pill " + (canUseBoard ? "is-online" : "is-offline");
+    pill.textContent = canUseBoard ? "Board Connected" : "Preview Only";
+    copy.textContent = canUseBoard
+      ? "Load reads the current programming board unit.onStart filter, and save writes back there."
+      : "Open the programming board Lua editor to load from or save to unit.onStart.";
   }
 
   // ─── Register with core ──────────────────────────────────────────────
@@ -120,6 +153,8 @@
       APP.showScreen("start");
     }
   });
+
+  APP.on("editor-context", updateEditorContext);
 
   function mountStartScreen() {
     var root = APP.getRoot();
@@ -133,8 +168,10 @@
     return function () {
       origInit();
       mountStartScreen();
+      updateEditorContext(APP.state.editorContext || null);
     };
   })(APP.init);
 
   mountStartScreen();
+  updateEditorContext(APP.state.editorContext || null);
 })();

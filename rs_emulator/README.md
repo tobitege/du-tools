@@ -34,7 +34,7 @@ For development:
 
 ## Getting Started
 
-From `D:\github\du-tobi\rs_emulator`:
+From `.\rs_emulator`:
 
 ```powershell
 npm install

@@ -9,14 +9,14 @@
 
 ## Research Findings
 
-- [svg-work-patches.md](/d:/github/du-tobi/rs_emulator/svg-work-patches.md) already implies several recurring shape types:
+- [svg-work-patches.md](rs_emulator/svg-work-patches.md) already implies several recurring shape types:
   - logo outer segments as quads
   - right and left edge decals as quads
   - the lower middle frame segment as a quad
   - the inner logo hex ring as a dedicated render shape
-- [SvgParser.lua](/d:/github/du-tobi/rs_emulator/lib/SvgParser.lua) currently provides mostly `d`, `fill`, `transform`, and some SVG context, but no richer shape semantics.
-- [SilverZeroRsLib.lua](/d:/github/du-tobi/rs_emulator/lib/SilverZeroRsLib.lua#L596) still renders SVG paths primarily as line segments via `addLine(...)`; generic path fills are not yet a first-class part of the transfer path.
-- [SilverZeroRsLib.lua](/d:/github/du-tobi/rs_emulator/lib/SilverZeroRsLib.lua#L990) to [SilverZeroRsLib.lua](/d:/github/du-tobi/rs_emulator/lib/SilverZeroRsLib.lua#L1123) already contains several shape-oriented primitives such as `hexagon`, `hexRing`, `notchedHex`, and `circularSegments`.
+- [SvgParser.lua](rs_emulator/lib/SvgParser.lua) currently provides mostly `d`, `fill`, `transform`, and some SVG context, but no richer shape semantics.
+- [SilverZeroRsLib.lua](rs_emulator/lib/SilverZeroRsLib.lua#L596) still renders SVG paths primarily as line segments via `addLine(...)`; generic path fills are not yet a first-class part of the transfer path.
+- [SilverZeroRsLib.lua](rs_emulator/lib/SilverZeroRsLib.lua#L990) to [SilverZeroRsLib.lua](rs_emulator/lib/SilverZeroRsLib.lua#L1123) already contains several shape-oriented primitives such as `hexagon`, `hexRing`, `notchedHex`, and `circularSegments`.
 - That means the library already has a first shape vocabulary, but it was not originally connected to an SVG classification or porting workflow.
 - The first classifier iteration can derive stable geometric structure from `path d` data:
   - detect multiple subpaths
@@ -106,12 +106,12 @@
 
 ## Resources
 
-- [svg-work-patches.md](/d:/github/du-tobi/rs_emulator/svg-work-patches.md)
-- [SimpleSignS-svg.lua](/d:/github/du-tobi/rs_emulator/examples/SilverZero/SimpleSignS-svg.lua)
-- [SimpleSignS_html.lua](/d:/github/du-tobi/rs_emulator/examples/SilverZero/SimpleSignS_html.lua)
-- [SvgParser.lua](/d:/github/du-tobi/rs_emulator/lib/SvgParser.lua)
-- [SilverZeroRsLib.lua](/d:/github/du-tobi/rs_emulator/lib/SilverZeroRsLib.lua)
-- [convert-ideas.md](/d:/github/du-tobi/rs_emulator/examples/SilverZero/convert-ideas.md)
+- [svg-work-patches.md](rs_emulator/svg-work-patches.md)
+- [SimpleSignS-svg.lua](rs_emulator/examples/SilverZero/SimpleSignS-svg.lua)
+- [SimpleSignS_html.lua](rs_emulator/examples/SilverZero/SimpleSignS_html.lua)
+- [SvgParser.lua](rs_emulator/lib/SvgParser.lua)
+- [SilverZeroRsLib.lua](rs_emulator/lib/SilverZeroRsLib.lua)
+- [convert-ideas.md](rs_emulator/examples/SilverZero/convert-ideas.md)
 
 ## Visual Findings
 

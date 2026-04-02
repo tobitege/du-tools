@@ -9,7 +9,7 @@ Arbeitstitel:
 
 Wahrscheinlicher Ort:
 - als neues Modul
-- oder als gezielte Erweiterung von [SilverZeroRsLib.lua](/d:/github/du-tobi/rs_emulator/lib/SilverZeroRsLib.lua)
+- oder als gezielte Erweiterung von [SilverZeroRsLib.lua](rs_emulator/lib/SilverZeroRsLib.lua)
 
 ## Problem, das geloest werden soll
 
@@ -157,7 +157,7 @@ Rollenbeispiel:
 
 ## Welche Teile heute schon fast da sind
 
-In [SilverZeroRsLib.lua](/d:/github/du-tobi/rs_emulator/lib/SilverZeroRsLib.lua) existieren bereits gute Bausteine:
+In [SilverZeroRsLib.lua](rs_emulator/lib/SilverZeroRsLib.lua) existieren bereits gute Bausteine:
 - `hexagon(...)`
 - `hexagonOutline(...)`
 - `hexRing(...)`

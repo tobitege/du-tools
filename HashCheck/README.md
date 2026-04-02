@@ -12,9 +12,9 @@ them against a set of known numeric target IDs to find matching entries.
    `id ^= c + 0x9e3779b9 + (id << 6) + (id >> 2)`).
 3. Checks whether the computed hash matches any of a hard-coded set of
    target IDs and prints matching item names.
-4. Additionally prints the computed hash IDs for a selection of known
-   industry unit names (Assembly, Smelter, 3DPrinter, Metalwork, Refinery)
-   for quick reference / verification.
+4. Additionally prints the computed hash IDs for a broader reference set,
+   including static core units and industry machines such as assembly lines,
+   Electronics, Chemical, Glass, Honeycomb, Recycler, Refiner, and Smelter.
 
 ## Data Source
 

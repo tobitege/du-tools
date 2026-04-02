@@ -1,6 +1,6 @@
 // HUD Editor Probe - Lua Painter
 // Project: D:\github\du-tobi\live_lua_coding\examples\hud_editor_v1
-// Built: 2026-04-01T02:27:23Z
+// Built: 2026-04-02T05:29:41Z
 
 // Inlined CSS
 (function injectCSS() {
@@ -10,7 +10,7 @@
   }
   var style = document.createElement('style');
   style.id = 'hud-editor-styles';
-  style.textContent = "/* hud-editor.css - All HUD Editor styles\n   Project: D:\\\\github\\\\du-tobi\\\\live_lua_coding\\\\examples\\\\hud_editor_v1\n   Self-contained - does NOT use ModUiExtractor core styles\n*/\n\n/* ─── Root container ────────────────────────────────────────────────── */\n\n#hud-editor-root {\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n  z-index: 99999;\n  pointer-events: none;\n  font-family: 'Rajdhani', 'Segoe UI', Tahoma, sans-serif;\n  font-size: 14px;\n  color: #ccc;\n  background: rgba(0, 0, 0, 0.70);\n  display: none;\n  overflow: hidden;\n  user-select: none;\n  -webkit-user-select: none;\n  -moz-user-select: none;\n  -ms-user-select: none;\n}\n\n#hud-editor-root[style*=\"block\"] {\n  pointer-events: auto;\n}\n\n/* ─── Screens ────────────────────────────────────────────────────────── */\n\n.hud-screen {\n  display: none;\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n}\n\n.hud-screen.active {\n  display: flex;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           START SCREEN                                */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"start\"] {\n  width: 80vw;\n  height: 80vh;\n  top: 10vh;\n  left: 10vw;\n  align-items: center;\n  justify-content: center;\n  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);\n  overflow: auto;\n}\n\n.start-container {\n  text-align: center;\n  max-width: 520px;\n  padding: 48px;\n}\n\n.start-header h1 {\n  font-size: 52px;\n  font-weight: 700;\n  color: #fff;\n  margin: 0 0 8px 0;\n  text-shadow: 0 0 30px rgba(14, 233, 231, 0.4);\n  letter-spacing: 1px;\n}\n\n.start-header .subtitle {\n  color: #777;\n  font-size: 18px;\n  margin: 0 0 48px 0;\n}\n\n.start-menu {\n  display: flex;\n  flex-direction: column;\n  gap: 14px;\n}\n\n.menu-btn {\n  display: flex;\n  align-items: center;\n  width: 100%;\n  padding: 18px 24px;\n  background: rgba(255, 255, 255, 0.04);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 12px;\n  cursor: pointer;\n  transition: all 0.2s ease;\n  text-align: left;\n  color: inherit;\n  font-family: inherit;\n  font-size: 16px;\n}\n\n.menu-btn:hover {\n  background: rgba(14, 233, 231, 0.08);\n  border-color: rgba(14, 233, 231, 0.3);\n  transform: translateX(6px);\n}\n\n.menu-btn.primary {\n  background: rgba(14, 233, 231, 0.10);\n  border-color: rgba(14, 233, 231, 0.3);\n}\n\n.menu-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.18);\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.menu-btn .icon {\n  font-size: 26px;\n  margin-right: 18px;\n  width: 32px;\n  text-align: center;\n  flex-shrink: 0;\n}\n\n.menu-btn .label-group {\n  display: flex;\n  flex-direction: column;\n}\n\n.menu-btn .label {\n  color: #fff;\n  font-size: 20px;\n  font-weight: 600;\n}\n\n.menu-btn .desc {\n  color: #666;\n  font-size: 13px;\n  margin-top: 3px;\n}\n\n.start-footer {\n  margin-top: 40px;\n}\n\n.hint {\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EDITOR SCREEN                               */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"editor\"] {\n  top: 8vh;\n  left: 6vw;\n  width: 88vw;\n  height: 84vh;\n  flex-direction: column;\n  background: #12121a;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* ─── Toolbar ────────────────────────────────────────────────────────── */\n\n#editor-toolbar {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  padding: 5px 10px;\n  background: linear-gradient(180deg, #1c1c28 0%, #16161e 100%);\n  border-bottom: 1px solid #0e0e14;\n  flex-shrink: 0;\n  height: 44px;\n}\n\n.toolbar-group {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n}\n\n.toolbar-divider {\n  width: 1px;\n  height: 26px;\n  background: linear-gradient(180deg, transparent 0%, #2a2a3a 30%, #2a2a3a 70%, transparent 100%);\n  margin: 0 8px;\n}\n\n.toolbar-spacer {\n  flex: 1;\n}\n\n/* Tool & action buttons — bordered, recessed panel look */\n.tool-btn,\n.action-btn {\n  position: relative;\n  display: inline-flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  width: 36px;\n  height: 34px;\n  padding: 0;\n  border: 1px solid #2a2a36;\n  border-radius: 5px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  color: #6b7080;\n  cursor: pointer;\n  transition: all 0.12s ease;\n  font-family: inherit;\n}\n\n.tool-btn:hover,\n.action-btn:hover {\n  background: linear-gradient(180deg, #2a2a38 0%, #22222e 100%);\n  border-color: #3a3a4a;\n  color: #b0b8c8;\n}\n\n.tool-btn:active,\n.action-btn:active {\n  background: linear-gradient(180deg, #181822 0%, #1e1e28 100%);\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);\n}\n\n.tool-btn.active {\n  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);\n}\n\n/* Icon shape — rendered via CSS */\n.tb-icon {\n  display: block;\n  width: 16px;\n  height: 16px;\n  position: relative;\n}\n\n/* Select tool — mouse pointer arrow */\n.tb-icon-select::before {\n  content: \"\";\n  position: absolute;\n  top: 1px;\n  left: 2px;\n  width: 12px;\n  height: 14px;\n  background: currentColor;\n  clip-path: polygon(0 0, 0 100%, 30% 72%, 46% 100%, 60% 92%, 44% 64%, 100% 64%);\n}\n\n.tb-icon-select::after {\n  content: none;\n}\n\n/* Box tool — rectangle outline */\n.tb-icon-box::before {\n  content: \"\";\n  position: absolute;\n  inset: 1px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Rounded box — rounded rectangle outline */\n.tb-icon-rounded::before {\n  content: \"\";\n  position: absolute;\n  inset: 1px;\n  border: 1.5px solid currentColor;\n  border-radius: 4px;\n}\n\n/* Circle tool */\n.tb-icon-circle::before {\n  content: \"\";\n  position: absolute;\n  inset: 1px;\n  border: 1.5px solid currentColor;\n  border-radius: 50%;\n}\n\n/* Line tool — diagonal */\n.tb-icon-line::before {\n  content: \"\";\n  position: absolute;\n  top: 7px;\n  left: 0;\n  width: 18px;\n  height: 0;\n  border-top: 1.5px solid currentColor;\n  transform: rotate(-35deg);\n  transform-origin: center;\n}\n\n/* Text tool */\n.tb-icon-text::before {\n  content: \"T\";\n  position: absolute;\n  inset: 0;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-size: 13px;\n  font-weight: 700;\n  font-family: inherit;\n  color: currentColor;\n}\n\n/* Alignment icons — bar + rectangle pattern */\n.tb-icon-align-left::before,\n.tb-icon-align-right::before,\n.tb-icon-align-center-h::before,\n.tb-icon-align-top::before,\n.tb-icon-align-bottom::before,\n.tb-icon-align-center-v::before {\n  content: \"\";\n  position: absolute;\n  background: currentColor;\n}\n\n.tb-icon-align-left::after,\n.tb-icon-align-right::after,\n.tb-icon-align-center-h::after,\n.tb-icon-align-top::after,\n.tb-icon-align-bottom::after,\n.tb-icon-align-center-v::after {\n  content: \"\";\n  position: absolute;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Align icons use a tighter centered draw box */\n.tb-icon-align-left::before  { left: 2px; top: 2px; width: 1.5px; height: 12px; }\n.tb-icon-align-left::after   { left: 5px; top: 50%; width: 7px; height: 5px; transform: translateY(-50%); }\n\n.tb-icon-align-right::before { right: 2px; top: 2px; width: 1.5px; height: 12px; }\n.tb-icon-align-right::after  { right: 5px; top: 50%; width: 7px; height: 5px; transform: translateY(-50%); }\n\n.tb-icon-align-center-h::before { left: 50%; top: 2px; width: 1.5px; height: 12px; transform: translateX(-50%); }\n.tb-icon-align-center-h::after  { left: 50%; top: 50%; width: 7px; height: 5px; transform: translate(-50%, -50%); }\n\n.tb-icon-align-top::before { top: 2px; left: 2px; height: 1.5px; width: 12px; }\n.tb-icon-align-top::after  { top: 5px; left: 50%; width: 5px; height: 7px; transform: translateX(-50%); }\n\n.tb-icon-align-bottom::before { bottom: 2px; left: 2px; height: 1.5px; width: 12px; }\n.tb-icon-align-bottom::after  { bottom: 5px; left: 50%; width: 5px; height: 7px; transform: translateX(-50%); }\n\n.tb-icon-align-center-v::before { top: 50%; left: 2px; height: 1.5px; width: 12px; transform: translateY(-50%); }\n.tb-icon-align-center-v::after  { top: 50%; left: 50%; width: 5px; height: 7px; transform: translate(-50%, -50%); }\n\n/* Clone tool — two overlapping rectangles with plus */\n.tb-icon-clone::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-clone::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  background-image:\n    linear-gradient(currentColor, currentColor),\n    linear-gradient(currentColor, currentColor);\n  background-repeat: no-repeat;\n  background-size: 5px 1.5px, 1.5px 5px;\n  background-position: center center, center center;\n}\n\n/* Group tool — overlapping grouped rectangles */\n.tb-icon-group::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-group::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  opacity: 0.9;\n}\n\n/* Ungroup tool — two separated rectangles */\n.tb-icon-ungroup::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  bottom: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-ungroup::after {\n  content: \"\";\n  position: absolute;\n  right: 0;\n  top: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Keyboard hint */\n.tb-key {\n  font-size: 8px;\n  line-height: 1;\n  font-weight: 600;\n  letter-spacing: 0.3px;\n  opacity: 0.35;\n  margin-top: 0;\n}\n\n.tool-btn.active .tb-key {\n  opacity: 0.65;\n}\n\n/* Action buttons (undo/redo) */\n.action-btn {\n  width: 32px;\n  height: 32px;\n}\n\n.action-btn .tb-icon {\n  font-size: 15px;\n  width: 16px;\n  height: 16px;\n}\n\n/* ─── Color swatches ─────────────────────────────────────────────────── */\n\n.toolbar-group.colors {\n  gap: 10px;\n}\n\n.swatch-pair {\n  display: flex;\n  align-items: center;\n  gap: 5px;\n}\n\n.swatch-label {\n  font-size: 10px;\n  font-weight: 600;\n  color: #4a4f5e;\n  text-transform: uppercase;\n  letter-spacing: 0.5px;\n}\n\n.color-swatch {\n  width: 24px;\n  height: 24px;\n  border: 1px solid #2a2a36;\n  border-radius: 4px;\n  cursor: pointer;\n  background: none;\n  padding: 2px;\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  transition: border-color 0.12s ease;\n}\n\n.color-swatch:hover {\n  border-color: #4a4a5a;\n}\n\n.color-swatch::-webkit-color-swatch-wrapper {\n  padding: 0;\n}\n\n.color-swatch::-webkit-color-swatch {\n  border: none;\n  border-radius: 2px;\n}\n\n.size-input {\n  width: 56px;\n  height: 36px;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 6px;\n  text-align: center;\n  font-family: inherit;\n}\n\n.size-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n/* ─── Canvas area ────────────────────────────────────────────────────── */\n\n#canvas-container {\n  flex: 1;\n  overflow: hidden;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 20px;\n  background: #0a0a10;\n  position: relative;\n}\n\n#canvas-preview {\n  position: relative;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* Canvas elements (rendered from document.elements) */\n.canvas-element {\n  position: absolute;\n  box-sizing: border-box;\n  cursor: pointer;\n  transition: opacity 0.1s ease;\n}\n\n.canvas-element:hover {\n  opacity: 0.85;\n}\n\n.canvas-element.selected {\n  outline: 2px solid rgba(14, 233, 231, 0.9);\n  outline-offset: 2px;\n  cursor: move;\n}\n\n/* Selection handles */\n.resize-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #0ee9e7;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.resize-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.resize-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.resize-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.resize-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.resize-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.resize-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n/* Group selection overlay — orange bounding box */\n.group-overlay {\n  position: absolute;\n  pointer-events: none;\n  z-index: 90;\n}\n\n.group-outline {\n  position: absolute;\n  inset: 0;\n  border: 2px solid rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.04);\n}\n\n/* Group resize handles — same as individual but orange */\n.group-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #ff8c00;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.group-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.group-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.group-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.group-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.group-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.group-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n.toolbar-check {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  padding: 0 8px;\n  min-height: 32px;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(35, 39, 56, 0.96), rgba(23, 25, 36, 0.96));\n  color: #9aa4ba;\n  cursor: pointer;\n  user-select: none;\n}\n\n.toolbar-check:hover {\n  border-color: #3b465f;\n  color: #cfd8e8;\n}\n\n.toolbar-check-input {\n  position: absolute;\n  opacity: 0;\n  pointer-events: none;\n}\n\n.toolbar-check-box {\n  width: 13px;\n  height: 13px;\n  border: 1px solid #4a556d;\n  border-radius: 3px;\n  background: rgba(9, 12, 18, 0.85);\n  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);\n  position: relative;\n  flex-shrink: 0;\n}\n\n.toolbar-check-input:checked + .toolbar-check-box {\n  border-color: rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.18);\n}\n\n.toolbar-check-input:checked + .toolbar-check-box::after {\n  content: \"\";\n  position: absolute;\n  left: 3px;\n  top: 1px;\n  width: 4px;\n  height: 7px;\n  border: solid #ffb04d;\n  border-width: 0 2px 2px 0;\n  transform: rotate(45deg);\n}\n\n.toolbar-check-label {\n  font-size: 11px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  white-space: nowrap;\n}\n\n/* ─── Layers / shapes panel ────────────────────────────────────────── */\n\n#shapes-panel {\n  position: absolute;\n  right: 12px;\n  top: 72px;\n  width: 240px;\n  min-width: 180px;\n  min-height: 80px;\n  max-height: 60vh;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow: hidden;\n  resize: both;\n  display: none;\n  flex-direction: column;\n}\n\n#shapes-panel.visible {\n  display: flex;\n}\n\n.shapes-list {\n  flex: 1;\n  overflow-y: auto;\n  overflow-x: hidden;\n  padding: 6px;\n}\n\n.layers-empty {\n  padding: 16px;\n  text-align: center;\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* Layer item row */\n.layer-item {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 5px 8px;\n  margin-bottom: 6px;\n  cursor: pointer;\n  transition: background 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;\n  border: 1px solid #2a2a36;\n  border-left: 3px solid transparent;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);\n}\n\n.layer-item:hover {\n  background: linear-gradient(180deg, #272734 0%, #1d1d28 100%);\n  border-color: #363646;\n}\n\n.layer-item.selected {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.12) 0%, rgba(14, 233, 231, 0.07) 100%);\n  border-color: rgba(14, 233, 231, 0.22);\n  border-left-color: #0ee9e7;\n}\n\n.layer-group-box {\n  margin-bottom: 8px;\n  padding: 6px;\n  border: 1px solid rgba(255, 140, 0, 0.42);\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(255, 140, 0, 0.08) 0%, rgba(72, 44, 17, 0.26) 100%);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.04);\n}\n\n.layer-group-box.selected {\n  border-color: rgba(255, 140, 0, 0.85);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.10);\n}\n\n.layer-item.grouped-member {\n  padding-left: 10px;\n}\n\n.layer-group-sep {\n  height: 1px;\n  margin: 2px 6px 8px;\n  background: linear-gradient(90deg, transparent 0%, #2f3242 18%, #2f3242 82%, transparent 100%);\n}\n\n.layer-icon {\n  width: 18px;\n  text-align: center;\n  font-size: 14px;\n  color: #666;\n  flex-shrink: 0;\n}\n\n.layer-item.selected .layer-icon {\n  color: #0ee9e7;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-icon {\n  color: #ffb04d;\n}\n\n.layer-name {\n  flex: 1;\n  font-size: 12px;\n  color: #aaa;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.layer-item.selected .layer-name {\n  color: #ddd;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-name {\n  color: #e5d0b4;\n}\n\n/* Layer action buttons (visibility, z-order) */\n.layer-btn {\n  width: 22px;\n  height: 22px;\n  border: none;\n  background: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 12px;\n  border-radius: 3px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  flex-shrink: 0;\n  padding: 0;\n  transition: all 0.1s ease;\n}\n\n.layer-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #ccc;\n}\n\n/* Visibility eye toggle */\n.layer-vis {\n  font-size: 11px;\n  width: 20px;\n}\n\n.layer-vis::before {\n  content: \"\";\n  display: block;\n  width: 14px;\n  height: 10px;\n  border: 2px solid #0ee9e7;\n  border-radius: 75% / 100%;\n  position: relative;\n  box-sizing: border-box;\n}\n\n.layer-vis::after {\n  content: \"\";\n  display: block;\n  width: 4px;\n  height: 4px;\n  border-radius: 50%;\n  background: #0ee9e7;\n  position: relative;\n  top: -8px;\n  left: 5px;\n}\n\n.layer-vis.off::before {\n  border-color: #333;\n}\n\n.layer-vis.off::after {\n  background: #333;\n}\n\n/* Z-order arrows */\n.layer-z {\n  font-size: 14px;\n  min-width: 22px;\n  min-height: 22px;\n  color: #555;\n}\n\n.layer-z:hover {\n  color: #0ee9e7;\n  background: rgba(14, 233, 231, 0.08);\n}\n\n/* ─── Properties panel ──────────────────────────────────────────────── */\n\n#properties-panel {\n  position: absolute;\n  left: 12px;\n  top: 72px;\n  width: 340px;\n  min-width: 280px;\n  min-height: 80px;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow-x: hidden;\n  overflow-y: auto;\n  resize: both;\n  display: none;\n}\n\n#properties-panel.visible {\n  display: block;\n}\n\n.panel-header {\n  display: flex;\n  align-items: center;\n  padding: 10px 14px;\n  background: #1e1e2a;\n  border-bottom: 1px solid #2a2a3a;\n  font-weight: 600;\n  font-size: 13px;\n  color: #aaa;\n  cursor: grab;\n  user-select: none;\n}\n\n.panel-header:active {\n  cursor: grabbing;\n}\n\n/* Collapse / expand toggle */\n.panel-toggle {\n  margin-left: auto;\n  background: none;\n  border: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 14px;\n  padding: 0 2px;\n  line-height: 1;\n  border-radius: 3px;\n  transition: color 0.1s ease;\n}\n\n.panel-toggle:hover {\n  color: #ccc;\n}\n\n/* Collapsed state — hide content, disable resize */\n#properties-panel.collapsed .panel-content,\n#shapes-panel.collapsed .shapes-list {\n  display: none !important;\n}\n\n#properties-panel.collapsed.hover-open .panel-content,\n#shapes-panel.collapsed.hover-open .shapes-list {\n  display: block !important;\n}\n\n#properties-panel.collapsed,\n#shapes-panel.collapsed {\n  resize: none;\n  min-height: auto;\n}\n\n#properties-panel.collapsed.hover-open,\n#shapes-panel.collapsed.hover-open {\n  resize: both;\n}\n\n#properties-panel.collapsed .panel-header,\n#shapes-panel.collapsed .panel-header {\n  border-bottom: none;\n}\n\n#properties-panel.collapsed.hover-open .panel-header,\n#shapes-panel.collapsed.hover-open .panel-header {\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.panel-content {\n  padding: 12px;\n}\n\n.prop-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-bottom: 10px;\n}\n\n.prop-row.vertical {\n  flex-direction: column;\n  align-items: flex-start;\n}\n\n.prop-row label {\n  font-size: 12px;\n  color: #777;\n  min-width: 28px;\n}\n\n.prop-input {\n  width: 72px;\n  flex: 0 0 72px;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 6px;\n  font-family: inherit;\n  text-align: right;\n}\n\n.prop-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-color {\n  width: 32px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  cursor: pointer;\n  background: none;\n  padding: 1px;\n}\n\n.prop-textarea {\n  width: 100%;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 6px;\n  font-family: inherit;\n  resize: vertical;\n}\n\n.prop-textarea:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-delete {\n  width: 100%;\n  padding: 8px;\n  background: rgba(255, 70, 70, 0.12);\n  border: 1px solid rgba(255, 70, 70, 0.3);\n  border-radius: 6px;\n  color: #ff6666;\n  cursor: pointer;\n  font-size: 13px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.prop-delete:hover {\n  background: rgba(255, 70, 70, 0.22);\n  border-color: rgba(255, 70, 70, 0.5);\n}\n\n/* ─── Status bar ────────────────────────────────────────────────────── */\n\n#editor-statusbar {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 8px 12px;\n  background: #1a1a24;\n  border-top: 1px solid #2a2a3a;\n  flex-shrink: 0;\n  min-height: 60px;\n}\n\n.statusbar-left,\n.statusbar-right {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n\n.statusbar-center {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n}\n\n.status-btn {\n  min-width: 140px;\n  height: 40px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  padding: 0 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 15px;\n  font-weight: 600;\n  font-family: inherit;\n  transition: all 0.15s ease;\n  white-space: nowrap;\n}\n\n.status-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.status-btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.status-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.status-btn.danger {\n  background: rgba(255, 70, 70, 0.08);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.status-btn.danger:hover {\n  background: rgba(255, 70, 70, 0.18);\n}\n\n.status-mode {\n  font-size: 15px;\n  color: #0ee9e7;\n  font-weight: 600;\n}\n\n.status-hint {\n  font-size: 13px;\n  color: #555;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           DIALOGS                                     */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.dialog-overlay {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  background: rgba(0, 0, 0, 0.7);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 100000;\n}\n\n.dialog {\n  background: #1e1e2a;\n  border: 1px solid #3a3a4a;\n  border-radius: 12px;\n  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);\n  width: 420px;\n  max-width: 90vw;\n  max-height: 80vh;\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n}\n\n.dialog-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 16px 20px;\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.dialog-header h3 {\n  margin: 0;\n  font-size: 18px;\n  color: #fff;\n  font-weight: 600;\n}\n\n.dialog-close {\n  width: 28px;\n  height: 28px;\n  border: none;\n  background: none;\n  color: #777;\n  font-size: 20px;\n  cursor: pointer;\n  border-radius: 4px;\n}\n\n.dialog-close:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.dialog-content {\n  padding: 20px;\n  overflow-y: auto;\n}\n\n.dialog-footer {\n  display: flex;\n  align-items: center;\n  justify-content: flex-end;\n  gap: 10px;\n  padding: 14px 20px;\n  border-top: 1px solid #2a2a3a;\n}\n\n.dialog-footer.centered {\n  justify-content: center;\n}\n\n/* Script list in load dialog */\n.script-list {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  max-height: 300px;\n  overflow-y: auto;\n}\n\n.script-item {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 10px 14px;\n  background: rgba(255, 255, 255, 0.03);\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  cursor: pointer;\n  transition: all 0.15s ease;\n}\n\n.script-item:hover {\n  background: rgba(14, 233, 231, 0.06);\n  border-color: rgba(14, 233, 231, 0.2);\n}\n\n.script-item .script-name {\n  font-size: 14px;\n  color: #ddd;\n}\n\n.script-item .script-meta {\n  font-size: 11px;\n  color: #666;\n}\n\n/* Save As dialog input */\n.saveas-input {\n  width: 100%;\n  height: 36px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 12px;\n  font-family: inherit;\n  margin-top: 8px;\n}\n\n.saveas-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.save-note {\n  font-size: 12px;\n  color: #666;\n  margin-top: 8px;\n}\n\n/* Confirm dialog icon */\n.confirm-icon {\n  font-size: 36px;\n  text-align: center;\n  margin-bottom: 8px;\n}\n\n/* ─── Dialog buttons ─────────────────────────────────────────────────── */\n\n.btn {\n  padding: 8px 20px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 14px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.btn.danger {\n  background: rgba(255, 70, 70, 0.10);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.btn.danger:hover {\n  background: rgba(255, 70, 70, 0.20);\n}\n\n.btn.secondary {\n  background: rgba(255, 255, 255, 0.04);\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EMPTY STATE                                 */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.empty-state {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  color: #444;\n  font-size: 16px;\n  gap: 12px;\n}\n\n.empty-state .icon {\n  font-size: 48px;\n  opacity: 0.3;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           TOAST NOTIFICATIONS                         */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.toast-container {\n  position: fixed;\n  /* Below toolbar: editor starts at 8vh, toolbar ~56px tall */\n  top: calc(8vh + 64px);\n  left: 50%;\n  transform: translateX(-50%);\n  z-index: 200000;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  align-items: center;\n  pointer-events: none;\n}\n\n.toast {\n  padding: 10px 20px;\n  background: #2a2a3a;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  color: #ccc;\n  font-size: 13px;\n  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);\n  animation: toast-in 0.3s ease;\n  transition: opacity 0.25s ease, transform 0.25s ease;\n  pointer-events: auto;\n}\n\n.toast.success {\n  border-color: rgba(50, 200, 100, 0.4);\n  background: rgba(50, 200, 100, 0.1);\n  color: #6fd898;\n}\n\n.toast.error {\n  border-color: rgba(255, 70, 70, 0.4);\n  background: rgba(255, 70, 70, 0.1);\n  color: #ff8888;\n}\n\n.toast.info {\n  border-color: rgba(14, 233, 231, 0.3);\n  background: rgba(14, 233, 231, 0.08);\n  color: #0ee9e7;\n}\n\n@keyframes toast-in {\n  from { opacity: 0; transform: translateY(10px); }\n  to { opacity: 1; transform: translateY(0); }\n}\n\n/* ─── Stepper controls ───────────────────────────────────────────────── */\n\n.stepper-ctrl {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n  flex: 1;\n}\n\n.stepper-dec,\n.stepper-inc {\n  flex-shrink: 0;\n  width: 26px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  background: #12121a;\n  color: #ccc;\n  cursor: pointer;\n  font-size: 16px;\n  line-height: 1;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-family: inherit;\n}\n\n.stepper-dec:hover,\n.stepper-inc:hover {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n}\n\n.stepper-select {\n  flex: 1;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 4px;\n  font-family: inherit;\n  text-align: center;\n  cursor: pointer;\n}\n\n.stepper-select:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n";
+  style.textContent = "/* hud-editor.css - All HUD Editor styles\n   Project: D:\\\\github\\\\du-tobi\\\\live_lua_coding\\\\examples\\\\hud_editor_v1\n   Self-contained - does NOT use ModUiExtractor core styles\n*/\n\n/* ─── Root container ────────────────────────────────────────────────── */\n\n#hud-editor-root {\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n  z-index: 99999;\n  pointer-events: none;\n  font-family: 'Rajdhani', 'Segoe UI', Tahoma, sans-serif;\n  font-size: 14px;\n  color: #ccc;\n  background: rgba(0, 0, 0, 0.70);\n  display: none;\n  overflow: hidden;\n  user-select: none;\n  -webkit-user-select: none;\n  -moz-user-select: none;\n  -ms-user-select: none;\n}\n\n#hud-editor-root[style*=\"block\"] {\n  pointer-events: auto;\n}\n\n/* ─── Screens ────────────────────────────────────────────────────────── */\n\n.hud-screen {\n  display: none;\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n}\n\n.hud-screen.active {\n  display: flex;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           START SCREEN                                */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"start\"] {\n  width: 80vw;\n  height: 80vh;\n  top: 10vh;\n  left: 10vw;\n  align-items: center;\n  justify-content: center;\n  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);\n  overflow: auto;\n}\n\n.start-container {\n  text-align: center;\n  max-width: 520px;\n  padding: 48px;\n}\n\n.start-header h1 {\n  font-size: 52px;\n  font-weight: 700;\n  color: #fff;\n  margin: 0 0 8px 0;\n  text-shadow: 0 0 30px rgba(14, 233, 231, 0.4);\n  letter-spacing: 1px;\n}\n\n.start-header .subtitle {\n  color: #777;\n  font-size: 18px;\n  margin: 0 0 48px 0;\n}\n\n.start-menu {\n  display: flex;\n  flex-direction: column;\n  gap: 14px;\n}\n\n.start-context-card {\n  display: flex;\n  flex-direction: column;\n  gap: 10px;\n  margin-bottom: 18px;\n  padding: 14px 16px;\n  background: rgba(255, 255, 255, 0.035);\n  border: 1px solid rgba(255, 255, 255, 0.07);\n  border-radius: 12px;\n}\n\n.start-context-title {\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.12em;\n  text-transform: uppercase;\n  color: #8a91a4;\n}\n\n.start-context-pill,\n.editor-context-pill {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 28px;\n  padding: 0 12px;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 999px;\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n}\n\n.start-context-pill.is-online,\n.editor-context-pill.is-online {\n  background: rgba(14, 233, 231, 0.14);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #94fffd;\n}\n\n.start-context-pill.is-offline,\n.editor-context-pill.is-offline {\n  background: rgba(255, 196, 92, 0.12);\n  border-color: rgba(255, 196, 92, 0.28);\n  color: #ffcf7c;\n}\n\n.start-context-copy {\n  margin: 0;\n  font-size: 13px;\n  line-height: 1.45;\n  color: #8e96ab;\n}\n\n.menu-btn {\n  display: flex;\n  align-items: center;\n  width: 100%;\n  padding: 18px 24px;\n  background: rgba(255, 255, 255, 0.04);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 12px;\n  cursor: pointer;\n  transition: all 0.2s ease;\n  text-align: left;\n  color: inherit;\n  font-family: inherit;\n  font-size: 16px;\n}\n\n.menu-btn:hover {\n  background: rgba(14, 233, 231, 0.08);\n  border-color: rgba(14, 233, 231, 0.3);\n  transform: translateX(6px);\n}\n\n.menu-btn.primary {\n  background: rgba(14, 233, 231, 0.10);\n  border-color: rgba(14, 233, 231, 0.3);\n}\n\n.menu-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.18);\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.menu-btn:disabled,\n.status-btn:disabled,\n.btn:disabled {\n  cursor: not-allowed;\n  opacity: 0.48;\n  transform: none;\n  box-shadow: none;\n}\n\n.menu-btn:disabled:hover,\n.status-btn:disabled:hover,\n.btn:disabled:hover {\n  background: inherit;\n  border-color: inherit;\n  color: inherit;\n  transform: none;\n}\n\n.menu-btn .icon {\n  font-size: 26px;\n  margin-right: 18px;\n  width: 32px;\n  text-align: center;\n  flex-shrink: 0;\n}\n\n.menu-btn .label-group {\n  display: flex;\n  flex-direction: column;\n}\n\n.menu-btn .label {\n  color: #fff;\n  font-size: 20px;\n  font-weight: 600;\n}\n\n.menu-btn .desc {\n  color: #666;\n  font-size: 13px;\n  margin-top: 3px;\n}\n\n.start-footer {\n  margin-top: 40px;\n}\n\n.hint {\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EDITOR SCREEN                               */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"editor\"] {\n  top: 8vh;\n  left: 6vw;\n  width: 88vw;\n  height: 84vh;\n  flex-direction: column;\n  background: #12121a;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* ─── Toolbar ────────────────────────────────────────────────────────── */\n\n#editor-toolbar {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  padding: 5px 10px;\n  background: linear-gradient(180deg, #1c1c28 0%, #16161e 100%);\n  border-bottom: 1px solid #0e0e14;\n  flex-shrink: 0;\n  height: 50px;\n}\n\n.toolbar-group {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n}\n\n.toolbar-divider {\n  width: 1px;\n  height: 26px;\n  background: linear-gradient(180deg, transparent 0%, #2a2a3a 30%, #2a2a3a 70%, transparent 100%);\n  margin: 0 8px;\n}\n\n.toolbar-spacer {\n  flex: 1;\n}\n\n/* Tool & action buttons — bordered, recessed panel look */\n.tool-btn,\n.action-btn {\n  position: relative;\n  display: inline-flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  width: 46px;\n  height: 44px;\n  padding: 0;\n  border: 1px solid #2a2a36;\n  border-radius: 5px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  color: #8f98ac;\n  cursor: pointer;\n  transition: all 0.12s ease;\n  font-family: inherit;\n}\n\n.tool-btn:hover,\n.action-btn:hover {\n  background: linear-gradient(180deg, #2a2a38 0%, #22222e 100%);\n  border-color: #3a3a4a;\n  color: #b0b8c8;\n}\n\n.tool-btn:active,\n.action-btn:active {\n  background: linear-gradient(180deg, #181822 0%, #1e1e28 100%);\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);\n}\n\n.tool-btn.active {\n  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);\n}\n\n/* Icon shape — rendered via CSS */\n.tb-icon {\n  display: block;\n  width: 26px;\n  height: 26px;\n  position: relative;\n}\n\n/* Select tool — mouse pointer arrow */\n.tb-icon-select::before,\n.tb-icon-box::before,\n.tb-icon-rounded::before,\n.tb-icon-circle::before,\n.tb-icon-line::before,\n.tb-icon-text::before {\n  content: none;\n}\n\n.tb-icon-select::after {\n  content: none;\n}\n\n.tb-icon-glyph {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-weight: 700;\n  line-height: 1;\n  color: currentColor;\n  text-shadow: 0 0 8px rgba(255, 255, 255, 0.04);\n  font-family: \"Segoe UI Symbol\", \"Segoe UI\", Arial, sans-serif;\n}\n\n.tb-icon-glyph-select {\n  font-size: 24px;\n}\n\n.tb-icon-glyph-box,\n.tb-icon-glyph-rounded,\n.tb-icon-glyph-circle {\n  font-size: 23px;\n}\n\n.tb-icon-glyph-line {\n  font-size: 27px;\n  transform: translateY(-1px) scaleX(1.08);\n}\n\n.tb-icon-glyph-text {\n  font-size: 22px;\n  font-family: inherit;\n}\n\n/* Alignment icons — bar + rectangle pattern */\n.tb-icon-align-left::before,\n.tb-icon-align-right::before,\n.tb-icon-align-center-h::before,\n.tb-icon-align-top::before,\n.tb-icon-align-bottom::before,\n.tb-icon-align-center-v::before {\n  content: \"\";\n  position: absolute;\n  background: currentColor;\n}\n\n.tb-icon-align-left::after,\n.tb-icon-align-right::after,\n.tb-icon-align-center-h::after,\n.tb-icon-align-top::after,\n.tb-icon-align-bottom::after,\n.tb-icon-align-center-v::after {\n  content: \"\";\n  position: absolute;\n  border: 2px solid currentColor;\n  border-radius: 1px;\n  box-sizing: border-box;\n}\n\n/* Align icons use a tighter centered draw box */\n.tb-icon-align-left::before  { left: 2px; top: 2px; width: 2px; height: 14px; }\n.tb-icon-align-left::after   { left: 7px; top: 50%; width: 10px; height: 7px; transform: translateY(-50%); }\n\n.tb-icon-align-right::before { right: 2px; top: 2px; width: 2px; height: 14px; }\n.tb-icon-align-right::after  { right: 7px; top: 50%; width: 10px; height: 7px; transform: translateY(-50%); }\n\n.tb-icon-align-center-h::before { left: 50%; top: 2px; width: 2px; height: 14px; transform: translateX(-50%); }\n.tb-icon-align-center-h::after  { left: 50%; top: 50%; width: 10px; height: 7px; transform: translate(-50%, -50%); }\n\n.tb-icon-align-top::before { top: 2px; left: 2px; height: 2px; width: 14px; }\n.tb-icon-align-top::after  { top: 7px; left: 50%; width: 7px; height: 10px; transform: translateX(-50%); }\n\n.tb-icon-align-bottom::before { bottom: 2px; left: 2px; height: 2px; width: 14px; }\n.tb-icon-align-bottom::after  { bottom: 7px; left: 50%; width: 7px; height: 10px; transform: translateX(-50%); }\n\n.tb-icon-align-center-v::before { top: 50%; left: 2px; height: 2px; width: 14px; transform: translateY(-50%); }\n.tb-icon-align-center-v::after  { top: 50%; left: 50%; width: 7px; height: 10px; transform: translate(-50%, -50%); }\n\n/* Clone tool — two overlapping rectangles with plus */\n.tb-icon-clone::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-clone::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  background-image:\n    linear-gradient(currentColor, currentColor),\n    linear-gradient(currentColor, currentColor);\n  background-repeat: no-repeat;\n  background-size: 5px 1.5px, 1.5px 5px;\n  background-position: center center, center center;\n}\n\n/* Group tool — overlapping grouped rectangles */\n.tb-icon-group::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-group::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  opacity: 0.9;\n}\n\n/* Ungroup tool — two separated rectangles */\n.tb-icon-ungroup::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  bottom: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-ungroup::after {\n  content: \"\";\n  position: absolute;\n  right: 0;\n  top: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Keyboard hint */\n.tb-key {\n  display: none;\n}\n\n.tool-btn.active .tb-key {\n  opacity: 0.65;\n}\n\n/* Action buttons (undo/redo) */\n.action-btn {\n  width: 46px;\n  height: 44px;\n}\n\n.action-btn .tb-icon {\n  font-size: 20px;\n  width: 24px;\n  height: 24px;\n}\n\n/* ─── Color swatches ─────────────────────────────────────────────────── */\n\n.toolbar-group.colors {\n  gap: 12px;\n  margin: 0 10px 0 6px;\n  padding: 0 8px;\n}\n\n.swatch-pair {\n  display: flex;\n  align-items: center;\n  gap: 14px;\n  margin-right: 10px;\n  padding: 0 10px;\n}\n\n.swatch-pair:last-child {\n  margin-right: 0;\n}\n\n.swatch-label {\n  min-width: 40px;\n  font-size: 11px;\n  font-weight: 600;\n  color: #7e879c;\n  text-transform: uppercase;\n  letter-spacing: 0.7px;\n  text-align: right;\n  margin-right: 6px;\n}\n\n.color-swatch-btn,\n.prop-color-btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 34px;\n  height: 34px;\n  appearance: none;\n  -webkit-appearance: none;\n  border: 1px solid #2a2a36;\n  border-radius: 6px;\n  cursor: pointer;\n  background-color: #1b1b25;\n  background-image: linear-gradient(180deg, #232332 0%, #171721 100%);\n  padding: 3px;\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  transition: border-color 0.12s ease, transform 0.12s ease;\n  flex-shrink: 0;\n  margin-left: 6px;\n}\n\n.color-swatch-btn:hover,\n.prop-color-btn:hover {\n  border-color: #4a4a5a;\n  transform: translateY(-1px);\n}\n\n.color-swatch-chip,\n.prop-color-chip {\n  width: 24px;\n  height: 24px;\n  display: block;\n  border-radius: 4px;\n  background: var(--swatch-color, #ffffff);\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);\n  flex: 0 0 auto;\n}\n\n.prop-color-btn {\n  width: 42px;\n  margin-left: auto;\n}\n\n.prop-color-chip {\n  width: 30px;\n  height: 30px;\n}\n\n.size-input {\n  width: 56px;\n  height: 36px;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 6px;\n  text-align: center;\n  font-family: inherit;\n}\n\n.size-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n/* ─── Canvas area ────────────────────────────────────────────────────── */\n\n#canvas-container {\n  flex: 1;\n  overflow: hidden;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 20px;\n  background: #0a0a10;\n  position: relative;\n}\n\n#canvas-preview {\n  position: relative;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* Canvas elements (rendered from document.elements) */\n.canvas-element {\n  position: absolute;\n  box-sizing: border-box;\n  cursor: pointer;\n  transition: opacity 0.1s ease;\n}\n\n.canvas-element:hover {\n  opacity: 0.85;\n}\n\n.canvas-element.selected {\n  outline: 2px solid rgba(14, 233, 231, 0.9);\n  outline-offset: 2px;\n  cursor: move;\n}\n\n/* Selection handles */\n.resize-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #0ee9e7;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.resize-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.resize-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.resize-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.resize-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.resize-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.resize-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n/* Group selection overlay — orange bounding box */\n.group-overlay {\n  position: absolute;\n  pointer-events: none;\n  z-index: 90;\n}\n\n.group-outline {\n  position: absolute;\n  inset: 0;\n  border: 2px solid rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.04);\n}\n\n/* Group resize handles — same as individual but orange */\n.group-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #ff8c00;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.group-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.group-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.group-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.group-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.group-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.group-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n.toolbar-check {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  padding: 0 8px;\n  min-height: 32px;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(35, 39, 56, 0.96), rgba(23, 25, 36, 0.96));\n  color: #9aa4ba;\n  cursor: pointer;\n  user-select: none;\n}\n\n.toolbar-check:hover {\n  border-color: #3b465f;\n  color: #cfd8e8;\n}\n\n.toolbar-check-input {\n  position: absolute;\n  opacity: 0;\n  pointer-events: none;\n}\n\n.toolbar-check-box {\n  width: 13px;\n  height: 13px;\n  border: 1px solid #4a556d;\n  border-radius: 3px;\n  background: rgba(9, 12, 18, 0.85);\n  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);\n  position: relative;\n  flex-shrink: 0;\n}\n\n.toolbar-check-input:checked + .toolbar-check-box {\n  border-color: rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.18);\n}\n\n.toolbar-check-input:checked + .toolbar-check-box::after {\n  content: \"\";\n  position: absolute;\n  left: 3px;\n  top: 1px;\n  width: 4px;\n  height: 7px;\n  border: solid #ffb04d;\n  border-width: 0 2px 2px 0;\n  transform: rotate(45deg);\n}\n\n.toolbar-check-label {\n  font-size: 11px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  white-space: nowrap;\n}\n\n/* ─── Layers / shapes panel ────────────────────────────────────────── */\n\n#shapes-panel {\n  position: absolute;\n  right: 12px;\n  top: 72px;\n  width: 240px;\n  min-width: 180px;\n  min-height: 80px;\n  max-height: 60vh;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow: hidden;\n  resize: both;\n  display: none;\n  flex-direction: column;\n}\n\n#shapes-panel.visible {\n  display: flex;\n}\n\n.shapes-list {\n  flex: 1;\n  overflow-y: auto;\n  overflow-x: hidden;\n  padding: 6px;\n}\n\n.layers-empty {\n  padding: 16px;\n  text-align: center;\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* Layer item row */\n.layer-item {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 5px 8px;\n  margin-bottom: 6px;\n  cursor: pointer;\n  transition: background 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;\n  border: 1px solid #2a2a36;\n  border-left: 3px solid transparent;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);\n}\n\n.layer-item:hover {\n  background: linear-gradient(180deg, #272734 0%, #1d1d28 100%);\n  border-color: #363646;\n}\n\n.layer-item.selected {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.12) 0%, rgba(14, 233, 231, 0.07) 100%);\n  border-color: rgba(14, 233, 231, 0.22);\n  border-left-color: #0ee9e7;\n}\n\n.layer-group-box {\n  margin-bottom: 8px;\n  padding: 6px;\n  border: 1px solid rgba(255, 140, 0, 0.42);\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(255, 140, 0, 0.08) 0%, rgba(72, 44, 17, 0.26) 100%);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.04);\n}\n\n.layer-group-box.selected {\n  border-color: rgba(255, 140, 0, 0.85);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.10);\n}\n\n.layer-item.grouped-member {\n  padding-left: 10px;\n}\n\n.layer-group-sep {\n  height: 1px;\n  margin: 2px 6px 8px;\n  background: linear-gradient(90deg, transparent 0%, #2f3242 18%, #2f3242 82%, transparent 100%);\n}\n\n.layer-icon {\n  width: 18px;\n  text-align: center;\n  font-size: 14px;\n  color: #666;\n  flex-shrink: 0;\n}\n\n.layer-item.selected .layer-icon {\n  color: #0ee9e7;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-icon {\n  color: #ffb04d;\n}\n\n.layer-name {\n  flex: 1;\n  font-size: 12px;\n  color: #aaa;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.layer-item.selected .layer-name {\n  color: #ddd;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-name {\n  color: #e5d0b4;\n}\n\n/* Layer action buttons (visibility, z-order) */\n.layer-btn {\n  width: 22px;\n  height: 22px;\n  border: none;\n  background: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 12px;\n  border-radius: 3px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  flex-shrink: 0;\n  padding: 0;\n  transition: all 0.1s ease;\n}\n\n.layer-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #ccc;\n}\n\n/* Visibility eye toggle */\n.layer-vis {\n  font-size: 11px;\n  width: 20px;\n}\n\n.layer-vis::before {\n  content: \"\";\n  display: block;\n  width: 14px;\n  height: 10px;\n  border: 2px solid #0ee9e7;\n  border-radius: 75% / 100%;\n  position: relative;\n  box-sizing: border-box;\n}\n\n.layer-vis::after {\n  content: \"\";\n  display: block;\n  width: 4px;\n  height: 4px;\n  border-radius: 50%;\n  background: #0ee9e7;\n  position: relative;\n  top: -8px;\n  left: 5px;\n}\n\n.layer-vis.off::before {\n  border-color: #333;\n}\n\n.layer-vis.off::after {\n  background: #333;\n}\n\n/* Z-order arrows */\n.layer-z {\n  font-size: 14px;\n  min-width: 22px;\n  min-height: 22px;\n  color: #555;\n}\n\n.layer-z:hover {\n  color: #0ee9e7;\n  background: rgba(14, 233, 231, 0.08);\n}\n\n/* ─── Properties panel ──────────────────────────────────────────────── */\n\n#properties-panel {\n  position: absolute;\n  left: 12px;\n  top: 72px;\n  width: 340px;\n  min-width: 280px;\n  min-height: 80px;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow-x: hidden;\n  overflow-y: auto;\n  resize: both;\n  display: none;\n}\n\n#properties-panel.visible {\n  display: block;\n}\n\n.panel-header {\n  display: flex;\n  align-items: center;\n  padding: 10px 14px;\n  background: #1e1e2a;\n  border-bottom: 1px solid #2a2a3a;\n  font-weight: 600;\n  font-size: 13px;\n  color: #aaa;\n  cursor: grab;\n  user-select: none;\n}\n\n.panel-header:active {\n  cursor: grabbing;\n}\n\n/* Collapse / expand toggle */\n.panel-toggle {\n  margin-left: auto;\n  background: none;\n  border: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 14px;\n  padding: 0 2px;\n  line-height: 1;\n  border-radius: 3px;\n  transition: color 0.1s ease;\n}\n\n.panel-toggle:hover {\n  color: #ccc;\n}\n\n/* Collapsed state — hide content, disable resize */\n#properties-panel.collapsed .panel-content,\n#shapes-panel.collapsed .shapes-list {\n  display: none !important;\n}\n\n#properties-panel.collapsed.hover-open .panel-content,\n#shapes-panel.collapsed.hover-open .shapes-list {\n  display: block !important;\n}\n\n#properties-panel.collapsed,\n#shapes-panel.collapsed {\n  resize: none;\n  min-height: auto;\n}\n\n#properties-panel.collapsed.hover-open,\n#shapes-panel.collapsed.hover-open {\n  resize: both;\n}\n\n#properties-panel.collapsed .panel-header,\n#shapes-panel.collapsed .panel-header {\n  border-bottom: none;\n}\n\n#properties-panel.collapsed.hover-open .panel-header,\n#shapes-panel.collapsed.hover-open .panel-header {\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.panel-content {\n  padding: 12px;\n}\n\n.prop-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-bottom: 10px;\n}\n\n.prop-row.vertical {\n  flex-direction: column;\n  align-items: flex-start;\n}\n\n.prop-row label {\n  font-size: 12px;\n  color: #777;\n  min-width: 28px;\n}\n\n.prop-input {\n  width: 72px;\n  flex: 0 0 72px;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 6px;\n  font-family: inherit;\n  text-align: right;\n}\n\n.prop-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-color {\n  width: 32px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  cursor: pointer;\n  background: none;\n  padding: 1px;\n}\n\n.prop-textarea {\n  width: 100%;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 6px;\n  font-family: inherit;\n  resize: vertical;\n}\n\n.prop-textarea:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-delete {\n  width: 100%;\n  padding: 8px;\n  background: rgba(255, 70, 70, 0.12);\n  border: 1px solid rgba(255, 70, 70, 0.3);\n  border-radius: 6px;\n  color: #ff6666;\n  cursor: pointer;\n  font-size: 13px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.prop-delete:hover {\n  background: rgba(255, 70, 70, 0.22);\n  border-color: rgba(255, 70, 70, 0.5);\n}\n\n/* ─── Status bar ────────────────────────────────────────────────────── */\n\n#editor-statusbar {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 8px 12px;\n  background: #1a1a24;\n  border-top: 1px solid #2a2a3a;\n  flex-shrink: 0;\n  min-height: 60px;\n}\n\n.statusbar-left,\n.statusbar-right {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  flex: 0 0 auto;\n}\n\n.statusbar-center {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  flex: 1 1 auto;\n  flex-wrap: wrap;\n  justify-content: center;\n  min-width: 0;\n  padding: 0 16px;\n}\n\n.status-btn {\n  min-width: 140px;\n  height: 40px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  padding: 0 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 15px;\n  font-weight: 600;\n  line-height: 1;\n  font-family: inherit;\n  transition: all 0.15s ease;\n  white-space: nowrap;\n  text-align: center;\n}\n\n.status-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.status-btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.status-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.status-btn.danger {\n  background: rgba(255, 70, 70, 0.08);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.status-btn.danger:hover {\n  background: rgba(255, 70, 70, 0.18);\n}\n\n.status-hint {\n  font-size: 13px;\n  color: #8a91a4;\n  max-width: 360px;\n  line-height: 1.35;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           DIALOGS                                     */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.dialog-overlay {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  background: rgba(0, 0, 0, 0.7);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 100000;\n}\n\n.dialog {\n  background: #1e1e2a;\n  border: 1px solid #3a3a4a;\n  border-radius: 12px;\n  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);\n  width: 420px;\n  max-width: 90vw;\n  max-height: 80vh;\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n}\n\n.dialog-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 16px 20px;\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.dialog-header h3 {\n  margin: 0;\n  font-size: 18px;\n  color: #fff;\n  font-weight: 600;\n}\n\n.dialog-close {\n  width: 28px;\n  height: 28px;\n  border: none;\n  background: none;\n  color: #777;\n  font-size: 20px;\n  cursor: pointer;\n  border-radius: 4px;\n}\n\n.dialog-close:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.dialog-content {\n  padding: 20px;\n  overflow-y: auto;\n}\n\n.dialog-content.centered {\n  text-align: center;\n  padding-top: 28px;\n  padding-bottom: 24px;\n}\n\n.dialog-content.centered h3 {\n  margin: 0 0 10px;\n  font-size: 24px;\n  color: #f4f7fb;\n}\n\n.dialog-content.centered p {\n  margin: 0;\n  color: #b9c4d6;\n  font-size: 17px;\n  line-height: 1.45;\n}\n\n.dialog-color-preview {\n  width: 100%;\n  height: 54px;\n  margin-bottom: 14px;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  background: #ffffff;\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);\n}\n\n.color-strip-label {\n  display: block;\n  margin-bottom: 8px;\n  color: #d8deea;\n  font-size: 13px;\n}\n\n.color-strip-range {\n  width: 100%;\n  height: 22px;\n  margin: 0 0 16px;\n  appearance: none;\n  -webkit-appearance: none;\n  border: 1px solid #3a3a4a;\n  border-radius: 999px;\n  background: linear-gradient(90deg, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);\n  outline: none;\n}\n\n.color-strip-range::-webkit-slider-thumb {\n  -webkit-appearance: none;\n  width: 14px;\n  height: 28px;\n  border-radius: 999px;\n  border: 1px solid rgba(255, 255, 255, 0.7);\n  background: #f8fbff;\n  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);\n  cursor: pointer;\n}\n\n.color-field-row {\n  display: flex;\n  align-items: flex-start;\n  justify-content: space-between;\n  gap: 10px;\n  margin-bottom: 10px;\n}\n\n.color-field {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-start;\n  gap: 6px;\n  color: #d8deea;\n}\n\n.color-field-label {\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n  color: #8a91a4;\n}\n\n.color-number-input {\n  width: 4ch;\n  min-width: 4ch;\n  height: 34px;\n  padding: 0 6px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #e7ecf5;\n  font-size: 14px;\n  text-align: center;\n  font-family: inherit;\n  outline: none;\n}\n\n.color-number-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.color-number-input::-webkit-outer-spin-button,\n.color-number-input::-webkit-inner-spin-button,\n.color-strip-range::-webkit-outer-spin-button,\n.color-strip-range::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n  margin: 0;\n}\n\n.color-hex-input {\n  text-transform: uppercase;\n  letter-spacing: 0.04em;\n}\n\n.dialog-footer {\n  display: flex;\n  align-items: center;\n  justify-content: flex-end;\n  gap: 10px;\n  padding: 14px 20px;\n  border-top: 1px solid #2a2a3a;\n}\n\n.dialog-footer.centered {\n  justify-content: center;\n  flex-wrap: nowrap;\n}\n\n/* Script list in load dialog */\n.script-list {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  max-height: 300px;\n  overflow-y: auto;\n}\n\n.script-item {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 10px 14px;\n  background: rgba(255, 255, 255, 0.03);\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  cursor: pointer;\n  transition: all 0.15s ease;\n}\n\n.script-item:hover {\n  background: rgba(14, 233, 231, 0.06);\n  border-color: rgba(14, 233, 231, 0.2);\n}\n\n.script-item .script-name {\n  font-size: 14px;\n  color: #ddd;\n}\n\n.script-item .script-meta {\n  font-size: 11px;\n  color: #666;\n}\n\n/* Save As dialog input */\n.saveas-input {\n  width: 100%;\n  height: 36px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 12px;\n  font-family: inherit;\n  margin-top: 8px;\n}\n\n.saveas-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.save-note {\n  font-size: 12px;\n  color: #666;\n  margin-top: 8px;\n}\n\n/* Confirm dialog icon */\n.confirm-icon {\n  position: relative;\n  width: 52px;\n  height: 52px;\n  margin: 0 auto 18px;\n  border-radius: 14px;\n  background: radial-gradient(circle at 50% 35%, rgba(255, 206, 104, 0.16) 0%, rgba(255, 206, 104, 0.06) 55%, rgba(255, 206, 104, 0) 100%);\n}\n\n.confirm-icon::before {\n  content: \"\";\n  position: absolute;\n  left: 50%;\n  top: 50%;\n  width: 28px;\n  height: 28px;\n  transform: translate(-50%, -50%) rotate(45deg);\n  border: 2px solid rgba(255, 199, 93, 0.72);\n  border-radius: 4px;\n  background: rgba(255, 187, 61, 0.08);\n  box-shadow: 0 8px 20px rgba(255, 177, 58, 0.12);\n}\n\n.confirm-icon::after {\n  content: \"!\";\n  position: absolute;\n  left: 50%;\n  top: 50%;\n  transform: translate(-50%, -50%);\n  font-size: 22px;\n  line-height: 1;\n  font-weight: 700;\n  color: #ffc86b;\n}\n\n/* ─── Dialog buttons ─────────────────────────────────────────────────── */\n\n.btn {\n  min-width: 132px;\n  height: 42px;\n  padding: 0 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #262634 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);\n  color: #c6cfdb;\n  cursor: pointer;\n  font-size: 14px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.btn:hover {\n  background: linear-gradient(180deg, #2d2d3c 0%, #20202c 100%);\n  border-color: #4a4a5e;\n  color: #fff;\n}\n\n.btn:active {\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.32);\n}\n\n.btn.secondary {\n  color: #d6dfeb;\n}\n\n.btn.primary {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.22) 0%, rgba(6, 120, 135, 0.3) 100%);\n  border-color: rgba(14, 233, 231, 0.45);\n  color: #8ffaf8;\n}\n\n.btn.primary:hover {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.28) 0%, rgba(8, 137, 153, 0.38) 100%);\n}\n\n.btn.danger {\n  background: linear-gradient(180deg, rgba(255, 92, 92, 0.16) 0%, rgba(110, 29, 40, 0.28) 100%);\n  border-color: rgba(255, 92, 92, 0.38);\n  color: #ff8a8a;\n}\n\n.btn.danger:hover {\n  background: linear-gradient(180deg, rgba(255, 92, 92, 0.22) 0%, rgba(130, 34, 47, 0.35) 100%);\n}\n\n.btn.secondary {\n  background: rgba(255, 255, 255, 0.04);\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EMPTY STATE                                 */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.empty-state {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  color: #444;\n  font-size: 16px;\n  gap: 12px;\n}\n\n.empty-state .icon {\n  font-size: 48px;\n  opacity: 0.3;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           TOAST NOTIFICATIONS                         */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.toast-container {\n  position: fixed;\n  /* Below toolbar: editor starts at 8vh, toolbar ~56px tall */\n  top: calc(8vh + 64px);\n  left: 50%;\n  transform: translateX(-50%);\n  z-index: 200000;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  align-items: center;\n  pointer-events: none;\n}\n\n.toast {\n  padding: 10px 20px;\n  background: #2a2a3a;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  color: #ccc;\n  font-size: 13px;\n  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);\n  animation: toast-in 0.3s ease;\n  transition: opacity 0.25s ease, transform 0.25s ease;\n  pointer-events: auto;\n}\n\n.toast.success {\n  border-color: rgba(50, 200, 100, 0.4);\n  background: rgba(50, 200, 100, 0.1);\n  color: #6fd898;\n}\n\n.toast.error {\n  border-color: rgba(255, 70, 70, 0.4);\n  background: rgba(255, 70, 70, 0.1);\n  color: #ff8888;\n}\n\n.toast.info {\n  border-color: rgba(14, 233, 231, 0.3);\n  background: rgba(14, 233, 231, 0.08);\n  color: #0ee9e7;\n}\n\n@keyframes toast-in {\n  from { opacity: 0; transform: translateY(10px); }\n  to { opacity: 1; transform: translateY(0); }\n}\n\n/* ─── Stepper controls ───────────────────────────────────────────────── */\n\n.stepper-ctrl {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n  flex: 1;\n}\n\n.stepper-dec,\n.stepper-inc {\n  flex-shrink: 0;\n  width: 26px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  background: #12121a;\n  color: #ccc;\n  cursor: pointer;\n  font-size: 16px;\n  line-height: 1;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-family: inherit;\n}\n\n.stepper-dec:hover,\n.stepper-inc:hover {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n}\n\n.stepper-select {\n  flex: 1;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 4px;\n  font-family: inherit;\n  text-align: center;\n  cursor: pointer;\n}\n\n.stepper-select:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n";
   document.head.appendChild(style);
 })();
 // --- 000-core.js ---
@@ -45,7 +45,14 @@
     selectedElementIds: [],
     isDirty: false,
     document: null,
-    connectedScreen: false
+    connectedScreen: false,
+    editorContext: {
+      available: false,
+      visible: false,
+      selectedSlot: null,
+      selectedFilter: null,
+      canAccessOnStart: false
+    }
   };
 
   function addCleanup(fn) {
@@ -62,6 +69,36 @@
       } catch (_ignoreCleanup) {}
     }
     cleanupFns = [];
+  }
+
+  function trimString(value) {
+    return String(value == null ? "" : value).replace(/^\s+|\s+$/g, "");
+  }
+
+  function padBase36(value, size) {
+    var text = Math.floor(Math.abs(Number(value) || 0)).toString(36);
+    while (text.length < size) {
+      text = "0" + text;
+    }
+    return text;
+  }
+
+  function createLayoutId() {
+    var now = Date.now ? Date.now() : new Date().getTime();
+    return "ly_" + now.toString(36) + padBase36(Math.random() * 1679616, 4) + padBase36(Math.random() * 1679616, 4);
+  }
+
+  function normalizeDocumentMeta(doc) {
+    if (!doc || typeof doc !== "object") {
+      return null;
+    }
+    var id = trimString(doc.id);
+    if (!id) {
+      return null;
+    }
+    doc.id = id;
+    doc.name = trimString(doc.name) || "Layout";
+    return doc;
   }
 
   function el(tag, attrs, children) {
@@ -457,6 +494,9 @@
     el: el,
     qs: qs,
     qsa: qsa,
+    trimString: trimString,
+    createLayoutId: createLayoutId,
+    normalizeDocumentMeta: normalizeDocumentMeta,
     showScreen: showScreen,
     enterEditMode: enterEditMode,
     exitEditMode: exitEditMode,
@@ -498,6 +538,14 @@
           el("h1", { textContent: "Lua Painter" }),
           el("p", { className: "subtitle", textContent: "HUD Layout Editor" }),
         ]),
+        el("div", { id: "start-editor-context", className: "start-context-card" }, [
+          el("div", { className: "start-context-title", textContent: "Lua Editor Connection" }),
+          el("div", { className: "start-context-pill is-offline", textContent: "Preview Only" }),
+          el("p", {
+            className: "start-context-copy",
+            textContent: "Open the programming board Lua editor to load from or save to unit.onStart."
+          }),
+        ]),
         el("div", { className: "start-menu" }, [
           el("button", {
             className: "menu-btn primary",
@@ -511,22 +559,24 @@
           ]),
           el("button", {
             className: "menu-btn",
+            id: "start-load-btn",
             dataset: { action: "load" },
           }, [
             el("span", { className: "icon", textContent: "\u27A4" }),
             el("div", { className: "label-group" }, [
               el("span", { className: "label", textContent: "Load" }),
-              el("span", { className: "desc", textContent: "Open existing layout from databank" }),
+              el("span", { className: "desc", textContent: "Open layout from unit.onStart" }),
             ]),
           ]),
           el("button", {
             className: "menu-btn",
+            id: "start-saveas-btn",
             dataset: { action: "saveas" },
           }, [
             el("span", { className: "icon", textContent: "\u2714" }),
             el("div", { className: "label-group" }, [
               el("span", { className: "label", textContent: "Save As" }),
-              el("span", { className: "desc", textContent: "Save current layout as new script" }),
+              el("span", { className: "desc", textContent: "Save current layout into unit.onStart" }),
             ]),
           ]),
         ]),
@@ -540,9 +590,11 @@
   function onNewScript() {
     var sw = 1920;
     var sh = 1080;
-    APP.state.document = {
+    APP.state.document = APP.normalizeDocumentMeta({
       version: 1,
-      revision: 0,
+      revision: 1,
+      id: APP.createLayoutId(),
+      name: "Layout",
       screenWidth: sw,
       screenHeight: sh,
       elements: [
@@ -563,7 +615,7 @@
           textAlign: "center",
         },
       ],
-    };
+    });
     APP.state.isDirty = false;
     APP.showScreen("editor");
     APP.emit("document-created", APP.state.document);
@@ -582,10 +634,31 @@
   function onMenuClick(e) {
     var btn = e.target.closest("[data-action]");
     if (!btn) return;
+    if (btn.disabled) return;
     var action = btn.dataset.action;
     if (action === "new") onNewScript();
     else if (action === "load") onLoad();
     else if (action === "saveas") onSaveAs();
+  }
+
+  function updateEditorContext(status) {
+    var root = APP.getRoot();
+    var loadBtn = qs("#start-load-btn", root);
+    var saveAsBtn = qs("#start-saveas-btn", root);
+    var card = qs("#start-editor-context", root);
+    var pill = qs(".start-context-pill", card);
+    var copy = qs(".start-context-copy", card);
+    var canUseBoard = !!(status && status.canAccessOnStart);
+
+    if (loadBtn) loadBtn.disabled = !canUseBoard;
+    if (saveAsBtn) saveAsBtn.disabled = !canUseBoard;
+
+    if (!pill || !copy) return;
+    pill.className = "start-context-pill " + (canUseBoard ? "is-online" : "is-offline");
+    pill.textContent = canUseBoard ? "Board Connected" : "Preview Only";
+    copy.textContent = canUseBoard
+      ? "Load reads the current programming board unit.onStart filter, and save writes back there."
+      : "Open the programming board Lua editor to load from or save to unit.onStart.";
   }
 
   // ─── Register with core ──────────────────────────────────────────────
@@ -595,6 +668,8 @@
       APP.showScreen("start");
     }
   });
+
+  APP.on("editor-context", updateEditorContext);
 
   function mountStartScreen() {
     var root = APP.getRoot();
@@ -608,10 +683,12 @@
     return function () {
       origInit();
       mountStartScreen();
+      updateEditorContext(APP.state.editorContext || null);
     };
   })(APP.init);
 
   mountStartScreen();
+  updateEditorContext(APP.state.editorContext || null);
 })();
 
 // --- 020-editor-shell.js ---
@@ -675,27 +752,27 @@
         // Tool buttons — SVG icon + key hint
         el("div", { className: "toolbar-group" }, [
           el("button", { className: "tool-btn active", dataset: { tool: "select" }, title: "Select (V)" }, [
-            el("span", { className: "tb-icon tb-icon-select" }),
+            el("span", { className: "tb-icon tb-icon-select tb-icon-glyph tb-icon-glyph-select", textContent: "\u2196" }),
             el("span", { className: "tb-key", textContent: "V" }),
           ]),
           el("button", { className: "tool-btn", dataset: { tool: "box" }, title: "Box (B)" }, [
-            el("span", { className: "tb-icon tb-icon-box" }),
+            el("span", { className: "tb-icon tb-icon-box tb-icon-glyph tb-icon-glyph-box", textContent: "\u25A1" }),
             el("span", { className: "tb-key", textContent: "B" }),
           ]),
           el("button", { className: "tool-btn", dataset: { tool: "rounded" }, title: "Rounded Box (R)" }, [
-            el("span", { className: "tb-icon tb-icon-rounded" }),
+            el("span", { className: "tb-icon tb-icon-rounded tb-icon-glyph tb-icon-glyph-rounded", textContent: "\u25A2" }),
             el("span", { className: "tb-key", textContent: "R" }),
           ]),
           el("button", { className: "tool-btn", dataset: { tool: "circle" }, title: "Circle (C)" }, [
-            el("span", { className: "tb-icon tb-icon-circle" }),
+            el("span", { className: "tb-icon tb-icon-circle tb-icon-glyph tb-icon-glyph-circle", textContent: "\u25CB" }),
             el("span", { className: "tb-key", textContent: "C" }),
           ]),
           el("button", { className: "tool-btn", dataset: { tool: "line" }, title: "Line (L)" }, [
-            el("span", { className: "tb-icon tb-icon-line" }),
+            el("span", { className: "tb-icon tb-icon-line tb-icon-glyph tb-icon-glyph-line", textContent: "/" }),
             el("span", { className: "tb-key", textContent: "L" }),
           ]),
           el("button", { className: "tool-btn", dataset: { tool: "text" }, title: "Text (T)" }, [
-            el("span", { className: "tb-icon tb-icon-text" }),
+            el("span", { className: "tb-icon tb-icon-text tb-icon-glyph tb-icon-glyph-text", textContent: "T" }),
             el("span", { className: "tb-key", textContent: "T" }),
           ]),
         ]),
@@ -705,24 +782,26 @@
         // Color swatches
         el("div", { className: "toolbar-group colors" }, [
           el("div", { className: "swatch-pair" }, [
-            el("input", {
-              type: "color",
-              className: "color-swatch",
-              value: "#3366FF",
-              title: "Fill color",
-              dataset: { prop: "fill" },
-            }),
             el("span", { className: "swatch-label", textContent: "Fill" }),
+            el("button", {
+              type: "button",
+              className: "color-swatch-btn",
+              title: "Fill color",
+              dataset: { colorProp: "fill", colorHex: "#3366FF" },
+            }, [
+              el("span", { className: "color-swatch-chip" }),
+            ]),
           ]),
           el("div", { className: "swatch-pair" }, [
-            el("input", {
-              type: "color",
-              className: "color-swatch",
-              value: "#FFFFFF",
-              title: "Stroke color",
-              dataset: { prop: "stroke" },
-            }),
             el("span", { className: "swatch-label", textContent: "Stroke" }),
+            el("button", {
+              type: "button",
+              className: "color-swatch-btn",
+              title: "Stroke color",
+              dataset: { colorProp: "stroke", colorHex: "#FFFFFF" },
+            }, [
+              el("span", { className: "color-swatch-chip" }),
+            ]),
           ]),
         ]),
 
@@ -822,11 +901,25 @@
           ]),
           el("div", { className: "prop-row" }, [
             el("label", { textContent: "Fill" }),
-            el("input", { type: "color", className: "prop-color", dataset: { prop: "fill" } }),
+            el("button", {
+              type: "button",
+              className: "prop-color-btn",
+              title: "Fill color",
+              dataset: { colorProp: "fill", colorHex: "#3366FF" }
+            }, [
+              el("span", { className: "prop-color-chip" }),
+            ]),
           ]),
           el("div", { className: "prop-row" }, [
             el("label", { textContent: "Stroke" }),
-            el("input", { type: "color", className: "prop-color", dataset: { prop: "stroke" } }),
+            el("button", {
+              type: "button",
+              className: "prop-color-btn",
+              title: "Stroke color",
+              dataset: { colorProp: "stroke", colorHex: "#FFFFFF" }
+            }, [
+              el("span", { className: "prop-color-chip" }),
+            ]),
           ]),
           el("div", { className: "prop-row" }, [
             el("label", { textContent: "Stroke W" }),
@@ -856,17 +949,16 @@
           el("button", {
             className: "status-btn primary",
             dataset: { action: "save" },
-            textContent: "Save",
-          }),
-          el("button", {
-            className: "status-btn",
-            dataset: { action: "save-exit" },
-            textContent: "Save + Exit",
+            textContent: "Apply + Close HUD",
           }),
         ]),
         el("div", { className: "statusbar-center" }, [
-          el("span", { className: "status-mode", textContent: "Editing" }),
-          el("span", { className: "status-hint", textContent: "Use the HUD Editor button to close" }),
+          el("span", { id: "editor-context-pill", className: "editor-context-pill is-offline", textContent: "Preview Only" }),
+          el("span", {
+            id: "editor-status-hint",
+            className: "status-hint",
+            textContent: "Open the programming board Lua editor to load or save"
+          }),
         ]),
         el("div", { className: "statusbar-right" }, [
           el("button", {
@@ -909,7 +1001,6 @@
     if (action === "undo") APP.emit("undo");
     else if (action === "redo") APP.emit("redo");
     else if (action === "save") APP.emit("save");
-    else if (action === "save-exit") APP.emit("save-exit");
     else if (action === "export-board") APP.emit("export-board");
     else if (action === "export-screen") APP.emit("export-screen");
     else if (action === "close") APP.emit("close-editor");
@@ -966,6 +1057,33 @@
     if (input) input.checked = !!APP.state.autoOpenPanels;
   }
 
+  function updateEditorContext(status) {
+    var root = APP.getRoot();
+    var saveBtn = qs('[data-action="save"]', root);
+    var pill = qs("#editor-context-pill", root);
+    var hint = qs("#editor-status-hint", root);
+    var canUseBoard = !!(status && status.canAccessOnStart);
+
+    if (saveBtn) {
+      saveBtn.textContent = canUseBoard ? "Apply + Close HUD" : "Save";
+      saveBtn.title = canUseBoard
+        ? "Write to unit.onStart and close the HUD editor after apply"
+        : "Save current layout";
+    }
+
+    if (saveBtn) saveBtn.disabled = !canUseBoard;
+
+    if (pill) {
+      pill.className = "editor-context-pill " + (canUseBoard ? "is-online" : "is-offline");
+      pill.textContent = canUseBoard ? "Board Connected" : "Preview Only";
+    }
+    if (hint) {
+      hint.textContent = canUseBoard
+        ? "Save writes directly to the current programming board unit.onStart"
+        : "Open the programming board Lua editor to load or save";
+    }
+  }
+
   function attachToolbarSettingListeners() {
     var root = APP.getRoot();
     var toolbar = qs("#editor-toolbar", root);
@@ -993,6 +1111,8 @@
     syncToolbarSettings();
   });
 
+  APP.on("editor-context", updateEditorContext);
+
   function mountEditorShell() {
     var root = APP.getRoot();
     if (qs('[data-screen="editor"]', root)) return;
@@ -1004,6 +1124,7 @@
     attachToolbarSettingListeners();
     APP.state.autoOpenPanels = loadAutoOpenPanels();
     syncToolbarSettings();
+    updateEditorContext(APP.state.editorContext || null);
 
     var statusbar = qs("#editor-statusbar", root);
     if (statusbar) statusbar.addEventListener("click", onToolbarClick);
@@ -1016,6 +1137,7 @@
     return function () {
       origInit();
       mountEditorShell();
+      updateEditorContext(APP.state.editorContext || null);
     };
   })(APP.init);
 
@@ -1589,6 +1711,7 @@
   var createCurrentY = 0;
   var tempElement = null;
   var tempDom = null;
+  var MIN_CREATE_SIZE = 10;
 
   function ensureCanvasCreateListeners() {
     var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
@@ -1634,24 +1757,14 @@
     var type = toolToType[tool];
     if (!type) return null;
 
-    var sw = APP.state.document ? APP.state.document.screenWidth : 1920;
-    var sh = APP.state.document ? APP.state.document.screenHeight : 1080;
-
-    var defaultSize = 100;
-    if (tool === "line") {
-      defaultSize = 150;
-    } else if (tool === "text") {
-      defaultSize = 200;
-    }
-
     var element = {
       id: generateId(),
       type: type,
       visible: true,
-      x: Math.max(0, Math.min(screenX - defaultSize / 2, sw - defaultSize)),
-      y: Math.max(0, Math.min(screenY - defaultSize / 2, sh - defaultSize)),
-      w: defaultSize,
-      h: defaultSize,
+      x: screenX,
+      y: screenY,
+      w: 0,
+      h: 0,
       radius: 12,
       fill: [0.15, 0.15, 0.18, 0.95],
       stroke: [0.70, 0.72, 0.76, 1.0],
@@ -1671,20 +1784,35 @@
     if (!tempElement) return;
 
     var tool = APP.state.currentTool;
-    var sx = Math.min(createStartX, screenX);
-    var sy = Math.min(createStartY, screenY);
-    var ex = Math.max(createStartX, screenX);
-    var ey = Math.max(createStartY, screenY);
+    if (tool === "line") {
+      tempElement.x = createStartX;
+      tempElement.y = createStartY;
+      tempElement.w = screenX - createStartX;
+      tempElement.h = screenY - createStartY;
+    } else {
+      var sx = Math.min(createStartX, screenX);
+      var sy = Math.min(createStartY, screenY);
+      var ex = Math.max(createStartX, screenX);
+      var ey = Math.max(createStartY, screenY);
 
-    tempElement.x = sx;
-    tempElement.y = sy;
-    tempElement.w = Math.max(10, ex - sx);
-    tempElement.h = Math.max(10, ey - sy);
+      tempElement.x = sx;
+      tempElement.y = sy;
+      tempElement.w = ex - sx;
+      tempElement.h = ey - sy;
+    }
 
     // Update the temp DOM
     if (tempDom && APP.canvas && typeof APP.canvas.applyElementStyles === "function") {
       APP.canvas.applyElementStyles(tempDom, tempElement);
     }
+  }
+
+  function hasMeaningfulSize(element) {
+    if (!element) return false;
+    if (element.type === "line") {
+      return Math.sqrt(element.w * element.w + element.h * element.h) >= MIN_CREATE_SIZE;
+    }
+    return element.w >= MIN_CREATE_SIZE && element.h >= MIN_CREATE_SIZE;
   }
 
   // ─── Finalize element creation ─────────────────────────────────────
@@ -1693,7 +1821,7 @@
     if (!tempElement) return null;
 
     // Only create if element has meaningful size
-    if (tempElement.w < 10 || tempElement.h < 10) {
+    if (!hasMeaningfulSize(tempElement)) {
       // Remove temp DOM
       if (tempDom) {
         var preview = APP.canvas && APP.canvas.getElementById ? null : null;
@@ -1804,6 +1932,14 @@
 
   function onCanvasMouseUp(e) {
     if (!isCreating) return;
+    var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
+    if (preview) {
+      var rect = preview.getBoundingClientRect();
+      var canvasX = e.clientX - rect.left;
+      var canvasY = e.clientY - rect.top;
+      var screen = APP.canvas.canvasToScreen(canvasX, canvasY);
+      updateTempElement(screen.x, screen.y);
+    }
     finalizeCreation();
   }
 
@@ -3120,6 +3256,38 @@
     return !!APP.state.autoOpenPanels;
   }
 
+  function setColorButtonValue(button, hex) {
+    if (!button) return;
+    var color = String(hex || "#ffffff");
+    button.dataset.colorHex = color;
+    button.style.setProperty("--swatch-color", color);
+    button.style.backgroundColor = color;
+    button.style.backgroundImage = "none";
+    var chip = qs(".color-swatch-chip, .prop-color-chip", button);
+    if (chip) chip.style.background = color;
+  }
+
+  function getSelectedElement() {
+    return APP.state.selectedElementId ? APP.canvas.getElementById(APP.state.selectedElementId) : null;
+  }
+
+  function getColorValueForProp(prop) {
+    var element = getSelectedElement();
+    if (!element) return [1, 1, 1, 1];
+    if (prop === "fill") return Array.isArray(element.fill) ? element.fill.slice() : [1, 1, 1, 1];
+    if (prop === "stroke") return Array.isArray(element.stroke) ? element.stroke.slice() : [1, 1, 1, 1];
+    return [1, 1, 1, 1];
+  }
+
+  function openColorDialog(prop, rgba) {
+    if (!prop) return;
+    var value = Array.isArray(rgba) ? rgba.slice(0, 4) : getColorValueForProp(prop);
+    APP.emit("color-dialog-open", {
+      prop: prop,
+      rgba: value
+    });
+  }
+
   // ─── Property sync: document → panel ───────────────────────────────
 
   function populatePanel(elementId) {
@@ -3158,17 +3326,17 @@
     // Colors — update both panel and toolbar pickers
     var fillHex   = rgbaToHex(element.fill);
     var strokeHex = rgbaToHex(element.stroke);
-    var fillInput = qs('[data-prop="fill"]', panel);
-    var strokeInput = qs('[data-prop="stroke"]', panel);
-    if (fillInput) fillInput.value = fillHex;
-    if (strokeInput) strokeInput.value = strokeHex;
+    var fillInput = qs('[data-color-prop="fill"]', panel);
+    var strokeInput = qs('[data-color-prop="stroke"]', panel);
+    setColorButtonValue(fillInput, fillHex);
+    setColorButtonValue(strokeInput, strokeHex);
 
     // Sync toolbar color pickers too
     var root = APP.getRoot ? APP.getRoot() : document;
-    var toolbarFill   = qs('#editor-toolbar [data-prop="fill"]', root);
-    var toolbarStroke = qs('#editor-toolbar [data-prop="stroke"]', root);
-    if (toolbarFill)   toolbarFill.value   = fillHex;
-    if (toolbarStroke) toolbarStroke.value = strokeHex;
+    var toolbarFill   = qs('#editor-toolbar [data-color-prop="fill"]', root);
+    var toolbarStroke = qs('#editor-toolbar [data-color-prop="stroke"]', root);
+    setColorButtonValue(toolbarFill, fillHex);
+    setColorButtonValue(toolbarStroke, strokeHex);
 
     // Text
     if (textArea) {
@@ -3229,11 +3397,11 @@
           changed = true;
           break;
         case "fill":
-          element.fill = hexToRgba(value);
+          element.fill = Array.isArray(value) ? value.slice(0, 4) : hexToRgba(value);
           changed = true;
           break;
         case "stroke":
-          element.stroke = hexToRgba(value);
+          element.stroke = Array.isArray(value) ? value.slice(0, 4) : hexToRgba(value);
           changed = true;
           break;
         case "textLines":
@@ -3348,11 +3516,14 @@
     applyPanelChange(prop, input.value);
   }
 
-  function onColorChange(e) {
-    var input = e.target;
-    var prop = input.dataset.prop;
-    if (!prop) return;
-    applyPanelChange(prop, input.value);
+  function onColorPicked(payload) {
+    if (!payload || !payload.prop) return;
+    var value = Array.isArray(payload.rgba) ? payload.rgba : payload.value;
+    if (!value) return;
+    applyPanelChange(payload.prop, value);
+    if (APP.state.selectedElementId) {
+      populatePanel(APP.state.selectedElementId);
+    }
   }
 
   function onStepperClick(e) {
@@ -3483,19 +3654,21 @@
     if (!toolbar || toolbar.__hudToolbarColorBound) return;
     toolbar.__hudToolbarColorBound = true;
 
-    toolbar.addEventListener("input", function (e) {
-      var input = e.target;
-      if (input.type !== "color") return;
-      var prop = input.dataset.prop;
+    toolbar.addEventListener("click", function (e) {
+      var button = e.target.closest("[data-color-prop]");
+      if (!button) return;
+      var prop = button.dataset.colorProp;
       if (prop !== "fill" && prop !== "stroke") return;
-      applyPanelChange(prop, input.value);
-      // Sync panel color picker too
-      var panel = qs("#properties-panel");
-      if (panel) {
-        var panelInput = qs('[data-prop="' + prop + '"]', panel);
-        if (panelInput) panelInput.value = input.value;
-      }
+      openColorDialog(prop);
     });
+  }
+
+  function onPanelColorClick(e) {
+    var button = e.target.closest("#properties-panel [data-color-prop]");
+    if (!button) return;
+    var prop = button.dataset.colorProp;
+    if (prop !== "fill" && prop !== "stroke") return;
+    openColorDialog(prop);
   }
 
   // ─── Attach panel events ───────────────────────────────────────────
@@ -3518,16 +3691,11 @@
       ta.addEventListener("input", onInputChange);
     });
 
-    // Color inputs
-    var colors = qsa("input[type='color'][data-prop]", panel);
-    colors.forEach(function (c) {
-      c.removeEventListener("input", onColorChange);
-      c.addEventListener("input", onColorChange);
-    });
-
     // Stepper clicks (+/−) and select changes — use delegation on panel
+    panel.removeEventListener("click", onPanelColorClick);
     panel.removeEventListener("click",  onStepperClick);
     panel.removeEventListener("change", onStepperChange);
+    panel.addEventListener("click", onPanelColorClick);
     panel.addEventListener("click",  onStepperClick);
     panel.addEventListener("change", onStepperChange);
   }
@@ -3560,6 +3728,8 @@
     }
   });
 
+  APP.on("color-picked", onColorPicked);
+
   APP.on("toggle-props-collapse", function () {
     toggleCollapse();
   });
@@ -3568,313 +3738,6 @@
     var panel = qs("#properties-panel");
     if (!enabled && panel) panel.classList.remove("hover-open");
   });
-
-})();
-
-// --- 080-bridge-commands.js ---
-// 080-bridge-commands.js - Command protocol to board via setInput/getOutput
-(function hudEditorBridgeCommands() {
-  "use strict";
-
-  var NS = "HudEditor";
-  var APP = window[NS];
-  if (!APP) return;
-
-  // ─── Command prefix ────────────────────────────────────────────────
-
-  var CMD_PREFIX = "he:";
-
-  var CMD = {
-    PING: "ping",
-    SYNC: "sync",
-    NEW: "new",
-    LOAD: "load",
-    SAVE: "save",
-    LIST: "list",
-    ADD: "add",
-    UPD: "upd",
-    DEL: "del",
-    SEL: "sel",
-    MOV: "mov",
-    RES: "res",
-    REND: "rend",
-  };
-
-  // ─── Bridge abstraction ────────────────────────────────────────────
-
-  // The actual bridge to board happens via setInput on the unit.
-  // In the HUD context, we don't have direct Lua access, but we can
-  // use the existing MCP bridge to send commands through the board's
-  // getInput() handler.
-
-  var pendingCommands = {};
-  var commandId = 0;
-
-  function sendCommand(cmd, args) {
-    var id = "he_" + (++commandId);
-    var payload = CMD_PREFIX + cmd;
-    if (args) {
-      payload = payload + "|" + args;
-    }
-
-    // Store pending command
-    pendingCommands[id] = {
-      cmd: cmd,
-      payload: payload,
-      timestamp: Date.now(),
-    };
-
-    // Try to send via setInput if available
-    // This requires the board to have setInput handler
-    if (typeof unit !== "undefined" && unit && typeof unit.setInput === "function") {
-      unit.setInput(payload);
-    }
-
-    return id;
-  }
-
-  // ─── Command helpers ──────────────────────────────────────────────
-
-  function ping() {
-    return sendCommand(CMD.PING);
-  }
-
-  function sync() {
-    return sendCommand(CMD.SYNC);
-  }
-
-  function newDocument(screenW, screenH) {
-    return sendCommand(CMD.NEW, screenW + "|" + screenH);
-  }
-
-  function loadDocument() {
-    return sendCommand(CMD.LOAD);
-  }
-
-  function saveDocument() {
-    return sendCommand(CMD.SAVE);
-  }
-
-  function listScripts() {
-    return sendCommand(CMD.LIST);
-  }
-
-  function addElement(element) {
-    var json = JSON.stringify(element);
-    return sendCommand(CMD.ADD, json);
-  }
-
-  function updateElement(id, updates) {
-    var json = JSON.stringify(updates);
-    return sendCommand(CMD.UPD, id + "|" + json);
-  }
-
-  function deleteElement(id) {
-    return sendCommand(CMD.DEL, id);
-  }
-
-  function selectElement(id) {
-    return sendCommand(CMD.SEL, id || "");
-  }
-
-  function moveElement(id, x, y) {
-    return sendCommand(CMD.MOV, id + "|" + x + "|" + y);
-  }
-
-  function resizeElement(id, x, y, w, h) {
-    return sendCommand(CMD.RES, id + "|" + x + "|" + y + "|" + w + "|" + h);
-  }
-
-  // ─── Event handlers ────────────────────────────────────────────────
-
-  // Handle responses from board via getOutput
-  // This would be called from the Lua side when unit.getOutput() is available
-  function handleResponse(response) {
-    if (!response || typeof response !== "string") return;
-
-    // Parse response
-    var parts = response.split("|");
-    var type = parts[0];
-
-    if (type === "pong") {
-      APP.emit("board-pong", { version: parts[1] });
-    } else if (type === "sync_response") {
-      APP.emit("board-sync", parseSyncResponse(parts));
-    } else if (type === "new_response") {
-      APP.emit("board-new", parseDocumentResponse(parts));
-    } else if (type === "load_response") {
-      APP.emit("board-load", parseDocumentResponse(parts));
-    } else if (type === "save_response") {
-      APP.emit("board-save", { ok: parts[1] === "ok" });
-    } else if (type === "add_response") {
-      APP.emit("element-added", parts[1] ? JSON.parse(parts[1]) : null);
-    } else if (type === "update_response") {
-      APP.emit("element-updated", parts[1] ? JSON.parse(parts[1]) : null);
-    } else if (type === "delete_response") {
-      APP.emit("element-deleted", parts[1]);
-    } else if (type === "select_response") {
-      APP.emit("selection-changed", parts[1]);
-    } else if (type === "move_response" || type === "resize_response") {
-      APP.emit("element-updated", parts[1] ? JSON.parse(parts[1]) : null);
-    }
-  }
-
-  function parseSyncResponse(parts) {
-    var data = {};
-    for (var i = 1; i < parts.length; i++) {
-      var kv = parts[i].split("=");
-      if (kv.length === 2) {
-        data[kv[0]] = kv[1];
-      }
-    }
-    return data;
-  }
-
-  function parseDocumentResponse(parts) {
-    // parts[1] should be JSON document
-    try {
-      return { document: parts[1] ? JSON.parse(parts[1]) : null };
-    } catch (e) {
-      return { document: null, error: e.message };
-    }
-  }
-
-  // ─── Simulated local state (for offline/testing) ─────────────────
-
-  // When the bridge isn't available, maintain a local state
-  var localState = {
-    document: null,
-    selectedId: null,
-    isDirty: false,
-  };
-
-  function applyLocalCommand(cmd, args) {
-    // Apply command locally without board
-    switch (cmd) {
-      case CMD.NEW:
-        var dims = args ? args.split("|") : ["1920", "1080"];
-        localState.document = createNewDocumentLocal(parseInt(dims[0]) || 1920, parseInt(dims[1]) || 1080);
-        localState.selectedId = null;
-        localState.isDirty = false;
-        APP.emit("document-created", localState.document);
-        break;
-
-      case CMD.ADD:
-        if (localState.document) {
-          var element = JSON.parse(args);
-          element.id = element.id || generateIdLocal();
-          localState.document.elements.push(element);
-          localState.isDirty = true;
-          APP.emit("element-added", element);
-        }
-        break;
-
-      case CMD.UPD:
-        if (localState.document) {
-          var parts2 = args.split("|");
-          var id = parts2[0];
-          var updates = JSON.parse(parts2[1]);
-          var el2 = localState.document.elements.find(function(e) { return e.id === id; });
-          if (el2) {
-            Object.assign(el2, updates);
-            localState.isDirty = true;
-            APP.emit("element-updated", id);
-          }
-        }
-        break;
-
-      case CMD.DEL:
-        if (localState.document) {
-          var idx = localState.document.elements.findIndex(function(e) { return e.id === args; });
-          if (idx >= 0) {
-            localState.document.elements.splice(idx, 1);
-            if (localState.selectedId === args) localState.selectedId = null;
-            localState.isDirty = true;
-            APP.emit("element-deleted", args);
-          }
-        }
-        break;
-
-      case CMD.SEL:
-        localState.selectedId = args || null;
-        APP.emit("selection-changed", localState.selectedId);
-        break;
-
-      case CMD.MOV:
-        if (localState.document) {
-          var parts3 = args.split("|");
-          var el3 = localState.document.elements.find(function(e) { return e.id === parts3[0]; });
-          if (el3) {
-            el3.x = parseInt(parts3[1]);
-            el3.y = parseInt(parts3[2]);
-            localState.isDirty = true;
-            APP.emit("element-updated", el3.id);
-          }
-        }
-        break;
-
-      case CMD.RES:
-        if (localState.document) {
-          var parts4 = args.split("|");
-          var el4 = localState.document.elements.find(function(e) { return e.id === parts4[0]; });
-          if (el4) {
-            el4.x = parseInt(parts4[1]);
-            el4.y = parseInt(parts4[2]);
-            el4.w = parseInt(parts4[3]);
-            el4.h = parseInt(parts4[4]);
-            localState.isDirty = true;
-            APP.emit("element-updated", el4.id);
-          }
-        }
-        break;
-    }
-  }
-
-  function createNewDocumentLocal(screenW, screenH) {
-    return {
-      version: 1,
-      revision: 0,
-      screenWidth: screenW,
-      screenHeight: screenH,
-      elements: []
-    };
-  }
-
-  function generateIdLocal() {
-    return "el_" + Math.floor(Math.random() * 0xFFFFFFFF).toString(16);
-  }
-
-  // ─── Unified command interface ───────────────────────────────────
-
-  function send(cmd, args) {
-    // Try real bridge first, fall back to local
-    if (typeof unit !== "undefined" && unit && typeof unit.setInput === "function") {
-      return sendCommand(cmd, args);
-    } else {
-      applyLocalCommand(cmd, args);
-      return null;
-    }
-  }
-
-  // ─── Public API ─────────────────────────────────────────────────
-
-  APP.bridge = {
-    send: send,
-    ping: ping,
-    sync: sync,
-    newDocument: newDocument,
-    loadDocument: loadDocument,
-    saveDocument: saveDocument,
-    listScripts: listScripts,
-    addElement: addElement,
-    updateElement: updateElement,
-    deleteElement: deleteElement,
-    selectElement: selectElement,
-    moveElement: moveElement,
-    resizeElement: resizeElement,
-    handleResponse: handleResponse,
-    getLocalState: function() { return localState; },
-  };
 
 })();
 
@@ -3936,10 +3799,10 @@
     return [
       "-- Generated by HUD Editor",
       "-- Paste into the programming board onStart filter",
+      "-- Requires HudEditorBoard.lua in library.onStart",
       "",
       "local HUD_EDITOR_BOOT_DOCUMENT = " + embedded,
       "",
-      "local HudEditorBoard = require(\"board/HudEditorBoard\")",
       "if not HudEditorBoard then",
       "    system.print(\"ERROR: Failed to load HudEditorBoard module\")",
       "    return",
@@ -4074,106 +3937,8 @@
   });
 })();
 
-// --- 090-databank-sync.js ---
-// 090-databank-sync.js - Databank persistence integration
-// Note: Actual databank I/O is done by the board Lua.
-// This module coordinates save/load between JS and board via bridge commands.
-(function hudEditorDatabankSync() {
-  "use strict";
-
-  var NS = "HudEditor";
-  var APP = window[NS];
-  if (!APP) return;
-
-  // ─── Request save to databank via board ───────────────────────
-
-  function saveToDatabank() {
-    if (APP.bridge && APP.bridge.saveDocument) {
-      APP.bridge.saveDocument();
-      return true;
-    }
-    // Fallback to localStorage
-    if (APP.fileSync) {
-      var id = APP.fileSync.save(APP.state.document && APP.state.document.name || "Layout");
-      return !!id;
-    }
-    return false;
-  }
-
-  // ─── Request load from databank via board ────────────────────
-
-  function loadFromDatabank() {
-    if (APP.bridge && APP.bridge.loadDocument) {
-      APP.bridge.loadDocument();
-      return true;
-    }
-    return false;
-  }
-
-  // ─── Request list from databank ─────────────────────────────
-
-  function listFromDatabank() {
-    if (APP.bridge && APP.bridge.listScripts) {
-      APP.bridge.listScripts();
-      return true;
-    }
-    return false;
-  }
-
-  // ─── Bridge event handlers ───────────────────────────────────
-
-  // When board confirms save
-  APP.on("board-save", function (result) {
-    if (result && result.ok) {
-      APP.state.isDirty = false;
-      APP.emit("toast", { type: "success", text: "Saved to databank" });
-    } else {
-      APP.emit("toast", { type: "error", text: "Databank save failed" });
-    }
-  });
-
-  // When board confirms load
-  APP.on("board-load", function (result) {
-    if (result && result.document) {
-      APP.state.document = result.document;
-      APP.state.isDirty = false;
-      APP.emit("document-loaded", result.document);
-      APP.emit("toast", { type: "success", text: "Loaded from databank" });
-    } else {
-      APP.emit("toast", { type: "error", text: "Databank load failed" });
-    }
-  });
-
-  // When board sends list
-  APP.on("board-list", function (result) {
-    if (result && result.scripts) {
-      APP.emit("script-list-response", result.scripts);
-    }
-  });
-
-  // When board reports error
-  APP.on("board-error", function (err) {
-    APP.emit("toast", { type: "error", text: "Board error: " + (err.message || err) });
-  });
-
-  // ─── Event forwarding from board ─────────────────────────────
-
-  // The board sends responses via setOutput which the JS reads.
-  // Since we're in the HUD context, we poll for board responses.
-  // For now, use the bridge's local state as the primary source of truth.
-
-  // ─── Public API ───────────────────────────────────────────────
-
-  APP.databank = {
-    save: saveToDatabank,
-    load: loadFromDatabank,
-    list: listFromDatabank,
-  };
-
-})();
-
-// --- 100-file-sync.js ---
-// 100-file-sync.js - Filesystem operations via localStorage or MCP bridge
+// --- 100-file-sync.web.js ---
+// 100-file-sync.web.js - Browser-only localStorage persistence for the web harness
 (function hudEditorFileSync() {
   "use strict";
 
@@ -4235,6 +4000,9 @@
     var list = [];
     for (var id in layouts) {
       if (layouts.hasOwnProperty(id)) {
+        if (!layouts[id] || !layouts[id].id || !layouts[id].document || !layouts[id].document.id) {
+          continue;
+        }
         list.push({
           id: layouts[id].id,
           name: layouts[id].name,
@@ -4265,15 +4033,16 @@
     var doc = APP.state.document;
     if (!doc) return null;
 
-    var id = doc.id || generateLayoutId();
     var finalName = (name || doc.name || "Layout").trim();
-    doc.id = id;
     doc.name = finalName;
-    var success = saveLayoutLocally(id, finalName, deepCopyDoc(doc));
+    if (!APP.normalizeDocumentMeta || !APP.normalizeDocumentMeta(doc)) {
+      return null;
+    }
+    var success = saveLayoutLocally(doc.id, doc.name, deepCopyDoc(doc));
 
     if (success) {
       APP.state.isDirty = false;
-      return id;
+      return doc.id;
     }
     return null;
   }
@@ -4289,7 +4058,11 @@
     var stored = loadLayoutLocally(id);
     if (!stored) return null;
 
-    APP.state.document = deepCopyDoc(stored.document);
+    var doc = deepCopyDoc(stored.document);
+    if (!APP.normalizeDocumentMeta || !APP.normalizeDocumentMeta(doc)) {
+      return null;
+    }
+    APP.state.document = doc;
     APP.state.selectedElementId = null;
     APP.state.isDirty = false;
     APP.emit("document-loaded", APP.state.document);
@@ -4312,6 +4085,9 @@
       if (!doc || !doc.elements) {
         return { error: "Invalid layout format" };
       }
+      if (!APP.normalizeDocumentMeta || !APP.normalizeDocumentMeta(doc)) {
+        return { error: "Layout id missing" };
+      }
       APP.state.document = doc;
       APP.state.selectedElementId = null;
       APP.state.isDirty = true;
@@ -4330,8 +4106,7 @@
   // ─── Generate unique ID ───────────────────────────────────────
 
   function generateLayoutId() {
-    return "layout_" + Math.floor(Date.now() / 1000).toString(36) +
-           "_" + Math.random().toString(36).substr(2, 5);
+    return APP.createLayoutId();
   }
 
   // ─── Bridge integration (for external file operations) ─────────
@@ -4352,16 +4127,6 @@
     var id = saveCurrentLayout(APP.state.document && APP.state.document.name || "Layout");
     if (id) {
       APP.emit("toast", { type: "success", text: "Layout saved" });
-    } else {
-      APP.emit("toast", { type: "error", text: "Save failed" });
-    }
-  });
-
-  APP.on("save-exit", function () {
-    var id = saveCurrentLayout(APP.state.document && APP.state.document.name || "Layout");
-    if (id) {
-      APP.emit("toast", { type: "success", text: "Layout saved" });
-      APP.goToStart();
     } else {
       APP.emit("toast", { type: "error", text: "Save failed" });
     }
@@ -4571,6 +4336,128 @@
   // ─── Dialog registry ───────────────────────────────────────────────
 
   var activeDialog = null;
+  var colorDialogState = {
+    prop: null,
+    rgba: [1, 1, 1, 1],
+    hue: 0
+  };
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function toFiniteNumber(value, fallback) {
+    var num = Number(value);
+    return isFinite(num) ? num : fallback;
+  }
+
+  function normalizeRgba(value) {
+    var rgba = Array.isArray(value) ? value.slice(0, 4) : [];
+    return [
+      clamp(toFiniteNumber(rgba[0], 1), 0, 1),
+      clamp(toFiniteNumber(rgba[1], 1), 0, 1),
+      clamp(toFiniteNumber(rgba[2], 1), 0, 1),
+      clamp(toFiniteNumber(rgba[3], 1), 0, 1)
+    ];
+  }
+
+  function rgbaToCss(rgba) {
+    var value = normalizeRgba(rgba);
+    return "rgba(" +
+      Math.round(value[0] * 255) + "," +
+      Math.round(value[1] * 255) + "," +
+      Math.round(value[2] * 255) + "," +
+      value[3] + ")";
+  }
+
+  function rgbToHsv(rgba) {
+    var value = normalizeRgba(rgba);
+    var r = value[0], g = value[1], b = value[2];
+    var max = Math.max(r, g, b);
+    var min = Math.min(r, g, b);
+    var delta = max - min;
+    var h = 0;
+    var s = max === 0 ? 0 : delta / max;
+    var v = max;
+
+    if (delta !== 0) {
+      if (max === r) h = ((g - b) / delta) % 6;
+      else if (max === g) h = ((b - r) / delta) + 2;
+      else h = ((r - g) / delta) + 4;
+      h *= 60;
+      if (h < 0) h += 360;
+    }
+
+    return { h: h, s: s, v: v };
+  }
+
+  function hsvToRgb(h, s, v, a) {
+    var hue = ((Number(h) % 360) + 360) % 360;
+    var sat = clamp(toFiniteNumber(s, 1), 0, 1);
+    var val = clamp(toFiniteNumber(v, 1), 0, 1);
+    var c = val * sat;
+    var x = c * (1 - Math.abs((hue / 60) % 2 - 1));
+    var m = val - c;
+    var r = 0, g = 0, b = 0;
+
+    if (hue < 60) { r = c; g = x; b = 0; }
+    else if (hue < 120) { r = x; g = c; b = 0; }
+    else if (hue < 180) { r = 0; g = c; b = x; }
+    else if (hue < 240) { r = 0; g = x; b = c; }
+    else if (hue < 300) { r = x; g = 0; b = c; }
+    else { r = c; g = 0; b = x; }
+
+    return [
+      clamp(r + m, 0, 1),
+      clamp(g + m, 0, 1),
+      clamp(b + m, 0, 1),
+      clamp(toFiniteNumber(a, 1), 0, 1)
+    ];
+  }
+
+  function formatAlpha(value) {
+    var alpha = clamp(toFiniteNumber(value, 1), 0, 1);
+    var text = alpha.toFixed(2);
+    text = text.replace(/0+$/, "").replace(/\.$/, "");
+    return text || "0";
+  }
+
+  function syncColorFields() {
+    var rgba = normalizeRgba(colorDialogState.rgba);
+    var rInput = qs("#color-r-input");
+    var gInput = qs("#color-g-input");
+    var bInput = qs("#color-b-input");
+    var aInput = qs("#color-a-input");
+    if (rInput) rInput.value = String(Math.round(rgba[0] * 255));
+    if (gInput) gInput.value = String(Math.round(rgba[1] * 255));
+    if (bInput) bInput.value = String(Math.round(rgba[2] * 255));
+    if (aInput) aInput.value = formatAlpha(rgba[3]);
+  }
+
+  function updateColorDialogUi() {
+    var rgba = normalizeRgba(colorDialogState.rgba);
+    var preview = qs("#color-preview");
+    var strip = qs("#color-strip-range");
+    if (preview) preview.style.background = rgbaToCss(rgba);
+    if (strip) strip.value = String(Math.round(colorDialogState.hue || 0));
+    syncColorFields();
+  }
+
+  function updateColorStateFromInputs() {
+    var rInput = qs("#color-r-input");
+    var gInput = qs("#color-g-input");
+    var bInput = qs("#color-b-input");
+    var aInput = qs("#color-a-input");
+    var rgba = [
+      clamp(toFiniteNumber(rInput && rInput.value, 255), 0, 255) / 255,
+      clamp(toFiniteNumber(gInput && gInput.value, 255), 0, 255) / 255,
+      clamp(toFiniteNumber(bInput && bInput.value, 255), 0, 255) / 255,
+      clamp(toFiniteNumber(aInput && aInput.value, 1), 0, 1)
+    ];
+    colorDialogState.rgba = rgba;
+    colorDialogState.hue = rgbToHsv(rgba).h;
+    updateColorDialogUi();
+  }
 
   function showDialog(name) {
     if (activeDialog) hideDialog();
@@ -4643,7 +4530,7 @@
             className: "saveas-input",
             placeholder: "my-layout",
           }),
-          el("p", { className: "save-note", textContent: "Saves to linked databank" }),
+          el("p", { className: "save-note", textContent: "Saves the current layout" }),
         ]),
         el("div", { className: "dialog-footer" }, [
           el("button", {
@@ -4661,15 +4548,77 @@
     ]);
     root.appendChild(saveasD);
 
-    // ── Close confirmation dialog ─────────────────────────────────
-    var closeD = el("div", {
-      id: "dialog-close",
+    var colorD = el("div", {
+      id: "dialog-color",
       className: "dialog-overlay",
       style: { display: "none" },
     }, [
       el("div", { className: "dialog" }, [
-        el("div", { className: "dialog-content centered" }, [
-          el("div", { className: "confirm-icon", textContent: "\u26A0" }),
+        el("div", { className: "dialog-header" }, [
+          el("h3", { textContent: "Choose Color" }),
+          el("button", {
+            className: "dialog-close",
+            dataset: { action: "close-color" },
+            textContent: "\u00D7",
+          }),
+        ]),
+        el("div", { className: "dialog-content" }, [
+          el("div", { id: "color-preview", className: "dialog-color-preview" }),
+          el("label", { className: "color-strip-label", textContent: "Color Strip" }),
+          el("input", {
+            type: "range",
+            id: "color-strip-range",
+            className: "color-strip-range",
+            min: "0",
+            max: "360",
+            step: "1",
+            value: "0",
+          }),
+          el("div", { className: "color-field-row" }, [
+            el("label", { className: "color-field", for: "color-r-input" }, [
+              el("span", { className: "color-field-label", textContent: "R" }),
+              el("input", { type: "text", id: "color-r-input", className: "color-number-input", inputmode: "numeric", maxlength: "4" }),
+            ]),
+            el("label", { className: "color-field", for: "color-g-input" }, [
+              el("span", { className: "color-field-label", textContent: "G" }),
+              el("input", { type: "text", id: "color-g-input", className: "color-number-input", inputmode: "numeric", maxlength: "4" }),
+            ]),
+            el("label", { className: "color-field", for: "color-b-input" }, [
+              el("span", { className: "color-field-label", textContent: "B" }),
+              el("input", { type: "text", id: "color-b-input", className: "color-number-input", inputmode: "numeric", maxlength: "4" }),
+            ]),
+            el("label", { className: "color-field", for: "color-a-input" }, [
+              el("span", { className: "color-field-label", textContent: "A" }),
+              el("input", { type: "text", id: "color-a-input", className: "color-number-input", inputmode: "decimal", maxlength: "4" }),
+            ]),
+          ]),
+          el("p", { className: "save-note", textContent: "R, G, B use 0-255. A uses 0-1." }),
+        ]),
+        el("div", { className: "dialog-footer" }, [
+          el("button", {
+            className: "btn secondary",
+            dataset: { action: "close-color" },
+            textContent: "Cancel",
+          }),
+          el("button", {
+            className: "btn primary",
+            dataset: { action: "confirm-color" },
+            textContent: "Apply",
+          }),
+        ]),
+      ]),
+    ]);
+    root.appendChild(colorD);
+
+    // ── Close confirmation dialog ─────────────────────────────────
+    var closeD = el("div", {
+      id: "dialog-close",
+      className: "dialog-overlay",
+        style: { display: "none" },
+      }, [
+        el("div", { className: "dialog" }, [
+          el("div", { className: "dialog-content centered" }, [
+          el("div", { className: "confirm-icon", "aria-hidden": "true" }),
           el("h3", { textContent: "Unsaved Changes" }),
           el("p", { textContent: "You have unsaved changes. What would you like to do?" }),
         ]),
@@ -4677,7 +4626,7 @@
           el("button", {
             className: "btn secondary",
             dataset: { action: "close-cancel" },
-            textContent: "Cancel",
+            textContent: "Keep Editing",
           }),
           el("button", {
             className: "btn danger",
@@ -4745,6 +4694,8 @@
       hideDialog();
     } else if (action === "close-saveas") {
       hideDialog();
+    } else if (action === "close-color") {
+      hideDialog();
     } else if (action === "close-cancel") {
       hideDialog();
     } else if (action === "close-discard") {
@@ -4752,10 +4703,20 @@
       hideDialog();
       APP.goToStart();
     } else if (action === "close-save") {
-      // Trigger save then close
-      APP.emit("save");
       hideDialog();
-      APP.goToStart();
+      if (APP.state && APP.state.editorContext && APP.state.editorContext.canAccessOnStart) {
+        APP.emit("save");
+      } else if (APP.fileSync && typeof APP.fileSync.save === "function") {
+        var id = APP.fileSync.save(APP.state.document && APP.state.document.name || "Layout");
+        if (id) {
+          APP.emit("toast", { type: "success", text: "Layout saved" });
+          APP.goToStart();
+        } else {
+          APP.emit("toast", { type: "error", text: "Save failed" });
+        }
+      } else {
+        APP.emit("save");
+      }
     } else if (action === "confirm-saveas") {
       var nameInput = qs("#saveas-name");
       var name = nameInput ? nameInput.value.trim() : "";
@@ -4763,6 +4724,32 @@
         APP.emit("saveas-confirm", name);
         hideDialog();
       }
+    } else if (action === "confirm-color") {
+      if (!colorDialogState.prop) return;
+      updateColorStateFromInputs();
+      APP.emit("color-picked", {
+        prop: colorDialogState.prop,
+        rgba: normalizeRgba(colorDialogState.rgba)
+      });
+      hideDialog();
+    }
+  }
+
+  function onDialogInput(e) {
+    if (!e.target) return;
+    if (e.target.id === "color-strip-range") {
+      colorDialogState.hue = clamp(toFiniteNumber(e.target.value, 0), 0, 360);
+      colorDialogState.rgba = hsvToRgb(colorDialogState.hue, 1, 1, colorDialogState.rgba[3]);
+      updateColorDialogUi();
+      return;
+    }
+    if (
+      e.target.id === "color-r-input" ||
+      e.target.id === "color-g-input" ||
+      e.target.id === "color-b-input" ||
+      e.target.id === "color-a-input"
+    ) {
+      updateColorStateFromInputs();
     }
   }
 
@@ -4792,6 +4779,19 @@
     if (input) input.value = "";
   });
 
+  APP.on("color-dialog-open", function (payload) {
+    colorDialogState.prop = payload && payload.prop ? String(payload.prop) : null;
+    colorDialogState.rgba = normalizeRgba(payload && payload.rgba);
+    colorDialogState.hue = rgbToHsv(colorDialogState.rgba).h;
+    showDialog("color");
+    updateColorDialogUi();
+    var input = qs("#color-r-input");
+    if (input) {
+      if (typeof input.focus === "function") input.focus();
+      if (typeof input.select === "function") input.select();
+    }
+  });
+
   APP.on("close-editor", function () {
     if (APP.state.isDirty) {
       showDialog("close");
@@ -4819,6 +4819,7 @@
       // Attach click delegation to dialogs
       var root = APP.getRoot();
       root.addEventListener("click", onDialogClick);
+      root.addEventListener("input", onDialogInput);
       var scriptList = qs("#script-list", root);
       if (scriptList) {
         scriptList.addEventListener("click", onScriptListClick);
@@ -4831,6 +4832,7 @@
     buildDialogs();
     var root = APP.getRoot();
     root.addEventListener("click", onDialogClick);
+    root.addEventListener("input", onDialogInput);
     var scriptList = qs("#script-list", root);
     if (scriptList) {
       scriptList.addEventListener("click", onScriptListClick);

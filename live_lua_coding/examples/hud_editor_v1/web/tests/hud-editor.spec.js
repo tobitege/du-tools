@@ -21,6 +21,22 @@ test('loads Lua Painter harness and opens editor', async ({ page }) => {
 
   await expect(page.locator('#canvas-preview')).toBeVisible()
   await expect(page.locator('#editor-toolbar')).toBeVisible()
+
+  const generated = await page.evaluate(() => {
+    const doc = window.HudEditor.state.document
+    return {
+      id: doc.id,
+      name: doc.name,
+      revision: doc.revision,
+      code: window.HudEditor.ideExport.buildBoardOnStartCode(doc),
+    }
+  })
+
+  expect(generated.id).toMatch(/^ly_/)
+  expect(generated.name).toBe('Layout')
+  expect(generated.revision).toBe(1)
+  expect(generated.code).toContain('revision = 1')
+  expect(generated.code).toContain(`id = "${generated.id}"`)
 })
 
 test('loads all-shapes fixture into the canvas', async ({ page }) => {
@@ -31,6 +47,7 @@ test('loads all-shapes fixture into the canvas', async ({ page }) => {
 
   await expect(page.locator('#canvas-preview .canvas-element')).toHaveCount(5)
   await expect(page.locator('#harness-state')).toContainText('All Shapes Fixture')
+  await expect.poll(async () => page.evaluate(() => window.HudEditor.state.document.id)).toBe('fixture_all_shapes')
 })
 
 test('selects each shape from the all-shapes fixture by clicking', async ({ page }) => {
@@ -82,7 +99,7 @@ test('properties panel shows selected shape fill/stroke and steppers', async ({ 
   await page.locator('.canvas-element[data-element-id="box_1"]').click()
   await expect(page.locator('#properties-panel')).toBeVisible()
 
-  const fillHex = await page.locator('#properties-panel input[data-prop="fill"]').inputValue()
+  const fillHex = await page.locator('#properties-panel [data-color-prop="fill"]').getAttribute('data-color-hex')
   expect(fillHex.toLowerCase()).toBe('#264073')
 
   const swVal = await page.locator('#properties-panel .stepper-select[data-prop="strokeWidth"]').inputValue()
@@ -113,7 +130,7 @@ test('toolbar fill/stroke pickers sync when shape selected', async ({ page }) =>
   await page.locator('.canvas-element[data-element-id="box_1"]').click()
 
   // Toolbar fill should now reflect box_1's fill (#264073)
-  const toolbarFill = await page.locator('#editor-toolbar input[data-prop="fill"]').inputValue()
+  const toolbarFill = await page.locator('#editor-toolbar [data-color-prop="fill"]').getAttribute('data-color-hex')
   expect(toolbarFill.toLowerCase()).toBe('#264073')
 })
 
@@ -137,4 +154,47 @@ test('switching away from select tool clears selection', async ({ page }) => {
 
   // No selection overlay should remain
   await expect(page.locator('.selection-overlay')).toHaveCount(0)
+})
+
+test('line tool only creates a line after a drag, not a click', async ({ page }) => {
+  await page.goto('/web/index.html')
+
+  await ensureHarnessExpanded(page)
+  await page.getByRole('button', { name: 'New Script' }).first().click()
+  await expect(page.locator('#canvas-preview')).toBeVisible()
+
+  await page.locator('button[data-tool="line"]').click()
+  await expect(page.locator('button[data-tool="line"]')).toHaveClass(/active/)
+
+  const beforeCount = await page.evaluate(() => window.HudEditor.state.document.elements.length)
+
+  await page.locator('#canvas-preview').click({ position: { x: 360, y: 180 } })
+
+  const afterClickCount = await page.evaluate(() => window.HudEditor.state.document.elements.length)
+  expect(afterClickCount).toBe(beforeCount)
+
+  const previewBox = await page.locator('#canvas-preview').boundingBox()
+  expect(previewBox).not.toBeNull()
+
+  const startX = previewBox.x + 420
+  const startY = previewBox.y + 220
+  const endX = previewBox.x + 560
+  const endY = previewBox.y + 280
+
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+  await page.mouse.move(endX, endY)
+  await page.mouse.up()
+
+  const created = await page.evaluate(() => {
+    const doc = window.HudEditor.state.document
+    return doc.elements[doc.elements.length - 1]
+  })
+
+  expect(created.type).toBe('line')
+  expect(created.w).toBeGreaterThan(0)
+  expect(created.h).toBeGreaterThan(0)
+
+  const afterDragCount = await page.evaluate(() => window.HudEditor.state.document.elements.length)
+  expect(afterDragCount).toBe(beforeCount + 1)
 })

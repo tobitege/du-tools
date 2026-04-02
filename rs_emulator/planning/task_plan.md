@@ -11,7 +11,7 @@ The planning work should describe the target architecture, data model, phases, r
 
 ## Current Phase
 
-Planning is complete. Ongoing implementation follow-up is tracked in [progress.md](/d:/github/du-tobi/rs_emulator/planning/progress.md).
+Planning is complete. Ongoing implementation follow-up is tracked in [progress.md](rs_emulator/planning/progress.md).
 
 ## Phases
 
@@ -80,5 +80,5 @@ Planning is complete. Ongoing implementation follow-up is tracked in [progress.m
 
 ## Notes
 
-- Primary baseline file: [svg-work-patches.md](/d:/github/du-tobi/rs_emulator/svg-work-patches.md)
-- Planning papers: [svg-classifier-plan.md](/d:/github/du-tobi/rs_emulator/planning/svg-classifier-plan.md) and [svg-shape-library-plan.md](/d:/github/du-tobi/rs_emulator/planning/svg-shape-library-plan.md)
+- Primary baseline file: [svg-work-patches.md](rs_emulator/svg-work-patches.md)
+- Planning papers: [svg-classifier-plan.md](rs_emulator/planning/svg-classifier-plan.md) and [svg-shape-library-plan.md](rs_emulator/planning/svg-shape-library-plan.md)

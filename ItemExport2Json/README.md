@@ -6,7 +6,7 @@ CLI to export the myDU ItemBank to YAML and JSON via Orleans GameplayBank.
 
 ```bash
 cd ItemExport2Json
- dotnet build
+dotnet build
 ```
 
 ## Run (host)
@@ -26,3 +26,20 @@ Outputs:
 - itembank.json
 
 Override filenames with env vars OUT_YAML and OUT_JSON.
+
+Example console output:
+
+```ps
+> .\bin\Debug\net8.0\ItemExport2Json.exe      
+Reading config...
+could parse config file at 'dual.yaml'
+Building services...
+Starting services...
+Services started.
+Exporting ItemBank...
+YAML received, length=1345956
+Wrote YAML to D:\github\du-tobi\ItemExport2Json\itembank.yaml
+Parsed 5575 YAML documents.
+Wrote JSON to D:\github\du-tobi\ItemExport2Json\itembank.json
+Export complete.
+```
