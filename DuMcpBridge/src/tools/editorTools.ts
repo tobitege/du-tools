@@ -1933,7 +1933,7 @@ export function registerEditorTools(
     {
       title: "Invoke UI probe (generic)",
       description:
-        "Generic probe_call wrapper. `lua_editor` supports the public Lua probe API; `screen_editor` currently supports `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`. For current live behavior, `screen_editor cancel` performs its own delayed native `Escape` cleanup after the probe close. For the same `playerId`, do not parallelize Lua-editor UI calls with each other.",
+        "Generic probe_call wrapper. `lua_editor` supports the public Lua probe API; `screen_editor` currently supports `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`. For current live behavior, `screen_editor apply` and `screen_editor cancel` perform their own delayed native `Escape` cleanup after the probe-driven close. For the same `playerId`, do not parallelize Lua-editor UI calls with each other.",
       inputSchema: {
         uiKind: uiKindSchema,
         playerId: z.number().int().nonnegative().describe("Target player ID"),
@@ -1990,7 +1990,7 @@ export function registerEditorTools(
         ? Math.max(timeoutMs, (settleMs ?? 1000) + 5000)
         : timeoutMs;
       const probeResult = await enqueueAndWaitUiProbe(commandQueue, eventStore, uiKind, playerId, method, probeArgs, effectiveTimeout);
-      if (uiKind === "screen_editor" && method === "cancel" && probeResult.found && probeResult.success) {
+      if (uiKind === "screen_editor" && (method === "cancel" || method === "apply") && probeResult.found && probeResult.success) {
         const cleanup = await runEditorEscapeCleanup(
           commandQueue,
           eventStore,
@@ -2001,7 +2001,7 @@ export function registerEditorTools(
         );
         const combinedSuccess = cleanup.nativeOk && cleanup.finalDescribe.found && cleanup.finalDescribe.success === true;
         const combinedPayload = {
-          cancel: {
+          action: {
             commandId: probeResult.commandId,
             resultJson: probeResult.resultJson,
             error: probeResult.error
@@ -2027,7 +2027,7 @@ export function registerEditorTools(
             success: combinedSuccess,
             createdAtUtc: probeResult.createdAtUtc,
             resultJson: JSON.stringify(combinedPayload, null, 2),
-            error: combinedSuccess ? null : cleanup.native.nativeResult?.error || cleanup.finalDescribe.error || `${uiKind}_cancel_cleanup_failed`
+            error: combinedSuccess ? null : cleanup.native.nativeResult?.error || cleanup.finalDescribe.error || `${uiKind}_${method}_cleanup_failed`
           },
           effectiveTimeout,
           method
