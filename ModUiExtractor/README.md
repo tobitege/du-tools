@@ -35,7 +35,7 @@ This repo now includes:
 - Added probe reinjection hot-reload so override JS edits can be applied in-session on the next inject.
 - Added Lua editor QoL probe features: per-context top-line restore, and a caret-line highlight toggle next to font size controls.
 - Removed compile-time assembly conflict warnings by aligning Orleans/Microsoft.Extensions references to DU runtime DLLs while keeping the mod target at `net6.0`.
-- Increased probe control visibility: larger `LINE HL` toggle button and larger top-right `LUA PROBE ACTIVE` badge.
+- Increased probe control visibility: larger `LINE HL` toggle button and clearer probe-owned editor controls.
 
 ### 2026-02-21 (Lua Probe Hardening Session)
 
@@ -254,7 +254,7 @@ After each edit:
 2. In-game, open element context menu.
 3. Click `UI Extractor\Inject LUA editor probe`.
 4. Re-open or refocus Lua editor (`Edit Lua script (Ctrl + L)`).
-5. Confirm probe is active (`LUA PROBE ACTIVE` badge in top-right).
+5. Confirm probe is active (probe-owned controls like the runtime-module kebab, theme dots, or `IDE Sync` are visible).
 
 No DLL rebuild needed for:
 
@@ -354,7 +354,7 @@ Der Probe-State stellt dafuer intern `ensureThemeCatalogLoaded(...)` und `receiv
 1. In-game open element context menu.
 2. Click `UI Extractor\Inject LUA editor probe`.
 3. Open editor from `Edit Lua script`.
-4. Confirm `LUA PROBE ACTIVE` badge is visible.
+4. Confirm probe-owned editor controls are visible (for example the runtime-module kebab or theme dots).
 
 Expected telemetry:
 

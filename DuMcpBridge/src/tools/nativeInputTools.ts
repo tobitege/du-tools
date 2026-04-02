@@ -71,6 +71,9 @@ const nativeEditorOpenOutputSchema = {
   activeBefore: z.boolean().nullable(),
   activeAfter: z.boolean().nullable(),
   sendEscapeFirst: z.boolean(),
+  recoveryAttempted: z.boolean(),
+  recoveryEscapeSent: z.boolean(),
+  recoveryReturnToWorldSent: z.boolean(),
   sendMode: z.string().nullable(),
   commandId: z.string().nullable(),
   openedUiKind: z.enum(["lua_editor", "screen_editor"]).nullable(),
@@ -604,7 +607,7 @@ export function registerNativeInputTools(
       const resolvedAhkPath = ahkPath ?? options?.defaultAhkPath ?? null;
       const native = await runNativeAhkInput("ctrl_l", windowTitle, activateWindow, sendEscapeFirst, null, 1, 120, resolvedAhkPath);
       const nativeOk = native.nativeResult?.ok === true;
-      const selection = nativeOk
+      let selection = nativeOk
         ? await waitForAnyEditorVisible(commandQueue, eventStore, playerId, timeoutMs)
         : {
             editorReady: false,
@@ -618,6 +621,27 @@ export function registerNativeInputTools(
             mode: null,
             codeLength: null
           };
+      let recoveryAttempted = false;
+      let recoveryEscapeSent = false;
+      let recoveryReturnToWorldSent = false;
+
+      if (!selection.editorReady && nativeOk && !sendEscapeFirst) {
+        recoveryAttempted = true;
+        const escapeRecovery = await runNativeAhkInput("send_key", windowTitle, activateWindow, false, "Escape", 1, 120, resolvedAhkPath);
+        recoveryEscapeSent = escapeRecovery.nativeResult?.ok === true;
+        if (recoveryEscapeSent) {
+          await sleepMs(250);
+          const retryNative = await runNativeAhkInput("ctrl_l", windowTitle, activateWindow, false, null, 1, 120, resolvedAhkPath);
+          if (retryNative.nativeResult?.ok === true) {
+            selection = await waitForAnyEditorVisible(commandQueue, eventStore, playerId, timeoutMs);
+          }
+
+          if (!selection.editorReady) {
+            const returnToWorld = await runNativeAhkInput("send_key", windowTitle, activateWindow, false, "Escape", 1, 120, resolvedAhkPath);
+            recoveryReturnToWorldSent = returnToWorld.nativeResult?.ok === true;
+          }
+        }
+      }
 
       const structuredContent = {
         invoked: nativeOk,
@@ -630,6 +654,9 @@ export function registerNativeInputTools(
         activeBefore: native.nativeResult ? native.nativeResult.activeBefore : null,
         activeAfter: native.nativeResult ? native.nativeResult.activeAfter : null,
         sendEscapeFirst,
+        recoveryAttempted,
+        recoveryEscapeSent,
+        recoveryReturnToWorldSent,
         sendMode: native.nativeResult?.sendMode || null,
         commandId: selection.commandId,
         openedUiKind: selection.openedUiKind,

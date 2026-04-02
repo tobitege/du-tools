@@ -228,6 +228,20 @@
     }
   }
 
+  function getRuntimeModuleMenuIds() {
+    var ids = Array.isArray(state.runtimeModuleIds) ? state.runtimeModuleIds.slice() : [];
+    if (ids.length <= 1) {
+      return ids;
+    }
+    var visibleIds = [];
+    for (var i = 0; i < ids.length; i += 1) {
+      if (ids[i] !== "example-module") {
+        visibleIds.push(ids[i]);
+      }
+    }
+    return visibleIds.length > 0 ? visibleIds : ids;
+  }
+
   function removeRuntimeModuleMenu() {
     var ids = [
       "ModUiExtractor-runtime-module-style",
@@ -448,11 +462,12 @@
       return;
     }
 
-    var expectedKey = state.runtimeModuleIds.join("|");
+    var menuIds = getRuntimeModuleMenuIds();
+    var expectedKey = menuIds.join("|");
     var needsRebuild = list.getAttribute("data-runtime-module-key") !== expectedKey;
     if (!needsRebuild) {
-      for (var checkIndex = 0; checkIndex < state.runtimeModuleIds.length; checkIndex += 1) {
-        if (!document.getElementById("ModUiExtractor-runtime-module-row-" + state.runtimeModuleIds[checkIndex])) {
+      for (var checkIndex = 0; checkIndex < menuIds.length; checkIndex += 1) {
+        if (!document.getElementById("ModUiExtractor-runtime-module-row-" + menuIds[checkIndex])) {
           needsRebuild = true;
           break;
         }
@@ -463,7 +478,7 @@
       list.innerHTML = "";
       list.setAttribute("data-runtime-module-key", expectedKey);
 
-      if (!state.runtimeModuleIds.length) {
+      if (!menuIds.length) {
         var empty = document.createElement("div");
         empty.className = "ModUiExtractor-runtime-module-empty";
         empty.textContent = "No runtime modules detected.";
@@ -472,8 +487,8 @@
         return;
       }
 
-      for (var i = 0; i < state.runtimeModuleIds.length; i += 1) {
-        var record = getRuntimeModuleRecord(state.runtimeModuleIds[i]);
+      for (var i = 0; i < menuIds.length; i += 1) {
+        var record = getRuntimeModuleRecord(menuIds[i]);
         if (!record) {
           continue;
         }

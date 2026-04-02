@@ -29,14 +29,19 @@ test('loads Lua Painter harness and opens editor', async ({ page }) => {
       name: doc.name,
       revision: doc.revision,
       code: window.HudEditor.ideExport.buildBoardOnStartCode(doc),
+      screenCode: window.HudEditor.ideExport.buildScreenCode(doc),
     }
   })
 
   expect(generated.id).toMatch(/^ly_/)
   expect(generated.name).toBe('Layout')
   expect(generated.revision).toBe(1)
-  expect(generated.code).toContain('revision = 1')
-  expect(generated.code).toContain(`id = "${generated.id}"`)
+  expect(generated.code).toContain('revision=1')
+  expect(generated.code).toContain(`id="${generated.id}"`)
+  expect(generated.screenCode).toContain('local D=')
+  expect(generated.screenCode).toContain('local l=createLayer()')
+  expect(generated.screenCode).toContain('addBoxRounded')
+  expect(generated.screenCode).not.toContain('function onDraw')
 })
 
 test('loads all-shapes fixture into the canvas', async ({ page }) => {

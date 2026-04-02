@@ -20,6 +20,7 @@
   var luaEditorEnhancementModuleId = "lua-editor-enhancements";
   var themeCatalogStorageKey = "ModUiExtractor.lua.theme-catalog.flowery-daisy.v2";
   var mcpResultChunkSize = 7000;
+  var luaApplyCloseHoldDelayMs = 2000;
 
   function cloneJsonValue(value, fallbackValue) {
     try {
@@ -191,6 +192,9 @@
     skipNextSetCodeRestore: false,
     suppressRestoreUntilInteraction: true,
     cursorGuardCodeMirror: null,
+    luaApplyCloseHoldUntil: 0,
+    luaApplyCloseHoldTimerId: 0,
+    luaApplyCloseSeq: 0,
     screenEditorVisible: false,
     screenLastRestoredContextKey: "",
     screenPreferenceRestoreContextKey: "",
@@ -491,6 +495,21 @@
     return null;
   }
 
+  function getResolvedSelectedLuaSlotName() {
+    try {
+      if (typeof getSlotNodes !== "function" || typeof getSlotName !== "function" || typeof isSelectedNode !== "function") {
+        return "";
+      }
+      var slotNodes = getSlotNodes();
+      for (var i = 0; i < slotNodes.length; i += 1) {
+        if (isSelectedNode(slotNodes[i])) {
+          return String(getSlotName(slotNodes[i]) || "").trim();
+        }
+      }
+    } catch (_ignoreResolvedLuaSlotName) {}
+    return "";
+  }
+
   function getLuaIdeSyncReference() {
     var manager = window.LUAEditorManager || null;
     var currentData = manager && manager.currentData ? manager.currentData : null;
@@ -499,15 +518,32 @@
     var currentSlotData = currentSlot && currentSlot.slotData ? currentSlot.slotData : null;
     var lastReference = state.lastInitDemReference || null;
     var parsedSelfSlot = lastReference && lastReference.parsedSelfSlot ? lastReference.parsedSelfSlot : null;
+    var resolvedSlotName = getResolvedSelectedLuaSlotName();
+    var managerSlotName = currentSlot && typeof currentSlot.name !== "undefined" && currentSlot.name !== null
+      ? String(currentSlot.name)
+      : "";
+    var lastSlotName = lastReference && typeof lastReference.currentSlotName !== "undefined" && lastReference.currentSlotName !== null
+      ? String(lastReference.currentSlotName)
+      : "";
+    var effectiveSlotName = resolvedSlotName || managerSlotName || lastSlotName || null;
+    var slotMatchesManager = !resolvedSlotName ||
+      !managerSlotName ||
+      normalizeIdeSyncValue(resolvedSlotName) === normalizeIdeSyncValue(managerSlotName);
     var slotElementName = null;
     var constructId = cfg && typeof cfg.constructId !== "undefined" ? cfg.constructId : null;
 
     try {
-      if (currentSlotData && typeof currentSlotData.slotElementName !== "undefined" && currentSlotData.slotElementName !== null) {
+      if (slotMatchesManager && currentSlotData && typeof currentSlotData.slotElementName !== "undefined" && currentSlotData.slotElementName !== null) {
         slotElementName = currentSlotData.slotElementName;
-      } else if (parsedSelfSlot && typeof parsedSelfSlot.slotElementName !== "undefined" && parsedSelfSlot.slotElementName !== null) {
+      } else if (parsedSelfSlot &&
+          typeof parsedSelfSlot.slotElementName !== "undefined" &&
+          parsedSelfSlot.slotElementName !== null &&
+          normalizeIdeSyncValue(parsedSelfSlot.name || "") === normalizeIdeSyncValue(effectiveSlotName || "")) {
         slotElementName = parsedSelfSlot.slotElementName;
-      } else if (lastReference && typeof lastReference.currentSlotElementName !== "undefined" && lastReference.currentSlotElementName !== null) {
+      } else if (lastReference &&
+          typeof lastReference.currentSlotElementName !== "undefined" &&
+          lastReference.currentSlotElementName !== null &&
+          normalizeIdeSyncValue(lastSlotName) === normalizeIdeSyncValue(effectiveSlotName || "")) {
         slotElementName = lastReference.currentSlotElementName;
       }
     } catch (_ignoreLuaIdeSyncSlotElementName) {}
@@ -536,13 +572,23 @@
       currentFilterSignature = String(lastReference.currentFilterSignature);
     }
 
+    var managerFilterSignature = "";
+    if (currentFilter && typeof currentFilter.signature !== "undefined" && currentFilter.signature !== null && String(currentFilter.signature)) {
+      managerFilterSignature = String(currentFilter.signature);
+    } else if (currentFilter && typeof currentFilter.name !== "undefined" && currentFilter.name !== null && String(currentFilter.name)) {
+      managerFilterSignature = String(currentFilter.name);
+    }
+    var filterMatchesManager = !currentFilterSignature ||
+      !managerFilterSignature ||
+      normalizeIdeSyncValue(currentFilterSignature) === normalizeIdeSyncValue(managerFilterSignature);
+
     return {
       constructId: constructId,
       editorTitle: typeof getLuaEditorTitleForDebug === "function" ? getLuaEditorTitleForDebug() : "",
       slotElementName: slotElementName,
-      currentSlotName: currentSlot && typeof currentSlot.name !== "undefined" ? currentSlot.name : null,
-      currentSlotKey: currentSlot && typeof currentSlot.slotKey !== "undefined" ? currentSlot.slotKey : null,
-      currentFilterKey: currentFilter && typeof currentFilter.key !== "undefined" ? currentFilter.key : null,
+      currentSlotName: effectiveSlotName,
+      currentSlotKey: slotMatchesManager && currentSlot && typeof currentSlot.slotKey !== "undefined" ? currentSlot.slotKey : null,
+      currentFilterKey: filterMatchesManager && currentFilter && typeof currentFilter.key !== "undefined" ? currentFilter.key : null,
       currentFilterSignature: currentFilterSignature
     };
   }
@@ -730,9 +776,29 @@
       reasons.push("construct_id_mismatch");
     }
 
+    var expectedSlotName = normalizeIdeSyncValue(expected.currentSlotName);
+    var currentSlotName = normalizeIdeSyncValue(current.currentSlotName);
+    if (expectedSlotName) {
+      if (!currentSlotName) {
+        reasons.push("slot_name_missing");
+      } else if (expectedSlotName !== currentSlotName) {
+        reasons.push("slot_name_mismatch");
+      }
+    }
+
+    var expectedFilterSignature = normalizeIdeSyncValue(expected.currentFilterSignature);
+    var currentFilterSignature = normalizeIdeSyncValue(current.currentFilterSignature);
+    if (expectedFilterSignature) {
+      if (!currentFilterSignature) {
+        reasons.push("filter_signature_missing");
+      } else if (expectedFilterSignature !== currentFilterSignature) {
+        reasons.push("filter_signature_mismatch");
+      }
+    }
+
     var expectedSlotElementName = normalizeIdeSyncValue(expected.slotElementName);
     var currentSlotElementName = normalizeIdeSyncValue(current.slotElementName);
-    if (expectedSlotElementName) {
+    if (expectedSlotElementName && !expectedSlotName) {
       if (!currentSlotElementName) {
         reasons.push("slot_element_name_missing");
       } else if (expectedSlotElementName !== currentSlotElementName) {
@@ -871,7 +937,9 @@
     var staleBase = !!(baseCodeHash32 && currentCodeHash32 && baseCodeHash32 !== currentCodeHash32);
 
     try {
-      if (targetKind === "screen_editor") {
+      if (typeof setCodeForProbeTarget === "function") {
+        setCodeForProbeTarget(targetKind, code);
+      } else if (targetKind === "screen_editor") {
         if (typeof setScreenEditorCode !== "function") {
           throw new Error("screen_editor_sync_unavailable");
         }
@@ -1901,31 +1969,6 @@
       + "outline:1px dashed rgba(250,212,122,0.75);outline-offset:-1px;}";
 
     (document.head || document.documentElement).appendChild(style);
-  }
-
-  function addProbeBadge() {
-    var existing = document.getElementById("ModUiExtractor-lua-probe-badge");
-    if (existing) {
-      return;
-    }
-
-    var badge = document.createElement("div");
-    badge.id = "ModUiExtractor-lua-probe-badge";
-    badge.textContent = "LUA PROBE ACTIVE";
-    badge.style.position = "fixed";
-    badge.style.bottom = "14px";
-    badge.style.left = "14px";
-    badge.style.zIndex = "999999";
-    badge.style.background = "rgba(8,16,20,0.9)";
-    badge.style.color = "#fad47a";
-    badge.style.border = "2px solid rgba(250,212,122,0.9)";
-    badge.style.padding = "8px 14px";
-    badge.style.fontSize = "15px";
-    badge.style.letterSpacing = "0.6px";
-    badge.style.fontFamily = "monospace";
-    badge.style.pointerEvents = "none";
-
-    document.body.appendChild(badge);
   }
 
   function textOf(node) {
@@ -5445,6 +5488,8 @@
         codeLength: 0,
         selectedSlot: null,
         selectedFilter: null,
+        contextKey: "",
+        reference: null,
         slots: [],
         filters: []
       };
@@ -5523,6 +5568,20 @@
       }
     } catch (_ignoreResolvedSelectedFilter) {}
 
+    var ideSyncContextKey = "";
+    var ideSyncReference = null;
+    try {
+      if (typeof getIdeSyncSnapshot === "function") {
+        var ideSyncSnapshot = getIdeSyncSnapshot("lua_editor");
+        if (ideSyncSnapshot && typeof ideSyncSnapshot === "object") {
+          ideSyncContextKey = typeof ideSyncSnapshot.contextKey === "string" ? ideSyncSnapshot.contextKey : "";
+          if (ideSyncSnapshot.reference && typeof ideSyncSnapshot.reference === "object") {
+            ideSyncReference = cloneIdeSyncObject(ideSyncSnapshot.reference);
+          }
+        }
+      }
+    } catch (_ignoreIdeSyncSnapshot) {}
+
     return {
       visible: true,
       title: titleNode ? String(titleNode.textContent || "").trim() : "",
@@ -5531,6 +5590,8 @@
       codeLength: code.length,
       selectedSlot: selectedSlot,
       selectedFilter: selectedFilter,
+      contextKey: ideSyncContextKey,
+      reference: ideSyncReference,
       slots: slots,
       filters: filters
     };
@@ -6433,7 +6494,17 @@
         function() {
           var currentRoot = getLuaEditorRoot();
           if (!isElementVisible(currentRoot || root)) {
-            return resultValue;
+            var out = {};
+            var key = null;
+            if (resultValue && typeof resultValue === "object") {
+              for (key in resultValue) {
+                if (Object.prototype.hasOwnProperty.call(resultValue, key)) {
+                  out[key] = resultValue[key];
+                }
+              }
+            }
+            out.editorClosed = true;
+            return out;
           }
           return null;
         },
@@ -6456,8 +6527,7 @@
     if (cancelNode && typeof cancelNode.click === "function") {
       cancelNode.click();
       return waitForLuaEditorClosedAsync({
-        cancelled: true,
-        editorClosed: !isElementVisible(getLuaEditorRoot())
+        cancelled: true
       });
     }
     throw new Error("lua_editor_cancel_button_not_found");
@@ -8904,7 +8974,11 @@
       });
       var result = null;
       try {
-        result = fn.apply(this, arguments);
+        if (hooks && typeof hooks.invoke === "function") {
+          result = hooks.invoke.call(this, fn, args, hookContext);
+        } else {
+          result = fn.apply(this, arguments);
+        }
       } catch (err) {
         sendPacket("lua_manager_call_error", {
           method: methodName,
@@ -8933,6 +9007,44 @@
 
   function wrapManagerMethod(manager, methodName) {
     wrapManagerMethodWithHooks(manager, methodName, null);
+  }
+
+  function clearLuaApplyCloseHoldTimer() {
+    try {
+      if (state.luaApplyCloseHoldTimerId) {
+        window.clearTimeout(state.luaApplyCloseHoldTimerId);
+      }
+    } catch (_ignoreLuaApplyHoldTimer) {}
+    state.luaApplyCloseHoldTimerId = 0;
+  }
+
+  function clearLuaApplyCloseHoldState() {
+    clearLuaApplyCloseHoldTimer();
+    state.luaApplyCloseHoldUntil = 0;
+  }
+
+  function armLuaApplyCloseHold(reason) {
+    var delayMs = Math.max(0, parseInt(String(luaApplyCloseHoldDelayMs || 0), 10) || 0);
+    clearLuaApplyCloseHoldTimer();
+    state.luaApplyCloseSeq = (state.luaApplyCloseSeq || 0) + 1;
+    state.luaApplyCloseHoldUntil = delayMs > 0 ? Date.now() + delayMs : 0;
+    var payload = {
+      seq: state.luaApplyCloseSeq,
+      delayMs: delayMs,
+      holdUntilUtc: state.luaApplyCloseHoldUntil > 0 ? new Date(state.luaApplyCloseHoldUntil).toISOString() : null,
+      reason: String(reason || "apply"),
+      context: getContextSnapshot()
+    };
+    sendPacket("lua_apply_close_hold_armed", payload);
+    return payload;
+  }
+
+  function getLuaApplyCloseHoldRemainingMs() {
+    var until = Number(state.luaApplyCloseHoldUntil || 0);
+    if (!(until > 0)) {
+      return 0;
+    }
+    return Math.max(0, until - Date.now());
   }
 
   function restoreSnippetAfterSwitch(info) {
@@ -9360,6 +9472,52 @@
       }
     });
 
+    wrapManagerMethodWithHooks(manager, "apply", {
+      before: function () {
+        return armLuaApplyCloseHold("apply");
+      }
+    });
+
+    wrapManagerMethodWithHooks(manager, "cancel", {
+      invoke: function (originalFn, args) {
+        var remainingMs = getLuaApplyCloseHoldRemainingMs();
+        if (!(remainingMs > 0)) {
+          clearLuaApplyCloseHoldState();
+          return originalFn.apply(this, args || []);
+        }
+
+        var callThis = this;
+        var queuedSeq = state.luaApplyCloseSeq || 0;
+        clearLuaApplyCloseHoldTimer();
+        state.luaApplyCloseHoldTimerId = window.setTimeout(function () {
+          state.luaApplyCloseHoldTimerId = 0;
+          state.luaApplyCloseHoldUntil = 0;
+          try {
+            sendPacket("lua_apply_close_hold_release", {
+              seq: queuedSeq,
+              delayedMs: remainingMs,
+              context: getContextSnapshot()
+            });
+            originalFn.apply(callThis, args || []);
+          } catch (err) {
+            sendPacket("lua_apply_close_hold_release_error", {
+              seq: queuedSeq,
+              delayedMs: remainingMs,
+              error: String(err && err.message ? err.message : err),
+              context: getContextSnapshot()
+            });
+          }
+        }, remainingMs);
+
+        sendPacket("lua_apply_close_hold_delay", {
+          seq: queuedSeq,
+          delayedMs: remainingMs,
+          context: getContextSnapshot()
+        });
+        return void 0;
+      }
+    });
+
     wrapManagerMethodWithHooks(manager, "setCodeLuaEditor", {
       before: function (args) {
         var targetSnippetKey = getSnippetMemoryKeyFromCode(args && args.length > 0 ? args[0] : null);
@@ -9714,6 +9872,20 @@
     }
   }
 
+  function getRuntimeModuleMenuIds() {
+    var ids = Array.isArray(state.runtimeModuleIds) ? state.runtimeModuleIds.slice() : [];
+    if (ids.length <= 1) {
+      return ids;
+    }
+    var visibleIds = [];
+    for (var i = 0; i < ids.length; i += 1) {
+      if (ids[i] !== "example-module") {
+        visibleIds.push(ids[i]);
+      }
+    }
+    return visibleIds.length > 0 ? visibleIds : ids;
+  }
+
   function removeRuntimeModuleMenu() {
     var ids = [
       "ModUiExtractor-runtime-module-style",
@@ -9934,11 +10106,12 @@
       return;
     }
 
-    var expectedKey = state.runtimeModuleIds.join("|");
+    var menuIds = getRuntimeModuleMenuIds();
+    var expectedKey = menuIds.join("|");
     var needsRebuild = list.getAttribute("data-runtime-module-key") !== expectedKey;
     if (!needsRebuild) {
-      for (var checkIndex = 0; checkIndex < state.runtimeModuleIds.length; checkIndex += 1) {
-        if (!document.getElementById("ModUiExtractor-runtime-module-row-" + state.runtimeModuleIds[checkIndex])) {
+      for (var checkIndex = 0; checkIndex < menuIds.length; checkIndex += 1) {
+        if (!document.getElementById("ModUiExtractor-runtime-module-row-" + menuIds[checkIndex])) {
           needsRebuild = true;
           break;
         }
@@ -9949,7 +10122,7 @@
       list.innerHTML = "";
       list.setAttribute("data-runtime-module-key", expectedKey);
 
-      if (!state.runtimeModuleIds.length) {
+      if (!menuIds.length) {
         var empty = document.createElement("div");
         empty.className = "ModUiExtractor-runtime-module-empty";
         empty.textContent = "No runtime modules detected.";
@@ -9958,8 +10131,8 @@
         return;
       }
 
-      for (var i = 0; i < state.runtimeModuleIds.length; i += 1) {
-        var record = getRuntimeModuleRecord(state.runtimeModuleIds[i]);
+      for (var i = 0; i < menuIds.length; i += 1) {
+        var record = getRuntimeModuleRecord(menuIds[i]);
         if (!record) {
           continue;
         }
@@ -10100,7 +10273,6 @@
     installFreshOpenViewportGuard();
     resetEditorViewportToTop();
 
-    addProbeBadge();
     ensureThemeSwitcher();
     ensureIdeSyncButton();
     ensureEditorSwitchHooks();
@@ -10119,6 +10291,7 @@
 
   function onEditorClosed() {
     clearPendingSlotAutoOpen();
+    clearLuaApplyCloseHoldState();
     clearActiveFilterMarker();
     state.activeFilterIndex = -1;
     state.activeFilterFingerprint = "";
@@ -10210,6 +10383,7 @@
     } catch (_ignoreFiltersObserver) {}
 
     clearPendingSlotAutoOpen();
+    clearLuaApplyCloseHoldState();
     removeFreshOpenViewportGuard();
 
     try {
@@ -10298,7 +10472,6 @@
 
     var removableIds = [
       "ModUiExtractor-lua-probe-style",
-      "ModUiExtractor-lua-probe-badge",
       "ModUiExtractor-lua-theme-dots",
       "ModUiExtractor-lua-caret-toggle",
       "ModUiExtractor-lua-ide-sync",

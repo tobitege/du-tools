@@ -87,3 +87,37 @@ MCP client
   -> D:\MyDUserver\tmp\ui-dumps\mcp-bridge\events\bridge-events.ndjson
   -> DuMcpBridge / logmgr
 ```
+
+## Preferred Lua Workflow
+
+For live Programming Board work, prefer the higher-level Lua tools instead of stitching together multiple low-level calls.
+
+Preferred tools:
+
+- `du_open_lua_context`
+  - opens the Lua editor if needed
+  - waits for a real live Lua editor snapshot
+  - performs one guarded open recovery if the first `Ctrl+L` path fails
+  - selects the requested slot and filter
+  - returns the final verified live context
+
+- `du_push_lua_context_code`
+  - opens the requested Lua context if needed
+  - stages a tracked local source file into that exact slot and filter
+  - verifies that the visible live buffer matches the expected code hash
+
+Use those as the default path for normal board work such as:
+
+1. open `library.onStart()`
+2. push a tracked repo file into that context
+3. inspect or save only after the live buffer is verified
+
+Lower-level tools still exist and are useful for diagnostics:
+
+- `du_open_editor_native`
+- `du_ui_describe`
+- `du_ui_invoke`
+- `du_editor_push_code`
+- `du_editor_save`
+
+But they should no longer be the normal first choice when the goal is simply "open this Lua slot/filter and work there deterministically."

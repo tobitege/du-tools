@@ -246,7 +246,11 @@
       });
       var result = null;
       try {
-        result = fn.apply(this, arguments);
+        if (hooks && typeof hooks.invoke === "function") {
+          result = hooks.invoke.call(this, fn, args, hookContext);
+        } else {
+          result = fn.apply(this, arguments);
+        }
       } catch (err) {
         sendPacket("lua_manager_call_error", {
           method: methodName,
@@ -275,6 +279,44 @@
 
   function wrapManagerMethod(manager, methodName) {
     wrapManagerMethodWithHooks(manager, methodName, null);
+  }
+
+  function clearLuaApplyCloseHoldTimer() {
+    try {
+      if (state.luaApplyCloseHoldTimerId) {
+        window.clearTimeout(state.luaApplyCloseHoldTimerId);
+      }
+    } catch (_ignoreLuaApplyHoldTimer) {}
+    state.luaApplyCloseHoldTimerId = 0;
+  }
+
+  function clearLuaApplyCloseHoldState() {
+    clearLuaApplyCloseHoldTimer();
+    state.luaApplyCloseHoldUntil = 0;
+  }
+
+  function armLuaApplyCloseHold(reason) {
+    var delayMs = Math.max(0, parseInt(String(luaApplyCloseHoldDelayMs || 0), 10) || 0);
+    clearLuaApplyCloseHoldTimer();
+    state.luaApplyCloseSeq = (state.luaApplyCloseSeq || 0) + 1;
+    state.luaApplyCloseHoldUntil = delayMs > 0 ? Date.now() + delayMs : 0;
+    var payload = {
+      seq: state.luaApplyCloseSeq,
+      delayMs: delayMs,
+      holdUntilUtc: state.luaApplyCloseHoldUntil > 0 ? new Date(state.luaApplyCloseHoldUntil).toISOString() : null,
+      reason: String(reason || "apply"),
+      context: getContextSnapshot()
+    };
+    sendPacket("lua_apply_close_hold_armed", payload);
+    return payload;
+  }
+
+  function getLuaApplyCloseHoldRemainingMs() {
+    var until = Number(state.luaApplyCloseHoldUntil || 0);
+    if (!(until > 0)) {
+      return 0;
+    }
+    return Math.max(0, until - Date.now());
   }
 
   function restoreSnippetAfterSwitch(info) {
@@ -699,6 +741,52 @@
       },
       after: function (args, _result, hookContext) {
         emitInitDemObserved(args, hookContext);
+      }
+    });
+
+    wrapManagerMethodWithHooks(manager, "apply", {
+      before: function () {
+        return armLuaApplyCloseHold("apply");
+      }
+    });
+
+    wrapManagerMethodWithHooks(manager, "cancel", {
+      invoke: function (originalFn, args) {
+        var remainingMs = getLuaApplyCloseHoldRemainingMs();
+        if (!(remainingMs > 0)) {
+          clearLuaApplyCloseHoldState();
+          return originalFn.apply(this, args || []);
+        }
+
+        var callThis = this;
+        var queuedSeq = state.luaApplyCloseSeq || 0;
+        clearLuaApplyCloseHoldTimer();
+        state.luaApplyCloseHoldTimerId = window.setTimeout(function () {
+          state.luaApplyCloseHoldTimerId = 0;
+          state.luaApplyCloseHoldUntil = 0;
+          try {
+            sendPacket("lua_apply_close_hold_release", {
+              seq: queuedSeq,
+              delayedMs: remainingMs,
+              context: getContextSnapshot()
+            });
+            originalFn.apply(callThis, args || []);
+          } catch (err) {
+            sendPacket("lua_apply_close_hold_release_error", {
+              seq: queuedSeq,
+              delayedMs: remainingMs,
+              error: String(err && err.message ? err.message : err),
+              context: getContextSnapshot()
+            });
+          }
+        }, remainingMs);
+
+        sendPacket("lua_apply_close_hold_delay", {
+          seq: queuedSeq,
+          delayedMs: remainingMs,
+          context: getContextSnapshot()
+        });
+        return void 0;
       }
     });
 

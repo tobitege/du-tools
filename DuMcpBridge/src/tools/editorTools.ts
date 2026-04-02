@@ -22,7 +22,8 @@ const stagedImportOutputSchema = {
   codeUtf8Bytes: z.number().int().nonnegative(),
   codeHash32: z.string(),
   codeSha256: z.string(),
-  hasContextMetadata: z.boolean()
+  hasContextMetadata: z.boolean(),
+  contextSource: z.enum(["none", "workspace_metadata", "live_probe"])
 };
 
 const queuedCommandOutputSchema = {
@@ -66,6 +67,55 @@ const luaWaitEditorOutputSchema = {
   success: z.boolean().nullable(),
   createdAtUtc: z.string().nullable(),
   resultJson: z.string().nullable(),
+  error: z.string().nullable()
+};
+
+const luaOpenContextOutputSchema = {
+  invoked: z.boolean(),
+  editorReady: z.boolean(),
+  alreadyVisible: z.boolean(),
+  waitedMs: z.number().int().nonnegative(),
+  ahkPath: z.string().nullable(),
+  scriptPath: z.string().nullable(),
+  windowTitle: z.string(),
+  targetHwnd: z.string().nullable(),
+  activeBefore: z.boolean().nullable(),
+  activeAfter: z.boolean().nullable(),
+  recoveryAttempted: z.boolean(),
+  recoveryEscapeSent: z.boolean(),
+  recoveryReturnToWorldSent: z.boolean(),
+  sendMode: z.string().nullable(),
+  openCommandId: z.string().nullable(),
+  selectCommandId: z.string().nullable(),
+  title: z.string().nullable(),
+  selectedSlot: z.string().nullable(),
+  selectedFilter: z.string().nullable(),
+  resultJson: z.string().nullable(),
+  error: z.string().nullable()
+};
+
+const luaPushContextOutputSchema = {
+  editorReady: z.boolean(),
+  staged: z.boolean(),
+  verified: z.boolean(),
+  playerId: z.number().int().nonnegative(),
+  sourcePath: z.string(),
+  requestId: z.string().nullable(),
+  contextSource: z.enum(["none", "workspace_metadata", "live_probe"]).nullable(),
+  codeCharLength: z.number().int().nonnegative().nullable(),
+  codeHash32: z.string().nullable(),
+  workspacePath: z.string().nullable(),
+  metadataPath: z.string().nullable(),
+  importPath: z.string().nullable(),
+  openCommandId: z.string().nullable(),
+  selectCommandId: z.string().nullable(),
+  verifyCommandId: z.string().nullable(),
+  verifyWaitedMs: z.number().int().nonnegative(),
+  recoveryAttempted: z.boolean(),
+  title: z.string().nullable(),
+  selectedSlot: z.string().nullable(),
+  selectedFilter: z.string().nullable(),
+  verifyResultJson: z.string().nullable(),
   error: z.string().nullable()
 };
 
@@ -824,6 +874,8 @@ function parseEditorDescribeSnapshot(
   title: string | null;
   selectedSlot: string | null;
   selectedFilter: string | null;
+  contextKey: string | null;
+  reference: Record<string, unknown> | null;
 } {
   try {
     const parsed = parseJsonObject(payloadJson);
@@ -831,22 +883,452 @@ function parseEditorDescribeSnapshot(
       visible: typeof parsed?.visible === "boolean" ? parsed.visible : null,
       title: typeof parsed?.title === "string" ? parsed.title : null,
       selectedSlot: typeof parsed?.selectedSlot === "string" ? parsed.selectedSlot : null,
-      selectedFilter: typeof parsed?.selectedFilter === "string" ? parsed.selectedFilter : null
+      selectedFilter: typeof parsed?.selectedFilter === "string" ? parsed.selectedFilter : null,
+      contextKey: typeof parsed?.contextKey === "string" ? parsed.contextKey : null,
+      reference:
+        parsed?.reference && typeof parsed.reference === "object" && !Array.isArray(parsed.reference)
+          ? parsed.reference as Record<string, unknown>
+          : null
     };
   } catch {
     return {
       visible: null,
       title: null,
       selectedSlot: null,
-      selectedFilter: null
+      selectedFilter: null,
+      contextKey: null,
+      reference: null
     };
   }
+}
+
+async function resolveLiveIdeImportContext(
+  commandQueue: BridgeCommandQueue,
+  eventStore: BridgeEventStore,
+  targetKind: EditorUiKind,
+  playerId: number
+): Promise<{
+  contextKey: string;
+  reference: Record<string, unknown>;
+}> {
+  const probeResult = await enqueueAndWaitUiProbe(commandQueue, eventStore, targetKind, playerId, "describe", [], 5000);
+  const snapshot = parseEditorDescribeSnapshot(probeResult.resultJson);
+
+  if (!probeResult.found) {
+    throw new Error(`live_${targetKind}_describe_timeout`);
+  }
+  if (probeResult.success !== true) {
+    throw new Error(probeResult.error ?? `live_${targetKind}_describe_failed`);
+  }
+  if (snapshot.visible !== true) {
+    throw new Error(`${targetKind}_not_visible`);
+  }
+  if (targetKind === "lua_editor" && (!snapshot.selectedSlot || !snapshot.selectedFilter)) {
+    throw new Error("lua_editor_context_incomplete");
+  }
+
+  if (snapshot.reference) {
+    return {
+      contextKey: snapshot.contextKey ?? "",
+      reference: snapshot.reference
+    };
+  }
+
+  if (targetKind === "lua_editor") {
+    return {
+      contextKey: "",
+      reference: {
+        editorTitle: snapshot.title,
+        currentSlotName: snapshot.selectedSlot,
+        currentFilterSignature: snapshot.selectedFilter
+      }
+    };
+  }
+
+  throw new Error(`live_${targetKind}_ide_sync_context_missing`);
 }
 
 function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+async function waitForLuaEditorReady(
+  commandQueue: BridgeCommandQueue,
+  eventStore: BridgeEventStore,
+  playerId: number,
+  maxWaitMs: number,
+  timeoutMs: number
+): Promise<{
+  ready: boolean;
+  waitedMs: number;
+  probe: ProbeResultSnapshot;
+  snapshot: ReturnType<typeof parseEditorDescribeSnapshot>;
+}> {
+  const started = Date.now();
+  let last: ProbeResultSnapshot = {
+    found: false,
+    commandId: "",
+    method: null,
+    success: null,
+    createdAtUtc: null,
+    resultJson: null,
+    error: null
+  };
+  let lastSnapshot = parseEditorDescribeSnapshot(null);
+
+  while (Date.now() - started <= maxWaitMs) {
+    const remainingBudget = maxWaitMs - (Date.now() - started);
+    const attemptTimeout = Math.min(timeoutMs, Math.max(250, remainingBudget));
+    last = await enqueueAndWaitUiProbe(commandQueue, eventStore, "lua_editor", playerId, "describe", [], attemptTimeout);
+    lastSnapshot = parseEditorDescribeSnapshot(last.resultJson);
+    const parsed = parseJsonObject(last.resultJson);
+    if (last.found && last.success && parsed && uiSnapshotLooksReady("lua_editor", parsed, true)) {
+      return {
+        ready: true,
+        waitedMs: Date.now() - started,
+        probe: last,
+        snapshot: lastSnapshot
+      };
+    }
+
+    const remaining = maxWaitMs - (Date.now() - started);
+    if (remaining <= 0) {
+      break;
+    }
+    await sleepMs(Math.min(250, remaining));
+  }
+
+  return {
+    ready: false,
+    waitedMs: Date.now() - started,
+    probe: last,
+    snapshot: lastSnapshot
+  };
+}
+
+async function openLuaContext(
+  commandQueue: BridgeCommandQueue,
+  eventStore: BridgeEventStore,
+  playerId: number,
+  slotName: string,
+  filterName: string,
+  settleMs: number,
+  timeoutMs: number,
+  probeTimeoutMs: number,
+  activateWindow: boolean,
+  windowTitle: string,
+  ahkPath: string | undefined,
+  defaultAhkPath: string | null
+): Promise<{
+  invoked: boolean;
+  editorReady: boolean;
+  alreadyVisible: boolean;
+  waitedMs: number;
+  ahkPath: string | null;
+  scriptPath: string | null;
+  windowTitle: string;
+  targetHwnd: string | null;
+  activeBefore: boolean | null;
+  activeAfter: boolean | null;
+  recoveryAttempted: boolean;
+  recoveryEscapeSent: boolean;
+  recoveryReturnToWorldSent: boolean;
+  sendMode: string | null;
+  openCommandId: string | null;
+  selectCommandId: string | null;
+  title: string | null;
+  selectedSlot: string | null;
+  selectedFilter: string | null;
+  resultJson: string | null;
+  error: string | null;
+}> {
+  const initial = await enqueueAndWaitUiProbe(commandQueue, eventStore, "lua_editor", playerId, "describe", [], probeTimeoutMs);
+  const initialSnapshot = parseEditorDescribeSnapshot(initial.resultJson);
+  const initialParsed = parseJsonObject(initial.resultJson);
+  const alreadyVisible = initial.found && initial.success === true && !!initialParsed && uiSnapshotLooksReady("lua_editor", initialParsed, true);
+
+  let invoked = false;
+  let waitedMs = 0;
+  let openProbeCommandId: string | null = initial.commandId || null;
+  let openSnapshot = initialSnapshot;
+  let nativeResult = {
+    ahkPath: ahkPath ?? defaultAhkPath,
+    scriptPath: null as string | null,
+    nativeResult: null as Awaited<ReturnType<typeof runNativeAhkInput>>["nativeResult"],
+    nativeResultJson: null as string | null
+  };
+  let recoveryAttempted = false;
+  let recoveryEscapeSent = false;
+  let recoveryReturnToWorldSent = false;
+
+  if (!alreadyVisible) {
+    invoked = true;
+    nativeResult = await runNativeAhkInput(
+      "ctrl_l",
+      windowTitle,
+      activateWindow,
+      false,
+      null,
+      1,
+      120,
+      ahkPath ?? defaultAhkPath
+    );
+    if (nativeResult.nativeResult?.ok !== true) {
+      return {
+        invoked,
+        editorReady: false,
+        alreadyVisible,
+        waitedMs: 0,
+        ahkPath: nativeResult.ahkPath,
+        scriptPath: nativeResult.scriptPath,
+        windowTitle,
+        targetHwnd: nativeResult.nativeResult?.targetHwnd || null,
+        activeBefore: nativeResult.nativeResult?.activeBefore ?? null,
+        activeAfter: nativeResult.nativeResult?.activeAfter ?? null,
+        recoveryAttempted,
+        recoveryEscapeSent,
+        recoveryReturnToWorldSent,
+        sendMode: nativeResult.nativeResult?.sendMode || null,
+        openCommandId: null,
+        selectCommandId: null,
+        title: null,
+        selectedSlot: null,
+        selectedFilter: null,
+        resultJson: null,
+        error: nativeResult.nativeResult?.error || "native_open_failed"
+      };
+    }
+
+    let openResult = await waitForLuaEditorReady(commandQueue, eventStore, playerId, timeoutMs, probeTimeoutMs);
+    waitedMs = openResult.waitedMs;
+    openProbeCommandId = openResult.probe.commandId || null;
+    openSnapshot = openResult.snapshot;
+
+    if (!openResult.ready) {
+      recoveryAttempted = true;
+      const escapeRecovery = await runNativeAhkInput(
+        "send_key",
+        windowTitle,
+        activateWindow,
+        false,
+        "Escape",
+        1,
+        120,
+        ahkPath ?? defaultAhkPath
+      );
+      recoveryEscapeSent = escapeRecovery.nativeResult?.ok === true;
+
+      if (recoveryEscapeSent) {
+        await sleepMs(250);
+        nativeResult = await runNativeAhkInput(
+          "ctrl_l",
+          windowTitle,
+          activateWindow,
+          false,
+          null,
+          1,
+          120,
+          ahkPath ?? defaultAhkPath
+        );
+        if (nativeResult.nativeResult?.ok === true) {
+          openResult = await waitForLuaEditorReady(commandQueue, eventStore, playerId, timeoutMs, probeTimeoutMs);
+          waitedMs += openResult.waitedMs;
+          openProbeCommandId = openResult.probe.commandId || openProbeCommandId;
+          openSnapshot = openResult.snapshot;
+        }
+      }
+
+      if (!(openSnapshot.visible === true)) {
+        const returnToWorld = await runNativeAhkInput(
+          "send_key",
+          windowTitle,
+          activateWindow,
+          false,
+          "Escape",
+          1,
+          120,
+          ahkPath ?? defaultAhkPath
+        );
+        recoveryReturnToWorldSent = returnToWorld.nativeResult?.ok === true;
+      }
+    }
+  }
+
+  if (openSnapshot.visible !== true) {
+    return {
+      invoked,
+      editorReady: false,
+      alreadyVisible,
+      waitedMs,
+      ahkPath: nativeResult.ahkPath,
+      scriptPath: nativeResult.scriptPath,
+      windowTitle,
+      targetHwnd: nativeResult.nativeResult?.targetHwnd || null,
+      activeBefore: nativeResult.nativeResult?.activeBefore ?? null,
+      activeAfter: nativeResult.nativeResult?.activeAfter ?? null,
+      recoveryAttempted,
+      recoveryEscapeSent,
+      recoveryReturnToWorldSent,
+      sendMode: nativeResult.nativeResult?.sendMode || null,
+      openCommandId: openProbeCommandId,
+      selectCommandId: null,
+      title: openSnapshot.title,
+      selectedSlot: openSnapshot.selectedSlot,
+      selectedFilter: openSnapshot.selectedFilter,
+      resultJson: initial.resultJson,
+      error: "lua_editor_not_ready"
+    };
+  }
+
+  const selectArgs = buildUiProbeArgs("lua_editor", "select_context", {
+    slotName,
+    filterName,
+    settleMs
+  });
+  const effectiveSelectTimeout = Math.max(probeTimeoutMs, settleMs + 5000);
+  const selected = await enqueueAndWaitUiProbe(
+    commandQueue,
+    eventStore,
+    "lua_editor",
+    playerId,
+    "select_context",
+    selectArgs,
+    effectiveSelectTimeout
+  );
+  const selectedSnapshot = parseEditorDescribeSnapshot(selected.resultJson);
+  const editorReady = selected.found && selected.success === true &&
+    selectedSnapshot.visible === true &&
+    selectedSnapshot.selectedSlot === slotName &&
+    selectedSnapshot.selectedFilter === filterName;
+
+  return {
+    invoked,
+    editorReady,
+    alreadyVisible,
+    waitedMs,
+    ahkPath: nativeResult.ahkPath,
+    scriptPath: nativeResult.scriptPath,
+    windowTitle,
+    targetHwnd: nativeResult.nativeResult?.targetHwnd || null,
+    activeBefore: nativeResult.nativeResult?.activeBefore ?? null,
+    activeAfter: nativeResult.nativeResult?.activeAfter ?? null,
+    recoveryAttempted,
+    recoveryEscapeSent,
+    recoveryReturnToWorldSent,
+    sendMode: nativeResult.nativeResult?.sendMode || null,
+    openCommandId: openProbeCommandId,
+    selectCommandId: selected.commandId,
+    title: selectedSnapshot.title,
+    selectedSlot: selectedSnapshot.selectedSlot,
+    selectedFilter: selectedSnapshot.selectedFilter,
+    resultJson: selected.resultJson,
+    error: editorReady ? null : (selected.error ?? "lua_context_not_ready")
+  };
+}
+
+async function stageEditorIdeImport(
+  commandQueue: BridgeCommandQueue,
+  eventStore: BridgeEventStore,
+  playerId: number,
+  targetKind: EditorUiKind,
+  sourcePath: string
+) {
+  const liveContext = await resolveLiveIdeImportContext(commandQueue, eventStore, targetKind, playerId);
+  return commandQueue.stageIdeImportFromFile({
+    playerId,
+    targetKind,
+    sourcePath,
+    contextKeyOverride: liveContext.contextKey,
+    referenceOverride: liveContext.reference
+  });
+}
+
+function buildLuaBufferHashVerifyFunctionBody(expectedHash32: string, expectedLength: number): string {
+  return [
+    "function computeHash32(text) {",
+    "  var hash = 0x811c9dc5;",
+    "  for (var index = 0; index < text.length; index += 1) {",
+    "    var code = text.charCodeAt(index);",
+    "    var lowByte = code & 0xff;",
+    "    var highByte = (code >>> 8) & 0xff;",
+    "    hash = Math.imul((hash ^ lowByte) >>> 0, 0x01000193) >>> 0;",
+    "    hash = Math.imul((hash ^ highByte) >>> 0, 0x01000193) >>> 0;",
+    "  }",
+    "  return ('00000000' + (hash >>> 0).toString(16)).slice(-8);",
+    "}",
+    "var manager = window.LUAEditorManager || null;",
+    "var code = '';",
+    "if (manager && typeof manager.getCodeLuaEditor === 'function') {",
+    "  code = String(manager.getCodeLuaEditor() || '');",
+    "} else if (manager && typeof manager.getLuaEditor === 'function') {",
+    "  var cm = manager.getLuaEditor();",
+    "  code = cm && typeof cm.getValue === 'function' ? String(cm.getValue() || '') : '';",
+    "}",
+    "var hash32 = computeHash32(code);",
+    `var expectedHash32 = ${JSON.stringify(expectedHash32)};`,
+    `var expectedLength = ${JSON.stringify(expectedLength)};`,
+    "return {",
+    "  ok: true,",
+    "  codeLength: code.length,",
+    "  hash32: hash32,",
+    "  matches: code.length === expectedLength && hash32 === expectedHash32",
+    "};"
+  ].join("\n");
+}
+
+async function verifyLuaContextBuffer(
+  commandQueue: BridgeCommandQueue,
+  eventStore: BridgeEventStore,
+  playerId: number,
+  expectedHash32: string,
+  expectedLength: number,
+  maxWaitMs: number,
+  probeTimeoutMs: number,
+  pollIntervalMs: number
+): Promise<{
+  verified: boolean;
+  waitedMs: number;
+  probe: ProbeResultSnapshot;
+}> {
+  const started = Date.now();
+  const functionBody = buildLuaBufferHashVerifyFunctionBody(expectedHash32, expectedLength);
+  let last: ProbeResultSnapshot = {
+    found: false,
+    commandId: "",
+    method: null,
+    success: null,
+    createdAtUtc: null,
+    resultJson: null,
+    error: null
+  };
+
+  while (Date.now() - started <= maxWaitMs) {
+    const remainingBudget = maxWaitMs - (Date.now() - started);
+    const attemptTimeout = Math.min(probeTimeoutMs, Math.max(250, remainingBudget));
+    last = await enqueueAndWaitUiProbe(commandQueue, eventStore, "lua_editor", playerId, "raw_eval", [functionBody], attemptTimeout);
+    const parsed = parseJsonObject(last.resultJson);
+    if (last.found && last.success === true && parsed?.matches === true) {
+      return {
+        verified: true,
+        waitedMs: Date.now() - started,
+        probe: last
+      };
+    }
+
+    const remaining = maxWaitMs - (Date.now() - started);
+    if (remaining <= 0) {
+      break;
+    }
+    await sleepMs(Math.min(pollIntervalMs, remaining));
+  }
+
+  return {
+    verified: false,
+    waitedMs: Date.now() - started,
+    probe: last
+  };
 }
 
 async function runEditorEscapeCleanup(
@@ -901,11 +1383,7 @@ export function registerEditorTools(
       outputSchema: stagedImportOutputSchema
     },
     async ({ playerId, targetKind, sourcePath }) => {
-      const result = await commandQueue.stageIdeImportFromFile({
-        playerId,
-        targetKind,
-        sourcePath
-      });
+      const result = await stageEditorIdeImport(commandQueue, eventStore, playerId, targetKind, sourcePath);
 
       await eventStore.appendSystemEvent({
         eventId: `evt-${result.requestId}`,
@@ -926,7 +1404,8 @@ export function registerEditorTools(
           codeUtf8Bytes: result.codeUtf8Bytes,
           codeHash32: result.codeHash32,
           codeSha256: result.codeSha256,
-          hasContextMetadata: result.hasContextMetadata
+          hasContextMetadata: result.hasContextMetadata,
+          contextSource: result.contextSource
         }
       });
 
@@ -943,7 +1422,8 @@ export function registerEditorTools(
         codeUtf8Bytes: result.codeUtf8Bytes,
         codeHash32: result.codeHash32,
         codeSha256: result.codeSha256,
-        hasContextMetadata: result.hasContextMetadata
+        hasContextMetadata: result.hasContextMetadata,
+        contextSource: result.contextSource
       };
 
       return {
@@ -1453,7 +1933,7 @@ export function registerEditorTools(
     {
       title: "Invoke UI probe (generic)",
       description:
-        "Generic probe_call wrapper. `lua_editor` supports the public Lua probe API; `screen_editor` currently supports `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`. For current live `screen_editor` behavior, `cancel` also performs a delayed native `Escape` cleanup automatically after the probe close. For the same `playerId`, do not parallelize Lua-editor UI calls with each other.",
+        "Generic probe_call wrapper. `lua_editor` supports the public Lua probe API; `screen_editor` currently supports `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`. For current live behavior, `screen_editor cancel` performs its own delayed native `Escape` cleanup after the probe close. For the same `playerId`, do not parallelize Lua-editor UI calls with each other.",
       inputSchema: {
         uiKind: uiKindSchema,
         playerId: z.number().int().nonnegative().describe("Target player ID"),
@@ -1547,7 +2027,7 @@ export function registerEditorTools(
             success: combinedSuccess,
             createdAtUtc: probeResult.createdAtUtc,
             resultJson: JSON.stringify(combinedPayload, null, 2),
-            error: combinedSuccess ? null : cleanup.native.nativeResult?.error || cleanup.finalDescribe.error || "screen_editor_cancel_cleanup_failed"
+            error: combinedSuccess ? null : cleanup.native.nativeResult?.error || cleanup.finalDescribe.error || `${uiKind}_cancel_cleanup_failed`
           },
           effectiveTimeout,
           method
@@ -1790,6 +2270,184 @@ export function registerEditorTools(
   );
 
   server.registerTool(
+    "du_open_lua_context",
+    {
+      title: "Open Lua Editor Context",
+      description:
+        "Opens the Programming Board Lua editor if needed, waits for a live Lua editor snapshot, selects the requested slot/filter, and returns the final verified context in one deterministic call.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Target player ID"),
+        slotName: z.string().min(1).describe("Lua slot to activate, for example `library`"),
+        filterName: z.string().min(1).describe("Visible Lua handler/filter signature, for example `onStart()`"),
+        settleMs: z.number().int().min(1000).max(15000).default(1500).describe("Minimum wait after slot confirmation before final describe"),
+        timeoutMs: z.number().int().min(500).max(30000).default(10000).describe("Maximum total wait for the Lua editor to appear"),
+        probeTimeoutMs: z.number().int().min(250).max(15000).default(8000).describe("Timeout for individual describe/select probe calls"),
+        activateWindow: z.boolean().default(true).describe("When true, activate the Dual Universe window before native open"),
+        windowTitle: z.string().default("Dual Universe").describe("Window title substring used to locate the Dual Universe client"),
+        ahkPath: z.string().min(1).optional().describe("Optional AutoHotkey v2 exe path or directory override")
+      },
+      outputSchema: luaOpenContextOutputSchema
+    },
+    async ({ playerId, slotName, filterName, settleMs, timeoutMs, probeTimeoutMs, activateWindow, windowTitle, ahkPath }) => {
+      const structuredContent = await openLuaContext(
+        commandQueue,
+        eventStore,
+        playerId,
+        slotName,
+        filterName,
+        settleMs,
+        timeoutMs,
+        probeTimeoutMs,
+        activateWindow,
+        windowTitle,
+        ahkPath,
+        options?.defaultAhkPath ?? null
+      );
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(structuredContent, null, 2)
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
+  server.registerTool(
+    "du_push_lua_context_code",
+    {
+      title: "Push Lua Context Code",
+      description:
+        "Opens the Programming Board Lua editor context if needed, stages a local source file into that exact slot/filter, and verifies the visible live buffer matches the expected code hash.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Target player ID"),
+        sourcePath: z.string().min(1).describe("Absolute path of the local source file to stage into the live Lua context"),
+        slotName: z.string().min(1).describe("Lua slot to activate, for example `library`"),
+        filterName: z.string().min(1).describe("Visible Lua handler/filter signature, for example `onStart()`"),
+        settleMs: z.number().int().min(1000).max(15000).default(1500).describe("Minimum wait after slot confirmation before push"),
+        timeoutMs: z.number().int().min(500).max(30000).default(10000).describe("Maximum total wait for the Lua editor to appear"),
+        probeTimeoutMs: z.number().int().min(250).max(15000).default(8000).describe("Timeout for individual probe calls"),
+        verifyTimeoutMs: z.number().int().min(500).max(30000).default(10000).describe("Maximum wait for the live buffer to match the staged source"),
+        verifyPollIntervalMs: z.number().int().min(100).max(5000).default(250).describe("Polling interval while verifying the live buffer"),
+        activateWindow: z.boolean().default(true).describe("When true, activate the Dual Universe window before native open"),
+        windowTitle: z.string().default("Dual Universe").describe("Window title substring used to locate the Dual Universe client"),
+        ahkPath: z.string().min(1).optional().describe("Optional AutoHotkey v2 exe path or directory override")
+      },
+      outputSchema: luaPushContextOutputSchema
+    },
+    async ({
+      playerId,
+      sourcePath,
+      slotName,
+      filterName,
+      settleMs,
+      timeoutMs,
+      probeTimeoutMs,
+      verifyTimeoutMs,
+      verifyPollIntervalMs,
+      activateWindow,
+      windowTitle,
+      ahkPath
+    }) => {
+      const openResult = await openLuaContext(
+        commandQueue,
+        eventStore,
+        playerId,
+        slotName,
+        filterName,
+        settleMs,
+        timeoutMs,
+        probeTimeoutMs,
+        activateWindow,
+        windowTitle,
+        ahkPath,
+        options?.defaultAhkPath ?? null
+      );
+
+      if (!openResult.editorReady) {
+        const structuredContent = {
+          editorReady: false,
+          staged: false,
+          verified: false,
+          playerId,
+          sourcePath,
+          requestId: null,
+          contextSource: null,
+          codeCharLength: null,
+          codeHash32: null,
+          workspacePath: null,
+          metadataPath: null,
+          importPath: null,
+          openCommandId: openResult.openCommandId,
+          selectCommandId: openResult.selectCommandId,
+          verifyCommandId: null,
+          verifyWaitedMs: 0,
+          recoveryAttempted: openResult.recoveryAttempted,
+          title: openResult.title,
+          selectedSlot: openResult.selectedSlot,
+          selectedFilter: openResult.selectedFilter,
+          verifyResultJson: null,
+          error: openResult.error ?? "lua_context_not_ready"
+        };
+        return {
+          content: [{ type: "text", text: JSON.stringify(structuredContent, null, 2) }],
+          structuredContent
+        };
+      }
+
+      const staged = await stageEditorIdeImport(commandQueue, eventStore, playerId, "lua_editor", sourcePath);
+      const verify = await verifyLuaContextBuffer(
+        commandQueue,
+        eventStore,
+        playerId,
+        staged.codeHash32,
+        staged.codeCharLength,
+        verifyTimeoutMs,
+        probeTimeoutMs,
+        verifyPollIntervalMs
+      );
+
+      const structuredContent = {
+        editorReady: openResult.editorReady,
+        staged: true,
+        verified: verify.verified,
+        playerId,
+        sourcePath: staged.sourcePath,
+        requestId: staged.requestId,
+        contextSource: staged.contextSource,
+        codeCharLength: staged.codeCharLength,
+        codeHash32: staged.codeHash32,
+        workspacePath: staged.workspacePath,
+        metadataPath: staged.metadataPath,
+        importPath: staged.importPath,
+        openCommandId: openResult.openCommandId,
+        selectCommandId: openResult.selectCommandId,
+        verifyCommandId: verify.probe.commandId || null,
+        verifyWaitedMs: verify.waitedMs,
+        recoveryAttempted: openResult.recoveryAttempted,
+        title: openResult.title,
+        selectedSlot: openResult.selectedSlot,
+        selectedFilter: openResult.selectedFilter,
+        verifyResultJson: verify.probe.resultJson,
+        error: verify.verified ? null : (verify.probe.error ?? "lua_buffer_verify_failed")
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(structuredContent, null, 2)
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
+  server.registerTool(
     "du_editor_pull_code",
     {
       title: "Read Active Editor Code",
@@ -1888,7 +2546,6 @@ export function registerEditorTools(
           }
         }
       }
-
       const structuredContent = {
         commandId: result.command.commandId,
         status: "queued" as const,

@@ -36,6 +36,8 @@ export interface StageIdeImportInput {
   playerId: number;
   targetKind: "lua_editor" | "screen_editor";
   sourcePath: string;
+  contextKeyOverride?: string | null;
+  referenceOverride?: unknown;
 }
 
 export interface StageIdeImportResult {
@@ -52,6 +54,7 @@ export interface StageIdeImportResult {
   codeHash32: string;
   codeSha256: string;
   hasContextMetadata: boolean;
+  contextSource: "none" | "workspace_metadata" | "live_probe";
 }
 
 type LegacySnippetMetadata = {
@@ -126,6 +129,16 @@ export class BridgeCommandQueue {
     const codeHash32 = computeTextHash32(code);
     const codeSha256 = createHash("sha256").update(code, "utf8").digest("hex");
     const codeUtf8Bytes = Buffer.byteLength(code, "utf8");
+    const hasLiveOverride = Object.hasOwn(input, "contextKeyOverride") || Object.hasOwn(input, "referenceOverride");
+    const contextKey = hasLiveOverride
+      ? readOptionalString(input.contextKeyOverride)
+      : readOptionalString(lastExportMeta?.contextKey);
+    const reference = hasLiveOverride
+      ? (input.referenceOverride ?? null)
+      : (lastExportMeta?.reference ?? null);
+    const contextSource = hasLiveOverride
+      ? "live_probe"
+      : (lastExportMeta !== null ? "workspace_metadata" : "none");
     const payload = {
       requestId,
       targetKind: input.targetKind,
@@ -138,8 +151,8 @@ export class BridgeCommandQueue {
       baseCodeHash32: readOptionalString(lastExportMeta?.codeHash32),
       baseCodeSha256: readOptionalString(lastExportMeta?.codeSha256),
       sourceSyncId: readOptionalString(lastExportMeta?.syncId),
-      contextKey: readOptionalString(lastExportMeta?.contextKey),
-      reference: lastExportMeta?.reference ?? null,
+      contextKey,
+      reference,
       exportedAtUtc: readOptionalString(lastExportMeta?.exportedAtUtc),
       workspaceCodePath: workspacePath,
       workspaceMetaPath: metadataPath,
@@ -162,7 +175,8 @@ export class BridgeCommandQueue {
       codeUtf8Bytes,
       codeHash32,
       codeSha256,
-      hasContextMetadata: lastExportMeta !== null
+      hasContextMetadata: lastExportMeta !== null,
+      contextSource
     };
   }
 }

@@ -651,6 +651,8 @@
         codeLength: 0,
         selectedSlot: null,
         selectedFilter: null,
+        contextKey: "",
+        reference: null,
         slots: [],
         filters: []
       };
@@ -729,6 +731,20 @@
       }
     } catch (_ignoreResolvedSelectedFilter) {}
 
+    var ideSyncContextKey = "";
+    var ideSyncReference = null;
+    try {
+      if (typeof getIdeSyncSnapshot === "function") {
+        var ideSyncSnapshot = getIdeSyncSnapshot("lua_editor");
+        if (ideSyncSnapshot && typeof ideSyncSnapshot === "object") {
+          ideSyncContextKey = typeof ideSyncSnapshot.contextKey === "string" ? ideSyncSnapshot.contextKey : "";
+          if (ideSyncSnapshot.reference && typeof ideSyncSnapshot.reference === "object") {
+            ideSyncReference = cloneIdeSyncObject(ideSyncSnapshot.reference);
+          }
+        }
+      }
+    } catch (_ignoreIdeSyncSnapshot) {}
+
     return {
       visible: true,
       title: titleNode ? String(titleNode.textContent || "").trim() : "",
@@ -737,6 +753,8 @@
       codeLength: code.length,
       selectedSlot: selectedSlot,
       selectedFilter: selectedFilter,
+      contextKey: ideSyncContextKey,
+      reference: ideSyncReference,
       slots: slots,
       filters: filters
     };
@@ -1639,7 +1657,17 @@
         function() {
           var currentRoot = getLuaEditorRoot();
           if (!isElementVisible(currentRoot || root)) {
-            return resultValue;
+            var out = {};
+            var key = null;
+            if (resultValue && typeof resultValue === "object") {
+              for (key in resultValue) {
+                if (Object.prototype.hasOwnProperty.call(resultValue, key)) {
+                  out[key] = resultValue[key];
+                }
+              }
+            }
+            out.editorClosed = true;
+            return out;
           }
           return null;
         },
@@ -1662,8 +1690,7 @@
     if (cancelNode && typeof cancelNode.click === "function") {
       cancelNode.click();
       return waitForLuaEditorClosedAsync({
-        cancelled: true,
-        editorClosed: !isElementVisible(getLuaEditorRoot())
+        cancelled: true
       });
     }
     throw new Error("lua_editor_cancel_button_not_found");

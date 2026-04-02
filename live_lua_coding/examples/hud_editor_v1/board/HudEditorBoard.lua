@@ -390,6 +390,8 @@ local state = {
     links = nil,
     linkedScreens = {},       -- Linked screen elements
     renderRevision = 0,       -- Incremented on each render change
+    lastRenderedScript = nil,
+    lastRenderError = nil,
 }
 
 --  Document operations
@@ -938,75 +940,133 @@ end
 
 --  Screen rendering
 
-function HudEditorBoard.renderElement(layer, element)
-    if not element then return end
+local SCREEN_SCRIPT_LIMIT = 50000
+local SCREEN_DEFAULT_FILL = { 0.20, 0.20, 0.20, 1.0 }
+local SCREEN_DEFAULT_STROKE = { 1.00, 1.00, 1.00, 1.0 }
+local SCREEN_DEFAULT_TEXT = { 1.00, 1.00, 1.00, 1.0 }
 
-    local x = element.x or 0
-    local y = element.y or 0
-    local w = element.w or 100
-    local h = element.h or 100
-    local fill = element.fill or {0.5, 0.5, 0.5, 1}
-    local stroke = element.stroke or {1, 1, 1, 1}
-    local strokeWidth = element.strokeWidth or 0
-
-    local fillArgb = rgbaToArgb(fill)
-    local strokeArgb = rgbaToArgb(stroke)
-
-    local etype = element.type or "box"
-
-    if etype == "boxRounded" or etype == "box" then
-        local radius = element.radius or 0
-        addBoxRounded(layer, x, y, w, h, radius, fillArgb, strokeArgb, strokeWidth)
-
-    elseif etype == "circle" then
-        addCircle(layer, x + w/2, y + h/2, math.min(w, h)/2, fillArgb, strokeArgb, strokeWidth)
-
-    elseif etype == "line" then
-        addLine(layer, x, y, x + w, y + h, strokeArgb, strokeWidth)
-
-    elseif etype == "text" then
-        local textLines = element.textLines or {}
-        local textColor = element.textColor or {1, 1, 1, 1}
-        local textSize = element.textSize or 16
-        local textAlign = element.textAlign or "left"
-        local textArgb = rgbaToArgb(textColor)
-
-        local text = table.concat(textLines, "\n")
-        if text == "" then return end
-
-        local tx = x
-        if textAlign == "center" then
-            tx = x + w / 2
-        elseif textAlign == "right" then
-            tx = x + w
-        end
-
-        addText(layer, "Intro", text, tx, y + h/2, textSize, textArgb)
+local function luaNumber(value, fallback)
+    local numeric = tonumber(value)
+    if numeric == nil or numeric ~= numeric or numeric == math.huge or numeric == -math.huge then
+        numeric = fallback or 0
     end
+    if math.floor(numeric) == numeric then
+        return tostring(numeric)
+    end
+    local text = string.format("%.4f", numeric)
+    text = text:gsub("0+$", ""):gsub("%.$", "")
+    if text == "-0" then
+        return "0"
+    end
+    return text
 end
 
-function HudEditorBoard.render(layer)
-    if not state.document or not state.document.elements then return end
+local function luaString(value)
+    return string.format("%q", tostring(value or ""))
+end
 
-    local sw = state.document.screenWidth or 1920
-    local sh = state.document.screenHeight or 1080
+local function serializeScreenColor(color, fallback)
+    local source = type(color) == "table" and color or fallback
+    return string.format(
+        "{%s,%s,%s,%s}",
+        luaNumber(source[1], fallback[1]),
+        luaNumber(source[2], fallback[2]),
+        luaNumber(source[3], fallback[3]),
+        luaNumber(source[4], fallback[4])
+    )
+end
 
-    -- Clear with transparent background
-    addBox(layer, 0, 0, sw, sh, 0x00000000, 0x00000000, 0)
-
-    -- Render all elements
-    for _, element in ipairs(state.document.elements) do
-        HudEditorBoard.renderElement(layer, element)
+local function serializeScreenTextLines(lines)
+    if type(lines) ~= "table" or #lines == 0 then
+        return nil
     end
-
-    -- Render selection overlay for selected element
-    if state.selectedId then
-        local el = HudEditorBoard.findElementById(state.selectedId)
-        if el then
-            local selColor = 0xFF0EE9E7  -- Cyan
-            addBoxRounded(layer, el.x - 2, el.y - 2, el.w + 4, el.h + 4, 4, 0x00000000, selColor, 2)
+    local parts = { "{" }
+    for index = 1, #lines do
+        if index > 1 then
+            append(parts, ",")
         end
+        append(parts, luaString(lines[index]))
     end
+    append(parts, "}")
+    return table.concat(parts)
+end
+
+local function serializeScreenElement(element)
+    if type(element) ~= "table" then
+        return nil
+    end
+    local parts = { "{" }
+    append(parts, "t=")
+    append(parts, luaString(element.type or "box"))
+    append(parts, ",x=")
+    append(parts, luaNumber(element.x, 0))
+    append(parts, ",y=")
+    append(parts, luaNumber(element.y, 0))
+    append(parts, ",w=")
+    append(parts, luaNumber(element.w, 0))
+    append(parts, ",h=")
+    append(parts, luaNumber(element.h, 0))
+    if element.visible == false then
+        append(parts, ",v=false")
+    end
+    if element.radius ~= nil then
+        append(parts, ",r=")
+        append(parts, luaNumber(element.radius, 0))
+    end
+    if element.fill ~= nil then
+        append(parts, ",f=")
+        append(parts, serializeScreenColor(element.fill, SCREEN_DEFAULT_FILL))
+    end
+    if element.stroke ~= nil then
+        append(parts, ",s=")
+        append(parts, serializeScreenColor(element.stroke, SCREEN_DEFAULT_STROKE))
+    end
+    if element.strokeWidth ~= nil then
+        append(parts, ",sw=")
+        append(parts, luaNumber(element.strokeWidth, 0))
+    end
+    local textLines = serializeScreenTextLines(element.textLines)
+    if textLines then
+        append(parts, ",l=")
+        append(parts, textLines)
+    end
+    if element.textColor ~= nil then
+        append(parts, ",tc=")
+        append(parts, serializeScreenColor(element.textColor, SCREEN_DEFAULT_TEXT))
+    end
+    if element.textSize ~= nil then
+        append(parts, ",ts=")
+        append(parts, luaNumber(element.textSize, 16))
+    end
+    if type(element.textAlign) == "string" and element.textAlign ~= "" then
+        append(parts, ",ta=")
+        append(parts, luaString(element.textAlign))
+    end
+    append(parts, "}")
+    return table.concat(parts)
+end
+
+function HudEditorBoard.buildScreenDocument(document)
+    local doc = type(document) == "table" and document or state.document
+    if type(doc) ~= "table" then
+        return nil
+    end
+    local parts = {
+        "{w=",
+        luaNumber(doc.screenWidth, 1920),
+        ",h=",
+        luaNumber(doc.screenHeight, 1080),
+        ",e={"
+    }
+    local elements = type(doc.elements) == "table" and doc.elements or {}
+    for index = 1, #elements do
+        if index > 1 then
+            append(parts, ",")
+        end
+        append(parts, serializeScreenElement(elements[index]) or "{}")
+    end
+    append(parts, "}}")
+    return table.concat(parts)
 end
 
 --  Input handling
@@ -1076,35 +1136,127 @@ function HudEditorBoard.onTimer(timerName)
             unit.setTimer("render", 1.0)  -- Check again in 1 second
             return
         end
-        for _, screen in ipairs(state.linkedScreens) do
-            if hasMethod(screen, "getRenderScript") and hasMethod(screen, "setRenderScript") then
-                if hasMethod(screen, "clearScriptOutput") then
-                    screen.clearScriptOutput()
+        local script, renderError = HudEditorBoard.buildRenderScript()
+        if not script then
+            if state.lastRenderError ~= renderError then
+                dp("Screen render skipped: " .. tostring(renderError))
+                state.lastRenderError = renderError
+            end
+            unit.setTimer("render", 1.0)
+            return
+        end
+        state.lastRenderError = nil
+        if script ~= state.lastRenderedScript then
+            state.lastRenderedScript = script
+            local skipped = 0
+            for _, screen in ipairs(state.linkedScreens) do
+                if hasMethod(screen, "setRenderScript") then
+                    if hasMethod(screen, "clearScriptOutput") then
+                        screen.clearScriptOutput()
+                    end
+                    screen.setRenderScript(script)
+                else
+                    skipped = skipped + 1
                 end
-                local script = HudEditorBoard.buildRenderScript()
-                screen.setRenderScript(script)
+            end
+            if skipped > 0 then
+                dp("Skipped " .. tostring(skipped) .. " linked screen(s) without setRenderScript")
             end
         end
         unit.setTimer("render", 0.1)  -- ~10fps render updates
     end
 end
 
-function HudEditorBoard.buildRenderScript()
-    local script = [=[
-local function renderLayer(layer)
-]=] .. "    local HudEditorBoard = HudEditorBoard\n"
-    script = script .. [=[
-    if not HudEditorBoard then return end
-    HudEditorBoard.render(layer)
+function HudEditorBoard.buildRenderScript(document)
+    local encoded = HudEditorBoard.buildScreenDocument(document)
+    if not encoded then
+        return nil, "no_document"
+    end
+    local script = string.format([=[
+local D=%s
+local F={}
+local function G(s)
+    s=math.max(1,math.floor(tonumber(s) or 16))
+    local f=F[s]
+    if not f then
+        f=loadFont("Play",s)
+        F[s]=f
+    end
+    return f
 end
-]=]
-    return script
+local function FC(l,c,d)
+    c=c or d
+    setNextFillColor(l,tonumber(c[1]) or d[1],tonumber(c[2]) or d[2],tonumber(c[3]) or d[3],tonumber(c[4]) or d[4])
 end
-
---  Public API for screen script
-
-HudEditorBoard.renderLayer = function(layer)
-    HudEditorBoard.render(layer)
+local function SC(l,c,d)
+    c=c or d
+    setNextStrokeColor(l,tonumber(c[1]) or d[1],tonumber(c[2]) or d[2],tonumber(c[3]) or d[3],tonumber(c[4]) or d[4])
+end
+local function TX(l,e)
+    local lines=e.l
+    if not lines or #lines==0 then return end
+    local s=math.max(1,math.floor(tonumber(e.ts) or 16))
+    local f=G(s)
+    if not f then return end
+    local a=e.ta or "left"
+    local x=(tonumber(e.x) or 0)+12
+    local h=AlignH_Left
+    local w=tonumber(e.w) or 0
+    if a=="center" then
+        x=(tonumber(e.x) or 0)+w*0.5
+        h=AlignH_Center
+    elseif a=="right" then
+        x=(tonumber(e.x) or 0)+w-12
+        h=AlignH_Right
+    end
+    setNextTextAlign(l,h,AlignV_Middle)
+    local g=math.max(2,math.floor(s*0.2))
+    local y=(tonumber(e.y) or 0)+(tonumber(e.h) or 0)*0.5-((#lines-1)*(s+g))*0.5
+    local c=e.tc or {1,1,1,1}
+    for i=1,#lines do
+        FC(l,c,{1,1,1,1})
+        addText(l,f,tostring(lines[i] or ""),x,y+(i-1)*(s+g))
+    end
+end
+setBackgroundColor(0,0,0)
+for i=1,#(D.e or {}) do
+    local e=D.e[i]
+    if e and e.v~=false then
+        local l=createLayer()
+        local t=e.t or "box"
+        if t=="text" then
+            TX(l,e)
+        elseif t=="line" then
+            SC(l,e.s,{1,1,1,1})
+            setNextStrokeWidth(l,tonumber(e.sw) or 2)
+            local x=tonumber(e.x) or 0
+            local y=tonumber(e.y) or 0
+            addLine(l,x,y,x+(tonumber(e.w) or 0),y+(tonumber(e.h) or 0))
+            TX(l,e)
+        else
+            FC(l,e.f,{0.2,0.2,0.2,1})
+            SC(l,e.s,{1,1,1,1})
+            setNextStrokeWidth(l,tonumber(e.sw) or 0)
+            local x=tonumber(e.x) or 0
+            local y=tonumber(e.y) or 0
+            local w=tonumber(e.w) or 0
+            local h=tonumber(e.h) or 0
+            if t=="circle" then
+                addCircle(l,x+w*0.5,y+h*0.5,math.min(w,h)*0.5)
+            elseif t=="boxRounded" then
+                addBoxRounded(l,x,y,w,h,tonumber(e.r) or 0)
+            else
+                addBox(l,x,y,w,h)
+            end
+            TX(l,e)
+        end
+    end
+end
+]=], encoded)
+    if #script > SCREEN_SCRIPT_LIMIT then
+        return nil, "screen_script_too_long:" .. tostring(#script)
+    end
+    return script, nil
 end
 
 --  Module export

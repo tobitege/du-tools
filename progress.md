@@ -13,3 +13,20 @@
 - Nach dem nächsten Live-Befund (`op` im HUD, Parse-Warnung `expected near ':'` im Chat) Ursache weiter präzisiert: `setOutput(...)` akzeptiert den großen Persistenz-Output offenbar nur als JSON-kompatiblen Payload.
 - Daraufhin Screen-Envelope auf JSON umgestellt, JSON-Support für die Board-Seite außerhalb des eingebetteten Screen-Sources installiert und `unit/onTimer-UPD.lua` so angepasst, dass reine Probe-JSONs nicht mehr als Persistenzfehler gewarnt werden.
 - JSON-Variante erneut live in `unit/onStart()` und `unit/onTimer(UPD)` gepusht und gespeichert.
+- Neues HUD-Editor-Arbeitspaket gestartet: Pflichtdokumente fuer den aktuellen Lua-Painter-/Programming-Board-Workflow gelesen (`live_lua_coding/README.md`, `live-coding-prompt.md`, `hud_editor_v1/README.md`, `DuMcpBridge/README.md`, `bridge-live-test.md`, `ModUiExtractor/README.md`, `Renderscript.md`).
+- HUD-Editor-Codepfade geprueft: `HudEditorBoard.lua`, `HudEditorBoard-onStart.lua`, `080-bridge-commands.js`, `085-ide-export.js`, `090-databank-sync.js`, `000-core.js`, `010-start-screen.js`, `020-editor-shell.js`, `screen/HudEditorScreen.lua`.
+- Aktuelle Ursache fuer "verlinkter Screen rendert nichts" eingegrenzt:
+  - Board setzt zwar Screen-Lua, aber nur einen Board-Wrapper statt echter RenderScript-Ausgabe.
+  - Screen-Export im Editor benutzt ebenfalls noch keine echte RenderScript-Generierung.
+- RenderScript-Generator umgesetzt:
+  - `HudEditorBoard.lua` erzeugt jetzt standalone top-level DU-RenderScript aus dem geladenen Dokument und prueft die 50000-Zeichen-Grenze.
+  - `085-ide-export.js` erzeugt jetzt denselben Stil von top-level RenderScript fuer `Export Screen` statt des alten `onDraw`-Wrappers.
+  - Web-Test erweitert, damit die Screen-Generierung auf `createLayer()`/top-level Lua abgesichert bleibt.
+- Lokale Verifikation abgeschlossen:
+  - `pwsh -File live_lua_coding/examples/hud_editor_v1/scripts/build.ps1` erfolgreich.
+  - `pnpm test` in `live_lua_coding/examples/hud_editor_v1/web` erfolgreich (`7 passed`).
+- Live-Verifikation teilweise abgeschlossen:
+  - Pflicht-Checks und Kalibrierbild abgearbeitet.
+  - `library/onStart()` live aktualisiert und gespeichert.
+  - Routingfehler fuer `unit/onStart()` auf stale `snippet.sync.json` / `ide_import`-Metadaten eingegrenzt.
+  - Trotz Re-Init-Versuch bleibt der verlinkte Screen im aktuellen Live-Setup schwarz; die Restursache liegt jetzt im verbleibenden Live-Runtime-/Targeting-Verhalten, nicht mehr im fehlenden lokalen Codegenerator.

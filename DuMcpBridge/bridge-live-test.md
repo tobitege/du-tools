@@ -67,6 +67,18 @@ Pass criteria:
 
 Use this section when `lua_editor` (or `screen_editor`) is open. The editor requires both a slot AND a filter with actual code to be selected before the code editor is populated.
 
+Preferred path for normal Programming Board work:
+
+1. `du_open_lua_context(playerId = <playerId>, slotName = "library", filterName = "onStart()")`
+Pass criteria:
+
+- `editorReady = true`
+- `selectedSlot = "library"`
+- `selectedFilter = "onStart()"`
+- follow with `du_push_lua_context_code(...)` when the next step is to land a tracked source file into that exact context
+
+The lower-level `describe` / `select_slot` / `select_filter_*` flow below still matters for diagnostics, but it should no longer be the first choice for routine Lua board work.
+
 ### 3a. Confirm editor is open
 
 1. `du_ui_describe(uiKind = lua_editor, playerId = <playerId>)`

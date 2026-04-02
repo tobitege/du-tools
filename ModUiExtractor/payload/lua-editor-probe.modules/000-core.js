@@ -17,6 +17,7 @@
   var luaEditorEnhancementModuleId = "lua-editor-enhancements";
   var themeCatalogStorageKey = "ModUiExtractor.lua.theme-catalog.flowery-daisy.v2";
   var mcpResultChunkSize = 7000;
+  var luaApplyCloseHoldDelayMs = 2000;
 
   function cloneJsonValue(value, fallbackValue) {
     try {
@@ -188,6 +189,9 @@
     skipNextSetCodeRestore: false,
     suppressRestoreUntilInteraction: true,
     cursorGuardCodeMirror: null,
+    luaApplyCloseHoldUntil: 0,
+    luaApplyCloseHoldTimerId: 0,
+    luaApplyCloseSeq: 0,
     screenEditorVisible: false,
     screenLastRestoredContextKey: "",
     screenPreferenceRestoreContextKey: "",
@@ -488,6 +492,21 @@
     return null;
   }
 
+  function getResolvedSelectedLuaSlotName() {
+    try {
+      if (typeof getSlotNodes !== "function" || typeof getSlotName !== "function" || typeof isSelectedNode !== "function") {
+        return "";
+      }
+      var slotNodes = getSlotNodes();
+      for (var i = 0; i < slotNodes.length; i += 1) {
+        if (isSelectedNode(slotNodes[i])) {
+          return String(getSlotName(slotNodes[i]) || "").trim();
+        }
+      }
+    } catch (_ignoreResolvedLuaSlotName) {}
+    return "";
+  }
+
   function getLuaIdeSyncReference() {
     var manager = window.LUAEditorManager || null;
     var currentData = manager && manager.currentData ? manager.currentData : null;
@@ -496,15 +515,32 @@
     var currentSlotData = currentSlot && currentSlot.slotData ? currentSlot.slotData : null;
     var lastReference = state.lastInitDemReference || null;
     var parsedSelfSlot = lastReference && lastReference.parsedSelfSlot ? lastReference.parsedSelfSlot : null;
+    var resolvedSlotName = getResolvedSelectedLuaSlotName();
+    var managerSlotName = currentSlot && typeof currentSlot.name !== "undefined" && currentSlot.name !== null
+      ? String(currentSlot.name)
+      : "";
+    var lastSlotName = lastReference && typeof lastReference.currentSlotName !== "undefined" && lastReference.currentSlotName !== null
+      ? String(lastReference.currentSlotName)
+      : "";
+    var effectiveSlotName = resolvedSlotName || managerSlotName || lastSlotName || null;
+    var slotMatchesManager = !resolvedSlotName ||
+      !managerSlotName ||
+      normalizeIdeSyncValue(resolvedSlotName) === normalizeIdeSyncValue(managerSlotName);
     var slotElementName = null;
     var constructId = cfg && typeof cfg.constructId !== "undefined" ? cfg.constructId : null;
 
     try {
-      if (currentSlotData && typeof currentSlotData.slotElementName !== "undefined" && currentSlotData.slotElementName !== null) {
+      if (slotMatchesManager && currentSlotData && typeof currentSlotData.slotElementName !== "undefined" && currentSlotData.slotElementName !== null) {
         slotElementName = currentSlotData.slotElementName;
-      } else if (parsedSelfSlot && typeof parsedSelfSlot.slotElementName !== "undefined" && parsedSelfSlot.slotElementName !== null) {
+      } else if (parsedSelfSlot &&
+          typeof parsedSelfSlot.slotElementName !== "undefined" &&
+          parsedSelfSlot.slotElementName !== null &&
+          normalizeIdeSyncValue(parsedSelfSlot.name || "") === normalizeIdeSyncValue(effectiveSlotName || "")) {
         slotElementName = parsedSelfSlot.slotElementName;
-      } else if (lastReference && typeof lastReference.currentSlotElementName !== "undefined" && lastReference.currentSlotElementName !== null) {
+      } else if (lastReference &&
+          typeof lastReference.currentSlotElementName !== "undefined" &&
+          lastReference.currentSlotElementName !== null &&
+          normalizeIdeSyncValue(lastSlotName) === normalizeIdeSyncValue(effectiveSlotName || "")) {
         slotElementName = lastReference.currentSlotElementName;
       }
     } catch (_ignoreLuaIdeSyncSlotElementName) {}
@@ -533,13 +569,23 @@
       currentFilterSignature = String(lastReference.currentFilterSignature);
     }
 
+    var managerFilterSignature = "";
+    if (currentFilter && typeof currentFilter.signature !== "undefined" && currentFilter.signature !== null && String(currentFilter.signature)) {
+      managerFilterSignature = String(currentFilter.signature);
+    } else if (currentFilter && typeof currentFilter.name !== "undefined" && currentFilter.name !== null && String(currentFilter.name)) {
+      managerFilterSignature = String(currentFilter.name);
+    }
+    var filterMatchesManager = !currentFilterSignature ||
+      !managerFilterSignature ||
+      normalizeIdeSyncValue(currentFilterSignature) === normalizeIdeSyncValue(managerFilterSignature);
+
     return {
       constructId: constructId,
       editorTitle: typeof getLuaEditorTitleForDebug === "function" ? getLuaEditorTitleForDebug() : "",
       slotElementName: slotElementName,
-      currentSlotName: currentSlot && typeof currentSlot.name !== "undefined" ? currentSlot.name : null,
-      currentSlotKey: currentSlot && typeof currentSlot.slotKey !== "undefined" ? currentSlot.slotKey : null,
-      currentFilterKey: currentFilter && typeof currentFilter.key !== "undefined" ? currentFilter.key : null,
+      currentSlotName: effectiveSlotName,
+      currentSlotKey: slotMatchesManager && currentSlot && typeof currentSlot.slotKey !== "undefined" ? currentSlot.slotKey : null,
+      currentFilterKey: filterMatchesManager && currentFilter && typeof currentFilter.key !== "undefined" ? currentFilter.key : null,
       currentFilterSignature: currentFilterSignature
     };
   }
@@ -727,9 +773,29 @@
       reasons.push("construct_id_mismatch");
     }
 
+    var expectedSlotName = normalizeIdeSyncValue(expected.currentSlotName);
+    var currentSlotName = normalizeIdeSyncValue(current.currentSlotName);
+    if (expectedSlotName) {
+      if (!currentSlotName) {
+        reasons.push("slot_name_missing");
+      } else if (expectedSlotName !== currentSlotName) {
+        reasons.push("slot_name_mismatch");
+      }
+    }
+
+    var expectedFilterSignature = normalizeIdeSyncValue(expected.currentFilterSignature);
+    var currentFilterSignature = normalizeIdeSyncValue(current.currentFilterSignature);
+    if (expectedFilterSignature) {
+      if (!currentFilterSignature) {
+        reasons.push("filter_signature_missing");
+      } else if (expectedFilterSignature !== currentFilterSignature) {
+        reasons.push("filter_signature_mismatch");
+      }
+    }
+
     var expectedSlotElementName = normalizeIdeSyncValue(expected.slotElementName);
     var currentSlotElementName = normalizeIdeSyncValue(current.slotElementName);
-    if (expectedSlotElementName) {
+    if (expectedSlotElementName && !expectedSlotName) {
       if (!currentSlotElementName) {
         reasons.push("slot_element_name_missing");
       } else if (expectedSlotElementName !== currentSlotElementName) {
@@ -868,7 +934,9 @@
     var staleBase = !!(baseCodeHash32 && currentCodeHash32 && baseCodeHash32 !== currentCodeHash32);
 
     try {
-      if (targetKind === "screen_editor") {
+      if (typeof setCodeForProbeTarget === "function") {
+        setCodeForProbeTarget(targetKind, code);
+      } else if (targetKind === "screen_editor") {
         if (typeof setScreenEditorCode !== "function") {
           throw new Error("screen_editor_sync_unavailable");
         }

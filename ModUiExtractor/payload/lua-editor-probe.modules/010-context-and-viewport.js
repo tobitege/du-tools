@@ -862,31 +862,6 @@
     (document.head || document.documentElement).appendChild(style);
   }
 
-  function addProbeBadge() {
-    var existing = document.getElementById("ModUiExtractor-lua-probe-badge");
-    if (existing) {
-      return;
-    }
-
-    var badge = document.createElement("div");
-    badge.id = "ModUiExtractor-lua-probe-badge";
-    badge.textContent = "LUA PROBE ACTIVE";
-    badge.style.position = "fixed";
-    badge.style.bottom = "14px";
-    badge.style.left = "14px";
-    badge.style.zIndex = "999999";
-    badge.style.background = "rgba(8,16,20,0.9)";
-    badge.style.color = "#fad47a";
-    badge.style.border = "2px solid rgba(250,212,122,0.9)";
-    badge.style.padding = "8px 14px";
-    badge.style.fontSize = "15px";
-    badge.style.letterSpacing = "0.6px";
-    badge.style.fontFamily = "monospace";
-    badge.style.pointerEvents = "none";
-
-    document.body.appendChild(badge);
-  }
-
   function textOf(node) {
     if (!node) {
       return "";

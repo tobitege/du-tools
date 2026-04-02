@@ -22,3 +22,20 @@
   - die Board-Seite versuchte diesen JSON-Probe-Output noch als Lua-Literal zu lesen
 - Konsequenz daraus: Screen-Output jetzt auf JSON umgestellt; Board-Seite akzeptiert JSON-Envelopes per Wrapper direkt nach dem Laden des eingebetteten Moduls, ohne die 50k-Screen-Grenze zu reißen.
 - Die eingebettete `SCREEN_LAYOUT_EDITOR_SOURCE` liegt nach dem Umbau bei `49756` Zeichen und bleibt damit unter der Screen-Grenze.
+- `live_lua_coding/examples/hud_editor_v1/board/HudEditorBoard.lua` verwaltet Persistenz und das geladene Dokument korrekt, aber `buildRenderScript()` liefert nur einen kleinen Wrapper, der auf `HudEditorBoard.render(layer)` verweist. Diese Funktion existiert im Screen-Kontext nicht, daher rendert der verlinkte Screen nichts.
+- `live_lua_coding/examples/hud_editor_v1/js/modules/085-ide-export.js` erzeugt fuer `Export Screen` ebenfalls keine valide DU-RenderScript-Datei: der Code ist als `function onDraw(layer)` aufgebaut und ruft `addBoxRounded`, `addCircle`, `addLine` und `addText` mit einer HTML-/ARGB-artigen Signatur auf, nicht mit der in `rs_emulator/examples/Renderscript.md` dokumentierten RenderScript-API.
+- Die Referenz in `rs_emulator/examples/Renderscript.md` bestaetigt: DU-RenderScript ist top-level Lua ohne `onDraw`-Callback; Farben und Linienbreiten werden ueber `setNextFillColor`, `setNextStrokeColor`, `setNextStrokeWidth` und optional `setNextTextAlign` gesetzt, bevor die Primitive mit wenigen Positionsparametern gezeichnet werden.
+- Fuer sichere Z-Reihenfolge duerfen wir uns nicht auf die Shape-Reihenfolge innerhalb einer Layer verlassen. Die RenderScript-Doku sagt selbst, dass gemischte Shape-Typen auf derselben Layer intern anders sortiert werden. Fuer WYSIWYG-Layout-Reihenfolge ist daher mindestens eine klare Layer-Strategie noetig.
+- Lokale Verifikation jetzt gruen:
+  - `scripts/build.ps1` fuer `hud_editor_v1` lief erfolgreich.
+  - `pnpm test` im Web-Harness lief erfolgreich mit 7/7 Tests.
+  - Der neue Test bestaetigt, dass `buildScreenCode(...)` jetzt top-level RenderScript erzeugt (`local D=`, `createLayer()`, `addBoxRounded`) und kein `function onDraw` mehr.
+- Live-Verifikation dieses Durchlaufs:
+  - Baseline-Checks erfolgreich: aktive Session `playerId=10000`, Bridge-Status frisch, Laufzeitlogs lesbar.
+  - Zentrierte Captures bestaetigten zuerst die Programming-Board-Position gemaess Kalibrierbild; `du_open_editor_native` oeffnete dort reproduzierbar den `lua_editor`.
+  - `library/onStart()` wurde auf den neuen lokalen `HudEditorBoard.lua` gebracht; `raw_eval` bestaetigte den neuen Kopf und `SCREEN_SCRIPT_LIMIT` im sichtbaren Buffer, danach wurde erfolgreich gespeichert.
+  - Der verlinkte Screen blieb visuell schwarz.
+  - Beim Versuch, `unit/onStart()` mit der getrackten Bootstrap-Datei zu pushen, zeigte `snippet.sync.json` stale Routing-Metadaten fuer `library/onStart()` statt fuer den sichtbaren `unit/onStart()`-Kontext.
+  - Nach manueller Korrektur der Routing-Metadaten zeigte das pending `ide_import...json` zwar korrekt `unit/onStart()`, aber die sichtbare CodeMirror-Pufferanzeige blieb auf dem vorherigen generierten `unit.onStart()`-Text. Das Import-Routingproblem ist also reproduzierbar und noch nicht ganz geloest.
+  - Das anschliessende Speichern des sichtbaren `unit/onStart()`-Buffers schloss den Editor wie erwartet und sollte die Board-Initialisierung neu angestossen haben, aenderte die schwarze Screen-Ausgabe aber nicht.
+  - Ein weiterer zentrierter Screen-Versuch zeigte zwar den grossen Screen im Fadenkreuz (`TURN OFF` sichtbar), aber `du_open_editor_native` oeffnete trotzdem erneut den `lua_editor`; Screen-Targeting ist im aktuellen Live-Setup also noch mehrdeutig.

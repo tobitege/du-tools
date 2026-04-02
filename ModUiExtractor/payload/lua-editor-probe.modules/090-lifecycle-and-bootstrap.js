@@ -29,7 +29,6 @@
     installFreshOpenViewportGuard();
     resetEditorViewportToTop();
 
-    addProbeBadge();
     ensureThemeSwitcher();
     ensureIdeSyncButton();
     ensureEditorSwitchHooks();
@@ -48,6 +47,7 @@
 
   function onEditorClosed() {
     clearPendingSlotAutoOpen();
+    clearLuaApplyCloseHoldState();
     clearActiveFilterMarker();
     state.activeFilterIndex = -1;
     state.activeFilterFingerprint = "";
@@ -139,6 +139,7 @@
     } catch (_ignoreFiltersObserver) {}
 
     clearPendingSlotAutoOpen();
+    clearLuaApplyCloseHoldState();
     removeFreshOpenViewportGuard();
 
     try {
@@ -227,7 +228,6 @@
 
     var removableIds = [
       "ModUiExtractor-lua-probe-style",
-      "ModUiExtractor-lua-probe-badge",
       "ModUiExtractor-lua-theme-dots",
       "ModUiExtractor-lua-caret-toggle",
       "ModUiExtractor-lua-ide-sync",

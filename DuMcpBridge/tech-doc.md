@@ -390,6 +390,79 @@ Typical `chat_snapshot` payload:
 
 ## MCP Tools
 
+### `du_open_lua_context`
+
+Purpose:
+
+- open the Programming Board Lua editor if needed
+- wait for a real live Lua editor snapshot
+- select the requested slot and filter
+- return the final verified live context
+
+Inputs:
+
+- `playerId`
+- `slotName`
+- `filterName`
+- `settleMs`
+- `timeoutMs`
+- `probeTimeoutMs`
+- `activateWindow`
+- `windowTitle`
+- `ahkPath`
+
+Behavior:
+
+1. checks whether `lua_editor` is already visibly open and usable
+2. if not, sends the native `Ctrl+L` open path
+3. waits for a live Lua-editor snapshot
+4. if the first open path fails, performs one guarded `Escape` recovery and retries
+5. runs `select_context` with the requested slot/filter
+6. returns the final verified slot/filter state from the live probe
+
+Important:
+
+- this is now the preferred open path for normal Programming Board Lua work
+- it replaces the routine `open -> describe -> select_context -> describe` tool chain
+- it does not save anything by itself
+
+### `du_push_lua_context_code`
+
+Purpose:
+
+- open the requested Programming Board Lua context if needed
+- stage a tracked local source file into that exact slot/filter
+- verify that the visible live buffer matches the expected file hash
+
+Inputs:
+
+- `playerId`
+- `sourcePath`
+- `slotName`
+- `filterName`
+- `settleMs`
+- `timeoutMs`
+- `probeTimeoutMs`
+- `verifyTimeoutMs`
+- `verifyPollIntervalMs`
+- `activateWindow`
+- `windowTitle`
+- `ahkPath`
+
+Behavior:
+
+1. calls the same deterministic open/select path as `du_open_lua_context`
+2. stages the IDE import against the verified live Lua context
+3. polls the visible editor buffer through `raw_eval`
+4. compares the live buffer hash and length to the staged source file
+5. returns only when the visible buffer matches or the verify timeout expires
+
+Important:
+
+- this is now the preferred push path for normal Programming Board Lua work
+- a successful return means more than "staged"; it means the visible buffer matched the expected source hash
+- saving is still explicit; use `du_editor_save` separately after the verified push if you want to commit the change
+
 ### `du_editor_push_code`
 
 Purpose:
@@ -425,11 +498,13 @@ Return fields:
 - `codeHash32`
 - `codeSha256`
 - `hasContextMetadata`
+- `contextSource`
 
 Important:
 
-- this only works against an already open UI
+- this only works against an already open and correctly targeted UI
 - it does not guarantee a verified board identity for `screen_editor`
+- for normal Programming Board Lua work, prefer `du_push_lua_context_code`
 - saving is not implicit; use `du_editor_save` separately after the import path has landed
 
 ### Compact Tool Model
@@ -438,6 +513,8 @@ The live MCP surface is intentionally centered on a small set of tool families:
 
 - `du_ui_describe`, `du_ui_invoke`, `du_ui_wait`
   Canonical live UI read, action, and readiness paths for `lua_editor` and `screen_editor`.
+- `du_open_lua_context`, `du_push_lua_context_code`
+  Preferred high-level Programming Board Lua workflow tools for deterministic open/select and open/push/verify behavior.
 - `du_reinject_lua_probe`
   Stable post-bootstrap reinject path for an already-present Lua probe. Uses the live page's own `CPPMod.sendModAction(...)` path instead of menu clicks.
 - `du_editor_push_code`, `du_editor_pull_code`, `du_editor_save`
@@ -604,12 +681,18 @@ Known limitations:
 
 For normal editor edits, use this order:
 
-1. `du_ui_describe` or `du_ui_wait` to confirm the editor is live.
-2. `du_ui_invoke(uiKind = lua_editor, method = select_context, slotName, filterName, settleMs)` to establish the target buffer.
-3. `du_editor_push_code` to stage the file-based import.
-4. `du_editor_save` to commit the change explicitly.
+1. `du_open_lua_context(playerId, slotName, filterName)` to establish the target buffer deterministically.
+2. `du_push_lua_context_code(playerId, sourcePath, slotName, filterName)` when the goal is to land a tracked file into that exact live context and verify the visible buffer.
+3. `du_editor_save` to commit the change explicitly.
 
-If you bypass `select_context` and issue lower-level calls manually, you must still account for the post-slot redraw delay yourself.
+Lower-level diagnostic path:
+
+1. `du_ui_describe` or `du_ui_wait`
+2. `du_ui_invoke(uiKind = lua_editor, method = select_context, slotName, filterName, settleMs)`
+3. `du_editor_push_code`
+4. `du_editor_save`
+
+If you bypass the higher-level tools and issue lower-level calls manually, you must still account for the post-slot redraw delay and live-buffer verification yourself.
 
 ### `du_chat_snapshot`
 
@@ -891,10 +974,10 @@ Why this exists:
 
 ### Notes
 
-- For normal Lua editing, use `du_ui_invoke(uiKind = lua_editor, method = select_context)` first, then `du_editor_push_code`, then `du_editor_save`.
+- For normal Lua editing, use `du_open_lua_context` first and prefer `du_push_lua_context_code` for tracked-file pushes.
 - Run probe calls sequentially per `playerId`. Parallel calls can race on the file bus.
 - `apply` uses the in-game confirm path and can close the whole Lua editor.
-- `select_context` is the preferred Lua path because it confirms the slot, waits for settle, then resolves the visible filter by name.
+- `select_context` remains the preferred low-level Lua probe action because it confirms the slot, waits for settle, then resolves the visible filter by name.
 - `outer_html` and `raw_eval` are debug-oriented escape hatches and should be used sparingly.
 - `du_open_editor_native` uses `DuMcpBridge/ahk/du_bridge_input.ahk` and AutoHotkey v2. You can pass `--ahk-path` on `run-mcp.cmd` or use `DU_AHK_EXE`, `DU_MCP_BRIDGE_AHK_EXE`, `DU_AHK_DIR`, or `DU_MCP_BRIDGE_AHK_DIR`.
 - `sendEscapeFirst` is a fallback only. From a normal in-world state it can open the Options UI.
