@@ -227,16 +227,13 @@ test-ui-dumps*
 tmp-reassemble*
 .mypy_cache
 target/
-lua_editor/scripts/scripts/
+lua_editor/
 
 #################
 ## UI Extractions
 #################
-# Keep documentation and optional tooling, ignore generated dump output.
-ui-extractions/*
-!ui-extractions/README.md
-!ui-extractions/tools/
-!ui-extractions/tools/**
+# Keep ui extraction output fully local.
+ui-extractions/
 **/node_modules
 /devlogs
 test-artifacts
