@@ -131,7 +131,6 @@ local function TX(l,c,sc,sx,sy)
     elseif va=="bottom" then
         v=AlignV_Bottom
     end
-    setNextTextAlign(l,h,v)
     local g=math.max(2,math.floor(s*0.2))
     local blockHeight=#lines*s+(#lines-1)*g
     local y=SX(c.y,sy)+SX(c.h,sy)*0.5-(blockHeight-s)*0.5
@@ -142,6 +141,7 @@ local function TX(l,c,sc,sx,sy)
     end
     local tc=c.tc or {1,1,1,1}
     for i=1,#lines do
+        setNextTextAlign(l,h,v)
         FC(l,tc,{1,1,1,1})
         addText(l,f,tostring(lines[i] or ""),x,y+(i-1)*(s+g))
     end

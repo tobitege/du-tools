@@ -1568,11 +1568,11 @@ local function TX(l,c,sc,sx,sy)
         x=SX(c.x,sx)+w-12*sc
         h=AlignH_Right
     end
-    setNextTextAlign(l,h,AlignV_Middle)
     local g=math.max(2,math.floor(s*0.2))
     local y=SX(c.y,sy)+SX(c.h,sy)*0.5-((#lines-1)*(s+g))*0.5
     local tc=c.tc or {1,1,1,1}
     for i=1,#lines do
+        setNextTextAlign(l,h,AlignV_Middle)
         FC(l,tc,{1,1,1,1})
         addText(l,f,tostring(lines[i] or ""),x,y+(i-1)*(s+g))
     end
