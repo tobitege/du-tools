@@ -60,12 +60,15 @@ These rules matter because a wrong action can lose unsaved changes or leave the 
 - Never treat `du_editor_pull_code` or `ide-workspace\...\snippet.lua|snippet.txt` as proof of the exact visible editor buffer.
 - Never use `du_editor_push_code` as if it opens the editor. It does not.
 - Never use `du_editor_save` as if it chooses the target buffer for you. It does not.
+- Never assume a `lua_editor` save or apply causes a Programming Board execution restart. It does not prove that.
+- Do not wrap known Dual Universe API calls in `pcall` in live board or screen runtime code. For known calls such as `setRenderScript(...)`, `setScriptInput(...)`, `getInput()`, `system.print(...)`, and normal linked-element methods, use the direct call path.
 - For `screen_editor`, a save is only a valid test if the buffer is actually dirty.
 - For `lua_editor`, always establish slot and filter before pushing code.
 - Prefer structured probe reads first and screenshots second.
 - Prefer the simplest transport that can possibly work.
 - Before trusting a new live fix, confirm the screen-side result, not only board-side logs.
 - If board logs and the visible screen disagree, trust the visible screen first.
+- For board-runtime validation, use an explicit board off/on cycle and then verify the visible screen result plus fresh Lua chat lines. Do not treat editor save/apply alone as a restart test.
 - Measure the built render-script size before a live push whenever screen code changed.
 - Do not keep adding transport layers until the current smallest viable path has been disproven.
 - If the current client state is unclear, stop and re-check instead of guessing.
@@ -117,6 +120,15 @@ Use these tools to reason about the live buffer:
 - `du_ui_invoke(..., method = outer_html, ...)`
 
 For Programming Board work, the live buffer is the source of truth when you need to know what the player is actually looking at right now.
+
+Important:
+
+- Updating or saving the live `lua_editor` buffer does not prove that the board is now executing that code.
+- Treat the editor buffer and the executing board runtime as separate things until a real board restart has been validated.
+- For board-to-screen work, the minimum valid execution test is:
+  - explicit board off/on
+  - fresh Lua chat messages from that new run
+  - visible screen result after that run
 
 ### IDE Sync workspace snapshot
 

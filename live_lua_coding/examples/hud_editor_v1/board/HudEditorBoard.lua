@@ -3,7 +3,7 @@
 -- Handles: command processing, element state, databank persistence, screen rendering
 -- Project: D:\github\du-tobi\live_lua_coding\examples\hud_editor_v1
 
-local HudEditorBoard = {}
+HudEditorBoard = type(HudEditorBoard) == "table" and HudEditorBoard or {}
 HudEditorBoard.__index = HudEditorBoard
 
 --  Constants
@@ -35,7 +35,7 @@ local CMD = {
 
 local function dp(msg)
     if type(system) == "table" and type(system.print) == "function" then
-        pcall(system.print, "[HE-Board] " .. tostring(msg))
+        system.print("[HE-Board] " .. tostring(msg))
     end
 end
 
@@ -54,6 +54,13 @@ local function deepCopy(orig)
         copy[k] = deepCopy(v)
     end
     return copy
+end
+
+local function append(parts, value)
+    if value == nil then
+        return
+    end
+    parts[#parts + 1] = value
 end
 
 local function rgbaToArgb(rgba)
@@ -284,8 +291,8 @@ local function getElementClass(slot)
     if not hasMethod(slot, "getClass") then
         return nil
     end
-    local ok, className = pcall(slot.getClass, slot)
-    if ok and type(className) == "string" and className ~= "" then
+    local className = slot.getClass()
+    if type(className) == "string" and className ~= "" then
         return string.lower(className)
     end
     return nil
@@ -295,8 +302,8 @@ local function getElementId(slot)
     if not hasMethod(slot, "getLocalId") then
         return nil
     end
-    local ok, id = pcall(slot.getLocalId, slot)
-    if ok then
+    local id = slot.getLocalId()
+    if id ~= nil then
         return id
     end
     return nil
@@ -306,8 +313,8 @@ local function resolveElementName(core, localId)
     if localId == nil or not hasMethod(core, "getElementNameById") then
         return nil
     end
-    local ok, name = pcall(core.getElementNameById, core, localId)
-    if ok and type(name) == "string" and name ~= "" then
+    local name = core.getElementNameById(localId)
+    if type(name) == "string" and name ~= "" then
         return name
     end
     return nil
@@ -336,6 +343,47 @@ local function compareLinkedSlots(a, b)
         return aName < bName
     end
     return tostring(a.localId or "") < tostring(b.localId or "")
+end
+
+local function addLinkedScreen(target, seen, screen)
+    if not hasMethod(screen, "setRenderScript") then
+        return
+    end
+    if seen[screen] then
+        return
+    end
+    seen[screen] = true
+    target[#target + 1] = screen
+end
+
+local function resolveLinkedScreens(links, fallbackScreens, fallbackScreen)
+    local resolved = {}
+    local seen = {}
+    for _, screen in ipairs((links and links.screens) or {}) do
+        addLinkedScreen(resolved, seen, screen)
+    end
+    if #resolved == 0 then
+        if type(fallbackScreens) == "table" then
+            for _, screen in ipairs(fallbackScreens) do
+                addLinkedScreen(resolved, seen, screen)
+            end
+        end
+        addLinkedScreen(resolved, seen, fallbackScreen)
+    end
+    return resolved
+end
+
+local function countRenderableScreens(screens)
+    local count = 0
+    if type(screens) ~= "table" then
+        return 0
+    end
+    for _, screen in ipairs(screens) do
+        if hasMethod(screen, "setRenderScript") then
+            count = count + 1
+        end
+    end
+    return count
 end
 
 local function scanUnitLinks()
@@ -507,22 +555,47 @@ end
 --  Persistence
 
 function HudEditorBoard.refreshLinks(verbose)
+    local existingScreen = nil
+    local existingScreens = nil
+    local existingDatabank = nil
+    if type(_G) == "table" then
+        existingScreen = rawget(_G, "Screen")
+        existingScreens = rawget(_G, "Screens")
+        existingDatabank = rawget(_G, "databank")
+    else
+        existingScreen = Screen
+        existingScreens = Screens
+        existingDatabank = databank
+    end
     local links = scanUnitLinks()
     state.links = links
-    state.linkedScreens = links.screens or {}
-    state.databank = links.primaryDatabank
+    state.linkedScreens = resolveLinkedScreens(links, existingScreens, existingScreen)
+    if not links.primaryScreen then
+        links.primaryScreen = state.linkedScreens[1]
+    end
+    state.databank = links.primaryDatabank or existingDatabank
     state.databankAvailable = hasDatabankIo(state.databank)
-    if _ENV then
-        _ENV.HudEditorLinks = links
-        _ENV.Screens = state.linkedScreens
-        _ENV.Screen = links.primaryScreen
-        _ENV.Databanks = links.databanks
-        _ENV.databank = state.databank
+    if type(_G) == "table" then
+        rawset(_G, "HudEditorLinks", links)
+        rawset(_G, "Screens", state.linkedScreens)
+        rawset(_G, "Screen", links.primaryScreen)
+        rawset(_G, "Databanks", links.databanks)
+        rawset(_G, "databank", state.databank)
+    else
+        HudEditorLinks = links
+        Screens = state.linkedScreens
+        Screen = links.primaryScreen
+        Databanks = links.databanks
+        databank = state.databank
     end
     if verbose then
         local screenInfo = tostring(#state.linkedScreens)
         local dbInfo = tostring(#(links.databanks or {}))
         dp("Link scan: " .. screenInfo .. " screen(s), " .. dbInfo .. " databank(s)")
+        dp("Screen vars: S=" .. (hasMethod(existingScreen, "setRenderScript") and "1" or "0")
+            .. " Ss=" .. tostring(countRenderableScreens(existingScreens))
+            .. " scan=" .. tostring(#(links.screens or {}))
+            .. " use=" .. screenInfo)
         if links.primaryScreen then
             dp("Primary screen: " .. tostring(links.primaryScreen.elementName or links.primaryScreen.slotName))
         end
@@ -1077,6 +1150,44 @@ function HudEditorBoard.buildRenderInput(document)
     return HudEditorBoard.buildScreenDocument(document)
 end
 
+function HudEditorBoard.publishRenderState(script, renderInput)
+    if type(script) ~= "string" or script == "" then
+        return false, "no_render_script"
+    end
+    if type(renderInput) ~= "string" or renderInput == "" then
+        return false, "no_render_input"
+    end
+    if #state.linkedScreens == 0 then
+        return false, "no_linked_screens"
+    end
+    local skipped = 0
+    local published = 0
+    for index, screen in ipairs(state.linkedScreens) do
+        if hasMethod(screen, "setRenderScript") then
+            local screenName = tostring(screen.elementName or screen.slotName or index)
+            if hasMethod(screen, "clearScriptOutput") then
+                screen.clearScriptOutput()
+            end
+            dp("sr< " .. tostring(index) .. " " .. screenName .. " sc=" .. tostring(#script) .. " ic=" .. tostring(#renderInput))
+            screen.setRenderScript(script)
+            dp("sr> " .. tostring(index) .. " " .. screenName)
+            if hasMethod(screen, "setScriptInput") then
+                screen.setScriptInput(renderInput)
+            end
+            published = published + 1
+        else
+            skipped = skipped + 1
+        end
+    end
+    state.lastRenderedScript = script
+    state.lastRenderedInput = renderInput
+    state.lastRenderPublishTick = state.renderTick or 0
+    if skipped > 0 then
+        dp("Skipped " .. tostring(skipped) .. " linked screen(s) without setRenderScript")
+    end
+    return published > 0, published > 0 and nil or "no_publish_target"
+end
+
 --  Input handling
 
 function HudEditorBoard.onInputReceived(input)
@@ -1127,6 +1238,18 @@ function HudEditorBoard.init(bootDocument)
 
     if #state.linkedScreens > 0 then
         dp("Linked " .. tostring(#state.linkedScreens) .. " screen(s)")
+        local startupScript, startupError = HudEditorBoard.buildRenderScript()
+        local startupInput = startupScript and HudEditorBoard.buildRenderInput() or nil
+        if startupScript and startupInput then
+            local published = HudEditorBoard.publishRenderState(startupScript, startupInput)
+            if published then
+                state.lastRenderError = nil
+                dp("Initial screen publish complete")
+            end
+        else
+            state.lastRenderError = startupError or "no_render_input"
+            dp("Initial screen publish skipped: " .. tostring(state.lastRenderError))
+        end
     else
         dp("No screen linked - render output disabled")
     end
@@ -1160,28 +1283,11 @@ function HudEditorBoard.onTimer(timerName)
         local scriptChanged = script ~= state.lastRenderedScript
         local inputChanged = renderInput ~= state.lastRenderedInput
         local forcePublish = ((state.renderTick or 0) - (state.lastRenderPublishTick or 0)) >= SCREEN_REPUBLISH_TICKS
-        if scriptChanged or inputChanged or forcePublish then
-            state.lastRenderedScript = script
-            state.lastRenderedInput = renderInput
-            state.lastRenderPublishTick = state.renderTick or 0
-            local skipped = 0
-            for _, screen in ipairs(state.linkedScreens) do
-                if hasMethod(screen, "setRenderScript") then
-                    if hasMethod(screen, "clearScriptOutput") then
-                        screen.clearScriptOutput()
-                    end
-                    if scriptChanged or forcePublish then
-                        screen.setRenderScript(script)
-                    end
-                    if hasMethod(screen, "setScriptInput") then
-                        screen.setScriptInput(renderInput)
-                    end
-                else
-                    skipped = skipped + 1
-                end
-            end
-            if skipped > 0 then
-                dp("Skipped " .. tostring(skipped) .. " linked screen(s) without setRenderScript")
+        local republishScript = scriptChanged or inputChanged or forcePublish
+        if republishScript then
+            local published = HudEditorBoard.publishRenderState(script, renderInput)
+            if published then
+                state.lastRenderError = nil
             end
         end
         unit.setTimer("render", 0.1)  -- ~10fps render updates
@@ -1235,8 +1341,8 @@ end
 local function RD()
     local raw=""
     if type(getInput)=="function" then
-        local ok,val=pcall(getInput)
-        if ok and type(val)=="string" then
+        local val=getInput()
+        if type(val)=="string" then
             raw=val
         end
     end
@@ -1348,14 +1454,3 @@ end
     end
     return script, nil
 end
-
---  Module export
-
-if _ENV then
-    _ENV.HudEditorBoard = HudEditorBoard
-end
-if package and package.loaded then
-    package.loaded["HudEditorBoard"] = HudEditorBoard
-end
-
-return HudEditorBoard

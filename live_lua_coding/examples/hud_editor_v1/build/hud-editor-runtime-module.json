@@ -1,10 +1,10 @@
 {
-  "config": {},
+  "name": "HUD Editor",
+  "entry": "module.js",
+  "order": 200,
   "version": "0.1.0",
   "description": "Lua Painter HUD layout editor",
-  "name": "HUD Editor",
-  "order": 200,
-  "entry": "module.js",
   "id": "hud-editor",
+  "config": {},
   "defaultEnabled": false
 }

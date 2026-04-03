@@ -49,8 +49,8 @@ end
 local function RD()
     local raw=""
     if type(getInput)=="function" then
-        local ok,val=pcall(getInput)
-        if ok and type(val)=="string" then
+        local val=getInput()
+        if type(val)=="string" then
             raw=val
         end
     end

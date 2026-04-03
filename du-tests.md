@@ -1,207 +1,359 @@
-# DuMcpBridge & Lua-Probe — API-Testvorlage
+# DuMcpBridge & Lua Probe - Live Test Guide
 
-Schritt-für-Schritt-Reihenfolge zum manuellen oder agentischen Testen der MCP-Tools. Die Bridge bleibt **Transport**; echtes Verhalten kommt aus **ModUiExtractor** + **injizierter Lua-Probe**.
+Step-by-step order for manual or agent-driven testing of the MCP tools. The bridge is transport only; real behavior comes from ModUiExtractor plus the injected Lua probe.
 
 ---
 
-## Bootstrap-Prompt (Kurz für einen Folge-Assistenten)
+## Bootstrap Prompt
 
-Für eine **neue** Agent-Sitzung ohne Zugriff auf frühere Tool-Ausgaben: den folgenden Block kopieren und vor dem ersten MCP-Schritt einfügen (diese Datei `du-tests.md` im Repo als Autoritätsquelle für Schritte und Erwartungen).
+For a new agent session without access to earlier tool outputs, copy the block below before the first MCP step. Treat this file, `du-tests.md`, as the authority for live steps and expectations.
 
 ```text
-Du arbeitest im Repo du-tobi an DuMcpBridge + ModUiExtractor (Lua-Editor-Probe). Orientierung: Datei du-tests.md (API-Testvorlage).
+You are working in repo du-tobi on DuMcpBridge + ModUiExtractor. Use du-tests.md as the authority for live Dual Universe work.
 
-MCP-Server: DuMcpBridge (z. B. user-DuMcpBridge in Cursor). Vor jedem Testlauf playerId per du_list_active_sessions ermitteln; alle probe/relevanten Calls für dieselbe playerId sequentiell ausführen (keine parallelen MCP-Calls pro Session, wenn Race vermieden werden soll).
+Before each run, call du_list_active_sessions and then keep all relevant MCP calls for the same playerId sequential. Do not parallelize session-sensitive live calls.
 
-Empfohlener Kernpfad: du_ui_describe → optional du_ui_wait → du_ui_invoke(method = select_context) → du_editor_push_code → du_editor_save. Nach Slot-Wechsel nicht sofort mit alten Filter-Daten weiterarbeiten; der FILTERS-Bereich kann verzögert neu aufgebaut werden.
+For Programming Board / lua_editor work:
+- preferred context path: du_open_lua_context -> du_push_lua_context_code -> deliberate save/apply step
+- du_editor_push_code does not open an editor
+- du_editor_save does not choose a buffer for you
+- du_editor_pull_code is not automatic proof of the visible live buffer
 
-du_ui_invoke(method = add_filter): timeoutMs eher 10000–15000. Debug: du_ui_invoke(method = outer_html / raw_eval); generische Live-Pfade sind du_ui_describe, du_ui_invoke, du_ui_wait (uiKind: lua_editor).
+Important truth:
+- visible editor buffer and actually running board runtime are different things
+- lua_editor save/apply does NOT prove a board restart
+- validate board runtime only through a real board off/on cycle
+- after that, always verify both fresh Lua chat lines and the visible screen result
 
-Observability ohne direkten describe: du_get_last_result, du_tail_runtime_logs. du_editor_pull_code liefert Datei-/Rig-Workspace — kann vom Live-CodeMirror pro Filter abweichen; Live-Text eher describe / raw_eval.
+For board-to-screen work:
+- visible screen result has priority over board logs
+- if chat and visible screen disagree, trust the screen
+- test the smallest direct transport first instead of adding more layers
 
-du_editor_save kann bei lua_editor die gesamte Lua-Editor-Maske schließen — nur bewusst oder ganz am Ende nutzen.
+For runtime code:
+- do NOT wrap known DU API calls in pcall
+- use direct calls for known paths such as setRenderScript(...), setScriptInput(...), getInput(), system.print(...), slot.getClass(), slot.getLocalId(), and normal linked-element methods
 
-Falls zusätzlich ein Windows-Screenshot-MCP wie `ScreenShotNet` verfügbar ist: Screenshots nur gezielt nutzen, um den sichtbaren DU-Client-Zustand zu prüfen, wenn Probe-Status und sichtbarer Zustand auseinanderlaufen könnten. Gute Zeitpunkte sind direkt vor nativen Inputs wie `Ctrl+L` / `du_open_editor_native` und direkt nach `apply`. Nicht bei jedem Schritt verwenden; Bild-Payload ist deutlich schwerer als normale Probe-Ergebnisse.
+For visual or targeting steps:
+- before Ctrl+L or native inputs, confirm the real client state
+- if screenshot tools are available, use targeted screenshots to confirm the visible DU state
+- for board vs screen targeting decisions, use centered views and do not guess
+- use the calibration image `live_lua_coding/du-ref-board-screen-center.png` before board-vs-screen targeting decisions
 
-Probe/Build: ModUiExtractor/payload/lua-editor-probe.modules/035-lua-mcp-runtime.js, tools/build-lua-probe.ps1, tools/publish-lua-probe.ps1 (Repo → `payload-overrides`), Chat-Stempel lua-editor-probe.build.json. **Module-Override:** Server konkateniert Manifest + Module und wrappt mit derselben IIFE wie `build-lua-probe.ps1` (`ModUIExtractor.cs` — bei Änderung DLL neu bauen). Theming: drei Presets (Monokai / GitHub Dark / Gruvbox), APPLY/CANCEL an Themes gekoppelt — siehe `ModUiExtractor/README.md`.
+Useful debug tools:
+- du_ui_describe, du_ui_wait, du_ui_invoke
+- du_get_last_result, du_tail_runtime_logs
+- bridge-events.ndjson for command_enqueued -> command_result -> probe_result
 
-Bei Timeouts/Fehlern: Probe-Override validieren, Editor im Client offen, bridge-events.ndjson (command_enqueued → command_result → probe_result) prüfen.
+On timeout or failure:
+- validate the probe override
+- validate the visible editor state
+- do not infer a restart from save/apply
+- do not start or stop the MCP server yourself
 ```
+
+---
+
+## 0. Hard Live Rules
+
+These rules come from real live-debugging failures and take priority over convenience.
+
+- A saved or visibly updated `lua_editor` buffer does not prove that the board is now executing that code.
+- `du_editor_save` or `LUAEditorManager.apply()` is not a restart test for Programming Boards.
+- Validate board runtime only through a real board off/on cycle.
+- After every board off/on, verify two things:
+  - fresh Lua chat lines from that exact run
+  - visible result on the linked screen
+- If chat and visible screen disagree, the visible screen wins.
+- Do not wrap known Dual Universe API calls in `pcall`.
+- Use direct calls for known live paths, especially:
+  - `setRenderScript(...)`
+  - `setScriptInput(...)`
+  - `getInput()`
+  - `system.print(...)`
+  - `slot.getClass()`
+  - `slot.getLocalId()`
+  - `core.getElementNameById(...)`
+- `du_editor_push_code` does not open an editor.
+- `du_editor_save` does not choose a target buffer.
+- `du_editor_pull_code` is not automatically the visible live buffer.
+- Before any mutation, confirm the current live state with the documented bridge or UI tools.
+- Before native inputs like `Ctrl+L` or `du_open_editor_native`, confirm the visible target state instead of guessing.
+- Use the calibration image `live_lua_coding/du-ref-board-screen-center.png` before board-vs-screen targeting decisions.
+- Never reinject probe or UI payload code while `lua_editor` or `screen_editor` is open.
+- If an editor looks visually closed but input still seems blocked, verify whether MCP-side cleanup already handled it before assuming a free in-world state.
+- Test the simplest possible transport first. Do not add new transport layers before the direct path is actually disproven.
 
 ---
 
 ## 1. Prerequisites
 
-### 1.1 Laufende Komponenten
+### 1.1 Running Components
 
-| Komponente | Erwartung |
-| ------------ | ----------- |
-| **Dual Universe Server + Client** | Spieler eingeloggt, ggf. Lua-Editor-Kontext verfügbar |
-| **Mod `ModUIExtractor`** | Aktuelle DLL im Mods-Ordner des Servers (siehe `ModUiExtractor/README.md` → Deploy) |
-| **DuMcpBridge** | MCP-Server gestartet (z. B. `DuMcpBridge/run-mcp.cmd` oder Eintrag in Cursor/Codex) |
-| **Umgebungsvariablen** | Optional: `DU_UI_DUMP_ROOT`, `DU_MCP_BRIDGE_ROOT` — sonst Default unter Server-`tmp\ui-dumps` (siehe `DuMcpBridge`-README) |
+| Component | Expectation |
+| --- | --- |
+| Dual Universe server + client | Player is logged in and the relevant editor context can exist |
+| ModUiExtractor | Current DLL is deployed in the server Mods folder |
+| DuMcpBridge | MCP server is running |
+| Environment variables | Optional: `DU_UI_DUMP_ROOT`, `DU_MCP_BRIDGE_ROOT`; otherwise defaults under server `tmp\\ui-dumps` |
 
-### 1.2 Pfade (anpassen)
+### 1.2 Paths
 
-Default aus der Doku (Beispiel):
+Default examples from the docs:
 
-- **Commands:** `D:\MyDUserver\tmp\ui-dumps\mcp-bridge\commands\`
-- **Events:** `D:\MyDUserver\tmp\ui-dumps\mcp-bridge\events\bridge-events.ndjson`
-- **Probe-Override (Module):** `D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.modules\` + `manifest.txt`
-- **Build-Stamp (Chat-Zeile):** `lua-editor-probe.build.json` im Override-Root **oder** im Module-Ordner (siehe `ModUiExtractor/README.md`)
+- Commands: `D:\MyDUserver\tmp\ui-dumps\mcp-bridge\commands\`
+- Events: `D:\MyDUserver\tmp\ui-dumps\mcp-bridge\events\bridge-events.ndjson`
+- Probe override modules: `D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.modules\`
+- Build stamp: `lua-editor-probe.build.json`
 
-### 1.3 Lua-Probe / Board
+### 1.3 Lua Probe / Board
 
-1. Repo: `ModUiExtractor\tools\build-lua-probe.ps1` ausführen (Bundle + `lua-editor-probe.build.json`).
-2. Optional: `tools\publish-lua-probe.ps1` oder manuell `035-lua-mcp-runtime.js` + ggf. gesamten Modulordner + `build.json` in den Override-Pfad kopieren.
-3. **Im Spiel:** „Lua probe“ / injizieren; private Chat-Zeile sollte u. a. **`[probe <Zeitstempel> <kurzHash>]`** zeigen — damit ist die **gleiche** Version wie die gebaute `build.json` abgleichbar.
-4. **Lua-Editor** öffnen (z. B. Control Unit → Edit Lua), passendes Board/Slot-Kontext.
+1. In the repo, run `ModUiExtractor\tools\build-lua-probe.ps1`.
+2. Optionally publish with `tools\publish-lua-probe.ps1` or copy the built module override files manually.
+3. In game, inject the Lua probe. The private chat line should include the probe timestamp and short hash.
+4. Open the Lua editor on the correct board and context.
+
+Important:
+
+- Do not reinject probe or UI payload code while `lua_editor` or `screen_editor` is open.
 
 ### 1.4 `playerId`
 
-- Aus **`du_list_active_sessions`** ermitteln (typisch z. B. `10000`), oder aus eurer Umgebung bekannt.
-- Tests **sequentiell** für dieselbe `playerId` ausführen (keine parallelen MCP-Calls für dieselbe Session, wenn Race/Debug vermieden werden soll).
+- Get it from `du_list_active_sessions`.
+- Run all live test steps sequentially for the same `playerId`.
 
 ### 1.5 Timeouts
 
-- Viele Tools: `timeoutMs` 250–15000 ms (MCP-Schema-Maximum).
-- **`du_ui_invoke(method = add_filter)`:** eher **10000–15000** ms (Cohtml / `setTimeout` in der Probe).
+- Most tools: `timeoutMs` around `250` to `15000`.
+- For `du_ui_invoke(method = add_filter)`, prefer `10000` to `15000`.
+
+### 1.6 IDE Sync Watcher
+
+If your workflow depends on the file-based IDE Sync path, the watcher may be required.
+
+- Typical helper: `live_lua_coding/Start-DuIdeSyncWatcher.ps1`
+- Without the watcher, export or sync actions may appear to work while the workspace files stay stale
+- Treat the watcher as session setup, not as proof of a fresh visible live buffer
 
 ---
 
-## 2. Basis-Checks (Reihenfolge beibehalten)
+## 2. Baseline Checks
 
-### Schritt B0 — Sessions
+Keep this order.
 
-- **Tool:** `du_list_active_sessions`  
-- **Erwartung:** Mindestens eine Zeile `player=… sources=lua_editor` (oder eure Quelle), wenn der Lua-Editor-Pfad aktiv war.
+### Step B0 - Sessions
 
-### Schritt B1 — Editor sichtbar / Snapshot
+- Tool: `du_list_active_sessions`
+- Expectation: at least one usable session and `playerId`
 
-- **Tool:** `du_ui_describe` (`uiKind: lua_editor`, `playerId`, `timeoutMs` z. B. 8000)
-- **Erwartung:** JSON mit `visible`, `title`, `slots[]`, `filters[]`, `selectedSlot`, `selectedFilter`, `codeLength`.  
-- **Bei Fehler / Timeout:** Override + erneut injizieren; Editor wirklich offen; `du_ui_wait` (optional).
-- **Optional visuell:** Wenn ein Screenshot-MCP verfügbar ist, `capture_window_screenshot` für `Dual Universe` nur dann nutzen, wenn unklar ist, ob der sichtbare Client-Zustand wirklich zum Probe-Snapshot passt.
+### Step B1 - Editor Snapshot
 
-### Schritt B2 — Warten auf Editor (optional)
+- Tool: `du_ui_describe` with `uiKind = lua_editor`
+- Expectation: JSON with `visible`, `title`, `slots[]`, `filters[]`, `selectedSlot`, `selectedFilter`, `codeLength`
+- On timeout or failure: validate the override, validate that the editor is really open, optionally use `du_ui_wait`
+- Optional visual check: if screenshot tools are available, use a targeted screenshot only when probe state and visible state may disagree
 
-- **Tool:** `du_ui_wait` (`uiKind: lua_editor`, `maxWaitMs`, `timeoutMs`, `requireVisible` nach Bedarf)
-- **Erwartung:** `ready: true` mit Snapshot, oder nach Budget `ready: false` (dann Logs / NDJSON prüfen).
+### Step B2 - Wait for Editor
 
----
-
-## 3. Navigations- und Code-Pfad (empielene Reihenfolge)
-
-### Schritt N1 — Slot + Filter wählen
-
-- **Tool:** `du_ui_invoke` mit `uiKind: lua_editor`, `method: select_context`, `slotName`, `filterName`, optional `settleMs`
-- **Erwartung:** `selectedSlot` und `selectedFilter` passen; der Toolpfad wartet nach dem Slot-Wechsel bereits auf das notwendige UI-Settling.
-
-### Schritt N2 — Code setzen
-
-- **Tool:** `du_editor_push_code` (`playerId`, `targetKind: lua_editor`, `sourcePath`)
-- **Erwartung:** Import wurde staged; im Spielbuffer landet der Dateiinhalt nach dem IDE-Sync-Pfad.
-
-### Schritt N3 — Erneut beschreiben
-
-- **Tool:** `du_ui_describe`
-- **Erwartung:** Konsistenz mit N1–N3.
+- Tool: `du_ui_wait`
+- Expectation: `ready = true`, or `ready = false` only after the timeout budget is exhausted
 
 ---
 
-## 4. Filter anlegen (`add_filter`)
+## 2A. Truth Model: Buffer vs Workspace vs Running Runtime
 
-- **Voraussetzung:** Richtiger Slot (N1); Handler-Name muss im **Kebab-Menü der neuen Zeile** existieren (slot-/geräteabhängig).
-- **Tool:** `du_ui_invoke` mit `uiKind: lua_editor`, `method: add_filter`, `filterName`, ggf. `timeoutMs` 15000
-- **Erwartung:** `added` und erweiterte `filters[]`; oder `alreadyPresent: true` bei Idempotenz.  
-- **Hinweis:** Die Probe nutzt **`+ add filter`** (`.lua_add_filter_button`), nicht nur Kebab auf einer bereits befüllten Zeile zum „Neu-Anlegen“.
+This distinction is mandatory. Most live confusion comes from mixing these up.
 
----
+### Visible Live Buffer
 
-## 5. DOM / Debug
+This is the code actually visible in the open in-game editor.
 
-### Schritt D1 — `outer_html`
+- For `lua_editor`: visible slot + visible filter + visible CodeMirror content
+- For `screen_editor`: visible CodeMirror content in the open screen editor
 
-- **Tool:** `du_ui_invoke` mit `uiKind: lua_editor`, `method: outer_html`, `selector` z. B. `#filters` oder `.lua_add_filter_button`
-- **Erwartung:** JSON mit `outerHTML`, `truncated`, `originalLength` — nur wenn die Probe `outer_html` enthält (aktueller Override/DLL).
+Preferred tools:
 
-### Schritt D2 — Low-Level Probe
+- `du_ui_describe`
+- `du_ui_wait`
+- `du_ui_invoke(... method = outer_html ...)`
 
-- **Tool:** `du_ui_invoke` mit `method` + passenden methodenspezifischen Feldern (`filterName`, `selector`, `functionBody`, …)
-- **Erwartung:** Direkter Zugriff auf den kanonischen Probe-Pfad.
+### IDE / Workspace File
 
-### Schritt D3 — `raw_eval` (nur vertrauenswürdig)
+This is the external file or snippet state outside the visible editor.
 
-- **Tool:** `du_ui_invoke` mit `uiKind: lua_editor`, `method: raw_eval`
-- **`functionBody`:** Strict Body mit Parameter `state`, z. B.:
-  `return state.describeLuaEditor();`  
-- **Risiko:** Beliebiges JS im HUD — nicht mit fremden Strings aus dem Internet füttern.
+Examples:
 
----
+- `du_editor_pull_code`
+- `snippet.lua`
+- `snippet.txt`
+- `snippet.sync.json`
 
-## 6. Generische `du_ui_*`-Tools
+Useful for file comparison, but not automatically identical to the visible live buffer.
 
-Kanonischer Live-Pfad:
+### Running Runtime
 
-- `du_ui_describe`: generischer Snapshot
-- `du_ui_invoke`: generischer Action-/Debug-Pfad
-- `du_ui_wait`: generischer Readiness-Pfad
+This is the code the board or screen is actually executing right now.
 
-**Test:** `du_ui_invoke` mit `method: describe` und leeren weiteren Feldern — Ergebnis wie B1.
+Important:
 
----
-
-## 7. Bridge ohne direkten Probe-Call
-
-### Schritt R1 — Letztes Event
-
-- **Tool:** `du_get_last_result` (`playerId`, optional `targetKind`, `eventType`)  
-- **Resource:** `du://session/{playerId}/last-result`  
-- **Erwartung:** Letzter `probe_result` oder anderes Event; bei Debugging `commandId` mit NDJSON abgleichen.
-
-### Schritt R2 — Runtime-Logs
-
-- **Tool:** `du_tail_runtime_logs` (`playerId`, `limit`)
-
-### Schritt R3 — Aktiver Code (Datei-Workspace)
-
-- **Tool:** `du_editor_pull_code` (`playerId`, `targetKind: lua_editor`)  
-- **Hinweis:** Kann **Rig/Snippet** aus dem Datei-Workspace zeigen, nicht zwingend den **gleichen** Stand wie der Live-CodeMirror pro Filter. Für pro-Filter-Live-Text eher `describe` / ggf. `raw_eval`.
+- A new buffer does not automatically mean a new runtime
+- Save/apply does not automatically mean a board restart
+- A Programming Board runtime is only validated when:
+  - a real board off/on happened
+  - fresh Lua chat lines from that run exist
+  - the visible screen result matches that run
 
 ---
 
-## 8. Save / Apply (Vorsicht)
+## 3. Navigation and Code Path
 
-- **Tool:** `du_editor_save` (`playerId`, `targetKind: lua_editor`)
-- **Hinweis:** Führt bei `lua_editor` in der Praxis oft denselben Save-/Apply-Pfad aus und schließt häufig die **gesamte** Lua-Editor-Maske; danach Probe-Schritte ggf. erst nach erneutem Öffnen.
-- **Optional visuell:** Ein gezielter Screenshot direkt nach `apply` kann helfen zu unterscheiden, ob der sichtbare Screen stabil ist oder ob nur der Editor erfolgreich gespeichert wurde.
+Recommended order.
+
+### Step N1 - Select Slot and Filter
+
+- Tool: `du_ui_invoke` with `uiKind = lua_editor`, `method = select_context`, `slotName`, `filterName`, optional `settleMs`
+- Expectation: `selectedSlot` and `selectedFilter` match the intended context
+
+### Step N2 - Push Code
+
+- Tool: `du_editor_push_code` with `targetKind = lua_editor`
+- Expectation: import was staged into the already selected live context
+
+### Step N3 - Describe Again
+
+- Tool: `du_ui_describe`
+- Expectation: consistency with steps N1 to N3
+
+### Step N4 - Do Not Confuse Runtime with Buffer
+
+- Rule: after `du_editor_push_code` or `du_editor_save`, do not claim the new board code is already running
+- Expectation: only claim runtime validation after real board off/on plus fresh chat and screen checks
+
+### Step N5 - Visual Check Before Native Inputs
+
+- Rule: before `Ctrl+L`, `du_open_editor_native`, or similar native inputs, verify the visible DU state
+- If screenshot tools are available: use targeted screenshots only for state decisions or when probe and visible state may disagree
 
 ---
 
-## 9. NDJSON-Gegenprobe (manuell)
+## 4. Add Filter
 
-1. Während der Tests `bridge-events.ndjson` tailen oder letzte Zeilen öffnen.
-2. Zu jedem MCP-Call: `command_enqueued` → `command_result` → `probe_result` mit passender `commandId`/`method` erwarten.
-3. Bei fehlendem `probe_result`: Mod-Logs; Command in `commands/` verarbeitet? Spiel-Client HUD aktiv?
+- Prerequisite: correct slot is selected and the handler name really exists for that slot
+- Tool: `du_ui_invoke` with `uiKind = lua_editor`, `method = add_filter`, `filterName`, usually `timeoutMs = 15000`
+- Expectation: new filter appears, or `alreadyPresent = true`
 
 ---
 
-## 10. Build-/Release-Checkliste (kurz)
+## 5. DOM and Debug
+
+### Step D1 - `outer_html`
+
+- Tool: `du_ui_invoke` with `method = outer_html`, `selector` such as `#filters` or `.lua_add_filter_button`
+- Expectation: structured HTML snapshot
+
+### Step D2 - Low-Level Probe
+
+- Tool: `du_ui_invoke` with the exact `method` and method-specific fields
+- Expectation: direct access to the canonical probe path
+
+### Step D3 - `raw_eval`
+
+- Tool: `du_ui_invoke` with `method = raw_eval`
+- `functionBody` should be a strict body using the provided `state` parameter
+- Risk: this runs arbitrary JS in the HUD; do not feed it untrusted content
+
+---
+
+## 6. Generic `du_ui_*` Tools
+
+Canonical live path:
+
+- `du_ui_describe`
+- `du_ui_invoke`
+- `du_ui_wait`
+
+Minimal generic test:
+
+- call `du_ui_invoke` with `method = describe`
+- expect a result equivalent to `du_ui_describe`
+
+---
+
+## 7. Bridge Checks Without Direct Probe Calls
+
+### Step R1 - Last Event
+
+- Tool: `du_get_last_result`
+- Expectation: latest `probe_result` or other recent event
+
+### Step R2 - Runtime Logs
+
+- Tool: `du_tail_runtime_logs`
+
+### Step R3 - Active Code from Workspace
+
+- Tool: `du_editor_pull_code`
+- Note: this may reflect the file workspace or snippet state, not the per-filter visible live CodeMirror content
+
+---
+
+## 8. Save / Apply
+
+- Tool: `du_editor_save` with `targetKind = lua_editor`
+- Note: in practice this often follows the same save/apply path and may close the whole Lua editor
+- Very important: for `lua_editor`, save/apply is not proof of board restart or new running runtime
+- Optional visual check: a targeted screenshot after apply can help distinguish "editor saved" from "screen actually changed"
+
+### 8A. Valid Board Runtime Test
+
+A valid Programming Board runtime test requires all three:
+
+1. real board off/on
+2. fresh Lua chat lines from that exact run
+3. visible screen result from that exact run
+
+If one is missing, the runtime validation is incomplete.
+
+### 8B. `pcall` Rule for Live Runtime
+
+Do not introduce `pcall` wrappers around known DU runtime API calls.
+
+This especially applies to:
+
+- `setRenderScript(...)`
+- `setScriptInput(...)`
+- `getInput()`
+- `system.print(...)`
+- known linked-element methods
+
+If a direct known API call fails, the failure should be visible instead of being hidden or distorted by `pcall`.
+
+---
+
+## 9. NDJSON Cross-Check
+
+1. Tail or open the latest lines of `bridge-events.ndjson`.
+2. For each MCP call, expect `command_enqueued` -> `command_result` -> `probe_result`.
+3. If `probe_result` is missing, check the mod logs, the command file processing, and the visible game state.
+
+---
+
+## 10. Build / Release Checklist
 
 - [ ] `DuMcpBridge`: `npm run build`
-- [ ] `ModUiExtractor`: `dotnet build -c Release` (+ DLL deployen)
-- [ ] `build-lua-probe.ps1`; Override + **build.json**; Inject; Chat-Zeile mit Hash verifizieren
-- [ ] MCP-Client: Bridge neu starten / Tools neu laden, wenn sich Tool-Schemas geändert haben
+- [ ] `ModUiExtractor`: `dotnet build -c Release` and deploy the DLL
+- [ ] Build the Lua probe, publish the override, inject it, and verify the chat hash line
+- [ ] Restart or reload the MCP client if tool schemas changed
 
 ---
 
-## 11. Referenzen im Repo
+## 11. Repo References
 
-- `DuMcpBridge/README.md` — Tool-/Resource-Liste, Verträge
-- `ModUiExtractor/README.md` — Mod, Override, Hot-Reload, Build-Stamp
-- `du-visual-subagent.md` — Probe-first Workflow für einen Screenshot-fähigen Hilfs-Subagenten
-- `live_lua_coding/README.md` — Fester Repo-Ablageort und getrackte Live-Board-Snapshots
+- [README.md](/d:/github/du-tobi/DuMcpBridge/README.md)
+- [README.md](/d:/github/du-tobi/ModUiExtractor/README.md)
+- [README.md](/d:/github/du-tobi/live_lua_coding/README.md)
+- [du-visual-subagent.md](/d:/github/du-tobi/du-visual-subagent.md)
 
 ---
 
-*Vorlage: Reihenfolge und Erwartungen bei Bedarf für eure Umgebung anpassen (Pfade, `playerId`, Board-Kontext).*
+Adjust paths, `playerId`, and board context details as needed for the current environment.

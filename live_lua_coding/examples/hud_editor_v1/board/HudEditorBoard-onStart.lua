@@ -16,7 +16,9 @@ if not HudEditorBoard then
 end
 
 -- Initialize
+system.print("[HE-Boot] pre-init")
 HudEditorBoard.init()
+system.print("[HE-Boot] post-init")
 
 -- Event handlers
 

@@ -77,6 +77,15 @@ Pass criteria:
 - `selectedFilter = "onStart()"`
 - follow with `du_push_lua_context_code(...)` when the next step is to land a tracked source file into that exact context
 
+Important validation rule for Programming Boards:
+
+- Do not treat `du_editor_save(...)`, `LUAEditorManager.apply()`, or a visually updated Lua editor buffer as proof that the running board execution restarted.
+- Do not wrap known DU runtime API calls in `pcall` when preparing live board or screen code for this test flow.
+- For board-runtime validation, require an explicit board off/on cycle and then check:
+  - fresh Lua chat lines from that new run
+  - the visible linked-screen result after the new run
+- If the editor buffer and the visible screen disagree, the screen result wins.
+
 The lower-level `describe` / `select_slot` / `select_filter_*` flow below still matters for diagnostics, but it should no longer be the first choice for routine Lua board work.
 
 ### 3a. Confirm editor is open

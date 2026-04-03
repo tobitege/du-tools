@@ -38,6 +38,9 @@ Rules:
 - After every camera move, treat the previous visual conclusion as invalid until a new centered capture confirms the new state.
 - Do not infer board targeting from nearby geometry, side captures, or rough visual similarity.
 - For Programming Board work, establish the correct `lua_editor` context before pushing code.
+- Do not assume a `lua_editor` save or apply restarts the running board code.
+- For board-runtime validation, require an explicit board off/on cycle and then verify both fresh Lua chat output and the visible linked-screen result.
+- Do not wrap known DU API calls in `pcall` in the runtime code you push live.
 - Prefer the canonical MCP tools over local helper scripts unless the manual explicitly allows a fallback.
 - If a step is ambiguous, inspect first and only then act.
 

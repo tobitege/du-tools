@@ -1,6 +1,6 @@
 // HUD Editor Probe - Lua Painter
-// Project: D:\github\du-tobi\live_lua_coding\examples\hud_editor_v1
-// Built: 2026-04-02T18:04:00Z
+// Project: d:\github\du-tobi\live_lua_coding\examples\hud_editor_v1
+// Built: 2026-04-02T19:02:25Z
 
 // Inlined CSS
 (function injectCSS() {
