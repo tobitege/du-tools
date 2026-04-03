@@ -2,6 +2,11 @@
 
 Embedded myDU DLL mod that injects a defensive JavaScript payload into the DU client UI and stores returned packets on the server as NDJSON dumps.
 
+User-facing naming note:
+
+- the repository and DLL still use the historical name `ModUIExtractor`
+- the in-game mod menu and user-facing action labels are now branded as `UI Toolbox`
+
 ## Start Here
 
 Most important workflow in this project:
@@ -26,7 +31,7 @@ This repo now includes:
 
 ### 2026-02-20
 
-- Added `UI Extractor\Inject LUA editor probe` (Action `5`) to instrument the Lua editor from the element context menu.
+- Added `UI Toolbox\Inject LUA editor probe` (Action `5`) to instrument the Lua editor from the element context menu.
 - Confirmed the Lua editor entrypoint path in-game: context menu item `Edit Lua script (Ctrl + L)` opens `#dpu_editor`.
 - Added a visible probe payload test in the Lua editor header: three dots (green/yellow/red, top-left) that recolor editor chrome on click.
 - Verified probe event capture with `lua-probe-*.ndjson` files (`lua_menu_click`, `lua_editor_opened`, and manager calls).
@@ -70,12 +75,12 @@ This repo now includes:
 
 ## In-Game Actions
 
-- `UI Extractor\Run UI Dump (Safe)`
-- `UI Extractor\Run UI Dump (Deep)`
-- `UI Extractor\Extract Stylesheet\ALL .css files (full)`
-- `UI Extractor\Extract Stylesheet\From target-stylesheet-url.txt`
-- `UI Extractor\Extract Scripts\ALL .js files (full)`
-- `UI Extractor\Inject LUA editor probe` (Element context menu)
+- `UI Toolbox\Run UI Dump (Safe)`
+- `UI Toolbox\Run UI Dump (Deep)`
+- `UI Toolbox\Extract Stylesheet\ALL .css files (full)`
+- `UI Toolbox\Extract Stylesheet\From target-stylesheet-url.txt`
+- `UI Toolbox\Extract Scripts\ALL .js files (full)`
+- `UI Toolbox\Inject LUA editor probe` (inside the `mod: UI Toolbox` submenu on element context menus)
 
 ## Action IDs
 
@@ -258,7 +263,7 @@ After each edit:
 
 1. Save changed module or `lua-editor-probe.override.js`.
 2. In-game, open element context menu.
-3. Click `UI Extractor\Inject LUA editor probe`.
+3. Click `UI Toolbox\Inject LUA editor probe`.
 4. Re-open or refocus Lua editor (`Edit Lua script (Ctrl + L)`).
 5. Confirm probe is active (probe-owned controls like the runtime-module kebab, theme dots, or `IDE Sync` are visible).
 
@@ -285,7 +290,7 @@ Useful sync commands:
 # Required before an in-game reinject if you changed probe JS/modules
 .\tools\publish-lua-probe.ps1
 
-# Source extractor payload -> live override
+# Source base mod payload -> live override
 Copy-Item `
   '<repo-root>\ModUiExtractor\payload\ModUiExtractor-payload.js' `
   'D:\MyDUserver\tmp\ui-dumps\payload-overrides\ModUiExtractor-payload.override.js' -Force
@@ -303,7 +308,7 @@ Copy-Item `
   '<repo-root>\ModUiExtractor\payload\lua-editor-probe.modules\*' `
   'D:\MyDUserver\tmp\ui-dumps\payload-overrides\lua-editor-probe.modules' -Force
 
-# Live extractor override -> source payload (persist your live tweaks in repo)
+# Live base mod override -> source payload (persist your live tweaks in repo)
 Copy-Item `
   'D:\MyDUserver\tmp\ui-dumps\payload-overrides\ModUiExtractor-payload.override.js' `
   '<repo-root>\ModUiExtractor\payload\ModUiExtractor-payload.js' -Force
@@ -358,7 +363,7 @@ Der Probe-State stellt dafuer intern `ensureThemeCatalogLoaded(...)` und `receiv
 ### 2) Inject and open editor
 
 1. In-game open element context menu.
-2. Click `UI Extractor\Inject LUA editor probe`.
+2. Click `UI Toolbox\Inject LUA editor probe`.
 3. Open editor from `Edit Lua script`.
 4. Confirm probe-owned editor controls are visible (for example the runtime-module kebab or theme dots).
 
@@ -623,11 +628,11 @@ coui://data/gui/hud/dpu_editor/css/dpu_editor.css
 
 Then run:
 
-- `UI Extractor\Extract Stylesheet\From target-stylesheet-url.txt`
+- `UI Toolbox\Extract Stylesheet\From target-stylesheet-url.txt`
 
 ## Quick Workflow (Full CSS + HTML Areas)
 
-1. In-game run `UI Extractor\Extract Stylesheet\ALL .css files (full)`.
+1. In-game run `UI Toolbox\Extract Stylesheet\ALL .css files (full)`.
 2. Take newest `D:\MyDUserver\tmp\ui-dumps\ui-*.ndjson`.
 3. Run `reassemble-ui-dump.ps1`.
 4. Open `<dumpId>\manifest.json` and verify:
@@ -640,7 +645,7 @@ Then run:
 
 ## Quick Workflow (All JS Files)
 
-1. In-game run `UI Extractor\Extract Scripts\ALL .js files (full)`.
+1. In-game run `UI Toolbox\Extract Scripts\ALL .js files (full)`.
 2. Take newest `D:\MyDUserver\tmp\ui-dumps\ui-*.ndjson`.
 3. Run `reassemble-ui-dump.ps1`.
 4. Open `<dumpId>\all_scripts_manifest.json`.
@@ -656,7 +661,7 @@ Then run:
 
 ## Troubleshooting (Do's and Don'ts)
 
-When modifying the UI extractor payloads (especially `lua-editor-probe.js`), be aware that the game client uses an older embedded browser engine (Cohtml/Awesomium) which lacks many modern safeguards and behaves differently than modern Chrome/Firefox.
+When modifying the UI Toolbox payloads (especially `lua-editor-probe.js`), be aware that the game client uses an older embedded browser engine (Cohtml/Awesomium) which lacks many modern safeguards and behaves differently than modern Chrome/Firefox.
 
 - **DO NOT** use `node.insertBefore(newNode, referenceNode)` when `referenceNode` might be `null`. Modern browsers treat this as an `appendChild(newNode)`, but Cohtml will freeze or crash the game client. Always explicitly check `if (referenceNode) { parent.insertBefore(node, referenceNode); } else { parent.appendChild(node); }`.
 - **DO NOT** attempt to constantly re-sort or re-order DOM elements inside a `MutationObserver` or `setInterval` using `previousElementSibling` or `nextElementSibling`. Text nodes and whitespace can cause these checks to fail in Cohtml, resulting in infinite layout recalculation loops that instantly freeze the client.
@@ -666,7 +671,7 @@ When modifying the UI extractor payloads (especially `lua-editor-probe.js`), be 
 - **DO** prefer native context-menu bridge invocation when available: `executeAction(<numeric helper index>)` where index is derived from menu entry `helperid` (for example `menu_item_30` -> `30`). Passing caption strings or object payloads to `executeAction` causes Cohtml type conversion errors.
 - **DO NOT** use `ConvertTo-Json` inside a pipeline in PowerShell 5.1 scripts (e.g. `$data | ConvertTo-Json`) when dealing with large code strings. It can hang or fail silently. Format simple JSON strings manually and escape characters explicitly.
 - **DO** be aware of PowerShell's file property caching. When watching for file changes, use `[System.IO.File]::GetLastWriteTime($path)` instead of `(Get-Item $path).LastWriteTime` to guarantee you get the actual real-time file system timestamp.
-- **DO** expect some clients to block script-body reads from `coui://...` URLs with `InvalidAccessError`/`permission_blocked`. The extractor now uses async XHR and multiple URL fallbacks, but Cohtml security can still deny access depending on the page context.
+- **DO** expect some clients to block script-body reads from `coui://...` URLs with `InvalidAccessError`/`permission_blocked`. The toolbox payload now uses async XHR and multiple URL fallbacks, but Cohtml security can still deny access depending on the page context.
 - **DO NOT** key slot convergence checks on volatile class strings (for example `.selected` in `className`). In Cohtml, class flags can lag or flap during rebuilds. Use stable slot identity (`id`/`data-*`/parent index) for state-machine matching.
 - **DO NOT** apply top-line restore before the target snippet is actually present in CodeMirror. Wait for the expected snippet key (`targetSnippetKey`) and settle signals first, otherwise restores clamp to line `1`.
 - **DO** keep wait paths bounded and explicit. Current probe defaults are `5000ms` max wait and `250ms` quiet window; avoid unbounded loops or implicit retries.

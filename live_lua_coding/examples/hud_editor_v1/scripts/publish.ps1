@@ -1,7 +1,7 @@
-# Publish HUD Editor as a runtime lua-probe module.
+# Publish Lua Painter as a runtime lua-probe module.
 #
 # Workflow:
-# 1. Build the standalone HUD editor payload and runtime-module wrapper.
+# 1. Build the standalone Lua Painter payload and runtime-module wrapper.
 # 2. Copy the generated runtime-module files into ModUiExtractor source.
 # 3. Publish the lua probe via ModUiExtractor's canonical publish script.
 param(
@@ -20,7 +20,7 @@ $runtimeModuleSrc = Join-Path $buildOutDir "hud-editor-runtime-module.ingame.js"
 $runtimeModuleMeta = Join-Path $buildOutDir "hud-editor-runtime-module.ingame.json"
 $debugPayload = Join-Path $buildOutDir "hud-editor-probe.ingame.js"
 
-Write-Host "Building HUD Editor runtime module..."
+Write-Host "Building Lua Painter runtime module..."
 & $buildScript -ProjectDir $projectDir -Target ingame
 if ($LASTEXITCODE -ne 0) {
     throw "Build failed with exit code $LASTEXITCODE"
@@ -68,7 +68,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ""
-Write-Host "HUD Editor runtime module published:"
+Write-Host "Lua Painter runtime module published:"
 Write-Host "  $(Join-Path $moduleTargetDir 'module.json')"
 Write-Host "  $(Join-Path $moduleTargetDir 'module.js')"
 Write-Host "  $(Join-Path $moduleTargetDir 'hud-editor-probe.js')"

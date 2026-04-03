@@ -606,7 +606,7 @@
     if (saveBtn) {
       saveBtn.textContent = canUseBoard ? "Apply + Close HUD" : "Save";
       saveBtn.title = canUseBoard
-        ? "Write to unit.onStart and close the HUD editor after apply"
+        ? "Write to unit.onStart and close Lua Painter after apply"
         : "Save current layout";
     }
 

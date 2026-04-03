@@ -1,5 +1,5 @@
 -- HudEditorBoard-onStart.lua
--- Unit onStart handler for Paint-with-Lua HUD Editor
+-- Unit onStart handler for Lua Painter
 -- Project: D:\github\du-tobi\live_lua_coding\examples\hud_editor_v1
 
 -- Bootstrap
@@ -33,4 +33,4 @@ end
 unit.hideWidget()
 unit.setTimer("startup", 0.2)
 
-system.print("HudEditorBoard initialized")
+system.print("Lua Painter board initialized")

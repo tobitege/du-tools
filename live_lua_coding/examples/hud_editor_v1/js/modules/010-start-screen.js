@@ -74,12 +74,12 @@
           el("button", {
             className: "menu-btn exit-btn",
             dataset: { action: "exit" },
-            title: "Close the HUD Editor"
+            title: "Close Lua Painter"
           }, [
             el("span", { className: "icon", textContent: "\u2716" }),
             el("div", { className: "label-group" }, [
               el("span", { className: "label", textContent: "Exit" }),
-              el("span", { className: "desc", textContent: "Close the HUD Editor" }),
+              el("span", { className: "desc", textContent: "Close Lua Painter" }),
             ]),
           ]),
         ]),

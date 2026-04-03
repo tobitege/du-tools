@@ -1,5 +1,5 @@
 -- HudEditorBoard-onTimer.lua
--- Unit onTimer(startup) handler for Paint-with-Lua HUD Editor
+-- Unit onTimer(startup) handler for Lua Painter
 -- Project: D:\github\du-tobi\live_lua_coding\examples\hud_editor_v1
 
 if not HudEditorBoard then

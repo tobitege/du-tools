@@ -49,7 +49,7 @@
       }
       APP.emit("toast", {
         type: "info",
-        text: message || "Lua editor applied and closed; HUD editor closed too"
+        text: message || "Lua editor applied and closed; Lua Painter closed too"
       });
       return;
     }

@@ -1361,37 +1361,37 @@ ORDER BY table_schema, table_name, ordinal_position";
                 new ModActionDefinition
                 {
                     id = ActionRunSafe,
-                    label = "UI Extractor\\Run UI Dump (Safe)",
+                    label = "UI Toolbox\\Run UI Dump (Safe)",
                     context = ModActionContext.Global
                 },
                 new ModActionDefinition
                 {
                     id = ActionRunDeep,
-                    label = "UI Extractor\\Run UI Dump (Deep)",
+                    label = "UI Toolbox\\Run UI Dump (Deep)",
                     context = ModActionContext.Global
                 },
                 new ModActionDefinition
                 {
                     id = ActionExtractAllCss,
-                    label = "UI Extractor\\Extract Stylesheet\\ALL .css files (full)",
+                    label = "UI Toolbox\\Extract Stylesheet\\ALL .css files (full)",
                     context = ModActionContext.Global
                 },
                 new ModActionDefinition
                 {
                     id = ActionExtractFromTargetFile,
-                    label = "UI Extractor\\Extract Stylesheet\\From target-stylesheet-url.txt",
+                    label = "UI Toolbox\\Extract Stylesheet\\From target-stylesheet-url.txt",
                     context = ModActionContext.Global
                 },
                 new ModActionDefinition
                 {
                     id = ActionExtractAllScripts,
-                    label = "UI Extractor\\Extract Scripts\\ALL .js files (full)",
+                    label = "UI Toolbox\\Extract Scripts\\ALL .js files (full)",
                     context = ModActionContext.Global
                 },
                 new ModActionDefinition
                 {
                     id = ActionInjectLuaProbe,
-                    label = "UI Extractor\\Inject LUA editor probe",
+                    label = "UI Toolbox\\Inject LUA editor probe",
                     context = ModActionContext.Element
                 }
             }
@@ -2261,14 +2261,14 @@ ORDER BY table_schema, table_name, ordinal_position";
             await Notify(
                 playerId,
                 targetKind == "screen_editor"
-                    ? "HUD Editor export queued for screen editor"
-                    : "HUD Editor export queued for Lua editor (open board onStart)"
+                    ? "Lua Painter export queued for screen editor"
+                    : "Lua Painter export queued for Lua editor (open board onStart)"
             );
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "UIExtractor failed to write HUD editor IDE export for player {PlayerId}", playerId);
-            await Notify(playerId, "HUD Editor export failed. Check logs.");
+            logger.LogWarning(ex, "UIExtractor failed to write Lua Painter IDE export for player {PlayerId}", playerId);
+            await Notify(playerId, "Lua Painter export failed. Check logs.");
         }
     }
 

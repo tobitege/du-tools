@@ -187,6 +187,7 @@ More harness details are in `web/README.md`.
 - `build/` contains generated files.
 - `layouts/` may be empty until local saves exist.
 - Linked live screens now publish a pure standalone RenderScript through `setRenderScript(...)`.
-- `Export Screen` now defaults to a readable standalone RenderScript with named helpers and explicit draw calls.
+- `Export Screen` now defaults to a `default` RenderScript mode with ordered painter calls such as `P.br(...)` and `P.tx(...)`.
+- Both `default` and `compact` screen code target the shared painter module `lib.painterlib`; place `live_lua_coding/examples/hud_editor_v1/lib/painterlib.lua` in the game's `lua/lib/` folder when you want to run those exports directly in Dual Universe.
 - Compact screen code is still available through the exporter API via `buildScreenCode(doc, { mode: "compact" })`.
 - In Dual Universe, most `setNext...` render methods apply to the single next draw command only. If draw code loops over multiple `addText(...)` or similar calls, repeat the relevant `setNext...` call inside that loop.

@@ -1,4 +1,4 @@
-# HUD Editor Probe - Module Load Order
+# Lua Painter Probe - Module Load Order
 000-core.js
 010-start-screen.js
 020-editor-shell.js

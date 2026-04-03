@@ -8492,6 +8492,30 @@
     return out;
   }
 
+  function moveModMenuEntryToBottom(topContainer) {
+    if (!topContainer || !topContainer.appendChild) {
+      return;
+    }
+    var entries = getDirectMenuEntries(topContainer);
+    if (!entries.length) {
+      return;
+    }
+    var modEntry = null;
+    for (var i = 0; i < entries.length; i += 1) {
+      var normalized = normalizeProbeText(getMenuEntryLabel(entries[i]));
+      if (normalized.indexOf("mod: ui toolbox") >= 0 || normalized.indexOf("mod: ui extractor") >= 0) {
+        modEntry = entries[i];
+        break;
+      }
+    }
+    if (!modEntry) {
+      return;
+    }
+    if (modEntry !== topContainer.lastElementChild) {
+      topContainer.appendChild(modEntry);
+    }
+  }
+
   function getMenuEntryLabel(entry) {
     if (!entry) {
       return "";
@@ -8576,17 +8600,6 @@
       quickEdit = null;
     }
 
-    var quickInject = menuRoot.querySelector("#" + quickInjectProbeMenuItemId);
-    if (!quickInject) {
-      quickInject = createQuickMenuEntry(
-        quickInjectProbeMenuItemId,
-        "Inject LUA editor probe",
-        function () {
-          triggerInjectProbeFromQuickMenu();
-        },
-        templateEntry);
-    }
-
     var insertionEntries = getDirectMenuEntries(topContainer);
     var insertionPoint = insertionEntries.length > 1 ? insertionEntries[1] : null;
 
@@ -8600,18 +8613,12 @@
       }
     }
 
-    if (quickInject) {
-      if (quickInject.parentNode !== topContainer) {
-        var injectAnchor = quickEdit && quickEdit.parentNode === topContainer
-          ? quickEdit.nextSibling
-          : insertionPoint;
-        if (injectAnchor) {
-          topContainer.insertBefore(quickInject, injectAnchor);
-        } else {
-          topContainer.appendChild(quickInject);
-        }
-      }
+    var quickInject = menuRoot.querySelector("#" + quickInjectProbeMenuItemId);
+    if (quickInject && quickInject.parentNode) {
+      quickInject.parentNode.removeChild(quickInject);
     }
+
+    moveModMenuEntryToBottom(topContainer);
   }
 
   function waitForLuaEditorOpen(timeoutMs, pollIntervalMs) {

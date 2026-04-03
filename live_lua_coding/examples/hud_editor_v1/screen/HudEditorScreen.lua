@@ -1,5 +1,5 @@
 -- HudEditorScreen.lua
--- Stable linked-screen runtime for the HUD editor board flow.
+-- Stable linked-screen runtime for the Lua Painter board flow.
 -- The board sends the current compact layout document through setScriptInput(...).
 
 local D=nil
@@ -45,7 +45,7 @@ local function P(raw)
     if type(raw)~="string" or raw=="" then
         return nil,"no_input"
     end
-    local loader,err=load("return "..raw,"@HudEditorScreenInput","t",{})
+    local loader,err=load("return "..raw,"@LuaPainterScreenInput","t",{})
     if not loader then
         return nil,err
     end

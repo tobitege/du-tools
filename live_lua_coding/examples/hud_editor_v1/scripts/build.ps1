@@ -1,4 +1,4 @@
-# Builds the monolithic HUD Editor probe payload from ordered module files.
+# Builds the monolithic Lua Painter probe payload from ordered module files.
 #
 # Why: this project is self-contained in:
 #   D:\github\du-tobi\live_lua_coding\examples\hud_editor_v1
@@ -123,7 +123,7 @@ foreach ($entry in $moduleEntries) {
 
 # No outer wrapper - modules are already IIFEs, just concatenate them
 $timestamp = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
-$composed = "// HUD Editor Probe - Lua Painter`r`n// Project: $ProjectDir`r`n// Built: $timestamp`r`n`r`n" + $builder.ToString()
+$composed = "// Lua Painter Probe`r`n// Project: $ProjectDir`r`n// Built: $timestamp`r`n`r`n" + $builder.ToString()
 
 $sourceBase64 = [Convert]::ToBase64String(([System.Text.UTF8Encoding]::new($false)).GetBytes($composed))
 $runtimeModuleSource = @"
@@ -199,7 +199,7 @@ $runtimeModuleSource = @"
 
 $runtimeModuleJson = @{
     id = "hud-editor"
-    name = "HUD Editor"
+    name = "Lua Painter"
     description = "Lua Painter HUD layout editor"
     version = "0.1.0"
     order = 200

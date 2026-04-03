@@ -1,4 +1,4 @@
-// 000-core.js - HUD Editor runtime, root state, DOM utilities
+// 000-core.js - Lua Painter runtime, root state, DOM utilities
 (function hudEditorCore() {
   "use strict";
 
@@ -291,11 +291,11 @@
       return;
     }
     if (state.editModeActive) {
-      button.textContent = "HUD Editor: ON";
+      button.textContent = "Lua Painter: ON";
       button.style.background = "#0ee9e7";
       button.style.color = "#000";
     } else {
-      button.textContent = "HUD Editor: OFF";
+      button.textContent = "Lua Painter: OFF";
       button.style.background = "#333";
       button.style.color = "#fff";
     }
@@ -400,7 +400,7 @@
     var button = DOC.createElement("button");
     button.id = "hud-editor-toggle";
     button.type = "button";
-    button.textContent = "HUD Editor: OFF";
+    button.textContent = "Lua Painter: OFF";
     button.style.cssText = "position:fixed;top:10px;right:16px;display:inline-flex;align-items:center;justify-content:center;min-width:164px;height:40px;background:#333;color:#fff;z-index:2147482400;font:700 14px/1.2 'Segoe UI',Tahoma,sans-serif;padding:8px 16px;border:2px solid #0ee9e7;border-radius:10px;cursor:pointer;white-space:nowrap;box-sizing:border-box;box-shadow:0 8px 24px rgba(0,0,0,0.28);";
     button.addEventListener("click", function () {
       if (state.editModeActive) {

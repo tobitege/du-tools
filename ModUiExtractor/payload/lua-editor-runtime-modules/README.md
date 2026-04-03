@@ -9,7 +9,7 @@ Current modules in this folder:
   - It shows a small badge in the HUD when enabled.
 - `hud-editor`
   - Lua Painter HUD layout editor.
-  - Adds the HUD Editor toggle button and the editor UI for building layouts.
+  - Adds the Lua Painter toggle button and the editor UI for building layouts.
   - This is the main WYSIWYG-style editor experiment moved out of the probe core.
 - `chat-plain-copy`
   - Adds a button to copy the currently selected chat channel as plain text.

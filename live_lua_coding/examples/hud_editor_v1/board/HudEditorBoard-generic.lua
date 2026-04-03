@@ -1,5 +1,5 @@
 -- HudEditorBoard.lua
--- Library onStart handler Board script for Paint-with-Lua HUD Editor
+-- Library onStart handler board script for Lua Painter
 -- Handles: command processing, element state, databank persistence, screen rendering
 -- Project: D:\github\du-tobi\live_lua_coding\examples\hud_editor_v1
 
@@ -8,7 +8,7 @@ HudEditorBoard.__index = HudEditorBoard
 
 --  Constants
 
-HudEditorBoard.COMMAND_PREFIX = "he:"  -- All HUD editor commands start with "he:"
+HudEditorBoard.COMMAND_PREFIX = "he:"  -- All Lua Painter commands start with "he:"
 HudEditorBoard.DB_KEY_INDEX = "hud_editor:index"
 HudEditorBoard.DB_KEY_DOC_PREFIX = "hud_editor:document:"
 
@@ -1362,7 +1362,7 @@ end
 --  Lifecycle
 
 function HudEditorBoard.init(bootDocument)
-    dp("Initializing HUD Editor Board")
+    dp("Initializing Lua Painter board")
     HudEditorBoard.refreshLinks(true)
 
     -- If boot document is provided, it overrides persisted state and becomes the new base document.
