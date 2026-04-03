@@ -157,12 +157,38 @@ $runtimeModuleSource = @"
     } catch (_ignoreHudCtx) {}
   }
 
+  function safeCloseUi(reason) {
+    try {
+      if (window.HudEditor && typeof window.HudEditor.closeShapeMenu === "function") {
+        window.HudEditor.closeShapeMenu();
+      }
+    } catch (_ignoreHudCloseMenu) {}
+    try {
+      if (window.HudEditor && typeof window.HudEditor.closeUi === "function") {
+        return window.HudEditor.closeUi(reason || "runtime-module-close-ui");
+      }
+      if (window.HudEditor && typeof window.HudEditor.goToStart === "function") {
+        window.HudEditor.goToStart();
+      }
+      if (window.HudEditor && typeof window.HudEditor.exitEditMode === "function") {
+        window.HudEditor.exitEditMode();
+      }
+      if (window.HudEditor && typeof window.HudEditor.updateToggleButton === "function") {
+        window.HudEditor.updateToggleButton();
+      }
+    } catch (_ignoreHudCloseUi) {}
+    return { closed: false };
+  }
+
   return {
     install: function () {
       safeDestroy("runtime-module-reinstall");
       window.__HUD_EDITOR_RUNTIME_CTX__ = ctx || null;
       var source = decodeBase64Utf8(sourceBase64);
       (0, eval)(source);
+    },
+    closeUi: function (reason) {
+      return safeCloseUi(reason || "runtime-module-close-ui");
     },
     uninstall: function () {
       safeDestroy("runtime-module-disable");

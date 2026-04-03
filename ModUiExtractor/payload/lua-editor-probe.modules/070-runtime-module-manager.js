@@ -332,6 +332,79 @@
     }
   }
 
+  function resolveRuntimeModuleCloseUiHook(record) {
+    if (!record || !record.api || typeof record.api !== "object") {
+      return null;
+    }
+    if (typeof record.api.closeUi === "function") {
+      return record.api.closeUi;
+    }
+    if (typeof record.api.closeUI === "function") {
+      return record.api.closeUI;
+    }
+    if (typeof record.api.dismissUi === "function") {
+      return record.api.dismissUi;
+    }
+    return null;
+  }
+
+  function closeRuntimeModuleUi(moduleId, reason) {
+    var requestedId = normalizeRuntimeModuleId(moduleId || "");
+    var targetIds = [];
+    var results = [];
+    var handledCount = 0;
+    var closedCount = 0;
+    var i;
+
+    if (requestedId) {
+      if (!getRuntimeModuleRecord(requestedId)) {
+        throw new Error("runtime_module_not_found:" + requestedId);
+      }
+      targetIds.push(requestedId);
+    } else if (Array.isArray(state.runtimeModuleIds)) {
+      targetIds = state.runtimeModuleIds.slice();
+    }
+
+    for (i = 0; i < targetIds.length; i += 1) {
+      var record = getRuntimeModuleRecord(targetIds[i]);
+      var entry = {
+        moduleId: targetIds[i],
+        enabled: !!(record && record.enabled),
+        active: !!(record && record.active),
+        handled: false,
+        closed: false,
+        error: null,
+        result: null
+      };
+      var hook = resolveRuntimeModuleCloseUiHook(record);
+      if (!hook) {
+        results.push(entry);
+        continue;
+      }
+      try {
+        var hookResult = hook.call(record.api, reason || "runtime-module-close-ui");
+        entry.handled = true;
+        entry.result = cloneJsonValue(hookResult, hookResult);
+        entry.closed = hookResult === false ? false : true;
+        handledCount += 1;
+        if (entry.closed) {
+          closedCount += 1;
+        }
+      } catch (err) {
+        entry.error = String(err && err.message ? err.message : err);
+      }
+      results.push(entry);
+    }
+
+    return {
+      requestedModuleId: requestedId || null,
+      requestedCount: targetIds.length,
+      handledCount: handledCount,
+      closedCount: closedCount,
+      results: results
+    };
+  }
+
   function setRuntimeModuleEnabled(moduleId, enabled, persistReason) {
     var record = getRuntimeModuleRecord(moduleId);
     if (!record) {
@@ -595,6 +668,12 @@
       }
     }
   }
+
+  state.closeRuntimeModuleUi = closeRuntimeModuleUi;
+  state.runtimeModules = state.runtimeModules || {};
+  state.runtimeModules.closeUi = closeRuntimeModuleUi;
+  state.runtimeModules.getRecord = getRuntimeModuleRecord;
+  state.runtimeModules.setEnabled = setRuntimeModuleEnabled;
 
   registerConfiguredRuntimeModules();
   ensureRuntimeModuleMenuUi();

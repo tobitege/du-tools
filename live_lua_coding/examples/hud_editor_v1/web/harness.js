@@ -148,6 +148,29 @@ async function loadFixture(name = 'layout-all-shapes.json') {
   updateState()
 }
 
+async function loadSnippet(id) {
+  const instance = app()
+  if (!instance || !instance.shapeSnippets || typeof instance.shapeSnippets.loadDocument !== 'function') {
+    throw new Error('HudEditor shapeSnippets.loadDocument unavailable')
+  }
+  const doc = instance.shapeSnippets.loadDocument(id)
+  if (!doc) {
+    throw new Error(`Unknown snippet: ${id}`)
+  }
+  if (typeof instance.enterEditMode === 'function') {
+    instance.enterEditMode()
+  }
+  if (typeof instance.emit === 'function') {
+    instance.emit('resize')
+  }
+  if (instance.canvas && typeof instance.canvas.render === 'function') {
+    await new Promise(resolve => setTimeout(resolve, 0))
+    instance.canvas.render()
+  }
+  log(`snippet loaded: ${id}`)
+  updateState()
+}
+
 function resetStorage() {
   localStorage.removeItem("hud_editor_layouts")
   localStorage.removeItem("hud_editor_current")
@@ -194,6 +217,7 @@ window.hudHarness = {
   ensureClosed,
   clickNewScript,
   loadFixture,
+  loadSnippet,
   resetStorage,
   updateState,
   packetLog

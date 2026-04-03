@@ -261,7 +261,8 @@ type UiProbeMethod =
   | "cancel"
   | "add_filter"
   | "outer_html"
-  | "raw_eval";
+  | "raw_eval"
+  | "close_runtime_ui";
 
 type UiProbeCallFields = {
   slotName?: string | undefined;
@@ -273,7 +274,7 @@ type UiProbeCallFields = {
 };
 
 const screenEditorProbeMethods = new Set<UiProbeMethod>(["describe", "apply", "cancel", "outer_html", "raw_eval"]);
-const luaEditorProbeMethods = new Set<UiProbeMethod>(["describe", "select_slot", "select_filter", "select_filter_index", "select_context", "cancel", "outer_html", "raw_eval"]);
+const luaEditorProbeMethods = new Set<UiProbeMethod>(["describe", "select_slot", "select_filter", "select_filter_index", "select_context", "cancel", "outer_html", "raw_eval", "close_runtime_ui"]);
 
 function buildUiProbeArgs(targetKind: EditorUiKind, method: UiProbeMethod, fields: UiProbeCallFields): string[] {
   switch (method) {
@@ -281,6 +282,7 @@ function buildUiProbeArgs(targetKind: EditorUiKind, method: UiProbeMethod, field
     case "list_filters":
     case "apply":
     case "cancel":
+    case "close_runtime_ui":
       return [];
     case "select_slot":
       return [fields.slotName ?? ""];
@@ -306,7 +308,7 @@ function buildUiProbeArgs(targetKind: EditorUiKind, method: UiProbeMethod, field
 
 const uiKindSchema = z
   .enum(["lua_editor", "screen_editor"])
-  .describe("Target UI. `lua_editor` supports the public Lua probe API; `screen_editor` currently supports `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`.");
+  .describe("Target UI. `lua_editor` supports the public Lua probe API including `close_runtime_ui`; `screen_editor` currently supports `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`.");
 
 function assertUiProbeMethodSupported(uiKind: EditorUiKind, method: UiProbeMethod): void {
   if (uiKind === "screen_editor" && !screenEditorProbeMethods.has(method)) {

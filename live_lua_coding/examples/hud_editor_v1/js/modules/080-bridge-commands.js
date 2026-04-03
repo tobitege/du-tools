@@ -527,7 +527,13 @@
       textLines: normalizeTextLines(raw.textLines),
       textColor: normalizeColor(raw.textColor, [1, 1, 1, 1]),
       textSize: toFiniteNumber(raw.textSize, 16),
-      textAlign: raw.textAlign ? String(raw.textAlign) : "left"
+      textAlign: raw.textAlign ? String(raw.textAlign) : "left",
+      rotation: toFiniteNumber(raw.rotation, 0),
+      shadowBlur: toFiniteNumber(raw.shadowBlur, 0),
+      shadowColor: normalizeColor(raw.shadowColor, [0, 0, 0, 0]),
+      imageSrc: raw.imageSrc ? String(raw.imageSrc) : "",
+      imageFit: raw.imageFit ? String(raw.imageFit) : "contain",
+      quadInset: toFiniteNumber(raw.quadInset, 0.125)
     };
   }
 

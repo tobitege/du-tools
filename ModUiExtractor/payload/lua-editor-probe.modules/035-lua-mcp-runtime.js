@@ -2681,6 +2681,14 @@
         result = outerHtmlForTargetSelector(normalizedTarget, listArgs[0]);
       } else if (normalizedMethod === "raw_eval") {
         result = runRawProbeEval(listArgs[0]);
+      } else if (normalizedMethod === "close_runtime_ui") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
+        if (!state.closeRuntimeModuleUi || typeof state.closeRuntimeModuleUi !== "function") {
+          throw new Error("runtime_module_ui_close_unavailable");
+        }
+        result = state.closeRuntimeModuleUi(listArgs[0], listArgs[1] || "mcp-close-runtime-ui");
       } else {
         throw new Error("unsupported_method:" + normalizedMethod);
       }
@@ -2752,5 +2760,11 @@
     chatSend: sendChatMessage,
     chatJoinChannel: createOrJoinChatChannel,
     outerHtml: outerHtmlForSelector,
-    rawEval: runRawProbeEval
+    rawEval: runRawProbeEval,
+    closeRuntimeUi: function (moduleId, reason) {
+      if (!state.closeRuntimeModuleUi || typeof state.closeRuntimeModuleUi !== "function") {
+        throw new Error("runtime_module_ui_close_unavailable");
+      }
+      return state.closeRuntimeModuleUi(moduleId, reason || "mcp-direct-close-runtime-ui");
+    }
   };

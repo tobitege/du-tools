@@ -276,6 +276,10 @@
   flex: 1;
 }
 
+.toolbar-dropdown {
+  position: relative;
+}
+
 /* Tool & action buttons — bordered, recessed panel look */
 .tool-btn,
 .action-btn {
@@ -315,6 +319,89 @@
   border-color: rgba(14, 233, 231, 0.4);
   color: #0ee9e7;
   box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);
+}
+
+.toolbar-dropdown-trigger.active,
+.toolbar-dropdown.open .toolbar-dropdown-trigger {
+  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);
+  border-color: rgba(14, 233, 231, 0.4);
+  color: #0ee9e7;
+  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);
+}
+
+.toolbar-dropdown-caret {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  font-size: 10px;
+  line-height: 1;
+  color: currentColor;
+  opacity: 0.9;
+}
+
+.toolbar-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 188px;
+  padding: 6px;
+  border: 1px solid #2a2a3a;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(28, 30, 43, 0.98), rgba(16, 18, 27, 0.98));
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 320;
+}
+
+.toolbar-dropdown.open .toolbar-dropdown-menu {
+  display: flex;
+}
+
+.dropdown-tool-btn {
+  width: 100%;
+  min-height: 40px;
+  height: auto;
+  padding: 8px 10px;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.dropdown-tool-btn .tb-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.dropdown-tool-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dropdown-tool-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #dce4f3;
+  white-space: nowrap;
+}
+
+.dropdown-tool-key {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #70809b;
+  text-transform: uppercase;
+}
+
+.dropdown-tool-btn.active .dropdown-tool-title,
+.dropdown-tool-btn.active .dropdown-tool-key {
+  color: inherit;
 }
 
 /* Icon shape — rendered via CSS */
@@ -368,6 +455,10 @@
 .tb-icon-glyph-text {
   font-size: 22px;
   font-family: inherit;
+}
+
+.dropdown-tool-btn .tb-icon-glyph-line {
+  transform: translateY(-1px);
 }
 
 /* Alignment icons — bar + rectangle pattern */

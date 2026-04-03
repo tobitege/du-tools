@@ -1,6 +1,6 @@
 // HUD Editor Probe - Lua Painter
-// Project: d:\github\du-tobi\live_lua_coding\examples\hud_editor_v1
-// Built: 2026-04-02T19:02:25Z
+// Project: D:\github\du-tobi\live_lua_coding\examples\hud_editor_v1
+// Built: 2026-04-03T05:23:04Z
 
 // Inlined CSS
 (function injectCSS() {
@@ -10,7 +10,7 @@
   }
   var style = document.createElement('style');
   style.id = 'hud-editor-styles';
-  style.textContent = "/* hud-editor.css - All HUD Editor styles\n   Project: D:\\\\github\\\\du-tobi\\\\live_lua_coding\\\\examples\\\\hud_editor_v1\n   Self-contained - does NOT use ModUiExtractor core styles\n*/\n\n/* ─── Root container ────────────────────────────────────────────────── */\n\n#hud-editor-root {\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n  z-index: 99999;\n  pointer-events: none;\n  font-family: 'Rajdhani', 'Segoe UI', Tahoma, sans-serif;\n  font-size: 14px;\n  color: #ccc;\n  background: rgba(0, 0, 0, 0.70);\n  display: none;\n  overflow: hidden;\n  user-select: none;\n  -webkit-user-select: none;\n  -moz-user-select: none;\n  -ms-user-select: none;\n}\n\n#hud-editor-root[style*=\"block\"] {\n  pointer-events: auto;\n}\n\n/* ─── Screens ────────────────────────────────────────────────────────── */\n\n.hud-screen {\n  display: none;\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n}\n\n.hud-screen.active {\n  display: flex;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           START SCREEN                                */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"start\"] {\n  width: 80vw;\n  height: 80vh;\n  top: 10vh;\n  left: 10vw;\n  align-items: center;\n  justify-content: center;\n  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);\n  overflow: auto;\n}\n\n.start-container {\n  text-align: center;\n  max-width: 520px;\n  padding: 48px;\n}\n\n.start-header h1 {\n  font-size: 52px;\n  font-weight: 700;\n  color: #fff;\n  margin: 0 0 8px 0;\n  text-shadow: 0 0 30px rgba(14, 233, 231, 0.4);\n  letter-spacing: 1px;\n}\n\n.start-header .subtitle {\n  color: #777;\n  font-size: 18px;\n  margin: 0 0 48px 0;\n}\n\n.start-menu {\n  display: flex;\n  flex-direction: column;\n  gap: 14px;\n}\n\n.start-context-card {\n  display: flex;\n  flex-direction: column;\n  gap: 10px;\n  margin-bottom: 18px;\n  padding: 14px 16px;\n  background: rgba(255, 255, 255, 0.035);\n  border: 1px solid rgba(255, 255, 255, 0.07);\n  border-radius: 12px;\n}\n\n.start-context-title {\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.12em;\n  text-transform: uppercase;\n  color: #8a91a4;\n}\n\n.start-context-pill,\n.editor-context-pill {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 28px;\n  padding: 0 12px;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 999px;\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n}\n\n.start-context-pill.is-online,\n.editor-context-pill.is-online {\n  background: rgba(14, 233, 231, 0.14);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #94fffd;\n}\n\n.start-context-pill.is-offline,\n.editor-context-pill.is-offline {\n  background: rgba(255, 196, 92, 0.12);\n  border-color: rgba(255, 196, 92, 0.28);\n  color: #ffcf7c;\n}\n\n.start-context-copy {\n  margin: 0;\n  font-size: 13px;\n  line-height: 1.45;\n  color: #8e96ab;\n}\n\n.menu-btn {\n  display: flex;\n  align-items: center;\n  width: 100%;\n  padding: 18px 24px;\n  background: rgba(255, 255, 255, 0.04);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 12px;\n  cursor: pointer;\n  transition: all 0.2s ease;\n  text-align: left;\n  color: inherit;\n  font-family: inherit;\n  font-size: 16px;\n}\n\n.menu-btn:hover {\n  background: rgba(14, 233, 231, 0.08);\n  border-color: rgba(14, 233, 231, 0.3);\n  transform: translateX(6px);\n}\n\n.menu-btn.primary {\n  background: rgba(14, 233, 231, 0.10);\n  border-color: rgba(14, 233, 231, 0.3);\n}\n\n.menu-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.18);\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.menu-btn:disabled,\n.status-btn:disabled,\n.btn:disabled {\n  cursor: not-allowed;\n  opacity: 0.48;\n  transform: none;\n  box-shadow: none;\n}\n\n.menu-btn:disabled:hover,\n.status-btn:disabled:hover,\n.btn:disabled:hover {\n  background: inherit;\n  border-color: inherit;\n  color: inherit;\n  transform: none;\n}\n\n.menu-btn .icon {\n  font-size: 26px;\n  margin-right: 18px;\n  width: 32px;\n  text-align: center;\n  flex-shrink: 0;\n}\n\n.menu-btn .label-group {\n  display: flex;\n  flex-direction: column;\n}\n\n.menu-btn .label {\n  color: #fff;\n  font-size: 20px;\n  font-weight: 600;\n}\n\n.menu-btn .desc {\n  color: #666;\n  font-size: 13px;\n  margin-top: 3px;\n}\n\n.start-footer {\n  margin-top: 40px;\n}\n\n.hint {\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EDITOR SCREEN                               */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"editor\"] {\n  top: 8vh;\n  left: 6vw;\n  width: 88vw;\n  height: 84vh;\n  flex-direction: column;\n  background: #12121a;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* ─── Toolbar ────────────────────────────────────────────────────────── */\n\n#editor-toolbar {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  padding: 5px 10px;\n  background: linear-gradient(180deg, #1c1c28 0%, #16161e 100%);\n  border-bottom: 1px solid #0e0e14;\n  flex-shrink: 0;\n  height: 50px;\n}\n\n.toolbar-group {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n}\n\n.toolbar-divider {\n  width: 1px;\n  height: 26px;\n  background: linear-gradient(180deg, transparent 0%, #2a2a3a 30%, #2a2a3a 70%, transparent 100%);\n  margin: 0 8px;\n}\n\n.toolbar-spacer {\n  flex: 1;\n}\n\n/* Tool & action buttons — bordered, recessed panel look */\n.tool-btn,\n.action-btn {\n  position: relative;\n  display: inline-flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  width: 46px;\n  height: 44px;\n  padding: 0;\n  border: 1px solid #2a2a36;\n  border-radius: 5px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  color: #8f98ac;\n  cursor: pointer;\n  transition: all 0.12s ease;\n  font-family: inherit;\n}\n\n.tool-btn:hover,\n.action-btn:hover {\n  background: linear-gradient(180deg, #2a2a38 0%, #22222e 100%);\n  border-color: #3a3a4a;\n  color: #b0b8c8;\n}\n\n.tool-btn:active,\n.action-btn:active {\n  background: linear-gradient(180deg, #181822 0%, #1e1e28 100%);\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);\n}\n\n.tool-btn.active {\n  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);\n}\n\n/* Icon shape — rendered via CSS */\n.tb-icon {\n  display: block;\n  width: 26px;\n  height: 26px;\n  position: relative;\n}\n\n/* Select tool — mouse pointer arrow */\n.tb-icon-select::before,\n.tb-icon-box::before,\n.tb-icon-rounded::before,\n.tb-icon-circle::before,\n.tb-icon-line::before,\n.tb-icon-text::before {\n  content: none;\n}\n\n.tb-icon-select::after {\n  content: none;\n}\n\n.tb-icon-glyph {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-weight: 700;\n  line-height: 1;\n  color: currentColor;\n  text-shadow: 0 0 8px rgba(255, 255, 255, 0.04);\n  font-family: \"Segoe UI Symbol\", \"Segoe UI\", Arial, sans-serif;\n}\n\n.tb-icon-glyph-select {\n  font-size: 24px;\n}\n\n.tb-icon-glyph-box,\n.tb-icon-glyph-rounded,\n.tb-icon-glyph-circle {\n  font-size: 23px;\n}\n\n.tb-icon-glyph-line {\n  font-size: 27px;\n  transform: translateY(-1px) scaleX(1.08);\n}\n\n.tb-icon-glyph-text {\n  font-size: 22px;\n  font-family: inherit;\n}\n\n/* Alignment icons — bar + rectangle pattern */\n.tb-icon-align-left::before,\n.tb-icon-align-right::before,\n.tb-icon-align-center-h::before,\n.tb-icon-align-top::before,\n.tb-icon-align-bottom::before,\n.tb-icon-align-center-v::before {\n  content: \"\";\n  position: absolute;\n  background: currentColor;\n}\n\n.tb-icon-align-left::after,\n.tb-icon-align-right::after,\n.tb-icon-align-center-h::after,\n.tb-icon-align-top::after,\n.tb-icon-align-bottom::after,\n.tb-icon-align-center-v::after {\n  content: \"\";\n  position: absolute;\n  border: 2px solid currentColor;\n  border-radius: 1px;\n  box-sizing: border-box;\n}\n\n/* Align icons use a tighter centered draw box */\n.tb-icon-align-left::before  { left: 2px; top: 2px; width: 2px; height: 14px; }\n.tb-icon-align-left::after   { left: 7px; top: 50%; width: 10px; height: 7px; transform: translateY(-50%); }\n\n.tb-icon-align-right::before { right: 2px; top: 2px; width: 2px; height: 14px; }\n.tb-icon-align-right::after  { right: 7px; top: 50%; width: 10px; height: 7px; transform: translateY(-50%); }\n\n.tb-icon-align-center-h::before { left: 50%; top: 2px; width: 2px; height: 14px; transform: translateX(-50%); }\n.tb-icon-align-center-h::after  { left: 50%; top: 50%; width: 10px; height: 7px; transform: translate(-50%, -50%); }\n\n.tb-icon-align-top::before { top: 2px; left: 2px; height: 2px; width: 14px; }\n.tb-icon-align-top::after  { top: 7px; left: 50%; width: 7px; height: 10px; transform: translateX(-50%); }\n\n.tb-icon-align-bottom::before { bottom: 2px; left: 2px; height: 2px; width: 14px; }\n.tb-icon-align-bottom::after  { bottom: 7px; left: 50%; width: 7px; height: 10px; transform: translateX(-50%); }\n\n.tb-icon-align-center-v::before { top: 50%; left: 2px; height: 2px; width: 14px; transform: translateY(-50%); }\n.tb-icon-align-center-v::after  { top: 50%; left: 50%; width: 7px; height: 10px; transform: translate(-50%, -50%); }\n\n/* Clone tool — two overlapping rectangles with plus */\n.tb-icon-clone::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-clone::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  background-image:\n    linear-gradient(currentColor, currentColor),\n    linear-gradient(currentColor, currentColor);\n  background-repeat: no-repeat;\n  background-size: 5px 1.5px, 1.5px 5px;\n  background-position: center center, center center;\n}\n\n/* Group tool — overlapping grouped rectangles */\n.tb-icon-group::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-group::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  opacity: 0.9;\n}\n\n/* Ungroup tool — two separated rectangles */\n.tb-icon-ungroup::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  bottom: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-ungroup::after {\n  content: \"\";\n  position: absolute;\n  right: 0;\n  top: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Keyboard hint */\n.tb-key {\n  display: none;\n}\n\n.tool-btn.active .tb-key {\n  opacity: 0.65;\n}\n\n/* Action buttons (undo/redo) */\n.action-btn {\n  width: 46px;\n  height: 44px;\n}\n\n.action-btn .tb-icon {\n  font-size: 20px;\n  width: 24px;\n  height: 24px;\n}\n\n/* ─── Color swatches ─────────────────────────────────────────────────── */\n\n.toolbar-group.colors {\n  gap: 12px;\n  margin: 0 10px 0 6px;\n  padding: 0 8px;\n}\n\n.swatch-pair {\n  display: flex;\n  align-items: center;\n  gap: 14px;\n  margin-right: 10px;\n  padding: 0 10px;\n}\n\n.swatch-pair:last-child {\n  margin-right: 0;\n}\n\n.swatch-label {\n  min-width: 40px;\n  font-size: 11px;\n  font-weight: 600;\n  color: #7e879c;\n  text-transform: uppercase;\n  letter-spacing: 0.7px;\n  text-align: right;\n  margin-right: 6px;\n}\n\n.color-swatch-btn,\n.prop-color-btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 34px;\n  height: 34px;\n  appearance: none;\n  -webkit-appearance: none;\n  border: 1px solid #2a2a36;\n  border-radius: 6px;\n  cursor: pointer;\n  background-color: #1b1b25;\n  background-image: linear-gradient(180deg, #232332 0%, #171721 100%);\n  padding: 3px;\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  transition: border-color 0.12s ease, transform 0.12s ease;\n  flex-shrink: 0;\n  margin-left: 6px;\n}\n\n.color-swatch-btn:hover,\n.prop-color-btn:hover {\n  border-color: #4a4a5a;\n  transform: translateY(-1px);\n}\n\n.color-swatch-chip,\n.prop-color-chip {\n  width: 24px;\n  height: 24px;\n  display: block;\n  border-radius: 4px;\n  background: var(--swatch-color, #ffffff);\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);\n  flex: 0 0 auto;\n}\n\n.prop-color-btn {\n  width: 42px;\n  margin-left: auto;\n}\n\n.prop-color-chip {\n  width: 30px;\n  height: 30px;\n}\n\n.size-input {\n  width: 56px;\n  height: 36px;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 6px;\n  text-align: center;\n  font-family: inherit;\n}\n\n.size-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n/* ─── Canvas area ────────────────────────────────────────────────────── */\n\n#canvas-container {\n  flex: 1;\n  overflow: hidden;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 20px;\n  background: #0a0a10;\n  position: relative;\n}\n\n#canvas-preview {\n  position: relative;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* Canvas elements (rendered from document.elements) */\n.canvas-element {\n  position: absolute;\n  box-sizing: border-box;\n  cursor: pointer;\n  transition: opacity 0.1s ease;\n}\n\n.canvas-element:hover {\n  opacity: 0.85;\n}\n\n.canvas-element.selected {\n  outline: 2px solid rgba(14, 233, 231, 0.9);\n  outline-offset: 2px;\n  cursor: move;\n}\n\n/* Selection handles */\n.resize-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #0ee9e7;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.resize-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.resize-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.resize-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.resize-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.resize-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.resize-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n/* Group selection overlay — orange bounding box */\n.group-overlay {\n  position: absolute;\n  pointer-events: none;\n  z-index: 90;\n}\n\n.group-outline {\n  position: absolute;\n  inset: 0;\n  border: 2px solid rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.04);\n}\n\n/* Group resize handles — same as individual but orange */\n.group-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #ff8c00;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.group-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.group-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.group-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.group-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.group-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.group-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n.toolbar-check {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  padding: 0 8px;\n  min-height: 32px;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(35, 39, 56, 0.96), rgba(23, 25, 36, 0.96));\n  color: #9aa4ba;\n  cursor: pointer;\n  user-select: none;\n}\n\n.toolbar-check:hover {\n  border-color: #3b465f;\n  color: #cfd8e8;\n}\n\n.toolbar-check-input {\n  position: absolute;\n  opacity: 0;\n  pointer-events: none;\n}\n\n.toolbar-check-box {\n  width: 13px;\n  height: 13px;\n  border: 1px solid #4a556d;\n  border-radius: 3px;\n  background: rgba(9, 12, 18, 0.85);\n  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);\n  position: relative;\n  flex-shrink: 0;\n}\n\n.toolbar-check-input:checked + .toolbar-check-box {\n  border-color: rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.18);\n}\n\n.toolbar-check-input:checked + .toolbar-check-box::after {\n  content: \"\";\n  position: absolute;\n  left: 3px;\n  top: 1px;\n  width: 4px;\n  height: 7px;\n  border: solid #ffb04d;\n  border-width: 0 2px 2px 0;\n  transform: rotate(45deg);\n}\n\n.toolbar-check-label {\n  font-size: 11px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  white-space: nowrap;\n}\n\n/* ─── Layers / shapes panel ────────────────────────────────────────── */\n\n#shapes-panel {\n  position: absolute;\n  right: 12px;\n  top: 72px;\n  width: 240px;\n  min-width: 180px;\n  min-height: 80px;\n  max-height: 60vh;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow: hidden;\n  resize: both;\n  display: none;\n  flex-direction: column;\n}\n\n#shapes-panel.visible {\n  display: flex;\n}\n\n.shapes-list {\n  flex: 1;\n  overflow-y: auto;\n  overflow-x: hidden;\n  padding: 6px;\n}\n\n.layers-empty {\n  padding: 16px;\n  text-align: center;\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* Layer item row */\n.layer-item {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 5px 8px;\n  margin-bottom: 6px;\n  cursor: pointer;\n  transition: background 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;\n  border: 1px solid #2a2a36;\n  border-left: 3px solid transparent;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);\n}\n\n.layer-item:hover {\n  background: linear-gradient(180deg, #272734 0%, #1d1d28 100%);\n  border-color: #363646;\n}\n\n.layer-item.selected {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.12) 0%, rgba(14, 233, 231, 0.07) 100%);\n  border-color: rgba(14, 233, 231, 0.22);\n  border-left-color: #0ee9e7;\n}\n\n.layer-group-box {\n  margin-bottom: 8px;\n  padding: 6px;\n  border: 1px solid rgba(255, 140, 0, 0.42);\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(255, 140, 0, 0.08) 0%, rgba(72, 44, 17, 0.26) 100%);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.04);\n}\n\n.layer-group-box.selected {\n  border-color: rgba(255, 140, 0, 0.85);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.10);\n}\n\n.layer-item.grouped-member {\n  padding-left: 10px;\n}\n\n.layer-group-sep {\n  height: 1px;\n  margin: 2px 6px 8px;\n  background: linear-gradient(90deg, transparent 0%, #2f3242 18%, #2f3242 82%, transparent 100%);\n}\n\n.layer-icon {\n  width: 18px;\n  text-align: center;\n  font-size: 14px;\n  color: #666;\n  flex-shrink: 0;\n}\n\n.layer-item.selected .layer-icon {\n  color: #0ee9e7;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-icon {\n  color: #ffb04d;\n}\n\n.layer-name {\n  flex: 1;\n  font-size: 12px;\n  color: #aaa;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.layer-item.selected .layer-name {\n  color: #ddd;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-name {\n  color: #e5d0b4;\n}\n\n/* Layer action buttons (visibility, z-order) */\n.layer-btn {\n  width: 22px;\n  height: 22px;\n  border: none;\n  background: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 12px;\n  border-radius: 3px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  flex-shrink: 0;\n  padding: 0;\n  transition: all 0.1s ease;\n}\n\n.layer-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #ccc;\n}\n\n/* Visibility eye toggle */\n.layer-vis {\n  font-size: 11px;\n  width: 20px;\n}\n\n.layer-vis::before {\n  content: \"\";\n  display: block;\n  width: 14px;\n  height: 10px;\n  border: 2px solid #0ee9e7;\n  border-radius: 75% / 100%;\n  position: relative;\n  box-sizing: border-box;\n}\n\n.layer-vis::after {\n  content: \"\";\n  display: block;\n  width: 4px;\n  height: 4px;\n  border-radius: 50%;\n  background: #0ee9e7;\n  position: relative;\n  top: -8px;\n  left: 5px;\n}\n\n.layer-vis.off::before {\n  border-color: #333;\n}\n\n.layer-vis.off::after {\n  background: #333;\n}\n\n/* Z-order arrows */\n.layer-z {\n  font-size: 14px;\n  min-width: 22px;\n  min-height: 22px;\n  color: #555;\n}\n\n.layer-z:hover {\n  color: #0ee9e7;\n  background: rgba(14, 233, 231, 0.08);\n}\n\n/* ─── Properties panel ──────────────────────────────────────────────── */\n\n#properties-panel {\n  position: absolute;\n  left: 12px;\n  top: 72px;\n  width: 340px;\n  min-width: 280px;\n  min-height: 80px;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow-x: hidden;\n  overflow-y: auto;\n  resize: both;\n  display: none;\n}\n\n#properties-panel.visible {\n  display: block;\n}\n\n.panel-header {\n  display: flex;\n  align-items: center;\n  padding: 10px 14px;\n  background: #1e1e2a;\n  border-bottom: 1px solid #2a2a3a;\n  font-weight: 600;\n  font-size: 13px;\n  color: #aaa;\n  cursor: grab;\n  user-select: none;\n}\n\n.panel-header:active {\n  cursor: grabbing;\n}\n\n/* Collapse / expand toggle */\n.panel-toggle {\n  margin-left: auto;\n  background: none;\n  border: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 14px;\n  padding: 0 2px;\n  line-height: 1;\n  border-radius: 3px;\n  transition: color 0.1s ease;\n}\n\n.panel-toggle:hover {\n  color: #ccc;\n}\n\n/* Collapsed state — hide content, disable resize */\n#properties-panel.collapsed .panel-content,\n#shapes-panel.collapsed .shapes-list {\n  display: none !important;\n}\n\n#properties-panel.collapsed.hover-open .panel-content,\n#shapes-panel.collapsed.hover-open .shapes-list {\n  display: block !important;\n}\n\n#properties-panel.collapsed,\n#shapes-panel.collapsed {\n  resize: none;\n  min-height: auto;\n}\n\n#properties-panel.collapsed.hover-open,\n#shapes-panel.collapsed.hover-open {\n  resize: both;\n}\n\n#properties-panel.collapsed .panel-header,\n#shapes-panel.collapsed .panel-header {\n  border-bottom: none;\n}\n\n#properties-panel.collapsed.hover-open .panel-header,\n#shapes-panel.collapsed.hover-open .panel-header {\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.panel-content {\n  padding: 12px;\n}\n\n.prop-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-bottom: 10px;\n}\n\n.prop-row.vertical {\n  flex-direction: column;\n  align-items: flex-start;\n}\n\n.prop-row label {\n  font-size: 12px;\n  color: #777;\n  min-width: 28px;\n}\n\n.prop-input {\n  width: 72px;\n  flex: 0 0 72px;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 6px;\n  font-family: inherit;\n  text-align: right;\n}\n\n.prop-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-color {\n  width: 32px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  cursor: pointer;\n  background: none;\n  padding: 1px;\n}\n\n.prop-textarea {\n  width: 100%;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 6px;\n  font-family: inherit;\n  resize: vertical;\n}\n\n.prop-textarea:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-delete {\n  width: 100%;\n  padding: 8px;\n  background: rgba(255, 70, 70, 0.12);\n  border: 1px solid rgba(255, 70, 70, 0.3);\n  border-radius: 6px;\n  color: #ff6666;\n  cursor: pointer;\n  font-size: 13px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.prop-delete:hover {\n  background: rgba(255, 70, 70, 0.22);\n  border-color: rgba(255, 70, 70, 0.5);\n}\n\n/* ─── Status bar ────────────────────────────────────────────────────── */\n\n#editor-statusbar {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 8px 12px;\n  background: #1a1a24;\n  border-top: 1px solid #2a2a3a;\n  flex-shrink: 0;\n  min-height: 60px;\n}\n\n.statusbar-left,\n.statusbar-right {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  flex: 0 0 auto;\n}\n\n.statusbar-center {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  flex: 1 1 auto;\n  flex-wrap: wrap;\n  justify-content: center;\n  min-width: 0;\n  padding: 0 16px;\n}\n\n.status-btn {\n  min-width: 140px;\n  height: 40px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  padding: 0 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 15px;\n  font-weight: 600;\n  line-height: 1;\n  font-family: inherit;\n  transition: all 0.15s ease;\n  white-space: nowrap;\n  text-align: center;\n}\n\n.status-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.status-btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.status-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.status-btn.danger {\n  background: rgba(255, 70, 70, 0.08);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.status-btn.danger:hover {\n  background: rgba(255, 70, 70, 0.18);\n}\n\n.status-hint {\n  font-size: 13px;\n  color: #8a91a4;\n  max-width: 360px;\n  line-height: 1.35;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           DIALOGS                                     */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.dialog-overlay {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  background: rgba(0, 0, 0, 0.7);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 100000;\n}\n\n.dialog {\n  background: #1e1e2a;\n  border: 1px solid #3a3a4a;\n  border-radius: 12px;\n  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);\n  width: 420px;\n  max-width: 90vw;\n  max-height: 80vh;\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n}\n\n.dialog-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 16px 20px;\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.dialog-header h3 {\n  margin: 0;\n  font-size: 18px;\n  color: #fff;\n  font-weight: 600;\n}\n\n.dialog-close {\n  width: 28px;\n  height: 28px;\n  border: none;\n  background: none;\n  color: #777;\n  font-size: 20px;\n  cursor: pointer;\n  border-radius: 4px;\n}\n\n.dialog-close:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.dialog-content {\n  padding: 20px;\n  overflow-y: auto;\n}\n\n.dialog-content.centered {\n  text-align: center;\n  padding-top: 28px;\n  padding-bottom: 24px;\n}\n\n.dialog-content.centered h3 {\n  margin: 0 0 10px;\n  font-size: 24px;\n  color: #f4f7fb;\n}\n\n.dialog-content.centered p {\n  margin: 0;\n  color: #b9c4d6;\n  font-size: 17px;\n  line-height: 1.45;\n}\n\n.dialog-color-preview {\n  width: 100%;\n  height: 54px;\n  margin-bottom: 14px;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  background: #ffffff;\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);\n}\n\n.color-strip-label {\n  display: block;\n  margin-bottom: 8px;\n  color: #d8deea;\n  font-size: 13px;\n}\n\n.color-strip-range {\n  width: 100%;\n  height: 22px;\n  margin: 0 0 16px;\n  appearance: none;\n  -webkit-appearance: none;\n  border: 1px solid #3a3a4a;\n  border-radius: 999px;\n  background: linear-gradient(90deg, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);\n  outline: none;\n}\n\n.color-strip-range::-webkit-slider-thumb {\n  -webkit-appearance: none;\n  width: 14px;\n  height: 28px;\n  border-radius: 999px;\n  border: 1px solid rgba(255, 255, 255, 0.7);\n  background: #f8fbff;\n  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);\n  cursor: pointer;\n}\n\n.color-field-row {\n  display: flex;\n  align-items: flex-start;\n  justify-content: space-between;\n  gap: 10px;\n  margin-bottom: 10px;\n}\n\n.color-field {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-start;\n  gap: 6px;\n  color: #d8deea;\n}\n\n.color-field-label {\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n  color: #8a91a4;\n}\n\n.color-number-input {\n  width: 4ch;\n  min-width: 4ch;\n  height: 34px;\n  padding: 0 6px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #e7ecf5;\n  font-size: 14px;\n  text-align: center;\n  font-family: inherit;\n  outline: none;\n}\n\n.color-number-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.color-number-input::-webkit-outer-spin-button,\n.color-number-input::-webkit-inner-spin-button,\n.color-strip-range::-webkit-outer-spin-button,\n.color-strip-range::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n  margin: 0;\n}\n\n.color-hex-input {\n  text-transform: uppercase;\n  letter-spacing: 0.04em;\n}\n\n.dialog-footer {\n  display: flex;\n  align-items: center;\n  justify-content: flex-end;\n  gap: 10px;\n  padding: 14px 20px;\n  border-top: 1px solid #2a2a3a;\n}\n\n.dialog-footer.centered {\n  justify-content: center;\n  flex-wrap: nowrap;\n}\n\n/* Script list in load dialog */\n.script-list {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  max-height: 300px;\n  overflow-y: auto;\n}\n\n.script-item {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 10px 14px;\n  background: rgba(255, 255, 255, 0.03);\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  cursor: pointer;\n  transition: all 0.15s ease;\n}\n\n.script-item:hover {\n  background: rgba(14, 233, 231, 0.06);\n  border-color: rgba(14, 233, 231, 0.2);\n}\n\n.script-item .script-name {\n  font-size: 14px;\n  color: #ddd;\n}\n\n.script-item .script-meta {\n  font-size: 11px;\n  color: #666;\n}\n\n/* Save As dialog input */\n.saveas-input {\n  width: 100%;\n  height: 36px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 12px;\n  font-family: inherit;\n  margin-top: 8px;\n}\n\n.saveas-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.save-note {\n  font-size: 12px;\n  color: #666;\n  margin-top: 8px;\n}\n\n/* Confirm dialog icon */\n.confirm-icon {\n  position: relative;\n  width: 52px;\n  height: 52px;\n  margin: 0 auto 18px;\n  border-radius: 14px;\n  background: radial-gradient(circle at 50% 35%, rgba(255, 206, 104, 0.16) 0%, rgba(255, 206, 104, 0.06) 55%, rgba(255, 206, 104, 0) 100%);\n}\n\n.confirm-icon::before {\n  content: \"\";\n  position: absolute;\n  left: 50%;\n  top: 50%;\n  width: 28px;\n  height: 28px;\n  transform: translate(-50%, -50%) rotate(45deg);\n  border: 2px solid rgba(255, 199, 93, 0.72);\n  border-radius: 4px;\n  background: rgba(255, 187, 61, 0.08);\n  box-shadow: 0 8px 20px rgba(255, 177, 58, 0.12);\n}\n\n.confirm-icon::after {\n  content: \"!\";\n  position: absolute;\n  left: 50%;\n  top: 50%;\n  transform: translate(-50%, -50%);\n  font-size: 22px;\n  line-height: 1;\n  font-weight: 700;\n  color: #ffc86b;\n}\n\n/* ─── Dialog buttons ─────────────────────────────────────────────────── */\n\n.btn {\n  min-width: 132px;\n  height: 42px;\n  padding: 0 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #262634 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);\n  color: #c6cfdb;\n  cursor: pointer;\n  font-size: 14px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.btn:hover {\n  background: linear-gradient(180deg, #2d2d3c 0%, #20202c 100%);\n  border-color: #4a4a5e;\n  color: #fff;\n}\n\n.btn:active {\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.32);\n}\n\n.btn.secondary {\n  color: #d6dfeb;\n}\n\n.btn.primary {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.22) 0%, rgba(6, 120, 135, 0.3) 100%);\n  border-color: rgba(14, 233, 231, 0.45);\n  color: #8ffaf8;\n}\n\n.btn.primary:hover {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.28) 0%, rgba(8, 137, 153, 0.38) 100%);\n}\n\n.btn.danger {\n  background: linear-gradient(180deg, rgba(255, 92, 92, 0.16) 0%, rgba(110, 29, 40, 0.28) 100%);\n  border-color: rgba(255, 92, 92, 0.38);\n  color: #ff8a8a;\n}\n\n.btn.danger:hover {\n  background: linear-gradient(180deg, rgba(255, 92, 92, 0.22) 0%, rgba(130, 34, 47, 0.35) 100%);\n}\n\n.btn.secondary {\n  background: rgba(255, 255, 255, 0.04);\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EMPTY STATE                                 */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.empty-state {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  color: #444;\n  font-size: 16px;\n  gap: 12px;\n}\n\n.empty-state .icon {\n  font-size: 48px;\n  opacity: 0.3;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           TOAST NOTIFICATIONS                         */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.toast-container {\n  position: fixed;\n  /* Below toolbar: editor starts at 8vh, toolbar ~56px tall */\n  top: calc(8vh + 64px);\n  left: 50%;\n  transform: translateX(-50%);\n  z-index: 200000;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  align-items: center;\n  pointer-events: none;\n}\n\n.toast {\n  padding: 10px 20px;\n  background: #2a2a3a;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  color: #ccc;\n  font-size: 13px;\n  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);\n  animation: toast-in 0.3s ease;\n  transition: opacity 0.25s ease, transform 0.25s ease;\n  pointer-events: auto;\n}\n\n.toast.success {\n  border-color: rgba(50, 200, 100, 0.4);\n  background: rgba(50, 200, 100, 0.1);\n  color: #6fd898;\n}\n\n.toast.error {\n  border-color: rgba(255, 70, 70, 0.4);\n  background: rgba(255, 70, 70, 0.1);\n  color: #ff8888;\n}\n\n.toast.info {\n  border-color: rgba(14, 233, 231, 0.3);\n  background: rgba(14, 233, 231, 0.08);\n  color: #0ee9e7;\n}\n\n@keyframes toast-in {\n  from { opacity: 0; transform: translateY(10px); }\n  to { opacity: 1; transform: translateY(0); }\n}\n\n/* ─── Stepper controls ───────────────────────────────────────────────── */\n\n.stepper-ctrl {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n  flex: 1;\n}\n\n.stepper-dec,\n.stepper-inc {\n  flex-shrink: 0;\n  width: 26px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  background: #12121a;\n  color: #ccc;\n  cursor: pointer;\n  font-size: 16px;\n  line-height: 1;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-family: inherit;\n}\n\n.stepper-dec:hover,\n.stepper-inc:hover {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n}\n\n.stepper-select {\n  flex: 1;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 4px;\n  font-family: inherit;\n  text-align: center;\n  cursor: pointer;\n}\n\n.stepper-select:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n";
+  style.textContent = "/* hud-editor.css - All HUD Editor styles\n   Project: D:\\\\github\\\\du-tobi\\\\live_lua_coding\\\\examples\\\\hud_editor_v1\n   Self-contained - does NOT use ModUiExtractor core styles\n*/\n\n/* ─── Root container ────────────────────────────────────────────────── */\n\n#hud-editor-root {\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n  z-index: 99999;\n  pointer-events: none;\n  font-family: 'Rajdhani', 'Segoe UI', Tahoma, sans-serif;\n  font-size: 14px;\n  color: #ccc;\n  background: rgba(0, 0, 0, 0.70);\n  display: none;\n  overflow: hidden;\n  user-select: none;\n  -webkit-user-select: none;\n  -moz-user-select: none;\n  -ms-user-select: none;\n}\n\n#hud-editor-root[style*=\"block\"] {\n  pointer-events: auto;\n}\n\n/* ─── Screens ────────────────────────────────────────────────────────── */\n\n.hud-screen {\n  display: none;\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n}\n\n.hud-screen.active {\n  display: flex;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           START SCREEN                                */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"start\"] {\n  width: 80vw;\n  height: 80vh;\n  top: 10vh;\n  left: 10vw;\n  align-items: center;\n  justify-content: center;\n  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);\n  overflow: auto;\n}\n\n.start-container {\n  text-align: center;\n  max-width: 520px;\n  padding: 48px;\n}\n\n.start-header h1 {\n  font-size: 52px;\n  font-weight: 700;\n  color: #fff;\n  margin: 0 0 8px 0;\n  text-shadow: 0 0 30px rgba(14, 233, 231, 0.4);\n  letter-spacing: 1px;\n}\n\n.start-header .subtitle {\n  color: #777;\n  font-size: 18px;\n  margin: 0 0 48px 0;\n}\n\n.start-menu {\n  display: flex;\n  flex-direction: column;\n  gap: 14px;\n}\n\n.start-context-card {\n  display: flex;\n  flex-direction: column;\n  gap: 10px;\n  margin-bottom: 18px;\n  padding: 14px 16px;\n  background: rgba(255, 255, 255, 0.035);\n  border: 1px solid rgba(255, 255, 255, 0.07);\n  border-radius: 12px;\n}\n\n.start-context-title {\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.12em;\n  text-transform: uppercase;\n  color: #8a91a4;\n}\n\n.start-context-pill,\n.editor-context-pill {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 28px;\n  padding: 0 12px;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 999px;\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n}\n\n.start-context-pill.is-online,\n.editor-context-pill.is-online {\n  background: rgba(14, 233, 231, 0.14);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #94fffd;\n}\n\n.start-context-pill.is-offline,\n.editor-context-pill.is-offline {\n  background: rgba(255, 196, 92, 0.12);\n  border-color: rgba(255, 196, 92, 0.28);\n  color: #ffcf7c;\n}\n\n.start-context-copy {\n  margin: 0;\n  font-size: 13px;\n  line-height: 1.45;\n  color: #8e96ab;\n}\n\n.menu-btn {\n  display: flex;\n  align-items: center;\n  width: 100%;\n  padding: 18px 24px;\n  background: rgba(255, 255, 255, 0.04);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 12px;\n  cursor: pointer;\n  transition: all 0.2s ease;\n  text-align: left;\n  color: inherit;\n  font-family: inherit;\n  font-size: 16px;\n}\n\n.menu-btn:hover {\n  background: rgba(14, 233, 231, 0.08);\n  border-color: rgba(14, 233, 231, 0.3);\n  transform: translateX(6px);\n}\n\n.menu-btn.primary {\n  background: rgba(14, 233, 231, 0.10);\n  border-color: rgba(14, 233, 231, 0.3);\n}\n\n.menu-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.18);\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.menu-btn:disabled,\n.status-btn:disabled,\n.btn:disabled {\n  cursor: not-allowed;\n  opacity: 0.48;\n  transform: none;\n  box-shadow: none;\n}\n\n.menu-btn:disabled:hover,\n.status-btn:disabled:hover,\n.btn:disabled:hover {\n  background: inherit;\n  border-color: inherit;\n  color: inherit;\n  transform: none;\n}\n\n.menu-btn .icon {\n  font-size: 26px;\n  margin-right: 18px;\n  width: 32px;\n  text-align: center;\n  flex-shrink: 0;\n}\n\n.menu-btn .label-group {\n  display: flex;\n  flex-direction: column;\n}\n\n.menu-btn .label {\n  color: #fff;\n  font-size: 20px;\n  font-weight: 600;\n}\n\n.menu-btn .desc {\n  color: #666;\n  font-size: 13px;\n  margin-top: 3px;\n}\n\n.start-footer {\n  margin-top: 40px;\n}\n\n.hint {\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EDITOR SCREEN                               */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"editor\"] {\n  top: 8vh;\n  left: 6vw;\n  width: 88vw;\n  height: 84vh;\n  flex-direction: column;\n  background: #12121a;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* ─── Toolbar ────────────────────────────────────────────────────────── */\n\n#editor-toolbar {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  padding: 5px 10px;\n  background: linear-gradient(180deg, #1c1c28 0%, #16161e 100%);\n  border-bottom: 1px solid #0e0e14;\n  flex-shrink: 0;\n  height: 50px;\n}\n\n.toolbar-group {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n}\n\n.toolbar-divider {\n  width: 1px;\n  height: 26px;\n  background: linear-gradient(180deg, transparent 0%, #2a2a3a 30%, #2a2a3a 70%, transparent 100%);\n  margin: 0 8px;\n}\n\n.toolbar-spacer {\n  flex: 1;\n}\n\n.toolbar-dropdown {\n  position: relative;\n}\n\n/* Tool & action buttons — bordered, recessed panel look */\n.tool-btn,\n.action-btn {\n  position: relative;\n  display: inline-flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  width: 46px;\n  height: 44px;\n  padding: 0;\n  border: 1px solid #2a2a36;\n  border-radius: 5px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  color: #8f98ac;\n  cursor: pointer;\n  transition: all 0.12s ease;\n  font-family: inherit;\n}\n\n.tool-btn:hover,\n.action-btn:hover {\n  background: linear-gradient(180deg, #2a2a38 0%, #22222e 100%);\n  border-color: #3a3a4a;\n  color: #b0b8c8;\n}\n\n.tool-btn:active,\n.action-btn:active {\n  background: linear-gradient(180deg, #181822 0%, #1e1e28 100%);\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);\n}\n\n.tool-btn.active {\n  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);\n}\n\n.toolbar-dropdown-trigger.active,\n.toolbar-dropdown.open .toolbar-dropdown-trigger {\n  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);\n}\n\n.toolbar-dropdown-caret {\n  position: absolute;\n  right: 4px;\n  bottom: 2px;\n  font-size: 10px;\n  line-height: 1;\n  color: currentColor;\n  opacity: 0.9;\n}\n\n.toolbar-dropdown-menu {\n  position: absolute;\n  top: calc(100% + 8px);\n  left: 0;\n  min-width: 188px;\n  padding: 6px;\n  border: 1px solid #2a2a3a;\n  border-radius: 10px;\n  background: linear-gradient(180deg, rgba(28, 30, 43, 0.98), rgba(16, 18, 27, 0.98));\n  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);\n  display: none;\n  flex-direction: column;\n  gap: 4px;\n  z-index: 320;\n}\n\n.toolbar-dropdown.open .toolbar-dropdown-menu {\n  display: flex;\n}\n\n.dropdown-tool-btn {\n  width: 100%;\n  min-height: 40px;\n  height: auto;\n  padding: 8px 10px;\n  flex-direction: row;\n  justify-content: flex-start;\n  gap: 10px;\n}\n\n.dropdown-tool-btn .tb-icon {\n  width: 22px;\n  height: 22px;\n  flex-shrink: 0;\n}\n\n.dropdown-tool-copy {\n  display: flex;\n  min-width: 0;\n  flex: 1;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n}\n\n.dropdown-tool-title {\n  font-size: 13px;\n  font-weight: 600;\n  color: #dce4f3;\n  white-space: nowrap;\n}\n\n.dropdown-tool-key {\n  font-size: 11px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  color: #70809b;\n  text-transform: uppercase;\n}\n\n.dropdown-tool-btn.active .dropdown-tool-title,\n.dropdown-tool-btn.active .dropdown-tool-key {\n  color: inherit;\n}\n\n/* Icon shape — rendered via CSS */\n.tb-icon {\n  display: block;\n  width: 26px;\n  height: 26px;\n  position: relative;\n}\n\n/* Select tool — mouse pointer arrow */\n.tb-icon-select::before,\n.tb-icon-box::before,\n.tb-icon-rounded::before,\n.tb-icon-circle::before,\n.tb-icon-line::before,\n.tb-icon-text::before {\n  content: none;\n}\n\n.tb-icon-select::after {\n  content: none;\n}\n\n.tb-icon-glyph {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-weight: 700;\n  line-height: 1;\n  color: currentColor;\n  text-shadow: 0 0 8px rgba(255, 255, 255, 0.04);\n  font-family: \"Segoe UI Symbol\", \"Segoe UI\", Arial, sans-serif;\n}\n\n.tb-icon-glyph-select {\n  font-size: 24px;\n}\n\n.tb-icon-glyph-box,\n.tb-icon-glyph-rounded,\n.tb-icon-glyph-circle {\n  font-size: 23px;\n}\n\n.tb-icon-glyph-line {\n  font-size: 27px;\n  transform: translateY(-1px) scaleX(1.08);\n}\n\n.tb-icon-glyph-text {\n  font-size: 22px;\n  font-family: inherit;\n}\n\n.dropdown-tool-btn .tb-icon-glyph-line {\n  transform: translateY(-1px);\n}\n\n/* Alignment icons — bar + rectangle pattern */\n.tb-icon-align-left::before,\n.tb-icon-align-right::before,\n.tb-icon-align-center-h::before,\n.tb-icon-align-top::before,\n.tb-icon-align-bottom::before,\n.tb-icon-align-center-v::before {\n  content: \"\";\n  position: absolute;\n  background: currentColor;\n}\n\n.tb-icon-align-left::after,\n.tb-icon-align-right::after,\n.tb-icon-align-center-h::after,\n.tb-icon-align-top::after,\n.tb-icon-align-bottom::after,\n.tb-icon-align-center-v::after {\n  content: \"\";\n  position: absolute;\n  border: 2px solid currentColor;\n  border-radius: 1px;\n  box-sizing: border-box;\n}\n\n/* Align icons use a tighter centered draw box */\n.tb-icon-align-left::before  { left: 2px; top: 2px; width: 2px; height: 14px; }\n.tb-icon-align-left::after   { left: 7px; top: 50%; width: 10px; height: 7px; transform: translateY(-50%); }\n\n.tb-icon-align-right::before { right: 2px; top: 2px; width: 2px; height: 14px; }\n.tb-icon-align-right::after  { right: 7px; top: 50%; width: 10px; height: 7px; transform: translateY(-50%); }\n\n.tb-icon-align-center-h::before { left: 50%; top: 2px; width: 2px; height: 14px; transform: translateX(-50%); }\n.tb-icon-align-center-h::after  { left: 50%; top: 50%; width: 10px; height: 7px; transform: translate(-50%, -50%); }\n\n.tb-icon-align-top::before { top: 2px; left: 2px; height: 2px; width: 14px; }\n.tb-icon-align-top::after  { top: 7px; left: 50%; width: 7px; height: 10px; transform: translateX(-50%); }\n\n.tb-icon-align-bottom::before { bottom: 2px; left: 2px; height: 2px; width: 14px; }\n.tb-icon-align-bottom::after  { bottom: 7px; left: 50%; width: 7px; height: 10px; transform: translateX(-50%); }\n\n.tb-icon-align-center-v::before { top: 50%; left: 2px; height: 2px; width: 14px; transform: translateY(-50%); }\n.tb-icon-align-center-v::after  { top: 50%; left: 50%; width: 7px; height: 10px; transform: translate(-50%, -50%); }\n\n/* Clone tool — two overlapping rectangles with plus */\n.tb-icon-clone::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-clone::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  background-image:\n    linear-gradient(currentColor, currentColor),\n    linear-gradient(currentColor, currentColor);\n  background-repeat: no-repeat;\n  background-size: 5px 1.5px, 1.5px 5px;\n  background-position: center center, center center;\n}\n\n/* Group tool — overlapping grouped rectangles */\n.tb-icon-group::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-group::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  opacity: 0.9;\n}\n\n/* Ungroup tool — two separated rectangles */\n.tb-icon-ungroup::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  bottom: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-ungroup::after {\n  content: \"\";\n  position: absolute;\n  right: 0;\n  top: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Keyboard hint */\n.tb-key {\n  display: none;\n}\n\n.tool-btn.active .tb-key {\n  opacity: 0.65;\n}\n\n/* Action buttons (undo/redo) */\n.action-btn {\n  width: 46px;\n  height: 44px;\n}\n\n.action-btn .tb-icon {\n  font-size: 20px;\n  width: 24px;\n  height: 24px;\n}\n\n/* ─── Color swatches ─────────────────────────────────────────────────── */\n\n.toolbar-group.colors {\n  gap: 12px;\n  margin: 0 10px 0 6px;\n  padding: 0 8px;\n}\n\n.swatch-pair {\n  display: flex;\n  align-items: center;\n  gap: 14px;\n  margin-right: 10px;\n  padding: 0 10px;\n}\n\n.swatch-pair:last-child {\n  margin-right: 0;\n}\n\n.swatch-label {\n  min-width: 40px;\n  font-size: 11px;\n  font-weight: 600;\n  color: #7e879c;\n  text-transform: uppercase;\n  letter-spacing: 0.7px;\n  text-align: right;\n  margin-right: 6px;\n}\n\n.color-swatch-btn,\n.prop-color-btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 34px;\n  height: 34px;\n  appearance: none;\n  -webkit-appearance: none;\n  border: 1px solid #2a2a36;\n  border-radius: 6px;\n  cursor: pointer;\n  background-color: #1b1b25;\n  background-image: linear-gradient(180deg, #232332 0%, #171721 100%);\n  padding: 3px;\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  transition: border-color 0.12s ease, transform 0.12s ease;\n  flex-shrink: 0;\n  margin-left: 6px;\n}\n\n.color-swatch-btn:hover,\n.prop-color-btn:hover {\n  border-color: #4a4a5a;\n  transform: translateY(-1px);\n}\n\n.color-swatch-chip,\n.prop-color-chip {\n  width: 24px;\n  height: 24px;\n  display: block;\n  border-radius: 4px;\n  background: var(--swatch-color, #ffffff);\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);\n  flex: 0 0 auto;\n}\n\n.prop-color-btn {\n  width: 42px;\n  margin-left: auto;\n}\n\n.prop-color-chip {\n  width: 30px;\n  height: 30px;\n}\n\n.size-input {\n  width: 56px;\n  height: 36px;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 6px;\n  text-align: center;\n  font-family: inherit;\n}\n\n.size-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n/* ─── Canvas area ────────────────────────────────────────────────────── */\n\n#canvas-container {\n  flex: 1;\n  overflow: hidden;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 20px;\n  background: #0a0a10;\n  position: relative;\n}\n\n#canvas-preview {\n  position: relative;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* Canvas elements (rendered from document.elements) */\n.canvas-element {\n  position: absolute;\n  box-sizing: border-box;\n  cursor: pointer;\n  transition: opacity 0.1s ease;\n}\n\n.canvas-element:hover {\n  opacity: 0.85;\n}\n\n.canvas-element.selected {\n  outline: 2px solid rgba(14, 233, 231, 0.9);\n  outline-offset: 2px;\n  cursor: move;\n}\n\n/* Selection handles */\n.resize-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #0ee9e7;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.resize-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.resize-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.resize-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.resize-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.resize-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.resize-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n/* Group selection overlay — orange bounding box */\n.group-overlay {\n  position: absolute;\n  pointer-events: none;\n  z-index: 90;\n}\n\n.group-outline {\n  position: absolute;\n  inset: 0;\n  border: 2px solid rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.04);\n}\n\n/* Group resize handles — same as individual but orange */\n.group-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #ff8c00;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.group-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.group-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.group-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.group-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.group-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.group-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n.toolbar-check {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  padding: 0 8px;\n  min-height: 32px;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(35, 39, 56, 0.96), rgba(23, 25, 36, 0.96));\n  color: #9aa4ba;\n  cursor: pointer;\n  user-select: none;\n}\n\n.toolbar-check:hover {\n  border-color: #3b465f;\n  color: #cfd8e8;\n}\n\n.toolbar-check-input {\n  position: absolute;\n  opacity: 0;\n  pointer-events: none;\n}\n\n.toolbar-check-box {\n  width: 13px;\n  height: 13px;\n  border: 1px solid #4a556d;\n  border-radius: 3px;\n  background: rgba(9, 12, 18, 0.85);\n  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);\n  position: relative;\n  flex-shrink: 0;\n}\n\n.toolbar-check-input:checked + .toolbar-check-box {\n  border-color: rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.18);\n}\n\n.toolbar-check-input:checked + .toolbar-check-box::after {\n  content: \"\";\n  position: absolute;\n  left: 3px;\n  top: 1px;\n  width: 4px;\n  height: 7px;\n  border: solid #ffb04d;\n  border-width: 0 2px 2px 0;\n  transform: rotate(45deg);\n}\n\n.toolbar-check-label {\n  font-size: 11px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  white-space: nowrap;\n}\n\n/* ─── Layers / shapes panel ────────────────────────────────────────── */\n\n#shapes-panel {\n  position: absolute;\n  right: 12px;\n  top: 72px;\n  width: 240px;\n  min-width: 180px;\n  min-height: 80px;\n  max-height: 60vh;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow: hidden;\n  resize: both;\n  display: none;\n  flex-direction: column;\n}\n\n#shapes-panel.visible {\n  display: flex;\n}\n\n.shapes-list {\n  flex: 1;\n  overflow-y: auto;\n  overflow-x: hidden;\n  padding: 6px;\n}\n\n.layers-empty {\n  padding: 16px;\n  text-align: center;\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* Layer item row */\n.layer-item {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 5px 8px;\n  margin-bottom: 6px;\n  cursor: pointer;\n  transition: background 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;\n  border: 1px solid #2a2a36;\n  border-left: 3px solid transparent;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);\n}\n\n.layer-item:hover {\n  background: linear-gradient(180deg, #272734 0%, #1d1d28 100%);\n  border-color: #363646;\n}\n\n.layer-item.selected {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.12) 0%, rgba(14, 233, 231, 0.07) 100%);\n  border-color: rgba(14, 233, 231, 0.22);\n  border-left-color: #0ee9e7;\n}\n\n.layer-group-box {\n  margin-bottom: 8px;\n  padding: 6px;\n  border: 1px solid rgba(255, 140, 0, 0.42);\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(255, 140, 0, 0.08) 0%, rgba(72, 44, 17, 0.26) 100%);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.04);\n}\n\n.layer-group-box.selected {\n  border-color: rgba(255, 140, 0, 0.85);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.10);\n}\n\n.layer-item.grouped-member {\n  padding-left: 10px;\n}\n\n.layer-group-sep {\n  height: 1px;\n  margin: 2px 6px 8px;\n  background: linear-gradient(90deg, transparent 0%, #2f3242 18%, #2f3242 82%, transparent 100%);\n}\n\n.layer-icon {\n  width: 18px;\n  text-align: center;\n  font-size: 14px;\n  color: #666;\n  flex-shrink: 0;\n}\n\n.layer-item.selected .layer-icon {\n  color: #0ee9e7;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-icon {\n  color: #ffb04d;\n}\n\n.layer-name {\n  flex: 1;\n  font-size: 12px;\n  color: #aaa;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.layer-item.selected .layer-name {\n  color: #ddd;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-name {\n  color: #e5d0b4;\n}\n\n/* Layer action buttons (visibility, z-order) */\n.layer-btn {\n  width: 22px;\n  height: 22px;\n  border: none;\n  background: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 12px;\n  border-radius: 3px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  flex-shrink: 0;\n  padding: 0;\n  transition: all 0.1s ease;\n}\n\n.layer-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #ccc;\n}\n\n/* Visibility eye toggle */\n.layer-vis {\n  font-size: 11px;\n  width: 20px;\n}\n\n.layer-vis::before {\n  content: \"\";\n  display: block;\n  width: 14px;\n  height: 10px;\n  border: 2px solid #0ee9e7;\n  border-radius: 75% / 100%;\n  position: relative;\n  box-sizing: border-box;\n}\n\n.layer-vis::after {\n  content: \"\";\n  display: block;\n  width: 4px;\n  height: 4px;\n  border-radius: 50%;\n  background: #0ee9e7;\n  position: relative;\n  top: -8px;\n  left: 5px;\n}\n\n.layer-vis.off::before {\n  border-color: #333;\n}\n\n.layer-vis.off::after {\n  background: #333;\n}\n\n/* Z-order arrows */\n.layer-z {\n  font-size: 14px;\n  min-width: 22px;\n  min-height: 22px;\n  color: #555;\n}\n\n.layer-z:hover {\n  color: #0ee9e7;\n  background: rgba(14, 233, 231, 0.08);\n}\n\n/* ─── Properties panel ──────────────────────────────────────────────── */\n\n#properties-panel {\n  position: absolute;\n  left: 12px;\n  top: 72px;\n  width: 340px;\n  min-width: 280px;\n  min-height: 80px;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow-x: hidden;\n  overflow-y: auto;\n  resize: both;\n  display: none;\n}\n\n#properties-panel.visible {\n  display: block;\n}\n\n.panel-header {\n  display: flex;\n  align-items: center;\n  padding: 10px 14px;\n  background: #1e1e2a;\n  border-bottom: 1px solid #2a2a3a;\n  font-weight: 600;\n  font-size: 13px;\n  color: #aaa;\n  cursor: grab;\n  user-select: none;\n}\n\n.panel-header:active {\n  cursor: grabbing;\n}\n\n/* Collapse / expand toggle */\n.panel-toggle {\n  margin-left: auto;\n  background: none;\n  border: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 14px;\n  padding: 0 2px;\n  line-height: 1;\n  border-radius: 3px;\n  transition: color 0.1s ease;\n}\n\n.panel-toggle:hover {\n  color: #ccc;\n}\n\n/* Collapsed state — hide content, disable resize */\n#properties-panel.collapsed .panel-content,\n#shapes-panel.collapsed .shapes-list {\n  display: none !important;\n}\n\n#properties-panel.collapsed.hover-open .panel-content,\n#shapes-panel.collapsed.hover-open .shapes-list {\n  display: block !important;\n}\n\n#properties-panel.collapsed,\n#shapes-panel.collapsed {\n  resize: none;\n  min-height: auto;\n}\n\n#properties-panel.collapsed.hover-open,\n#shapes-panel.collapsed.hover-open {\n  resize: both;\n}\n\n#properties-panel.collapsed .panel-header,\n#shapes-panel.collapsed .panel-header {\n  border-bottom: none;\n}\n\n#properties-panel.collapsed.hover-open .panel-header,\n#shapes-panel.collapsed.hover-open .panel-header {\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.panel-content {\n  padding: 12px;\n}\n\n.prop-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-bottom: 10px;\n}\n\n.prop-row.vertical {\n  flex-direction: column;\n  align-items: flex-start;\n}\n\n.prop-row label {\n  font-size: 12px;\n  color: #777;\n  min-width: 28px;\n}\n\n.prop-input {\n  width: 72px;\n  flex: 0 0 72px;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 6px;\n  font-family: inherit;\n  text-align: right;\n}\n\n.prop-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-color {\n  width: 32px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  cursor: pointer;\n  background: none;\n  padding: 1px;\n}\n\n.prop-textarea {\n  width: 100%;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 6px;\n  font-family: inherit;\n  resize: vertical;\n}\n\n.prop-textarea:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-delete {\n  width: 100%;\n  padding: 8px;\n  background: rgba(255, 70, 70, 0.12);\n  border: 1px solid rgba(255, 70, 70, 0.3);\n  border-radius: 6px;\n  color: #ff6666;\n  cursor: pointer;\n  font-size: 13px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.prop-delete:hover {\n  background: rgba(255, 70, 70, 0.22);\n  border-color: rgba(255, 70, 70, 0.5);\n}\n\n/* ─── Status bar ────────────────────────────────────────────────────── */\n\n#editor-statusbar {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 8px 12px;\n  background: #1a1a24;\n  border-top: 1px solid #2a2a3a;\n  flex-shrink: 0;\n  min-height: 60px;\n}\n\n.statusbar-left,\n.statusbar-right {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  flex: 0 0 auto;\n}\n\n.statusbar-center {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  flex: 1 1 auto;\n  flex-wrap: wrap;\n  justify-content: center;\n  min-width: 0;\n  padding: 0 16px;\n}\n\n.status-btn {\n  min-width: 140px;\n  height: 40px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  padding: 0 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 15px;\n  font-weight: 600;\n  line-height: 1;\n  font-family: inherit;\n  transition: all 0.15s ease;\n  white-space: nowrap;\n  text-align: center;\n}\n\n.status-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.status-btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.status-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.status-btn.danger {\n  background: rgba(255, 70, 70, 0.08);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.status-btn.danger:hover {\n  background: rgba(255, 70, 70, 0.18);\n}\n\n.status-hint {\n  font-size: 13px;\n  color: #8a91a4;\n  max-width: 360px;\n  line-height: 1.35;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           DIALOGS                                     */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.dialog-overlay {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  background: rgba(0, 0, 0, 0.7);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 100000;\n}\n\n.dialog {\n  background: #1e1e2a;\n  border: 1px solid #3a3a4a;\n  border-radius: 12px;\n  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);\n  width: 420px;\n  max-width: 90vw;\n  max-height: 80vh;\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n}\n\n.dialog-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 16px 20px;\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.dialog-header h3 {\n  margin: 0;\n  font-size: 18px;\n  color: #fff;\n  font-weight: 600;\n}\n\n.dialog-close {\n  width: 28px;\n  height: 28px;\n  border: none;\n  background: none;\n  color: #777;\n  font-size: 20px;\n  cursor: pointer;\n  border-radius: 4px;\n}\n\n.dialog-close:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.dialog-content {\n  padding: 20px;\n  overflow-y: auto;\n}\n\n.dialog-content.centered {\n  text-align: center;\n  padding-top: 28px;\n  padding-bottom: 24px;\n}\n\n.dialog-content.centered h3 {\n  margin: 0 0 10px;\n  font-size: 24px;\n  color: #f4f7fb;\n}\n\n.dialog-content.centered p {\n  margin: 0;\n  color: #b9c4d6;\n  font-size: 17px;\n  line-height: 1.45;\n}\n\n.dialog-color-preview {\n  width: 100%;\n  height: 54px;\n  margin-bottom: 14px;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  background: #ffffff;\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);\n}\n\n.color-strip-label {\n  display: block;\n  margin-bottom: 8px;\n  color: #d8deea;\n  font-size: 13px;\n}\n\n.color-strip-range {\n  width: 100%;\n  height: 22px;\n  margin: 0 0 16px;\n  appearance: none;\n  -webkit-appearance: none;\n  border: 1px solid #3a3a4a;\n  border-radius: 999px;\n  background: linear-gradient(90deg, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);\n  outline: none;\n}\n\n.color-strip-range::-webkit-slider-thumb {\n  -webkit-appearance: none;\n  width: 14px;\n  height: 28px;\n  border-radius: 999px;\n  border: 1px solid rgba(255, 255, 255, 0.7);\n  background: #f8fbff;\n  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);\n  cursor: pointer;\n}\n\n.color-field-row {\n  display: flex;\n  align-items: flex-start;\n  justify-content: space-between;\n  gap: 10px;\n  margin-bottom: 10px;\n}\n\n.color-field {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-start;\n  gap: 6px;\n  color: #d8deea;\n}\n\n.color-field-label {\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n  color: #8a91a4;\n}\n\n.color-number-input {\n  width: 4ch;\n  min-width: 4ch;\n  height: 34px;\n  padding: 0 6px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #e7ecf5;\n  font-size: 14px;\n  text-align: center;\n  font-family: inherit;\n  outline: none;\n}\n\n.color-number-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.color-number-input::-webkit-outer-spin-button,\n.color-number-input::-webkit-inner-spin-button,\n.color-strip-range::-webkit-outer-spin-button,\n.color-strip-range::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n  margin: 0;\n}\n\n.color-hex-input {\n  text-transform: uppercase;\n  letter-spacing: 0.04em;\n}\n\n.dialog-footer {\n  display: flex;\n  align-items: center;\n  justify-content: flex-end;\n  gap: 10px;\n  padding: 14px 20px;\n  border-top: 1px solid #2a2a3a;\n}\n\n.dialog-footer.centered {\n  justify-content: center;\n  flex-wrap: nowrap;\n}\n\n/* Script list in load dialog */\n.script-list {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  max-height: 300px;\n  overflow-y: auto;\n}\n\n.script-item {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 10px 14px;\n  background: rgba(255, 255, 255, 0.03);\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  cursor: pointer;\n  transition: all 0.15s ease;\n}\n\n.script-item:hover {\n  background: rgba(14, 233, 231, 0.06);\n  border-color: rgba(14, 233, 231, 0.2);\n}\n\n.script-item .script-name {\n  font-size: 14px;\n  color: #ddd;\n}\n\n.script-item .script-meta {\n  font-size: 11px;\n  color: #666;\n}\n\n/* Save As dialog input */\n.saveas-input {\n  width: 100%;\n  height: 36px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 12px;\n  font-family: inherit;\n  margin-top: 8px;\n}\n\n.saveas-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.save-note {\n  font-size: 12px;\n  color: #666;\n  margin-top: 8px;\n}\n\n/* Confirm dialog icon */\n.confirm-icon {\n  position: relative;\n  width: 52px;\n  height: 52px;\n  margin: 0 auto 18px;\n  border-radius: 14px;\n  background: radial-gradient(circle at 50% 35%, rgba(255, 206, 104, 0.16) 0%, rgba(255, 206, 104, 0.06) 55%, rgba(255, 206, 104, 0) 100%);\n}\n\n.confirm-icon::before {\n  content: \"\";\n  position: absolute;\n  left: 50%;\n  top: 50%;\n  width: 28px;\n  height: 28px;\n  transform: translate(-50%, -50%) rotate(45deg);\n  border: 2px solid rgba(255, 199, 93, 0.72);\n  border-radius: 4px;\n  background: rgba(255, 187, 61, 0.08);\n  box-shadow: 0 8px 20px rgba(255, 177, 58, 0.12);\n}\n\n.confirm-icon::after {\n  content: \"!\";\n  position: absolute;\n  left: 50%;\n  top: 50%;\n  transform: translate(-50%, -50%);\n  font-size: 22px;\n  line-height: 1;\n  font-weight: 700;\n  color: #ffc86b;\n}\n\n/* ─── Dialog buttons ─────────────────────────────────────────────────── */\n\n.btn {\n  min-width: 132px;\n  height: 42px;\n  padding: 0 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #262634 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);\n  color: #c6cfdb;\n  cursor: pointer;\n  font-size: 14px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.btn:hover {\n  background: linear-gradient(180deg, #2d2d3c 0%, #20202c 100%);\n  border-color: #4a4a5e;\n  color: #fff;\n}\n\n.btn:active {\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.32);\n}\n\n.btn.secondary {\n  color: #d6dfeb;\n}\n\n.btn.primary {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.22) 0%, rgba(6, 120, 135, 0.3) 100%);\n  border-color: rgba(14, 233, 231, 0.45);\n  color: #8ffaf8;\n}\n\n.btn.primary:hover {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.28) 0%, rgba(8, 137, 153, 0.38) 100%);\n}\n\n.btn.danger {\n  background: linear-gradient(180deg, rgba(255, 92, 92, 0.16) 0%, rgba(110, 29, 40, 0.28) 100%);\n  border-color: rgba(255, 92, 92, 0.38);\n  color: #ff8a8a;\n}\n\n.btn.danger:hover {\n  background: linear-gradient(180deg, rgba(255, 92, 92, 0.22) 0%, rgba(130, 34, 47, 0.35) 100%);\n}\n\n.btn.secondary {\n  background: rgba(255, 255, 255, 0.04);\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EMPTY STATE                                 */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.empty-state {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  color: #444;\n  font-size: 16px;\n  gap: 12px;\n}\n\n.empty-state .icon {\n  font-size: 48px;\n  opacity: 0.3;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           TOAST NOTIFICATIONS                         */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.toast-container {\n  position: fixed;\n  /* Below toolbar: editor starts at 8vh, toolbar ~56px tall */\n  top: calc(8vh + 64px);\n  left: 50%;\n  transform: translateX(-50%);\n  z-index: 200000;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  align-items: center;\n  pointer-events: none;\n}\n\n.toast {\n  padding: 10px 20px;\n  background: #2a2a3a;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  color: #ccc;\n  font-size: 13px;\n  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);\n  animation: toast-in 0.3s ease;\n  transition: opacity 0.25s ease, transform 0.25s ease;\n  pointer-events: auto;\n}\n\n.toast.success {\n  border-color: rgba(50, 200, 100, 0.4);\n  background: rgba(50, 200, 100, 0.1);\n  color: #6fd898;\n}\n\n.toast.error {\n  border-color: rgba(255, 70, 70, 0.4);\n  background: rgba(255, 70, 70, 0.1);\n  color: #ff8888;\n}\n\n.toast.info {\n  border-color: rgba(14, 233, 231, 0.3);\n  background: rgba(14, 233, 231, 0.08);\n  color: #0ee9e7;\n}\n\n@keyframes toast-in {\n  from { opacity: 0; transform: translateY(10px); }\n  to { opacity: 1; transform: translateY(0); }\n}\n\n/* ─── Stepper controls ───────────────────────────────────────────────── */\n\n.stepper-ctrl {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n  flex: 1;\n}\n\n.stepper-dec,\n.stepper-inc {\n  flex-shrink: 0;\n  width: 26px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  background: #12121a;\n  color: #ccc;\n  cursor: pointer;\n  font-size: 16px;\n  line-height: 1;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-family: inherit;\n}\n\n.stepper-dec:hover,\n.stepper-inc:hover {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n}\n\n.stepper-select {\n  flex: 1;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 4px;\n  font-family: inherit;\n  text-align: center;\n  cursor: pointer;\n}\n\n.stepper-select:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n";
   document.head.appendChild(style);
 })();
 // --- 000-core.js ---
@@ -190,6 +190,23 @@
     emit("exit-edit");
   }
 
+  function closeUi(reason) {
+    var activeBefore = !!state.editModeActive;
+    try {
+      emit("close-dialog", reason || "close-ui");
+    } catch (_ignoreCloseDialog) {}
+    try {
+      showScreen("start");
+    } catch (_ignoreShowStart) {}
+    exitEditMode();
+    updateToggleButton();
+    return {
+      closed: true,
+      activeBefore: activeBefore,
+      currentScreen: state.currentScreen
+    };
+  }
+
   function on(event, fn) {
     if (!listeners[event]) {
       listeners[event] = [];
@@ -250,7 +267,11 @@
       KeyR: "rounded",
       KeyC: "circle",
       KeyL: "line",
-      KeyT: "text"
+      KeyT: "text",
+      KeyA: "bezierArc",
+      KeyY: "triangle",
+      KeyQ: "quad",
+      KeyI: "image"
     };
     if (toolMap[e.code] && !e.ctrlKey && !e.metaKey) {
       state.currentTool = toolMap[e.code];
@@ -500,6 +521,7 @@
     showScreen: showScreen,
     enterEditMode: enterEditMode,
     exitEditMode: exitEditMode,
+    closeUi: closeUi,
     updateToggleButton: updateToggleButton,
     on: on,
     off: off,
@@ -725,6 +747,23 @@
 
   var STROKE_PRESETS = [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20];
   var RADIUS_PRESETS = [0, 2, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 50, 75, 100];
+  var SHAPE_TOOL_OPTIONS = [
+    { tool: "box", title: "Box", shortcut: "B", glyph: "\u25A1", iconClass: "tb-icon-box tb-icon-glyph tb-icon-glyph-box" },
+    { tool: "rounded", title: "Rounded Box", shortcut: "R", glyph: "\u25A2", iconClass: "tb-icon-rounded tb-icon-glyph tb-icon-glyph-rounded" },
+    { tool: "circle", title: "Circle", shortcut: "C", glyph: "\u25CB", iconClass: "tb-icon-circle tb-icon-glyph tb-icon-glyph-circle" },
+    { tool: "bezierArc", title: "Bezier Arc", shortcut: "A", glyph: "\u2302", iconClass: "tb-icon-line tb-icon-glyph tb-icon-glyph-line" },
+    { tool: "triangle", title: "Triangle", shortcut: "Y", glyph: "\u25B3", iconClass: "tb-icon-box tb-icon-glyph tb-icon-glyph-box" },
+    { tool: "quad", title: "Quad", shortcut: "Q", glyph: "\u25F0", iconClass: "tb-icon-rounded tb-icon-glyph tb-icon-glyph-rounded" },
+    { tool: "image", title: "Image", shortcut: "I", glyph: "\u25C9", iconClass: "tb-icon-circle tb-icon-glyph tb-icon-glyph-circle" },
+    { tool: "line", title: "Line", shortcut: "L", glyph: "/", iconClass: "tb-icon-line tb-icon-glyph tb-icon-glyph-line" },
+    { tool: "text", title: "Text", shortcut: "T", glyph: "T", iconClass: "tb-icon-text tb-icon-glyph tb-icon-glyph-text" },
+  ];
+  var SHAPE_TOOL_MAP = {};
+  var lastShapeTool = SHAPE_TOOL_OPTIONS[0].tool;
+
+  SHAPE_TOOL_OPTIONS.forEach(function (option) {
+    SHAPE_TOOL_MAP[option.tool] = option;
+  });
 
   function buildStepper(prop, presets) {
     var options = presets.map(function (v) {
@@ -734,6 +773,43 @@
       el("button", { className: "stepper-dec", dataset: { stepperProp: prop }, textContent: "\u2212" }),
       el("select", { className: "stepper-select", dataset: { prop: prop } }, options),
       el("button", { className: "stepper-inc", dataset: { stepperProp: prop }, textContent: "+" }),
+    ]);
+  }
+
+  function buildShapeToolButton(option) {
+    return el("button", {
+      type: "button",
+      className: "tool-btn dropdown-tool-btn",
+      dataset: { tool: option.tool },
+      title: option.title + " (" + option.shortcut + ")"
+    }, [
+      el("span", { className: "tb-icon " + option.iconClass, textContent: option.glyph }),
+      el("span", { className: "dropdown-tool-copy" }, [
+        el("span", { className: "dropdown-tool-title", textContent: option.title }),
+        el("span", { className: "dropdown-tool-key", textContent: option.shortcut }),
+      ]),
+    ]);
+  }
+
+  function buildShapeDropdown() {
+    var defaultShape = SHAPE_TOOL_OPTIONS[0];
+    return el("div", { className: "toolbar-dropdown", id: "shape-tool-dropdown" }, [
+      el("button", {
+        type: "button",
+        className: "action-btn toolbar-dropdown-trigger",
+        dataset: { action: "toggle-shape-menu" },
+        title: "Shape tools"
+      }, [
+        el("span", {
+          id: "shape-tool-trigger-icon",
+          className: "tb-icon " + defaultShape.iconClass,
+          textContent: defaultShape.glyph
+        }),
+        el("span", { className: "toolbar-dropdown-caret", textContent: "\u25BE" }),
+      ]),
+      el("div", { className: "toolbar-dropdown-menu", id: "shape-tool-menu" },
+        SHAPE_TOOL_OPTIONS.map(buildShapeToolButton)
+      ),
     ]);
   }
 
@@ -749,32 +825,13 @@
       // ── Toolbar ──
       el("div", { id: "editor-toolbar" }, [
 
-        // Tool buttons — SVG icon + key hint
+        // Tool buttons — selection stays visible, shapes live in a compact menu
         el("div", { className: "toolbar-group" }, [
           el("button", { className: "tool-btn active", dataset: { tool: "select" }, title: "Select (V)" }, [
             el("span", { className: "tb-icon tb-icon-select tb-icon-glyph tb-icon-glyph-select", textContent: "\u2196" }),
             el("span", { className: "tb-key", textContent: "V" }),
           ]),
-          el("button", { className: "tool-btn", dataset: { tool: "box" }, title: "Box (B)" }, [
-            el("span", { className: "tb-icon tb-icon-box tb-icon-glyph tb-icon-glyph-box", textContent: "\u25A1" }),
-            el("span", { className: "tb-key", textContent: "B" }),
-          ]),
-          el("button", { className: "tool-btn", dataset: { tool: "rounded" }, title: "Rounded Box (R)" }, [
-            el("span", { className: "tb-icon tb-icon-rounded tb-icon-glyph tb-icon-glyph-rounded", textContent: "\u25A2" }),
-            el("span", { className: "tb-key", textContent: "R" }),
-          ]),
-          el("button", { className: "tool-btn", dataset: { tool: "circle" }, title: "Circle (C)" }, [
-            el("span", { className: "tb-icon tb-icon-circle tb-icon-glyph tb-icon-glyph-circle", textContent: "\u25CB" }),
-            el("span", { className: "tb-key", textContent: "C" }),
-          ]),
-          el("button", { className: "tool-btn", dataset: { tool: "line" }, title: "Line (L)" }, [
-            el("span", { className: "tb-icon tb-icon-line tb-icon-glyph tb-icon-glyph-line", textContent: "/" }),
-            el("span", { className: "tb-key", textContent: "L" }),
-          ]),
-          el("button", { className: "tool-btn", dataset: { tool: "text" }, title: "Text (T)" }, [
-            el("span", { className: "tb-icon tb-icon-text tb-icon-glyph tb-icon-glyph-text", textContent: "T" }),
-            el("span", { className: "tb-key", textContent: "T" }),
-          ]),
+          buildShapeDropdown(),
         ]),
 
         el("div", { className: "toolbar-divider" }),
@@ -929,9 +986,55 @@
             el("label", { textContent: "Radius" }),
             buildStepper("radius", RADIUS_PRESETS),
           ]),
-          el("div", { className: "prop-row vertical" }, [
+          el("div", { className: "prop-row", dataset: { propRow: "rotation" } }, [
+            el("label", { textContent: "Rot (rad)" }),
+            el("input", { type: "number", step: "0.01", className: "prop-input", dataset: { prop: "rotation" } }),
+          ]),
+          el("div", { className: "prop-row", dataset: { propRow: "shadowBlur" } }, [
+            el("label", { textContent: "Glow" }),
+            el("input", { type: "number", step: "1", min: "0", className: "prop-input", dataset: { prop: "shadowBlur" } }),
+          ]),
+          el("div", { className: "prop-row", dataset: { propRow: "shadowColor" } }, [
+            el("label", { textContent: "Glow Col" }),
+            el("button", {
+              type: "button",
+              className: "prop-color-btn",
+              title: "Glow color",
+              dataset: { colorProp: "shadowColor", colorHex: "#000000" }
+            }, [
+              el("span", { className: "prop-color-chip" }),
+            ]),
+          ]),
+          el("div", { className: "prop-row", dataset: { propRow: "textColor" } }, [
+            el("label", { textContent: "Text Col" }),
+            el("button", {
+              type: "button",
+              className: "prop-color-btn",
+              title: "Text color",
+              dataset: { colorProp: "textColor", colorHex: "#FFFFFF" }
+            }, [
+              el("span", { className: "prop-color-chip" }),
+            ]),
+          ]),
+          el("div", { className: "prop-row", dataset: { propRow: "textSize" } }, [
+            el("label", { textContent: "Text Size" }),
+            el("input", { type: "number", step: "1", min: "1", className: "prop-input", dataset: { prop: "textSize" } }),
+          ]),
+          el("div", { className: "prop-row", dataset: { propRow: "textAlign" } }, [
+            el("label", { textContent: "Text Align" }),
+            el("select", { className: "prop-input", dataset: { prop: "textAlign" } }, [
+              el("option", { value: "left", textContent: "Left" }),
+              el("option", { value: "center", textContent: "Center" }),
+              el("option", { value: "right", textContent: "Right" }),
+            ]),
+          ]),
+          el("div", { className: "prop-row vertical", dataset: { propRow: "textLines" } }, [
             el("label", { textContent: "Text" }),
             el("textarea", { className: "prop-textarea", rows: "3", dataset: { prop: "textLines" } }),
+          ]),
+          el("div", { className: "prop-row vertical", dataset: { propRow: "imageSrc" } }, [
+            el("label", { textContent: "Image Path" }),
+            el("input", { type: "text", className: "prop-input", dataset: { prop: "imageSrc" } }),
           ]),
           el("div", { className: "prop-row" }, [
             el("button", {
@@ -986,10 +1089,17 @@
   // ─── Toolbar click delegation ────────────────────────────────────────
 
   function onToolbarClick(e) {
+    var dropdownBtn = e.target.closest('[data-action="toggle-shape-menu"]');
+    if (dropdownBtn) {
+      toggleShapeMenu();
+      return;
+    }
+
     var btn = e.target.closest("[data-tool]");
     if (btn) {
       APP.state.currentTool = btn.dataset.tool;
       updateToolButtons(APP.state.currentTool);
+      closeShapeMenu();
       APP.emit("tool-changed", APP.state.currentTool);
       return;
     }
@@ -998,6 +1108,7 @@
     if (!actionBtn) return;
 
     var action = actionBtn.dataset.action;
+    closeShapeMenu();
     if (action === "undo") APP.emit("undo");
     else if (action === "redo") APP.emit("redo");
     else if (action === "save") APP.emit("save");
@@ -1021,6 +1132,64 @@
     }
     else if (action === "toggle-collapse") {
       APP.emit("toggle-props-collapse");
+    }
+  }
+
+  function isShapeTool(tool) {
+    return !!SHAPE_TOOL_MAP[tool];
+  }
+
+  function getShapeDropdown(root) {
+    return qs("#shape-tool-dropdown", root || APP.getRoot());
+  }
+
+  function openShapeMenu() {
+    var dropdown = getShapeDropdown();
+    var trigger;
+    if (!dropdown) return;
+    trigger = qs(".toolbar-dropdown-trigger", dropdown);
+    dropdown.classList.add("open");
+    if (trigger) trigger.setAttribute("aria-expanded", "true");
+  }
+
+  function closeShapeMenu() {
+    var dropdown = getShapeDropdown();
+    var trigger;
+    if (!dropdown) return;
+    trigger = qs(".toolbar-dropdown-trigger", dropdown);
+    dropdown.classList.remove("open");
+    if (trigger) trigger.setAttribute("aria-expanded", "false");
+  }
+
+  function toggleShapeMenu() {
+    var dropdown = getShapeDropdown();
+    if (!dropdown) return;
+    if (dropdown.classList.contains("open")) {
+      closeShapeMenu();
+    } else {
+      openShapeMenu();
+    }
+  }
+
+  function updateShapeDropdown(activeTool) {
+    var dropdown = getShapeDropdown();
+    var trigger;
+    var icon;
+    var option;
+    if (!dropdown) return;
+
+    if (isShapeTool(activeTool)) lastShapeTool = activeTool;
+    option = SHAPE_TOOL_MAP[lastShapeTool] || SHAPE_TOOL_OPTIONS[0];
+    trigger = qs(".toolbar-dropdown-trigger", dropdown);
+    icon = qs("#shape-tool-trigger-icon", dropdown);
+
+    if (icon) {
+      icon.className = "tb-icon " + option.iconClass;
+      icon.textContent = option.glyph;
+    }
+    if (trigger) {
+      trigger.title = "Shape tools (" + option.title + " ready, " + option.shortcut + ")";
+      trigger.classList.toggle("active", isShapeTool(activeTool));
     }
   }
 
@@ -1049,6 +1218,7 @@
         button.classList.remove("active");
       }
     });
+    updateShapeDropdown(activeTool);
   }
 
   function syncToolbarSettings() {
@@ -1097,6 +1267,24 @@
     });
   }
 
+  function attachShapeDropdownListeners() {
+    if (document.__hudShapeDropdownBound) return;
+    document.__hudShapeDropdownBound = true;
+
+    document.addEventListener("mousedown", function (e) {
+      var dropdown = getShapeDropdown();
+      if (!dropdown || !dropdown.classList.contains("open")) return;
+      if (dropdown.contains(e.target)) return;
+      closeShapeMenu();
+    }, true);
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" || e.code === "Escape") {
+        closeShapeMenu();
+      }
+    }, true);
+  }
+
   // ─── Register with core ──────────────────────────────────────────────
 
   APP.on("document-created", function () {
@@ -1104,6 +1292,7 @@
   });
 
   APP.on("tool-changed", function (tool) {
+    closeShapeMenu();
     updateToolButtons(tool || APP.state.currentTool);
   });
 
@@ -1122,6 +1311,7 @@
     var toolbar = qs("#editor-toolbar", root);
     if (toolbar) toolbar.addEventListener("click", onToolbarClick);
     attachToolbarSettingListeners();
+    attachShapeDropdownListeners();
     APP.state.autoOpenPanels = loadAutoOpenPanels();
     syncToolbarSettings();
     updateEditorContext(APP.state.editorContext || null);
@@ -1147,6 +1337,7 @@
   APP.goToStart = goToStart;
   APP.goToEditor = goToEditor;
   APP.updateToolButtons = updateToolButtons;
+  APP.closeShapeMenu = closeShapeMenu;
 })();
 
 // --- 030-canvas-renderer.js ---
@@ -1223,7 +1414,7 @@
   function createElementDom(element) {
     var dom = el("div", {
       className: "canvas-element",
-      dataset: { elementId: element.id },
+      dataset: { elementId: element.id, elementType: element.type },
     });
 
     applyElementStyles(dom, element);
@@ -1233,11 +1424,41 @@
   function applyElementStyles(dom, element) {
     var pos = screenToCanvas(element.x, element.y);
     var size = screenToCanvas(element.w, element.h);
+    var rotation = Number(element.rotation) || 0;
+    var shadowColor = rgbaToCss(element.shadowColor || [0, 0, 0, 0]);
+    var shadowBlur = Math.max(0, (Number(element.shadowBlur) || 0) * scale);
 
+    dom.innerHTML = "";
+    dom.dataset.elementType = element.type;
     dom.style.left = pos.x + "px";
     dom.style.top = pos.y + "px";
     dom.style.width = size.x + "px";
     dom.style.height = size.y + "px";
+    dom.style.transform = "";
+    dom.style.transformOrigin = "center center";
+    dom.style.filter = shadowBlur > 0 ? ("drop-shadow(0 0 " + Math.max(1, shadowBlur) + "px " + shadowColor + ")") : "";
+    dom.style.background = "transparent";
+    dom.style.backgroundColor = "transparent";
+    dom.style.backgroundImage = "none";
+    dom.style.backgroundSize = "";
+    dom.style.backgroundRepeat = "";
+    dom.style.backgroundPosition = "";
+    dom.style.border = "none";
+    dom.style.borderRadius = "0";
+    dom.style.boxSizing = "border-box";
+    dom.style.display = "block";
+    dom.style.alignItems = "";
+    dom.style.justifyContent = "";
+    dom.style.padding = "";
+    dom.style.overflow = "hidden";
+    dom.style.color = "";
+    dom.style.fontSize = "";
+    dom.style.fontFamily = "";
+    dom.style.textAlign = "";
+    dom.style.whiteSpace = "";
+    dom.style.wordBreak = "";
+    dom.style.webkitTextStroke = "";
+    dom.style.textShadow = "";
 
     var fill = rgbaToCss(element.fill);
     var stroke = rgbaToCss(element.stroke);
@@ -1264,6 +1485,60 @@
         dom.style.boxSizing = "border-box";
         break;
 
+      case "triangle": {
+        var triangleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        var triangle = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        triangleSvg.setAttribute("viewBox", "0 0 100 100");
+        triangleSvg.setAttribute("preserveAspectRatio", "none");
+        triangleSvg.style.width = "100%";
+        triangleSvg.style.height = "100%";
+        triangle.setAttribute("points", "0,0 100,0 0,100");
+        triangle.setAttribute("fill", fill);
+        triangle.setAttribute("stroke", stroke);
+        triangle.setAttribute("stroke-width", String(Math.max(0, strokeWidth * scale)));
+        triangleSvg.appendChild(triangle);
+        dom.appendChild(triangleSvg);
+        break;
+      }
+
+      case "quad": {
+        var quadSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        var quad = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        var inset = Math.max(0, Math.min(0.45, Number(element.quadInset) || 0.125));
+        quadSvg.setAttribute("viewBox", "0 0 100 100");
+        quadSvg.setAttribute("preserveAspectRatio", "none");
+        quadSvg.style.width = "100%";
+        quadSvg.style.height = "100%";
+        quad.setAttribute("points", [
+          "0,0",
+          (100 - inset * 100) + "," + (inset * 100),
+          "100,100",
+          (inset * 100) + "," + (100 - inset * 100)
+        ].join(" "));
+        quad.setAttribute("fill", fill);
+        quad.setAttribute("stroke", stroke);
+        quad.setAttribute("stroke-width", String(Math.max(0, strokeWidth * scale)));
+        quadSvg.appendChild(quad);
+        dom.appendChild(quadSvg);
+        break;
+      }
+
+      case "bezierArc": {
+        var bezierSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        var bezier = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        bezierSvg.setAttribute("viewBox", "0 0 100 100");
+        bezierSvg.setAttribute("preserveAspectRatio", "none");
+        bezierSvg.style.width = "100%";
+        bezierSvg.style.height = "100%";
+        bezier.setAttribute("d", "M 0 100 Q 50 0 100 100");
+        bezier.setAttribute("fill", "none");
+        bezier.setAttribute("stroke", stroke);
+        bezier.setAttribute("stroke-width", String(Math.max(1, strokeWidth * scale)));
+        bezierSvg.appendChild(bezier);
+        dom.appendChild(bezierSvg);
+        break;
+      }
+
       case "line":
         dom.style.background = "transparent";
         dom.style.border = "none";
@@ -1279,7 +1554,7 @@
         dom.style.left = (pos.x + size.x / 2 - len / 2) + "px";
         dom.style.top = (pos.y + size.y / 2 - strokeWidth / 2) + "px";
         // Approximate angle (assumes line from top-left to bottom-right)
-        var angle = Math.atan2(size.y, size.x) * 180 / Math.PI;
+        var angle = (Math.atan2(size.y, size.x) + rotation) * 180 / Math.PI;
         dom.style.transform = "rotate(" + angle + "deg)";
         dom.style.transformOrigin = "center center";
         break;
@@ -1301,15 +1576,41 @@
         dom.style.textAlign = element.textAlign || "left";
         dom.style.whiteSpace = "pre-wrap";
         dom.style.wordBreak = "break-word";
+        if (strokeWidth > 0) {
+          dom.style.webkitTextStroke = Math.max(0.5, strokeWidth * scale * 0.5) + "px " + stroke;
+        }
+        if (shadowBlur > 0) {
+          dom.style.textShadow = "0 0 " + Math.max(1, shadowBlur) + "px " + shadowColor;
+        }
         // Text content
         var lines = element.textLines || [];
         dom.textContent = Array.isArray(lines) ? lines.join("\n") : lines;
         break;
 
+      case "image": {
+        var image = document.createElement("img");
+        image.alt = element.id || "image";
+        image.src = element.imageSrc || "";
+        image.style.width = "100%";
+        image.style.height = "100%";
+        image.style.objectFit = element.imageFit || "contain";
+        image.style.display = "block";
+        image.addEventListener("error", function () {
+          dom.style.backgroundImage = "radial-gradient(circle at 35% 35%, rgba(255,255,255,0.85), rgba(156,156,156,0.75) 35%, rgba(64,64,64,0.95) 70%)";
+          dom.style.backgroundSize = "cover";
+        }, { once: true });
+        dom.appendChild(image);
+        break;
+      }
+
       default:
         dom.style.background = fill;
         dom.style.border = strokeWidth + "px solid " + stroke;
         dom.style.boxSizing = "border-box";
+    }
+
+    if (element.type !== "line" && rotation) {
+      dom.style.transform = "rotate(" + rotation + "rad)";
     }
 
     // Hide element when visibility is off; restore when toggled back
@@ -1574,7 +1875,8 @@
       return;
     }
 
-    applyElementStyles(dom, element);
+    var replacement = createElementDom(element);
+    preview.replaceChild(replacement, dom);
 
     // Rebuild selection / group overlays
     renderSelectionOverlays();
@@ -1712,6 +2014,7 @@
   var tempElement = null;
   var tempDom = null;
   var MIN_CREATE_SIZE = 10;
+  var DEFAULT_IMAGE_PATH = "resources_generated/env/voxel/ore/aluminium-ore/icons/env_aluminium-ore_icon.png";
 
   function ensureCanvasCreateListeners() {
     var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
@@ -1730,6 +2033,10 @@
     box: "box",
     rounded: "boxRounded",
     circle: "circle",
+    bezierArc: "bezierArc",
+    triangle: "triangle",
+    quad: "quad",
+    image: "image",
     line: "line",
     text: "text",
   };
@@ -1773,7 +2080,27 @@
       textColor: [0.86, 0.88, 0.92, 1.0],
       textSize: 16,
       textAlign: "center",
+      rotation: 0,
+      shadowBlur: 0,
+      shadowColor: [0, 0, 0, 0],
+      imageSrc: "",
+      imageFit: "contain",
+      quadInset: 0.125
     };
+
+    if (type === "line" || type === "bezierArc") {
+      element.fill = [0, 0, 0, 0];
+    }
+    if (type === "text") {
+      element.fill = [0, 0, 0, 0];
+      element.strokeWidth = 0;
+    }
+    if (type === "image") {
+      element.fill = [0, 0, 0, 0];
+      element.stroke = [0, 0, 0, 0];
+      element.strokeWidth = 0;
+      element.imageSrc = DEFAULT_IMAGE_PATH;
+    }
 
     return element;
   }
@@ -2867,6 +3194,10 @@
     box:        { icon: "\u25AD", label: "Box" },
     boxRounded: { icon: "\u25A2", label: "Rounded" },
     circle:     { icon: "\u25CB", label: "Circle" },
+    bezierArc:  { icon: "\u2302", label: "Bezier Arc" },
+    triangle:   { icon: "\u25B3", label: "Triangle" },
+    quad:       { icon: "\u25F0", label: "Quad" },
+    image:      { icon: "\u25C9", label: "Image" },
     line:       { icon: "\u2571", label: "Line" },
     text:       { icon: "T",      label: "Text" },
   };
@@ -3276,6 +3607,8 @@
     if (!element) return [1, 1, 1, 1];
     if (prop === "fill") return Array.isArray(element.fill) ? element.fill.slice() : [1, 1, 1, 1];
     if (prop === "stroke") return Array.isArray(element.stroke) ? element.stroke.slice() : [1, 1, 1, 1];
+    if (prop === "textColor") return Array.isArray(element.textColor) ? element.textColor.slice() : [1, 1, 1, 1];
+    if (prop === "shadowColor") return Array.isArray(element.shadowColor) ? element.shadowColor.slice() : [0, 0, 0, 0];
     return [1, 1, 1, 1];
   }
 
@@ -3310,26 +3643,49 @@
     var radiusInput = qs('[data-prop="radius"]', panel);
     var strokeWidthInput = qs('[data-prop="strokeWidth"]', panel);
     var textArea = qs('[data-prop="textLines"]', panel);
+    var rotationInput = qs('[data-prop="rotation"]', panel);
+    var shadowBlurInput = qs('[data-prop="shadowBlur"]', panel);
+    var textSizeInput = qs('[data-prop="textSize"]', panel);
+    var textAlignInput = qs('[data-prop="textAlign"]', panel);
+    var imageSrcInput = qs('[data-prop="imageSrc"]', panel);
 
     if (xInput) xInput.value = Math.round(element.x);
     if (yInput) yInput.value = Math.round(element.y);
     if (wInput) wInput.value = Math.round(element.w);
     if (hInput) hInput.value = Math.round(element.h);
+    if (rotationInput) rotationInput.value = String(Number(element.rotation) || 0);
+    if (shadowBlurInput) shadowBlurInput.value = String(Number(element.shadowBlur) || 0);
     // Radius only applies to box / boxRounded
     var radiusRow = qs('[data-prop-row="radius"]', panel);
     var showRadius = (element.type === "box" || element.type === "boxRounded");
     if (radiusRow) radiusRow.style.display = showRadius ? "" : "none";
+    var textRows = ["textLines", "textColor", "textSize", "textAlign"];
+    textRows.forEach(function (rowName) {
+      var row = qs('[data-prop-row="' + rowName + '"]', panel);
+      if (row) row.style.display = element.type === "text" ? "" : "none";
+    });
+    var imageRow = qs('[data-prop-row="imageSrc"]', panel);
+    if (imageRow) imageRow.style.display = element.type === "image" ? "" : "none";
 
     if (radiusInput && showRadius) setStepperValue(radiusInput, element.radius || 0);
     if (strokeWidthInput) setStepperValue(strokeWidthInput, element.strokeWidth || 0);
+    if (textSizeInput) textSizeInput.value = String(Number(element.textSize) || 16);
+    if (textAlignInput) textAlignInput.value = String(element.textAlign || "left");
+    if (imageSrcInput) imageSrcInput.value = String(element.imageSrc || "");
 
     // Colors — update both panel and toolbar pickers
     var fillHex   = rgbaToHex(element.fill);
     var strokeHex = rgbaToHex(element.stroke);
+    var textHex = rgbaToHex(element.textColor);
+    var shadowHex = rgbaToHex(element.shadowColor);
     var fillInput = qs('[data-color-prop="fill"]', panel);
     var strokeInput = qs('[data-color-prop="stroke"]', panel);
+    var textColorInput = qs('[data-color-prop="textColor"]', panel);
+    var shadowColorInput = qs('[data-color-prop="shadowColor"]', panel);
     setColorButtonValue(fillInput, fillHex);
     setColorButtonValue(strokeInput, strokeHex);
+    setColorButtonValue(textColorInput, textHex);
+    setColorButtonValue(shadowColorInput, shadowHex);
 
     // Sync toolbar color pickers too
     var root = APP.getRoot ? APP.getRoot() : document;
@@ -3348,7 +3704,14 @@
   // ─── Property sync: panel → document ──────────────────────────────
 
   // Properties that should apply to all selected elements
-  var MULTI_PROPS = { fill: 1, stroke: 1, strokeWidth: 1 };
+  var MULTI_PROPS = {
+    fill: 1,
+    stroke: 1,
+    strokeWidth: 1,
+    rotation: 1,
+    shadowBlur: 1,
+    shadowColor: 1
+  };
 
   function applyPanelChange(prop, value) {
     var elementId = APP.state.selectedElementId;
@@ -3396,6 +3759,14 @@
           element.strokeWidth = Math.max(0, parseFloat(value) || 0);
           changed = true;
           break;
+        case "rotation":
+          element.rotation = parseFloat(value) || 0;
+          changed = true;
+          break;
+        case "shadowBlur":
+          element.shadowBlur = Math.max(0, parseFloat(value) || 0);
+          changed = true;
+          break;
         case "fill":
           element.fill = Array.isArray(value) ? value.slice(0, 4) : hexToRgba(value);
           changed = true;
@@ -3404,8 +3775,28 @@
           element.stroke = Array.isArray(value) ? value.slice(0, 4) : hexToRgba(value);
           changed = true;
           break;
+        case "textColor":
+          element.textColor = Array.isArray(value) ? value.slice(0, 4) : hexToRgba(value);
+          changed = true;
+          break;
+        case "shadowColor":
+          element.shadowColor = Array.isArray(value) ? value.slice(0, 4) : hexToRgba(value);
+          changed = true;
+          break;
         case "textLines":
           element.textLines = value.split("\n");
+          changed = true;
+          break;
+        case "textSize":
+          element.textSize = Math.max(1, parseFloat(value) || 1);
+          changed = true;
+          break;
+        case "textAlign":
+          element.textAlign = String(value || "left");
+          changed = true;
+          break;
+        case "imageSrc":
+          element.imageSrc = String(value || "");
           changed = true;
           break;
       }
@@ -3547,6 +3938,13 @@
     var prop = select.dataset.prop;
     if (!prop) return;
     applyPanelChange(prop, select.value);
+  }
+
+  function onSelectChange(e) {
+    var select = e.target;
+    if (!select || select.classList.contains("stepper-select")) return;
+    if (!select.dataset || !select.dataset.prop) return;
+    applyPanelChange(select.dataset.prop, select.value);
   }
 
   // ─── Panel position persistence ───────────────────────────────────────
@@ -3695,9 +4093,11 @@
     panel.removeEventListener("click", onPanelColorClick);
     panel.removeEventListener("click",  onStepperClick);
     panel.removeEventListener("change", onStepperChange);
+    panel.removeEventListener("change", onSelectChange);
     panel.addEventListener("click", onPanelColorClick);
     panel.addEventListener("click",  onStepperClick);
     panel.addEventListener("change", onStepperChange);
+    panel.addEventListener("change", onSelectChange);
   }
 
   // ─── Event listeners ──────────────────────────────────────────────
@@ -3741,6 +4141,834 @@
 
 })();
 
+// --- 082-shape-snippets.js ---
+// 082-shape-snippets.js - Shared snippet catalog for reproducible HUD shape demos
+(function hudEditorShapeSnippets() {
+  "use strict";
+
+  var NS = "HudEditor";
+  var APP = window[NS];
+  if (!APP) return;
+
+  var DEFAULT_IMAGE_PATH = "resources_generated/env/voxel/ore/aluminium-ore/icons/env_aluminium-ore_icon.png";
+  var COLOR_SEQUENCE = [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+    [0, 1, 1],
+    [1, 0, 1],
+    [1, 1, 0],
+    [0.5, 0.5, 0.5]
+  ];
+
+  function deepCopy(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function docFromRecipe(recipe) {
+    var doc = {
+      version: 1,
+      revision: 1,
+      id: String(recipe.id || APP.createLayoutId()),
+      name: String(recipe.name || recipe.title || "Snippet"),
+      screenWidth: recipe.screenWidth || 1920,
+      screenHeight: recipe.screenHeight || 1080,
+      elements: Array.isArray(recipe.elements) ? deepCopy(recipe.elements) : []
+    };
+    return APP.normalizeDocumentMeta ? APP.normalizeDocumentMeta(doc) : doc;
+  }
+
+  function elem(id, type, x, y, w, h, extra) {
+    var base = {
+      id: id,
+      type: type,
+      visible: true,
+      x: x,
+      y: y,
+      w: w,
+      h: h,
+      radius: 0,
+      fill: [0.12, 0.14, 0.18, 0.92],
+      stroke: [0.86, 0.9, 0.96, 1],
+      strokeWidth: 3,
+      textLines: null,
+      textColor: [1, 1, 1, 1],
+      textSize: 18,
+      textAlign: "center",
+      rotation: 0,
+      shadowBlur: 0,
+      shadowColor: [0, 0, 0, 0],
+      imageSrc: "",
+      imageFit: "contain",
+      quadInset: 0.125
+    };
+    if (extra) {
+      Object.keys(extra).forEach(function (key) {
+        base[key] = extra[key];
+      });
+    }
+    return base;
+  }
+
+  function addAlpha(index, alpha) {
+    var source = COLOR_SEQUENCE[(index - 1) % COLOR_SEQUENCE.length];
+    return [source[0], source[1], source[2], alpha == null ? 1 : alpha];
+  }
+
+  function createStyledState(size, colorIndex, rotation) {
+    return {
+      size: size,
+      colorIndex: colorIndex || 1,
+      rotation: rotation || 0
+    };
+  }
+
+  function takeStyle(state, alpha) {
+    var currentAlpha = alpha == null ? 1 : alpha;
+    var fill = addAlpha(state.colorIndex, currentAlpha);
+    state.colorIndex = state.colorIndex % COLOR_SEQUENCE.length + 1;
+    var shadowColor = addAlpha(state.colorIndex, currentAlpha);
+    state.colorIndex = state.colorIndex % COLOR_SEQUENCE.length + 1;
+    var stroke = addAlpha(state.colorIndex, currentAlpha);
+    state.colorIndex = state.colorIndex % COLOR_SEQUENCE.length + 1;
+    return {
+      fill: fill,
+      rotation: state.rotation,
+      shadowBlur: state.size / 4,
+      shadowColor: shadowColor,
+      stroke: stroke,
+      strokeWidth: state.size / 8
+    };
+  }
+
+  function defaultPrimitiveStyle(type, size) {
+    if (type === "line" || type === "bezierArc") {
+      return {
+        fill: [0, 0, 0, 0],
+        stroke: [0.92, 0.92, 0.94, 1],
+        strokeWidth: size / 28,
+        rotation: 0,
+        shadowBlur: 0,
+        shadowColor: [0, 0, 0, 0]
+      };
+    }
+    if (type === "text") {
+      return {
+        fill: [0, 0, 0, 0],
+        textColor: [0.92, 0.92, 0.94, 1],
+        stroke: [0, 0, 0, 0],
+        strokeWidth: 0,
+        rotation: 0,
+        shadowBlur: 0,
+        shadowColor: [0, 0, 0, 0]
+      };
+    }
+    if (type === "image") {
+      return {
+        fill: [0, 0, 0, 0],
+        stroke: [0, 0, 0, 0],
+        strokeWidth: 0,
+        rotation: 0,
+        shadowBlur: 0,
+        shadowColor: [0, 0, 0, 0]
+      };
+    }
+    return {
+      fill: [0.94, 0.94, 0.95, 1],
+      stroke: [0.76, 0.78, 0.82, 0.2],
+      strokeWidth: size / 48,
+      rotation: 0,
+      shadowBlur: 0,
+      shadowColor: [0, 0, 0, 0]
+    };
+  }
+
+  function squareElement(id, type, x, y, size, style, extra) {
+    var props = {
+      rotation: style.rotation || 0,
+      shadowBlur: style.shadowBlur || 0,
+      shadowColor: deepCopy(style.shadowColor || [0, 0, 0, 0]),
+      quadInset: extra && extra.quadInset != null ? extra.quadInset : 0.125
+    };
+    if (type === "text") {
+      props.fill = [0, 0, 0, 0];
+      props.stroke = deepCopy(style.stroke || [0, 0, 0, 0]);
+      props.strokeWidth = style.strokeWidth || 0;
+      props.textLines = [extra && extra.text || "E"];
+      props.textColor = deepCopy(style.textColor || style.fill || [1, 1, 1, 1]);
+      props.textSize = extra && extra.textSize != null ? extra.textSize : (size * 1.4);
+      props.textAlign = "center";
+    } else if (type === "image") {
+      props.fill = deepCopy(style.fill || [0, 0, 0, 0]);
+      props.stroke = deepCopy(style.stroke || [0, 0, 0, 0]);
+      props.strokeWidth = style.strokeWidth || 0;
+      props.imageSrc = extra && extra.imageSrc || DEFAULT_IMAGE_PATH;
+      props.imageFit = "contain";
+    } else if (type === "line" || type === "bezierArc") {
+      props.fill = [0, 0, 0, 0];
+      props.stroke = deepCopy(style.stroke || [1, 1, 1, 1]);
+      props.strokeWidth = style.strokeWidth || 0;
+    } else {
+      props.fill = deepCopy(style.fill || [1, 1, 1, 1]);
+      props.stroke = deepCopy(style.stroke || [0, 0, 0, 0]);
+      props.strokeWidth = style.strokeWidth || 0;
+    }
+    if (type === "boxRounded") {
+      props.radius = extra && extra.radius != null ? extra.radius : (size / 4);
+    }
+    if (extra) {
+      Object.keys(extra).forEach(function (key) {
+        props[key] = extra[key];
+      });
+    }
+    return elem(id, type, x, y, size, size, props);
+  }
+
+  function buildShapesLuaDemoRecipe() {
+    var screenWidth = 1920;
+    var screenHeight = 1080;
+    var rowCount = 4;
+    var shapeCount = 9;
+    var size = Math.min(screenHeight / rowCount / 2, screenWidth / shapeCount / 2);
+    var elements = [];
+    var styleDefaults = {};
+    var xStep;
+    var xOff;
+    var yOff;
+
+    function resetRow(step, xStart, yStart) {
+      xStep = step;
+      xOff = xStart;
+      yOff = yStart;
+    }
+
+    function nextX() {
+      var current = xOff;
+      xOff += xStep;
+      return current;
+    }
+
+    function addDemo(type, label, x, y, style, extra) {
+      elements.push(squareElement(label + "_" + elements.length, type, x, y, size, style, extra));
+    }
+
+    function defaultFor(type) {
+      return defaultPrimitiveStyle(type, size);
+    }
+
+    // Row 1: default primitive sample
+    resetRow(
+      screenWidth / shapeCount,
+      screenWidth / shapeCount - ((screenWidth / shapeCount) + size) / 2,
+      screenHeight / rowCount / 2 - size / 2
+    );
+    addDemo("image", "row1_image", nextX(), yOff, defaultFor("image"), { imageSrc: DEFAULT_IMAGE_PATH });
+    addDemo("bezierArc", "row1_bezier", nextX(), yOff, defaultFor("bezierArc"));
+    addDemo("box", "row1_box", nextX(), yOff, defaultFor("box"));
+    addDemo("boxRounded", "row1_rounded", nextX(), yOff, defaultFor("boxRounded"), { radius: size / 4 });
+    addDemo("circle", "row1_circle", nextX(), yOff, defaultFor("circle"));
+    addDemo("line", "row1_line", nextX(), yOff, defaultFor("line"));
+    addDemo("triangle", "row1_triangle", nextX(), yOff, defaultFor("triangle"));
+    addDemo("quad", "row1_quad", nextX(), yOff, defaultFor("quad"), { quadInset: 0.125 });
+    addDemo("text", "row1_text", nextX(), yOff, defaultFor("text"), { text: "E", textSize: size * 1.4 });
+
+    // Row 2: custom styled primitives
+    resetRow(
+      screenWidth / shapeCount,
+      screenWidth / shapeCount - ((screenWidth / shapeCount) + size) / 2,
+      screenHeight / rowCount + screenHeight / rowCount / 2 - size / 2
+    );
+    var styledState = createStyledState(size, 1, Math.PI / 4);
+    addDemo("image", "row2_image", nextX(), yOff, takeStyle(styledState, 1), { imageSrc: DEFAULT_IMAGE_PATH });
+    addDemo("bezierArc", "row2_bezier", nextX(), yOff, takeStyle(styledState, 1));
+    addDemo("box", "row2_box", nextX(), yOff, takeStyle(styledState, 1));
+    addDemo("boxRounded", "row2_rounded", nextX(), yOff, takeStyle(styledState, 1), { radius: size / 4 });
+    addDemo("circle", "row2_circle", nextX(), yOff, takeStyle(styledState, 1));
+    addDemo("line", "row2_line", nextX(), yOff, takeStyle(styledState, 1));
+    addDemo("triangle", "row2_triangle", nextX(), yOff, takeStyle(styledState, 1));
+    addDemo("quad", "row2_quad", nextX(), yOff, takeStyle(styledState, 1), { quadInset: 0.125 });
+    addDemo("text", "row2_text", nextX(), yOff, takeStyle(styledState, 1), { text: "E", textSize: size * 1.4 });
+
+    // Row 3: same-type overlap with default styles + custom center style
+    resetRow(
+      screenWidth / shapeCount,
+      screenWidth / shapeCount - ((screenWidth / shapeCount) + size) / 2,
+      screenHeight / rowCount * 2 + screenHeight / rowCount / 2 - size / 2
+    );
+    var defaultState = createStyledState(size, 2, Math.PI / 8);
+    styleDefaults.image = takeStyle(defaultState, 1);
+    styleDefaults.bezierArc = takeStyle(defaultState, 1);
+    styleDefaults.box = takeStyle(defaultState, 1);
+    styleDefaults.boxRounded = takeStyle(defaultState, 1);
+    styleDefaults.circle = takeStyle(defaultState, 1);
+    styleDefaults.line = takeStyle(defaultState, 1);
+    styleDefaults.polygon = takeStyle(defaultState, 1);
+    styleDefaults.text = takeStyle(defaultState, 1);
+
+    var overlapState = createStyledState(size, 3, -Math.PI / 8);
+    function overlapTriple(type, key, baseX, extra) {
+      addDemo(type, "row3_" + key + "_a", baseX - size / 4, yOff - size / 4, styleDefaults[key], extra);
+      addDemo(type, "row3_" + key + "_b", baseX + size / 4, yOff + size / 4, styleDefaults[key], extra);
+      addDemo(type, "row3_" + key + "_c", baseX, yOff, takeStyle(overlapState, 0.8), extra);
+    }
+
+    overlapTriple("image", "image", nextX(), { imageSrc: DEFAULT_IMAGE_PATH });
+    overlapTriple("bezierArc", "bezierArc", nextX());
+    overlapTriple("box", "box", nextX());
+    overlapTriple("boxRounded", "boxRounded", nextX(), { radius: size / 4 });
+    overlapTriple("circle", "circle", nextX());
+    overlapTriple("line", "line", nextX());
+    overlapTriple("triangle", "polygon", nextX());
+    overlapTriple("quad", "polygon", nextX(), { quadInset: 0.125 });
+    overlapTriple("text", "text", nextX(), { text: "E", textSize: size * 1.4 });
+
+    // Row 4: mixed overlap in forward and reverse draw order
+    resetRow(
+      size / 2,
+      screenWidth / 2 - (shapeCount + 2) * (size / 2),
+      screenHeight / rowCount * 3 + screenHeight / rowCount / 2 - size / 2
+    );
+    var mixed = [
+      { type: "image", key: "image", extra: { imageSrc: DEFAULT_IMAGE_PATH } },
+      { type: "bezierArc", key: "bezierArc" },
+      { type: "box", key: "box" },
+      { type: "boxRounded", key: "boxRounded", extra: { radius: size / 4 } },
+      { type: "circle", key: "circle" },
+      { type: "line", key: "line" },
+      { type: "triangle", key: "polygon" },
+      { type: "quad", key: "polygon", extra: { quadInset: 0.125 } },
+      { type: "text", key: "text", extra: { text: "E", textSize: size * 1.4 } }
+    ];
+
+    mixed.forEach(function (entry, index) {
+      addDemo(entry.type, "row4_forward_" + index, nextX(), yOff, styleDefaults[entry.key], entry.extra);
+    });
+
+    xOff += xStep * 3;
+
+    mixed.slice().reverse().forEach(function (entry, index) {
+      addDemo(entry.type, "row4_reverse_" + index, nextX(), yOff, styleDefaults[entry.key], entry.extra);
+    });
+
+    return {
+      id: "demo_shapes_lua_full",
+      family: "demo/render-script",
+      title: "DU shapes.lua Demo",
+      capabilities: [
+        "image",
+        "bezierArc",
+        "box",
+        "boxRounded",
+        "circle",
+        "line",
+        "triangle",
+        "quad",
+        "text",
+        "rotation",
+        "shadow",
+        "alpha",
+        "zOrder"
+      ],
+      screenWidth: screenWidth,
+      screenHeight: screenHeight,
+      elements: elements
+    };
+  }
+
+  var RECIPES = [
+    {
+      id: "primitive_box_default",
+      family: "primitive/default",
+      title: "Primitive Box Default",
+      capabilities: ["box", "fill", "stroke", "strokeWidth"],
+      elements: [
+        elem("box_default", "box", 780, 340, 360, 220, {
+          fill: [0.92, 0.92, 0.94, 1],
+          stroke: [0.74, 0.78, 0.84, 1],
+          strokeWidth: 2
+        })
+      ]
+    },
+    {
+      id: "primitive_rounded_default",
+      family: "primitive/default",
+      title: "Primitive Rounded Default",
+      capabilities: ["boxRounded", "fill", "stroke", "radius"],
+      elements: [
+        elem("rounded_default", "boxRounded", 760, 320, 400, 260, {
+          radius: 52,
+          fill: [0.95, 0.95, 0.97, 1],
+          stroke: [0.8, 0.84, 0.9, 1],
+          strokeWidth: 2
+        })
+      ]
+    },
+    {
+      id: "primitive_circle_default",
+      family: "primitive/default",
+      title: "Primitive Circle Default",
+      capabilities: ["circle", "fill", "stroke"],
+      elements: [
+        elem("circle_default", "circle", 800, 260, 320, 320, {
+          fill: [0.96, 0.95, 0.88, 1],
+          stroke: [0.82, 0.78, 0.36, 1],
+          strokeWidth: 2
+        })
+      ]
+    },
+    {
+      id: "primitive_line_default",
+      family: "primitive/default",
+      title: "Primitive Line Default",
+      capabilities: ["line", "stroke", "strokeWidth"],
+      elements: [
+        elem("line_default", "line", 720, 240, 500, 420, {
+          fill: [0, 0, 0, 0],
+          stroke: [0.92, 0.94, 0.98, 1],
+          strokeWidth: 10
+        })
+      ]
+    },
+    {
+      id: "primitive_text_default",
+      family: "primitive/default",
+      title: "Primitive Text Default",
+      capabilities: ["text", "fill", "stroke", "textSize", "textAlign"],
+      elements: [
+        elem("text_default", "text", 640, 300, 640, 280, {
+          radius: 24,
+          fill: [0, 0, 0, 0],
+          stroke: [0, 0, 0, 0],
+          strokeWidth: 0,
+          textLines: ["Lua", "Painter"],
+          textColor: [0.92, 0.96, 1, 1],
+          textSize: 72,
+          textAlign: "center"
+        })
+      ]
+    },
+    {
+      id: "primitive_box_styled",
+      family: "primitive/styled",
+      title: "Primitive Box Styled",
+      capabilities: ["box", "fill", "stroke", "strokeWidth", "alpha"],
+      elements: [
+        elem("box_styled", "box", 740, 300, 440, 280, {
+          fill: [0.83, 0.83, 0.85, 0.96],
+          stroke: [0.05, 0.96, 0.12, 1],
+          strokeWidth: 12
+        }),
+        elem("box_styled_shadow", "box", 724, 284, 472, 312, {
+          fill: [0, 0, 0, 0],
+          stroke: [1, 0.1, 0.1, 0.55],
+          strokeWidth: 18
+        })
+      ]
+    },
+    {
+      id: "primitive_circle_styled",
+      family: "primitive/styled",
+      title: "Primitive Circle Styled",
+      capabilities: ["circle", "fill", "stroke", "strokeWidth", "alpha"],
+      elements: [
+        elem("circle_styled", "circle", 790, 255, 340, 340, {
+          fill: [1, 0.95, 0.02, 1],
+          stroke: [1, 0.12, 0.08, 1],
+          strokeWidth: 14
+        }),
+        elem("circle_styled_halo", "circle", 774, 239, 372, 372, {
+          fill: [0, 0, 0, 0],
+          stroke: [1, 1, 1, 0.5],
+          strokeWidth: 18
+        })
+      ]
+    },
+    {
+      id: "overlap_same_type_boxes",
+      family: "overlap/same-type",
+      title: "Overlap Same Type Boxes",
+      capabilities: ["box", "fill", "stroke", "strokeWidth", "alpha", "zOrder"],
+      elements: [
+        elem("overlap_box_a", "box", 640, 260, 320, 320, {
+          fill: [0.88, 0.12, 0.16, 0.78],
+          stroke: [0.08, 0.16, 1, 0.95],
+          strokeWidth: 14
+        }),
+        elem("overlap_box_b", "box", 720, 320, 320, 320, {
+          fill: [0.28, 0.92, 0.02, 0.72],
+          stroke: [0.95, 0.88, 0.08, 0.94],
+          strokeWidth: 14
+        }),
+        elem("overlap_box_c", "box", 800, 280, 320, 320, {
+          fill: [0.25, 0.92, 1, 0.66],
+          stroke: [0.96, 0.2, 0.94, 0.92],
+          strokeWidth: 14
+        })
+      ]
+    },
+    {
+      id: "overlap_same_type_circles",
+      family: "overlap/same-type",
+      title: "Overlap Same Type Circles",
+      capabilities: ["circle", "fill", "stroke", "strokeWidth", "alpha", "zOrder"],
+      elements: [
+        elem("overlap_circle_a", "circle", 680, 250, 340, 340, {
+          fill: [0.1, 0.95, 0.08, 0.7],
+          stroke: [0.94, 0.94, 0.1, 0.92],
+          strokeWidth: 14
+        }),
+        elem("overlap_circle_b", "circle", 760, 300, 340, 340, {
+          fill: [0.22, 0.4, 1, 0.7],
+          stroke: [0.15, 0.96, 0.16, 0.92],
+          strokeWidth: 14
+        }),
+        elem("overlap_circle_c", "circle", 720, 280, 340, 340, {
+          fill: [1, 0.25, 0.15, 0.72],
+          stroke: [0.4, 0.1, 1, 0.92],
+          strokeWidth: 14
+        })
+      ]
+    },
+    {
+      id: "overlap_mixed_shapes_basic",
+      family: "overlap/mixed-type",
+      title: "Overlap Mixed Shapes Basic",
+      capabilities: ["boxRounded", "circle", "line", "text", "fill", "stroke", "alpha", "zOrder"],
+      elements: [
+        elem("mixed_backplate", "boxRounded", 610, 260, 380, 340, {
+          radius: 46,
+          fill: [0.18, 0.14, 0.94, 0.92],
+          stroke: [0.05, 0.95, 1, 0.9],
+          strokeWidth: 14
+        }),
+        elem("mixed_circle", "circle", 790, 300, 300, 300, {
+          fill: [1, 0.78, 0.15, 0.94],
+          stroke: [1, 0.15, 0.15, 0.96],
+          strokeWidth: 12
+        }),
+        elem("mixed_line_a", "line", 720, 360, 320, 140, {
+          fill: [0, 0, 0, 0],
+          stroke: [0.06, 0.95, 1, 0.95],
+          strokeWidth: 12
+        }),
+        elem("mixed_line_b", "line", 720, 500, 320, -140, {
+          fill: [0, 0, 0, 0],
+          stroke: [1, 0.92, 0.05, 0.95],
+          strokeWidth: 12
+        }),
+        elem("mixed_text", "text", 1120, 285, 260, 300, {
+          fill: [0, 0, 0, 0],
+          stroke: [0, 0, 0, 0],
+          strokeWidth: 0,
+          textLines: ["E"],
+          textColor: [1, 0.96, 0.08, 1],
+          textSize: 170,
+          textAlign: "center"
+        })
+      ]
+    },
+    {
+      id: "effect_text_rgb_split",
+      family: "effect/text-treatment",
+      title: "Effect Text RGB Split",
+      capabilities: ["text", "fill", "stroke", "textSize", "alpha", "zOrder"],
+      elements: [
+        elem("rgb_text_r", "text", 760, 300, 320, 320, {
+          fill: [0, 0, 0, 0],
+          stroke: [0, 0, 0, 0],
+          strokeWidth: 0,
+          textLines: ["E"],
+          textColor: [1, 0.18, 0.18, 0.85],
+          textSize: 210,
+          textAlign: "center"
+        }),
+        elem("rgb_text_g", "text", 790, 300, 320, 320, {
+          fill: [0, 0, 0, 0],
+          stroke: [0, 0, 0, 0],
+          strokeWidth: 0,
+          textLines: ["E"],
+          textColor: [0.1, 1, 0.2, 0.82],
+          textSize: 210,
+          textAlign: "center"
+        }),
+        elem("rgb_text_b", "text", 775, 280, 320, 320, {
+          fill: [0, 0, 0, 0],
+          stroke: [0, 0, 0, 0],
+          strokeWidth: 0,
+          textLines: ["E"],
+          textColor: [0.18, 0.48, 1, 0.85],
+          textSize: 210,
+          textAlign: "center"
+        })
+      ]
+    },
+    buildShapesLuaDemoRecipe()
+  ];
+
+  function getRecipeIndex(id) {
+    var target = String(id || "");
+    for (var i = 0; i < RECIPES.length; i += 1) {
+      if (RECIPES[i].id === target) return i;
+    }
+    return -1;
+  }
+
+  function getRecipe(id) {
+    var index = getRecipeIndex(id);
+    return index >= 0 ? deepCopy(RECIPES[index]) : null;
+  }
+
+  function listRecipes() {
+    return RECIPES.map(function (recipe) {
+      return {
+        id: recipe.id,
+        family: recipe.family,
+        title: recipe.title,
+        capabilities: recipe.capabilities.slice(),
+        elementCount: Array.isArray(recipe.elements) ? recipe.elements.length : 0
+      };
+    });
+  }
+
+  function buildDocument(id) {
+    var recipe = getRecipe(id);
+    return recipe ? docFromRecipe(recipe) : null;
+  }
+
+  function loadDocument(id) {
+    var doc = buildDocument(id);
+    if (!doc) return null;
+    APP.state.document = doc;
+    APP.state.selectedElementId = null;
+    APP.state.selectedElementIds = [];
+    APP.state.isDirty = false;
+    APP.emit("document-loaded", doc);
+    if (typeof APP.goToEditor === "function") {
+      APP.goToEditor();
+    } else if (typeof APP.showScreen === "function") {
+      APP.showScreen("editor");
+    }
+    return deepCopy(doc);
+  }
+
+  APP.shapeSnippets = {
+    ids: RECIPES.map(function (recipe) { return recipe.id; }),
+    list: listRecipes,
+    get: getRecipe,
+    buildDocument: buildDocument,
+    loadDocument: loadDocument
+  };
+})();
+
+// --- 083-screen-commands.js ---
+// 083-screen-commands.js - Normalize editor elements into screen draw commands
+(function hudEditorScreenCommands() {
+  "use strict";
+
+  var NS = "HudEditor";
+  var APP = window[NS];
+  if (!APP) return;
+
+  var DEFAULT_FILL = [0.2, 0.2, 0.2, 1];
+  var DEFAULT_STROKE = [1, 1, 1, 1];
+  var DEFAULT_TEXT = [1, 1, 1, 1];
+  var DEFAULT_SHADOW = [0, 0, 0, 0];
+
+  function cloneDocument(doc) {
+    return doc ? JSON.parse(JSON.stringify(doc)) : null;
+  }
+
+  function toFiniteNumber(value, fallback) {
+    var numeric = Number(value);
+    return isFinite(numeric) ? numeric : fallback;
+  }
+
+  function compactColor(color, fallback) {
+    var source = Array.isArray(color) ? color : fallback;
+    return [
+      toFiniteNumber(source && source[0], fallback[0]),
+      toFiniteNumber(source && source[1], fallback[1]),
+      toFiniteNumber(source && source[2], fallback[2]),
+      toFiniteNumber(source && source[3], fallback[3])
+    ];
+  }
+
+  function compactTextLines(lines) {
+    if (!Array.isArray(lines) || !lines.length) return null;
+    return lines.map(function (line) {
+      return String(line == null ? "" : line);
+    });
+  }
+
+  function hasVisibleColor(color) {
+    return Array.isArray(color) && toFiniteNumber(color[3], 0) > 0;
+  }
+
+  function normalizeType(rawType) {
+    var type = String(rawType || "box");
+    return type === "rounded" ? "boxRounded" : type;
+  }
+
+  function buildCommonStyle(raw, command) {
+    var rotation = toFiniteNumber(raw.rotation, 0);
+    var shadowBlur = Math.max(0, toFiniteNumber(raw.shadowBlur, 0));
+    var shadowColor = compactColor(raw.shadowColor, DEFAULT_SHADOW);
+    if (rotation) {
+      command.rot = rotation;
+    }
+    if (shadowBlur > 0 && shadowColor[3] > 0) {
+      command.sh = {
+        b: shadowBlur,
+        c: shadowColor
+      };
+    }
+    return command;
+  }
+
+  function buildTextCommand(raw) {
+    var lines = compactTextLines(raw.textLines);
+    var command;
+    if (!lines) return null;
+    command = {
+      o: "text",
+      x: toFiniteNumber(raw.x, 0),
+      y: toFiniteNumber(raw.y, 0),
+      w: toFiniteNumber(raw.w, 0),
+      h: toFiniteNumber(raw.h, 0),
+      l: lines,
+      tc: compactColor(raw.textColor, DEFAULT_TEXT),
+      s: compactColor(raw.stroke, DEFAULT_STROKE),
+      sw: toFiniteNumber(raw.strokeWidth, 0),
+      ts: toFiniteNumber(raw.textSize, 16),
+      ta: String(raw.textAlign || "left")
+    };
+    return buildCommonStyle(raw, command);
+  }
+
+  function buildShapeCommand(raw, shapeKind) {
+    var command = {
+      o: "shape",
+      k: shapeKind,
+      x: toFiniteNumber(raw.x, 0),
+      y: toFiniteNumber(raw.y, 0),
+      w: toFiniteNumber(raw.w, 0),
+      h: toFiniteNumber(raw.h, 0),
+      f: compactColor(raw.fill, DEFAULT_FILL),
+      s: compactColor(raw.stroke, DEFAULT_STROKE),
+      sw: toFiniteNumber(raw.strokeWidth, 0)
+    };
+    if (shapeKind === "boxRounded") {
+      command.r = toFiniteNumber(raw.radius, 0);
+    }
+    if (shapeKind === "quad") {
+      command.qi = toFiniteNumber(raw.quadInset, 0.125);
+    }
+    return buildCommonStyle(raw, command);
+  }
+
+  function buildBezierCommand(raw) {
+    return buildCommonStyle(raw, {
+      o: "bezier",
+      x: toFiniteNumber(raw.x, 0),
+      y: toFiniteNumber(raw.y, 0),
+      w: toFiniteNumber(raw.w, 0),
+      h: toFiniteNumber(raw.h, 0),
+      s: compactColor(raw.stroke, DEFAULT_STROKE),
+      sw: toFiniteNumber(raw.strokeWidth, 2)
+    });
+  }
+
+  function buildImageCommand(raw) {
+    var command = {
+      o: "image",
+      x: toFiniteNumber(raw.x, 0),
+      y: toFiniteNumber(raw.y, 0),
+      w: toFiniteNumber(raw.w, 0),
+      h: toFiniteNumber(raw.h, 0),
+      src: String(raw.imageSrc || ""),
+      fit: String(raw.imageFit || "contain")
+    };
+    if (hasVisibleColor(raw.fill)) {
+      command.f = compactColor(raw.fill, DEFAULT_FILL);
+    }
+    return buildCommonStyle(raw, command);
+  }
+
+  function buildLineCommand(raw) {
+    return buildCommonStyle(raw, {
+      o: "line",
+      x: toFiniteNumber(raw.x, 0),
+      y: toFiniteNumber(raw.y, 0),
+      w: toFiniteNumber(raw.w, 0),
+      h: toFiniteNumber(raw.h, 0),
+      s: compactColor(raw.stroke, DEFAULT_STROKE),
+      sw: toFiniteNumber(raw.strokeWidth, 2)
+    });
+  }
+
+  function buildCommandsForElement(raw) {
+    var commands = [];
+    var type;
+    var textCommand;
+    if (!raw || typeof raw !== "object" || raw.visible === false) return commands;
+
+    type = normalizeType(raw.type);
+    if (type === "text") {
+      textCommand = buildTextCommand(raw);
+      if (textCommand) commands.push(textCommand);
+      return commands;
+    }
+
+    if (type === "line") {
+      commands.push(buildLineCommand(raw));
+      textCommand = buildTextCommand(raw);
+      if (textCommand) commands.push(textCommand);
+      return commands;
+    }
+
+    if (type === "bezierArc") {
+      commands.push(buildBezierCommand(raw));
+      textCommand = buildTextCommand(raw);
+      if (textCommand) commands.push(textCommand);
+      return commands;
+    }
+
+    if (type === "image") {
+      commands.push(buildImageCommand(raw));
+      textCommand = buildTextCommand(raw);
+      if (textCommand) commands.push(textCommand);
+      return commands;
+    }
+
+    commands.push(buildShapeCommand(raw, type));
+    textCommand = buildTextCommand(raw);
+    if (textCommand) commands.push(textCommand);
+    return commands;
+  }
+
+  function buildCommandDocument(doc) {
+    var source = cloneDocument(doc);
+    var commands = [];
+    if (!source) return null;
+
+    (Array.isArray(source.elements) ? source.elements : []).forEach(function (element) {
+      Array.prototype.push.apply(commands, buildCommandsForElement(element));
+    });
+
+    return {
+      w: toFiniteNumber(source.screenWidth, 1920),
+      h: toFiniteNumber(source.screenHeight, 1080),
+      c: commands
+    };
+  }
+
+  APP.screenCommands = {
+    buildCommandDocument: buildCommandDocument,
+    buildCommandsForElement: buildCommandsForElement,
+    normalizeType: normalizeType
+  };
+})();
+
 // --- 085-ide-export.js ---
 // 085-ide-export.js - Export generated board/screen code via mod IDE-import path
 (function hudEditorIdeExport() {
@@ -3749,6 +4977,7 @@
   var NS = "HudEditor";
   var APP = window[NS];
   if (!APP) return;
+  if (!APP.screenCommands) return;
 
   var SCREEN_SCRIPT_LIMIT = 50000;
 
@@ -3796,67 +5025,12 @@
     return doc ? JSON.parse(JSON.stringify(doc)) : null;
   }
 
-  function toFiniteNumber(value, fallback) {
-    var numeric = Number(value);
-    return isFinite(numeric) ? numeric : fallback;
-  }
-
-  function compactColor(color, fallback) {
-    var source = Array.isArray(color) ? color : fallback;
-    return [
-      toFiniteNumber(source && source[0], fallback[0]),
-      toFiniteNumber(source && source[1], fallback[1]),
-      toFiniteNumber(source && source[2], fallback[2]),
-      toFiniteNumber(source && source[3], fallback[3])
-    ];
-  }
-
-  function compactTextLines(lines) {
-    if (!Array.isArray(lines) || !lines.length) return null;
-    return lines.map(function (line) {
-      return String(line == null ? "" : line);
-    });
-  }
-
-  function compactElement(raw) {
-    if (!raw || typeof raw !== "object") return null;
-    var type = String(raw.type || "box");
-    if (type === "rounded") type = "boxRounded";
-    var element = {
-      t: type,
-      x: toFiniteNumber(raw.x, 0),
-      y: toFiniteNumber(raw.y, 0),
-      w: toFiniteNumber(raw.w, 0),
-      h: toFiniteNumber(raw.h, 0)
-    };
-    if (raw.visible === false) element.v = false;
-    if (raw.radius != null) element.r = toFiniteNumber(raw.radius, 0);
-    if (raw.fill) element.f = compactColor(raw.fill, [0.2, 0.2, 0.2, 1]);
-    if (raw.stroke) element.s = compactColor(raw.stroke, [1, 1, 1, 1]);
-    if (raw.strokeWidth != null) element.sw = toFiniteNumber(raw.strokeWidth, 0);
-    if (raw.textColor) element.tc = compactColor(raw.textColor, [1, 1, 1, 1]);
-    if (raw.textSize != null) element.ts = toFiniteNumber(raw.textSize, 16);
-    if (raw.textAlign) element.ta = String(raw.textAlign);
-    var lines = compactTextLines(raw.textLines);
-    if (lines) element.l = lines;
-    return element;
-  }
-
-  function compactDocumentForScreen(doc) {
-    var source = cloneDocument(doc);
-    if (!source) return null;
-    return {
-      w: toFiniteNumber(source.screenWidth, 1920),
-      h: toFiniteNumber(source.screenHeight, 1080),
-      e: Array.isArray(source.elements) ? source.elements.map(compactElement).filter(Boolean) : []
-    };
-  }
-
-  function buildRenderScriptFromCompact(compactDoc) {
+  function buildRenderScriptFromCommands(commandDoc) {
     return [
       "-- Generated by HUD Editor",
-      "local D=" + toLua(compactDoc),
+      "local D=" + toLua(commandDoc),
       "local F={}",
+      "local I={}",
       "local function G(s)",
       "    s=math.max(1,math.floor(tonumber(s) or 16))",
       "    local f=F[s]",
@@ -3866,6 +5040,15 @@
       "    end",
       "    return f",
       "end",
+      "local function IM(p)",
+      "    if type(p)~=\"string\" or p==\"\" then return nil end",
+      "    local img=I[p]",
+      "    if not img then",
+      "        img=loadImage(p)",
+      "        I[p]=img",
+      "    end",
+      "    return img",
+      "end",
       "local function FC(l,c,d)",
       "    c=c or d",
       "    setNextFillColor(l,tonumber(c[1]) or d[1],tonumber(c[2]) or d[2],tonumber(c[3]) or d[3],tonumber(c[4]) or d[4])",
@@ -3874,63 +5057,113 @@
       "    c=c or d",
       "    setNextStrokeColor(l,tonumber(c[1]) or d[1],tonumber(c[2]) or d[2],tonumber(c[3]) or d[3],tonumber(c[4]) or d[4])",
       "end",
-      "local function TX(l,e)",
-      "    local lines=e.l",
+      "local function ST(l,c)",
+      "    local r=tonumber(c.rot) or 0",
+      "    if r~=0 then",
+      "        setNextRotation(l,r)",
+      "    end",
+      "    local sh=c.sh",
+      "    local sc=sh and sh.c or nil",
+      "    local sb=sh and tonumber(sh.b) or 0",
+      "    if sc and sb and sb>0 then",
+      "        setNextShadow(l,sb,tonumber(sc[1]) or 0,tonumber(sc[2]) or 0,tonumber(sc[3]) or 0,tonumber(sc[4]) or 0)",
+      "    end",
+      "end",
+      "local function TX(l,c)",
+      "    local lines=c.l",
       "    if not lines or #lines==0 then return end",
-      "    local s=math.max(1,math.floor(tonumber(e.ts) or 16))",
+      "    ST(l,c)",
+      "    SC(l,c.s,{0,0,0,0})",
+      "    setNextStrokeWidth(l,tonumber(c.sw) or 0)",
+      "    local s=math.max(1,math.floor(tonumber(c.ts) or 16))",
       "    local f=G(s)",
       "    if not f then return end",
-      "    local a=e.ta or \"left\"",
-      "    local x=(tonumber(e.x) or 0)+12",
+      "    local a=c.ta or \"left\"",
+      "    local x=(tonumber(c.x) or 0)+12",
       "    local h=AlignH_Left",
-      "    local w=tonumber(e.w) or 0",
+      "    local w=tonumber(c.w) or 0",
       "    if a==\"center\" then",
-      "        x=(tonumber(e.x) or 0)+w*0.5",
+      "        x=(tonumber(c.x) or 0)+w*0.5",
       "        h=AlignH_Center",
       "    elseif a==\"right\" then",
-      "        x=(tonumber(e.x) or 0)+w-12",
+      "        x=(tonumber(c.x) or 0)+w-12",
       "        h=AlignH_Right",
       "    end",
       "    setNextTextAlign(l,h,AlignV_Middle)",
       "    local g=math.max(2,math.floor(s*0.2))",
-      "    local y=(tonumber(e.y) or 0)+(tonumber(e.h) or 0)*0.5-((#lines-1)*(s+g))*0.5",
-      "    local c=e.tc or {1,1,1,1}",
+      "    local y=(tonumber(c.y) or 0)+(tonumber(c.h) or 0)*0.5-((#lines-1)*(s+g))*0.5",
+      "    local tc=c.tc or {1,1,1,1}",
       "    for i=1,#lines do",
-      "        FC(l,c,{1,1,1,1})",
+      "        FC(l,tc,{1,1,1,1})",
       "        addText(l,f,tostring(lines[i] or \"\"),x,y+(i-1)*(s+g))",
       "    end",
       "end",
+      "local function SH(l,c)",
+      "    ST(l,c)",
+      "    FC(l,c.f,{0.2,0.2,0.2,1})",
+      "    SC(l,c.s,{1,1,1,1})",
+      "    setNextStrokeWidth(l,tonumber(c.sw) or 0)",
+      "    local x=tonumber(c.x) or 0",
+      "    local y=tonumber(c.y) or 0",
+      "    local w=tonumber(c.w) or 0",
+      "    local h=tonumber(c.h) or 0",
+      "    local k=c.k or \"box\"",
+      "    if k==\"circle\" then",
+      "        addCircle(l,x+w*0.5,y+h*0.5,math.min(w,h)*0.5)",
+      "    elseif k==\"boxRounded\" then",
+      "        addBoxRounded(l,x,y,w,h,tonumber(c.r) or 0)",
+      "    elseif k==\"triangle\" then",
+      "        addTriangle(l,x,y,x+w,y,x,y+h)",
+      "    elseif k==\"quad\" then",
+      "        local qi=tonumber(c.qi) or 0.125",
+      "        addQuad(l,x,y,x+w*(1-qi),y+h*qi,x+w,y+h,x+w*qi,y+h*(1-qi))",
+      "    else",
+      "        addBox(l,x,y,w,h)",
+      "    end",
+      "end",
+      "local function BZ(l,c)",
+      "    ST(l,c)",
+      "    SC(l,c.s,{1,1,1,1})",
+      "    setNextStrokeWidth(l,tonumber(c.sw) or 2)",
+      "    local x=tonumber(c.x) or 0",
+      "    local y=tonumber(c.y) or 0",
+      "    local w=tonumber(c.w) or 0",
+      "    local h=tonumber(c.h) or 0",
+      "    addBezier(l,x,y+h,x+w*0.5,y,x+w,y+h)",
+      "end",
+      "local function LN(l,c)",
+      "    ST(l,c)",
+      "    SC(l,c.s,{1,1,1,1})",
+      "    setNextStrokeWidth(l,tonumber(c.sw) or 2)",
+      "    local x=tonumber(c.x) or 0",
+      "    local y=tonumber(c.y) or 0",
+      "    addLine(l,x,y,x+(tonumber(c.w) or 0),y+(tonumber(c.h) or 0))",
+      "end",
+      "local function IG(l,c)",
+      "    if c.f then",
+      "        FC(l,c.f,{0.2,0.2,0.2,1})",
+      "    end",
+      "    ST(l,c)",
+      "    local img=IM(c.src)",
+      "    if not img then return end",
+      "    addImage(l,img,tonumber(c.x) or 0,tonumber(c.y) or 0,tonumber(c.w) or 0,tonumber(c.h) or 0)",
+      "end",
       "setBackgroundColor(0,0,0)",
-      "for i=1,#(D.e or {}) do",
-      "    local e=D.e[i]",
-      "    if e and e.v~=false then",
-      "        local l=createLayer()",
-      "        local t=e.t or \"box\"",
-      "        if t==\"text\" then",
-      "            TX(l,e)",
-      "        elseif t==\"line\" then",
-      "            SC(l,e.s,{1,1,1,1})",
-      "            setNextStrokeWidth(l,tonumber(e.sw) or 2)",
-      "            local x=tonumber(e.x) or 0",
-      "            local y=tonumber(e.y) or 0",
-      "            addLine(l,x,y,x+(tonumber(e.w) or 0),y+(tonumber(e.h) or 0))",
-      "            TX(l,e)",
+      "local layer=createLayer()",
+      "for i=1,#(D.c or {}) do",
+      "    local c=D.c[i]",
+      "    if c then",
+      "        local op=c.o or \"shape\"",
+      "        if op==\"text\" then",
+      "            TX(layer,c)",
+      "        elseif op==\"line\" then",
+      "            LN(layer,c)",
+      "        elseif op==\"bezier\" then",
+      "            BZ(layer,c)",
+      "        elseif op==\"image\" then",
+      "            IG(layer,c)",
       "        else",
-      "            FC(l,e.f,{0.2,0.2,0.2,1})",
-      "            SC(l,e.s,{1,1,1,1})",
-      "            setNextStrokeWidth(l,tonumber(e.sw) or 0)",
-      "            local x=tonumber(e.x) or 0",
-      "            local y=tonumber(e.y) or 0",
-      "            local w=tonumber(e.w) or 0",
-      "            local h=tonumber(e.h) or 0",
-      "            if t==\"circle\" then",
-      "                addCircle(l,x+w*0.5,y+h*0.5,math.min(w,h)*0.5)",
-      "            elseif t==\"boxRounded\" then",
-      "                addBoxRounded(l,x,y,w,h,tonumber(e.r) or 0)",
-      "            else",
-      "                addBox(l,x,y,w,h)",
-      "            end",
-      "            TX(l,e)",
+      "            SH(layer,c)",
       "        end",
       "    end",
       "end",
@@ -3969,8 +5202,8 @@
   }
 
   function buildScreenCode(doc) {
-    var compactDoc = compactDocumentForScreen(doc);
-    return compactDoc ? buildRenderScriptFromCompact(compactDoc) : "";
+    var commandDoc = APP.screenCommands.buildCommandDocument(doc);
+    return commandDoc ? buildRenderScriptFromCommands(commandDoc) : "";
   }
 
   function queueIdeImport(targetKind, code) {
@@ -4008,8 +5241,8 @@
   APP.ideExport = {
     toLua: toLua,
     buildBoardOnStartCode: buildBoardOnStartCode,
-    buildRenderScriptFromCompact: buildRenderScriptFromCompact,
-    compactDocumentForScreen: compactDocumentForScreen,
+    buildRenderScriptFromCommands: buildRenderScriptFromCommands,
+    buildScreenCommandDocument: APP.screenCommands.buildCommandDocument,
     buildScreenCode: buildScreenCode,
     exportBoard: exportBoard,
     exportScreen: exportScreen

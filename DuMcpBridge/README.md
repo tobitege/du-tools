@@ -121,3 +121,23 @@ Lower-level tools still exist and are useful for diagnostics:
 - `du_editor_save`
 
 But they should no longer be the normal first choice when the goal is simply "open this Lua slot/filter and work there deterministically."
+
+## Runtime UI Recovery
+
+When a probe runtime module leaves overlay UI open after the editor flow changes, use the generic UI-probe path instead of falling back to screenshot clicking first.
+
+Preferred recovery call:
+
+- `du_ui_invoke`
+  - `uiKind = lua_editor`
+  - `method = close_runtime_ui`
+
+What this does:
+
+- asks the injected Lua probe to call optional runtime-module UI close hooks
+- lets modules such as the HUD editor dismiss their own overlay UI without being disabled
+- keeps the recovery path generic for future runtime modules
+
+Current example:
+
+- the HUD editor runtime module exposes a `closeUi(...)` hook, so `close_runtime_ui` can close the HUD overlay before returning to in-world interaction

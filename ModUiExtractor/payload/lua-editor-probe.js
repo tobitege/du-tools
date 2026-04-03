@@ -7518,6 +7518,14 @@
         result = outerHtmlForTargetSelector(normalizedTarget, listArgs[0]);
       } else if (normalizedMethod === "raw_eval") {
         result = runRawProbeEval(listArgs[0]);
+      } else if (normalizedMethod === "close_runtime_ui") {
+        if (normalizedTarget !== "lua_editor") {
+          throw new Error("unsupported_method_for_target:" + normalizedTarget + ":" + normalizedMethod);
+        }
+        if (!state.closeRuntimeModuleUi || typeof state.closeRuntimeModuleUi !== "function") {
+          throw new Error("runtime_module_ui_close_unavailable");
+        }
+        result = state.closeRuntimeModuleUi(listArgs[0], listArgs[1] || "mcp-close-runtime-ui");
       } else {
         throw new Error("unsupported_method:" + normalizedMethod);
       }
@@ -7589,7 +7597,13 @@
     chatSend: sendChatMessage,
     chatJoinChannel: createOrJoinChatChannel,
     outerHtml: outerHtmlForSelector,
-    rawEval: runRawProbeEval
+    rawEval: runRawProbeEval,
+    closeRuntimeUi: function (moduleId, reason) {
+      if (!state.closeRuntimeModuleUi || typeof state.closeRuntimeModuleUi !== "function") {
+        throw new Error("runtime_module_ui_close_unavailable");
+      }
+      return state.closeRuntimeModuleUi(moduleId, reason || "mcp-direct-close-runtime-ui");
+    }
   };
   function isInterestingMenuText(txtLower) {
     return txtLower.indexOf("lua") >= 0 ||
@@ -9976,6 +9990,79 @@
     }
   }
 
+  function resolveRuntimeModuleCloseUiHook(record) {
+    if (!record || !record.api || typeof record.api !== "object") {
+      return null;
+    }
+    if (typeof record.api.closeUi === "function") {
+      return record.api.closeUi;
+    }
+    if (typeof record.api.closeUI === "function") {
+      return record.api.closeUI;
+    }
+    if (typeof record.api.dismissUi === "function") {
+      return record.api.dismissUi;
+    }
+    return null;
+  }
+
+  function closeRuntimeModuleUi(moduleId, reason) {
+    var requestedId = normalizeRuntimeModuleId(moduleId || "");
+    var targetIds = [];
+    var results = [];
+    var handledCount = 0;
+    var closedCount = 0;
+    var i;
+
+    if (requestedId) {
+      if (!getRuntimeModuleRecord(requestedId)) {
+        throw new Error("runtime_module_not_found:" + requestedId);
+      }
+      targetIds.push(requestedId);
+    } else if (Array.isArray(state.runtimeModuleIds)) {
+      targetIds = state.runtimeModuleIds.slice();
+    }
+
+    for (i = 0; i < targetIds.length; i += 1) {
+      var record = getRuntimeModuleRecord(targetIds[i]);
+      var entry = {
+        moduleId: targetIds[i],
+        enabled: !!(record && record.enabled),
+        active: !!(record && record.active),
+        handled: false,
+        closed: false,
+        error: null,
+        result: null
+      };
+      var hook = resolveRuntimeModuleCloseUiHook(record);
+      if (!hook) {
+        results.push(entry);
+        continue;
+      }
+      try {
+        var hookResult = hook.call(record.api, reason || "runtime-module-close-ui");
+        entry.handled = true;
+        entry.result = cloneJsonValue(hookResult, hookResult);
+        entry.closed = hookResult === false ? false : true;
+        handledCount += 1;
+        if (entry.closed) {
+          closedCount += 1;
+        }
+      } catch (err) {
+        entry.error = String(err && err.message ? err.message : err);
+      }
+      results.push(entry);
+    }
+
+    return {
+      requestedModuleId: requestedId || null,
+      requestedCount: targetIds.length,
+      handledCount: handledCount,
+      closedCount: closedCount,
+      results: results
+    };
+  }
+
   function setRuntimeModuleEnabled(moduleId, enabled, persistReason) {
     var record = getRuntimeModuleRecord(moduleId);
     if (!record) {
@@ -10239,6 +10326,12 @@
       }
     }
   }
+
+  state.closeRuntimeModuleUi = closeRuntimeModuleUi;
+  state.runtimeModules = state.runtimeModules || {};
+  state.runtimeModules.closeUi = closeRuntimeModuleUi;
+  state.runtimeModules.getRecord = getRuntimeModuleRecord;
+  state.runtimeModules.setEnabled = setRuntimeModuleEnabled;
 
   registerConfiguredRuntimeModules();
   ensureRuntimeModuleMenuUi();

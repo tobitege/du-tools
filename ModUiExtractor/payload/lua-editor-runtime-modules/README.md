@@ -59,17 +59,21 @@ Expected `module.js` shape:
 function (ctx) {
   var root = null;
 
-  return {
-    install: function () {
+return {
+  install: function () {
       root = document.createElement("div");
       root.textContent = ctx.config.message || "Hello";
       document.body.appendChild(root);
       ctx.trackNode(root);
-    },
-    uninstall: function () {
-      root = null;
-    }
-  };
+  },
+  closeUi: function () {
+    root.style.display = "none";
+    return { closed: true };
+  },
+  uninstall: function () {
+    root = null;
+  }
+};
 }
 ```
 
@@ -78,6 +82,7 @@ Notes:
 - The source must evaluate to a function.
 - The function receives `ctx`, a helper object with cleanup, DOM, timer, logging, packet helpers, and module state helpers.
 - Use `ctx.getState(key, fallback)`, `ctx.setState(key, value)`, or `ctx.replaceState(obj)` for module-owned persisted state.
+- Runtime modules can optionally expose `closeUi(reason)` so probe/MCP recovery flows can dismiss overlay UI without disabling the module.
 - Enabled/disabled state and per-module state are persisted by the mod in `payload-overrides/lua-editor-runtime-modules.state.json`.
 
 Persistence model:

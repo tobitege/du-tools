@@ -71,7 +71,7 @@
   function createElementDom(element) {
     var dom = el("div", {
       className: "canvas-element",
-      dataset: { elementId: element.id },
+      dataset: { elementId: element.id, elementType: element.type },
     });
 
     applyElementStyles(dom, element);
@@ -81,11 +81,41 @@
   function applyElementStyles(dom, element) {
     var pos = screenToCanvas(element.x, element.y);
     var size = screenToCanvas(element.w, element.h);
+    var rotation = Number(element.rotation) || 0;
+    var shadowColor = rgbaToCss(element.shadowColor || [0, 0, 0, 0]);
+    var shadowBlur = Math.max(0, (Number(element.shadowBlur) || 0) * scale);
 
+    dom.innerHTML = "";
+    dom.dataset.elementType = element.type;
     dom.style.left = pos.x + "px";
     dom.style.top = pos.y + "px";
     dom.style.width = size.x + "px";
     dom.style.height = size.y + "px";
+    dom.style.transform = "";
+    dom.style.transformOrigin = "center center";
+    dom.style.filter = shadowBlur > 0 ? ("drop-shadow(0 0 " + Math.max(1, shadowBlur) + "px " + shadowColor + ")") : "";
+    dom.style.background = "transparent";
+    dom.style.backgroundColor = "transparent";
+    dom.style.backgroundImage = "none";
+    dom.style.backgroundSize = "";
+    dom.style.backgroundRepeat = "";
+    dom.style.backgroundPosition = "";
+    dom.style.border = "none";
+    dom.style.borderRadius = "0";
+    dom.style.boxSizing = "border-box";
+    dom.style.display = "block";
+    dom.style.alignItems = "";
+    dom.style.justifyContent = "";
+    dom.style.padding = "";
+    dom.style.overflow = "hidden";
+    dom.style.color = "";
+    dom.style.fontSize = "";
+    dom.style.fontFamily = "";
+    dom.style.textAlign = "";
+    dom.style.whiteSpace = "";
+    dom.style.wordBreak = "";
+    dom.style.webkitTextStroke = "";
+    dom.style.textShadow = "";
 
     var fill = rgbaToCss(element.fill);
     var stroke = rgbaToCss(element.stroke);
@@ -112,6 +142,60 @@
         dom.style.boxSizing = "border-box";
         break;
 
+      case "triangle": {
+        var triangleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        var triangle = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        triangleSvg.setAttribute("viewBox", "0 0 100 100");
+        triangleSvg.setAttribute("preserveAspectRatio", "none");
+        triangleSvg.style.width = "100%";
+        triangleSvg.style.height = "100%";
+        triangle.setAttribute("points", "0,0 100,0 0,100");
+        triangle.setAttribute("fill", fill);
+        triangle.setAttribute("stroke", stroke);
+        triangle.setAttribute("stroke-width", String(Math.max(0, strokeWidth * scale)));
+        triangleSvg.appendChild(triangle);
+        dom.appendChild(triangleSvg);
+        break;
+      }
+
+      case "quad": {
+        var quadSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        var quad = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        var inset = Math.max(0, Math.min(0.45, Number(element.quadInset) || 0.125));
+        quadSvg.setAttribute("viewBox", "0 0 100 100");
+        quadSvg.setAttribute("preserveAspectRatio", "none");
+        quadSvg.style.width = "100%";
+        quadSvg.style.height = "100%";
+        quad.setAttribute("points", [
+          "0,0",
+          (100 - inset * 100) + "," + (inset * 100),
+          "100,100",
+          (inset * 100) + "," + (100 - inset * 100)
+        ].join(" "));
+        quad.setAttribute("fill", fill);
+        quad.setAttribute("stroke", stroke);
+        quad.setAttribute("stroke-width", String(Math.max(0, strokeWidth * scale)));
+        quadSvg.appendChild(quad);
+        dom.appendChild(quadSvg);
+        break;
+      }
+
+      case "bezierArc": {
+        var bezierSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        var bezier = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        bezierSvg.setAttribute("viewBox", "0 0 100 100");
+        bezierSvg.setAttribute("preserveAspectRatio", "none");
+        bezierSvg.style.width = "100%";
+        bezierSvg.style.height = "100%";
+        bezier.setAttribute("d", "M 0 100 Q 50 0 100 100");
+        bezier.setAttribute("fill", "none");
+        bezier.setAttribute("stroke", stroke);
+        bezier.setAttribute("stroke-width", String(Math.max(1, strokeWidth * scale)));
+        bezierSvg.appendChild(bezier);
+        dom.appendChild(bezierSvg);
+        break;
+      }
+
       case "line":
         dom.style.background = "transparent";
         dom.style.border = "none";
@@ -127,7 +211,7 @@
         dom.style.left = (pos.x + size.x / 2 - len / 2) + "px";
         dom.style.top = (pos.y + size.y / 2 - strokeWidth / 2) + "px";
         // Approximate angle (assumes line from top-left to bottom-right)
-        var angle = Math.atan2(size.y, size.x) * 180 / Math.PI;
+        var angle = (Math.atan2(size.y, size.x) + rotation) * 180 / Math.PI;
         dom.style.transform = "rotate(" + angle + "deg)";
         dom.style.transformOrigin = "center center";
         break;
@@ -149,15 +233,41 @@
         dom.style.textAlign = element.textAlign || "left";
         dom.style.whiteSpace = "pre-wrap";
         dom.style.wordBreak = "break-word";
+        if (strokeWidth > 0) {
+          dom.style.webkitTextStroke = Math.max(0.5, strokeWidth * scale * 0.5) + "px " + stroke;
+        }
+        if (shadowBlur > 0) {
+          dom.style.textShadow = "0 0 " + Math.max(1, shadowBlur) + "px " + shadowColor;
+        }
         // Text content
         var lines = element.textLines || [];
         dom.textContent = Array.isArray(lines) ? lines.join("\n") : lines;
         break;
 
+      case "image": {
+        var image = document.createElement("img");
+        image.alt = element.id || "image";
+        image.src = element.imageSrc || "";
+        image.style.width = "100%";
+        image.style.height = "100%";
+        image.style.objectFit = element.imageFit || "contain";
+        image.style.display = "block";
+        image.addEventListener("error", function () {
+          dom.style.backgroundImage = "radial-gradient(circle at 35% 35%, rgba(255,255,255,0.85), rgba(156,156,156,0.75) 35%, rgba(64,64,64,0.95) 70%)";
+          dom.style.backgroundSize = "cover";
+        }, { once: true });
+        dom.appendChild(image);
+        break;
+      }
+
       default:
         dom.style.background = fill;
         dom.style.border = strokeWidth + "px solid " + stroke;
         dom.style.boxSizing = "border-box";
+    }
+
+    if (element.type !== "line" && rotation) {
+      dom.style.transform = "rotate(" + rotation + "rad)";
     }
 
     // Hide element when visibility is off; restore when toggled back
@@ -422,7 +532,8 @@
       return;
     }
 
-    applyElementStyles(dom, element);
+    var replacement = createElementDom(element);
+    preview.replaceChild(replacement, dom);
 
     // Rebuild selection / group overlays
     renderSelectionOverlays();

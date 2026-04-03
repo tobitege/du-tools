@@ -39,3 +39,64 @@
   - Nach manueller Korrektur der Routing-Metadaten zeigte das pending `ide_import...json` zwar korrekt `unit/onStart()`, aber die sichtbare CodeMirror-Pufferanzeige blieb auf dem vorherigen generierten `unit.onStart()`-Text. Das Import-Routingproblem ist also reproduzierbar und noch nicht ganz geloest.
   - Das anschliessende Speichern des sichtbaren `unit/onStart()`-Buffers schloss den Editor wie erwartet und sollte die Board-Initialisierung neu angestossen haben, aenderte die schwarze Screen-Ausgabe aber nicht.
   - Ein weiterer zentrierter Screen-Versuch zeigte zwar den grossen Screen im Fadenkreuz (`TURN OFF` sichtbar), aber `du_open_editor_native` oeffnete trotzdem erneut den `lua_editor`; Screen-Targeting ist im aktuellen Live-Setup also noch mehrdeutig.
+- Fuer den naechsten Ausbau des Shape-Systems ist die Demo-Taxonomie jetzt geklaert:
+  - `shapes.lua` zerfaellt sauber in `primitive/default`, `primitive/styled`, `overlap/same-type` und `overlap/mixed-type`.
+  - Das Screenshot-Material liefert zusaetzlich eine eigene Familie `effect/text-treatment` fuer RGB-Split, Neon-Kanten und gespiegelt angeordnete Cluster.
+- Daraus folgt fuer den HUD-Editor:
+  - Die vorhandenen Elementtypen (`box`, `boxRounded`, `circle`, `line`, `text`) sind nur Tier 0 des Katalogs.
+  - `bezierArc`, `triangle`, `quad` und `image` sollten als naechste Primitive entweder als echte Editor-Typen oder zunaechst als `renderOnly`-Snippets modelliert werden.
+  - Rotation, Shadow/Glow und Alpha gehoeren als wiederverwendbare Modifier in eine gemeinsame Draw-Command-Schicht statt als Sonderfaelle direkt in einzelne Exporte.
+- Die Toolbar hat jetzt wieder Luft fuer weitere Menuepunkte: die Formwerkzeuge sitzen im getrackten Quellstand hinter einem auto-schliessenden `Shapes`-Dropdown, waehrend `B/R/C/L/T` als Shortcuts unveraendert bleiben.
+- Live-Validierung des Toolbar-Schritts auf `playerId=10000` erfolgreich:
+  - `publish.ps1` hat das Ingame-Modul neu gebaut und in den ModUiExtractor-Runtime-Modulpfad publiziert.
+  - Vor dem Oeffnen zeigte der zentrierte DU-Capture den grossen Demo-Screen plus zentriertes Programming Board; `du_open_editor_native` oeffnete dort reproduzierbar den `lua_editor`.
+  - Per `raw_eval` war `hud-editor` als Runtime-Modul im Lua-Editor registriert, aber noch deaktiviert; der reale Probe-Checkbox-Pfad fuer `ModUiExtractor-runtime-module-checkbox-hud-editor` liess sich erfolgreich auf `checked=true` schalten.
+  - Danach waren `#hud-editor-root`, `#hud-editor-toggle`, `#editor-toolbar` und der Starttitel `Lua Painter` live im DU-DOM vorhanden.
+  - Der Einstieg ueber `New Script` brachte den Editor in `currentScreen = editor`.
+  - Das neue `Shapes`-Dropdown war live vorhanden, enthielt genau `box`, `rounded`, `circle`, `line`, `text`, oeffnete sich auf Trigger-Klick, schloss sich nach Werkzeugwahl wieder und setzte `currentTool = line`.
+  - Der sichtbare Trigger aktualisierte sich korrekt auf den zuletzt gewaehlten Tool-Zustand (`Shape tools (Line ready, L)`, Icon `/`), und der geoeffnete Screenshot zeigte die komplette Menueeliste sichtbar im DU-Client.
+  - Nach dem Test liess sich der HUD wieder auf `OFF` stellen; ein anschliessendes `Escape` schloss den Lua-Editor sauber, und `du_ui_describe` meldete danach `visible=false`.
+- Der neue Snippet-Katalog ist jetzt als echte Laufzeit-API im HUD Editor umgesetzt:
+  - `APP.shapeSnippets.ids`, `list()`, `get()`, `buildDocument()` und `loadDocument()` existieren im Web- und Ingame-Payload.
+  - Der erste Katalogpass deckt die im Plan genannten Familien bereits praktisch ab: `primitive/default`, `primitive/styled`, `overlap/same-type`, `overlap/mixed-type`, `effect/text-treatment`.
+  - `loadDocument('overlap_same_type_boxes')` materialisiert live ein 3-Elemente-Dokument im Editor und eignet sich damit als reproduzierbarer Basisschritt fuer weitere Render-/Preview-Paritaetstests.
+- Wichtiger Live-Befund fuer kuenftige Runtime-Modul-Aenderungen:
+  - Nach `publish.ps1` war das neue Modul zwar auf Platte aktuell, aber die bereits injizierte Probe hielt im Lua-Editor noch einen aelteren Runtime-Modul-Registry-Stand.
+  - Ein einfaches De-/Aktivieren des Runtime-Moduls im offenen Editor reichte hier nicht, um den neuen Katalog sofort sichtbar zu machen.
+  - Erst nach sauberem Editor-Close und `du_reinject_lua_probe` wurde der aktuelle Runtime-Modulcode live verfuegbar.
+- Der naechste Export-/Runtime-Schritt ist jetzt ebenfalls im Quellstand angekommen:
+  - `js/modules/083-screen-commands.js` normalisiert HUD-Editor-Dokumente zu einer gemeinsamen `doc.c`-Befehlsliste mit `shape`, `line` und `text`.
+  - `085-ide-export.js` erzeugt das standalone RenderScript jetzt aus dieser Befehlsliste statt direkt aus `doc.elements`.
+  - `board/HudEditorBoard.lua` serialisiert dieselbe Befehlsstruktur fuer verlinkte Screens, und `screen/HudEditorScreen.lua` konsumiert sie ebenfalls ueber `doc.c`.
+- Live-Verifikation des neuen Vertrags auf `playerId=10000` erfolgreich:
+  - Nach `publish.ps1` war erneut ein sauberer Editor-Close plus `du_reinject_lua_probe` noetig, bevor der aktuelle Runtime-Modulstand sichtbar war.
+  - Danach meldete der echte Lua-Editor live `HudEditor.shapeSnippets`, `HudEditor.screenCommands` und `HudEditor.ideExport`.
+  - `shapeSnippets.loadDocument('overlap_same_type_boxes')` lieferte live `elementCount=3`, `commandCount=3`, nur `shape`-Befehle und nur `box`-Formen.
+  - `ideExport.buildScreenCode(...)` nutzte live `D.c`, enthielt `local function SH(l,c)` und `local function LN(l,c)`, und enthielt nicht mehr das alte `D.e`-Schema.
+  - Ein echter `ideExport.exportScreen()`-Aufruf lieferte live `{ ok = true, requestId = ... }`.
+- Der HUD-Editor hat jetzt eine explizite Runtime-UI-Schliessfunktion:
+  - `window.HudEditor.closeUi(...)` schaltet auf den Startscreen, schliesst die Overlay-UI und aktualisiert den Toggle-Status.
+  - Das Runtime-Modul exponiert diesen Pfad als optionales `closeUi(reason)` fuer den gemeinsamen Runtime-Modul-Manager.
+  - Der Lua-Probe-MCP-Pfad akzeptiert jetzt `close_runtime_ui` fuer `lua_editor` und verteilt den Aufruf an aktive Runtime-Module mit passendem Hook.
+- Fuer kuenftige Plugins ist der Recovery-Vertrag jetzt generisch statt HUD-spezifisch:
+  - Runtime-Module muessen fuer MCP-gesteuertes Schliessen nicht deaktiviert werden.
+  - Ein Modul kann seine Overlay-UI schliessen, ohne seinen Enabled-State zu verlieren.
+- Live-Blocker fuer die neue Recovery-Methode in diesem Durchlauf:
+  - `du_list_active_sessions` zeigte zwar weiter `playerId=10000`, aber der aktuelle zentrierte Capture des echten Clients zeigte den `Dual Universe Account`-Login-Screen statt eines in-world Zustands.
+  - Deshalb wurde die neue `close_runtime_ui`-Methode in diesem Durchlauf nicht mehr als echte Live-Interaktion behauptet.
+- Der HUD-Editor deckt fuer die `shapes.lua`-Konvertierung jetzt auch die bisher fehlenden DU-Primitiven ab:
+  - neue editierbare Elementtypen: `bezierArc`, `triangle`, `quad`, `image`
+  - neue gemeinsame Stilfelder: `rotation`, `shadowBlur`, `shadowColor`
+- Der neue Snippet-Katalogeintrag `demo_shapes_lua_full` materialisiert den kompletten DU-Formen-Demoaufbau als echtes Editor-Dokument mit 63 Elementen und allen 9 relevanten Typen.
+- Die lokale Verifikation fuer diesen Ausbau ist grün:
+  - Web- und Ingame-Bundle bauen erfolgreich.
+  - Playwright deckt jetzt das erweiterte Shape-Menue, die `demo_shapes_lua_full`-Dokumenterzeugung sowie die erweiterten Screen-Commands/RenderScript-Strings ab.
+- Live-Verifikation fuer den Editor-/Persistenzteil erfolgreich:
+  - Nach `publish.ps1`, Probe-Reinject und echtem Lua-Editor-Open war `window.HudEditor.shapeSnippets` live vorhanden und enthielt `demo_shapes_lua_full`.
+  - Das echte HUD-Editor-Overlay lud live ein 63-Elemente-Dokument mit allen Typen (`bezierArc`, `box`, `boxRounded`, `circle`, `image`, `line`, `quad`, `text`, `triangle`).
+  - `ideExport.buildScreenCode(...)` lieferte live einen Screen-Export mit `addBezier`, `addTriangle`, `addQuad`, `addImage`, `setNextRotation` und `setNextShadow`.
+  - Das sichtbare `unit/onStart()`-Buffer enthielt nach dem Save bestaetigt `demo_shapes_lua_full`, `bezierArc`, `imageSrc`, `shadowBlur` und `rotation`.
+- Live-Verifikation fuer den Board->Screen-Runtimepfad weiter offen:
+  - Ein echter Board-Off/On mit altem `library/onStart()` zeigte zunaechst nur veraltetes/teilweises Screen-Verhalten; das war konsistent mit einer stale `HudEditorBoard.lua`-Version auf dem Construct.
+  - Nach Push des neuen `live_lua_coding/examples/hud_editor_v1/board/HudEditorBoard.lua` in `library/onStart()` und erneutem echten Board-Off/On meldete der frische Lua-Chat einen groesseren Publish (`sc=5820`, `ic=9019`) auf `Modern Screen m [38]`.
+  - Der sichtbare Screen blieb danach trotzdem schwarz. Nach `du-tests.md` gewinnt dieser sichtbare Befund gegen den Chat. Der Restfehler liegt also jetzt nicht mehr im fehlenden Editorlayout oder im fehlenden Board-Push allein, sondern im Live-Screen-Runtimeverhalten fuer den erweiterten Command-Vertrag.

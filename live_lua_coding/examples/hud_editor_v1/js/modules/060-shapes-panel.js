@@ -15,6 +15,10 @@
     box:        { icon: "\u25AD", label: "Box" },
     boxRounded: { icon: "\u25A2", label: "Rounded" },
     circle:     { icon: "\u25CB", label: "Circle" },
+    bezierArc:  { icon: "\u2302", label: "Bezier Arc" },
+    triangle:   { icon: "\u25B3", label: "Triangle" },
+    quad:       { icon: "\u25F0", label: "Quad" },
+    image:      { icon: "\u25C9", label: "Image" },
     line:       { icon: "\u2571", label: "Line" },
     text:       { icon: "T",      label: "Text" },
   };

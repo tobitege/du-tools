@@ -31,6 +31,23 @@
 
   var STROKE_PRESETS = [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20];
   var RADIUS_PRESETS = [0, 2, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 50, 75, 100];
+  var SHAPE_TOOL_OPTIONS = [
+    { tool: "box", title: "Box", shortcut: "B", glyph: "\u25A1", iconClass: "tb-icon-box tb-icon-glyph tb-icon-glyph-box" },
+    { tool: "rounded", title: "Rounded Box", shortcut: "R", glyph: "\u25A2", iconClass: "tb-icon-rounded tb-icon-glyph tb-icon-glyph-rounded" },
+    { tool: "circle", title: "Circle", shortcut: "C", glyph: "\u25CB", iconClass: "tb-icon-circle tb-icon-glyph tb-icon-glyph-circle" },
+    { tool: "bezierArc", title: "Bezier Arc", shortcut: "A", glyph: "\u2302", iconClass: "tb-icon-line tb-icon-glyph tb-icon-glyph-line" },
+    { tool: "triangle", title: "Triangle", shortcut: "Y", glyph: "\u25B3", iconClass: "tb-icon-box tb-icon-glyph tb-icon-glyph-box" },
+    { tool: "quad", title: "Quad", shortcut: "Q", glyph: "\u25F0", iconClass: "tb-icon-rounded tb-icon-glyph tb-icon-glyph-rounded" },
+    { tool: "image", title: "Image", shortcut: "I", glyph: "\u25C9", iconClass: "tb-icon-circle tb-icon-glyph tb-icon-glyph-circle" },
+    { tool: "line", title: "Line", shortcut: "L", glyph: "/", iconClass: "tb-icon-line tb-icon-glyph tb-icon-glyph-line" },
+    { tool: "text", title: "Text", shortcut: "T", glyph: "T", iconClass: "tb-icon-text tb-icon-glyph tb-icon-glyph-text" },
+  ];
+  var SHAPE_TOOL_MAP = {};
+  var lastShapeTool = SHAPE_TOOL_OPTIONS[0].tool;
+
+  SHAPE_TOOL_OPTIONS.forEach(function (option) {
+    SHAPE_TOOL_MAP[option.tool] = option;
+  });
 
   function buildStepper(prop, presets) {
     var options = presets.map(function (v) {
@@ -40,6 +57,43 @@
       el("button", { className: "stepper-dec", dataset: { stepperProp: prop }, textContent: "\u2212" }),
       el("select", { className: "stepper-select", dataset: { prop: prop } }, options),
       el("button", { className: "stepper-inc", dataset: { stepperProp: prop }, textContent: "+" }),
+    ]);
+  }
+
+  function buildShapeToolButton(option) {
+    return el("button", {
+      type: "button",
+      className: "tool-btn dropdown-tool-btn",
+      dataset: { tool: option.tool },
+      title: option.title + " (" + option.shortcut + ")"
+    }, [
+      el("span", { className: "tb-icon " + option.iconClass, textContent: option.glyph }),
+      el("span", { className: "dropdown-tool-copy" }, [
+        el("span", { className: "dropdown-tool-title", textContent: option.title }),
+        el("span", { className: "dropdown-tool-key", textContent: option.shortcut }),
+      ]),
+    ]);
+  }
+
+  function buildShapeDropdown() {
+    var defaultShape = SHAPE_TOOL_OPTIONS[0];
+    return el("div", { className: "toolbar-dropdown", id: "shape-tool-dropdown" }, [
+      el("button", {
+        type: "button",
+        className: "action-btn toolbar-dropdown-trigger",
+        dataset: { action: "toggle-shape-menu" },
+        title: "Shape tools"
+      }, [
+        el("span", {
+          id: "shape-tool-trigger-icon",
+          className: "tb-icon " + defaultShape.iconClass,
+          textContent: defaultShape.glyph
+        }),
+        el("span", { className: "toolbar-dropdown-caret", textContent: "\u25BE" }),
+      ]),
+      el("div", { className: "toolbar-dropdown-menu", id: "shape-tool-menu" },
+        SHAPE_TOOL_OPTIONS.map(buildShapeToolButton)
+      ),
     ]);
   }
 
@@ -55,32 +109,13 @@
       // ── Toolbar ──
       el("div", { id: "editor-toolbar" }, [
 
-        // Tool buttons — SVG icon + key hint
+        // Tool buttons — selection stays visible, shapes live in a compact menu
         el("div", { className: "toolbar-group" }, [
           el("button", { className: "tool-btn active", dataset: { tool: "select" }, title: "Select (V)" }, [
             el("span", { className: "tb-icon tb-icon-select tb-icon-glyph tb-icon-glyph-select", textContent: "\u2196" }),
             el("span", { className: "tb-key", textContent: "V" }),
           ]),
-          el("button", { className: "tool-btn", dataset: { tool: "box" }, title: "Box (B)" }, [
-            el("span", { className: "tb-icon tb-icon-box tb-icon-glyph tb-icon-glyph-box", textContent: "\u25A1" }),
-            el("span", { className: "tb-key", textContent: "B" }),
-          ]),
-          el("button", { className: "tool-btn", dataset: { tool: "rounded" }, title: "Rounded Box (R)" }, [
-            el("span", { className: "tb-icon tb-icon-rounded tb-icon-glyph tb-icon-glyph-rounded", textContent: "\u25A2" }),
-            el("span", { className: "tb-key", textContent: "R" }),
-          ]),
-          el("button", { className: "tool-btn", dataset: { tool: "circle" }, title: "Circle (C)" }, [
-            el("span", { className: "tb-icon tb-icon-circle tb-icon-glyph tb-icon-glyph-circle", textContent: "\u25CB" }),
-            el("span", { className: "tb-key", textContent: "C" }),
-          ]),
-          el("button", { className: "tool-btn", dataset: { tool: "line" }, title: "Line (L)" }, [
-            el("span", { className: "tb-icon tb-icon-line tb-icon-glyph tb-icon-glyph-line", textContent: "/" }),
-            el("span", { className: "tb-key", textContent: "L" }),
-          ]),
-          el("button", { className: "tool-btn", dataset: { tool: "text" }, title: "Text (T)" }, [
-            el("span", { className: "tb-icon tb-icon-text tb-icon-glyph tb-icon-glyph-text", textContent: "T" }),
-            el("span", { className: "tb-key", textContent: "T" }),
-          ]),
+          buildShapeDropdown(),
         ]),
 
         el("div", { className: "toolbar-divider" }),
@@ -235,9 +270,55 @@
             el("label", { textContent: "Radius" }),
             buildStepper("radius", RADIUS_PRESETS),
           ]),
-          el("div", { className: "prop-row vertical" }, [
+          el("div", { className: "prop-row", dataset: { propRow: "rotation" } }, [
+            el("label", { textContent: "Rot (rad)" }),
+            el("input", { type: "number", step: "0.01", className: "prop-input", dataset: { prop: "rotation" } }),
+          ]),
+          el("div", { className: "prop-row", dataset: { propRow: "shadowBlur" } }, [
+            el("label", { textContent: "Glow" }),
+            el("input", { type: "number", step: "1", min: "0", className: "prop-input", dataset: { prop: "shadowBlur" } }),
+          ]),
+          el("div", { className: "prop-row", dataset: { propRow: "shadowColor" } }, [
+            el("label", { textContent: "Glow Col" }),
+            el("button", {
+              type: "button",
+              className: "prop-color-btn",
+              title: "Glow color",
+              dataset: { colorProp: "shadowColor", colorHex: "#000000" }
+            }, [
+              el("span", { className: "prop-color-chip" }),
+            ]),
+          ]),
+          el("div", { className: "prop-row", dataset: { propRow: "textColor" } }, [
+            el("label", { textContent: "Text Col" }),
+            el("button", {
+              type: "button",
+              className: "prop-color-btn",
+              title: "Text color",
+              dataset: { colorProp: "textColor", colorHex: "#FFFFFF" }
+            }, [
+              el("span", { className: "prop-color-chip" }),
+            ]),
+          ]),
+          el("div", { className: "prop-row", dataset: { propRow: "textSize" } }, [
+            el("label", { textContent: "Text Size" }),
+            el("input", { type: "number", step: "1", min: "1", className: "prop-input", dataset: { prop: "textSize" } }),
+          ]),
+          el("div", { className: "prop-row", dataset: { propRow: "textAlign" } }, [
+            el("label", { textContent: "Text Align" }),
+            el("select", { className: "prop-input", dataset: { prop: "textAlign" } }, [
+              el("option", { value: "left", textContent: "Left" }),
+              el("option", { value: "center", textContent: "Center" }),
+              el("option", { value: "right", textContent: "Right" }),
+            ]),
+          ]),
+          el("div", { className: "prop-row vertical", dataset: { propRow: "textLines" } }, [
             el("label", { textContent: "Text" }),
             el("textarea", { className: "prop-textarea", rows: "3", dataset: { prop: "textLines" } }),
+          ]),
+          el("div", { className: "prop-row vertical", dataset: { propRow: "imageSrc" } }, [
+            el("label", { textContent: "Image Path" }),
+            el("input", { type: "text", className: "prop-input", dataset: { prop: "imageSrc" } }),
           ]),
           el("div", { className: "prop-row" }, [
             el("button", {
@@ -292,10 +373,17 @@
   // ─── Toolbar click delegation ────────────────────────────────────────
 
   function onToolbarClick(e) {
+    var dropdownBtn = e.target.closest('[data-action="toggle-shape-menu"]');
+    if (dropdownBtn) {
+      toggleShapeMenu();
+      return;
+    }
+
     var btn = e.target.closest("[data-tool]");
     if (btn) {
       APP.state.currentTool = btn.dataset.tool;
       updateToolButtons(APP.state.currentTool);
+      closeShapeMenu();
       APP.emit("tool-changed", APP.state.currentTool);
       return;
     }
@@ -304,6 +392,7 @@
     if (!actionBtn) return;
 
     var action = actionBtn.dataset.action;
+    closeShapeMenu();
     if (action === "undo") APP.emit("undo");
     else if (action === "redo") APP.emit("redo");
     else if (action === "save") APP.emit("save");
@@ -327,6 +416,64 @@
     }
     else if (action === "toggle-collapse") {
       APP.emit("toggle-props-collapse");
+    }
+  }
+
+  function isShapeTool(tool) {
+    return !!SHAPE_TOOL_MAP[tool];
+  }
+
+  function getShapeDropdown(root) {
+    return qs("#shape-tool-dropdown", root || APP.getRoot());
+  }
+
+  function openShapeMenu() {
+    var dropdown = getShapeDropdown();
+    var trigger;
+    if (!dropdown) return;
+    trigger = qs(".toolbar-dropdown-trigger", dropdown);
+    dropdown.classList.add("open");
+    if (trigger) trigger.setAttribute("aria-expanded", "true");
+  }
+
+  function closeShapeMenu() {
+    var dropdown = getShapeDropdown();
+    var trigger;
+    if (!dropdown) return;
+    trigger = qs(".toolbar-dropdown-trigger", dropdown);
+    dropdown.classList.remove("open");
+    if (trigger) trigger.setAttribute("aria-expanded", "false");
+  }
+
+  function toggleShapeMenu() {
+    var dropdown = getShapeDropdown();
+    if (!dropdown) return;
+    if (dropdown.classList.contains("open")) {
+      closeShapeMenu();
+    } else {
+      openShapeMenu();
+    }
+  }
+
+  function updateShapeDropdown(activeTool) {
+    var dropdown = getShapeDropdown();
+    var trigger;
+    var icon;
+    var option;
+    if (!dropdown) return;
+
+    if (isShapeTool(activeTool)) lastShapeTool = activeTool;
+    option = SHAPE_TOOL_MAP[lastShapeTool] || SHAPE_TOOL_OPTIONS[0];
+    trigger = qs(".toolbar-dropdown-trigger", dropdown);
+    icon = qs("#shape-tool-trigger-icon", dropdown);
+
+    if (icon) {
+      icon.className = "tb-icon " + option.iconClass;
+      icon.textContent = option.glyph;
+    }
+    if (trigger) {
+      trigger.title = "Shape tools (" + option.title + " ready, " + option.shortcut + ")";
+      trigger.classList.toggle("active", isShapeTool(activeTool));
     }
   }
 
@@ -355,6 +502,7 @@
         button.classList.remove("active");
       }
     });
+    updateShapeDropdown(activeTool);
   }
 
   function syncToolbarSettings() {
@@ -403,6 +551,24 @@
     });
   }
 
+  function attachShapeDropdownListeners() {
+    if (document.__hudShapeDropdownBound) return;
+    document.__hudShapeDropdownBound = true;
+
+    document.addEventListener("mousedown", function (e) {
+      var dropdown = getShapeDropdown();
+      if (!dropdown || !dropdown.classList.contains("open")) return;
+      if (dropdown.contains(e.target)) return;
+      closeShapeMenu();
+    }, true);
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" || e.code === "Escape") {
+        closeShapeMenu();
+      }
+    }, true);
+  }
+
   // ─── Register with core ──────────────────────────────────────────────
 
   APP.on("document-created", function () {
@@ -410,6 +576,7 @@
   });
 
   APP.on("tool-changed", function (tool) {
+    closeShapeMenu();
     updateToolButtons(tool || APP.state.currentTool);
   });
 
@@ -428,6 +595,7 @@
     var toolbar = qs("#editor-toolbar", root);
     if (toolbar) toolbar.addEventListener("click", onToolbarClick);
     attachToolbarSettingListeners();
+    attachShapeDropdownListeners();
     APP.state.autoOpenPanels = loadAutoOpenPanels();
     syncToolbarSettings();
     updateEditorContext(APP.state.editorContext || null);
@@ -453,4 +621,5 @@
   APP.goToStart = goToStart;
   APP.goToEditor = goToEditor;
   APP.updateToolButtons = updateToolButtons;
+  APP.closeShapeMenu = closeShapeMenu;
 })();

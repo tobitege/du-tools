@@ -8,6 +8,8 @@
 060-shapes-panel.js
 070-properties-panel.js
 080-bridge-commands.js
+082-shape-snippets.js
+083-screen-commands.js
 085-ide-export.js
 090-databank-sync.js
 110-undo-redo.js

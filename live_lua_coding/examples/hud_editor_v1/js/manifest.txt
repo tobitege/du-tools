@@ -7,6 +7,8 @@
 050-selection-manager.js
 060-shapes-panel.js
 070-properties-panel.js
+082-shape-snippets.js
+083-screen-commands.js
 085-ide-export.js
 100-file-sync.web.js
 110-undo-redo.js

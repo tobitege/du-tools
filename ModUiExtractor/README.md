@@ -142,6 +142,12 @@ This writes `all_scripts_manifest.json` plus `all_script_js_*.js` sections after
 
 Use `Release` only. `Debug` is not a supported workflow here.
 
+Important:
+
+- For `ModUiExtractor`, compile only in `Release`.
+- Do not use `Debug` for quick tests, local deployment, live testing, or handoff.
+- The `Release` build should not emit `.pdb` files. If a `.pdb` appears in the release output, treat that as a build-configuration problem and fix it before deployment.
+
 ```powershell
 cd .\ModUiExtractor
 dotnet build -c Release -nologo -v:minimal

@@ -160,16 +160,10 @@ Visible when the editor is open and on the start screen.
 
 - `Select (V)`
   - standard selection, move, resize, grouping, and general editing tool
-- `Box (B)`
-  - creates a box by drag-sizing on the canvas
-- `Rounded Box (R)`
-  - creates a rounded box by drag-sizing on the canvas
-- `Circle (C)`
-  - creates a circle by drag-sizing on the canvas
-- `Line (L)`
-  - creates a line by drag-sizing on the canvas
-- `Text (T)`
-  - creates a text element by drag-sizing on the canvas
+- `Shapes`
+  - auto-closing toolbar dropdown that keeps the primitive creation tools together
+  - the trigger shows the last active shape tool and stays highlighted while a shape tool is active
+  - includes `Box (B)`, `Rounded Box (R)`, `Circle (C)`, `Line (L)`, and `Text (T)`
 
 #### Color Controls
 

@@ -7,6 +7,7 @@ local DI=nil
 local DE=""
 local DW=0
 local F={}
+local I={}
 
 local function G(s)
     s=math.max(1,math.floor(tonumber(s) or 16))
@@ -16,6 +17,18 @@ local function G(s)
         F[s]=f
     end
     return f
+end
+
+local function IM(path)
+    if type(path)~="string" or path=="" then
+        return nil
+    end
+    local image=I[path]
+    if not image then
+        image=loadImage(path)
+        I[path]=image
+    end
+    return image
 end
 
 local function FC(l,c,d)
@@ -67,35 +80,111 @@ local function SX(v,s)
     return (tonumber(v) or 0)*s
 end
 
-local function TX(l,e,sc,sx,sy)
-    local lines=e.l
+local function ST(l,c,sc)
+    local r=tonumber(c.rot) or 0
+    if r~=0 then
+        setNextRotation(l,r)
+    end
+    local sh=c.sh
+    local sca=sh and sh.c or nil
+    local blur=sh and tonumber(sh.b) or 0
+    if sca and blur and blur>0 then
+        setNextShadow(
+            l,
+            math.max(0, blur*sc),
+            tonumber(sca[1]) or 0,
+            tonumber(sca[2]) or 0,
+            tonumber(sca[3]) or 0,
+            tonumber(sca[4]) or 0
+        )
+    end
+end
+
+local function TX(l,c,sc,sx,sy)
+    local lines=c.l
     if not lines or #lines==0 then
         return
     end
-    local s=math.max(1,math.floor((tonumber(e.ts) or 16)*sc+0.5))
+    ST(l,c,sc)
+    SC(l,c.s,{0,0,0,0})
+    setNextStrokeWidth(l,math.max(0,(tonumber(c.sw) or 0)*sc))
+    local s=math.max(1,math.floor((tonumber(c.ts) or 16)*sc+0.5))
     local f=G(s)
     if not f then
         return
     end
-    local a=e.ta or "left"
-    local x=SX(e.x,sx)+12*sc
+    local a=c.ta or "left"
+    local x=SX(c.x,sx)+12*sc
     local h=AlignH_Left
-    local w=SX(e.w,sx)
+    local w=SX(c.w,sx)
     if a=="center" then
-        x=SX(e.x,sx)+w*0.5
+        x=SX(c.x,sx)+w*0.5
         h=AlignH_Center
     elseif a=="right" then
-        x=SX(e.x,sx)+w-12*sc
+        x=SX(c.x,sx)+w-12*sc
         h=AlignH_Right
     end
     setNextTextAlign(l,h,AlignV_Middle)
     local g=math.max(2,math.floor(s*0.2))
-    local y=SX(e.y,sy)+SX(e.h,sy)*0.5-((#lines-1)*(s+g))*0.5
-    local c=e.tc or {1,1,1,1}
+    local y=SX(c.y,sy)+SX(c.h,sy)*0.5-((#lines-1)*(s+g))*0.5
+    local tc=c.tc or {1,1,1,1}
     for i=1,#lines do
-        FC(l,c,{1,1,1,1})
+        FC(l,tc,{1,1,1,1})
         addText(l,f,tostring(lines[i] or ""),x,y+(i-1)*(s+g))
     end
+end
+
+local function SH(l,c,sc,sx,sy)
+    ST(l,c,sc)
+    FC(l,c.f,{0.2,0.2,0.2,1})
+    SC(l,c.s,{1,1,1,1})
+    setNextStrokeWidth(l,math.max(0,(tonumber(c.sw) or 0)*sc))
+    local x=SX(c.x,sx)
+    local y=SX(c.y,sy)
+    local w=SX(c.w,sx)
+    local h=SX(c.h,sy)
+    local k=c.k or "box"
+    if k=="circle" then
+        addCircle(l,x+w*0.5,y+h*0.5,math.min(w,h)*0.5)
+    elseif k=="boxRounded" then
+        addBoxRounded(l,x,y,w,h,math.max(0,(tonumber(c.r) or 0)*sc))
+    elseif k=="triangle" then
+        addTriangle(l,x,y,x+w,y,x,y+h)
+    elseif k=="quad" then
+        local qi=tonumber(c.qi) or 0.125
+        addQuad(l,x,y,x+w*(1-qi),y+h*qi,x+w,y+h,x+w*qi,y+h*(1-qi))
+    else
+        addBox(l,x,y,w,h)
+    end
+end
+
+local function BZ(l,c,sc,sx,sy)
+    ST(l,c,sc)
+    SC(l,c.s,{1,1,1,1})
+    setNextStrokeWidth(l,math.max(1,(tonumber(c.sw) or 2)*sc))
+    local x=SX(c.x,sx)
+    local y=SX(c.y,sy)
+    local w=SX(c.w,sx)
+    local h=SX(c.h,sy)
+    addBezier(l,x,y+h,x+w*0.5,y,x+w,y+h)
+end
+
+local function LN(l,c,sc,sx,sy)
+    ST(l,c,sc)
+    SC(l,c.s,{1,1,1,1})
+    setNextStrokeWidth(l,math.max(1,(tonumber(c.sw) or 2)*sc))
+    local x=SX(c.x,sx)
+    local y=SX(c.y,sy)
+    addLine(l,x,y,x+SX(c.w,sx),y+SX(c.h,sy))
+end
+
+local function IG(l,c,sc,sx,sy)
+    ST(l,c,sc)
+    local image=IM(c.src)
+    if not image then
+        return
+    end
+    addImage(l,image,SX(c.x,sx),SX(c.y,sy),SX(c.w,sx),SX(c.h,sy))
 end
 
 local function ER(rx,ry,msg)
@@ -134,36 +223,21 @@ local sx=rx/dw
 local sy=ry/dh
 local sc=math.min(sx,sy)
 
-for i=1,#(doc.e or {}) do
-    local e=doc.e[i]
-    if e and e.v~=false then
+for i=1,#(doc.c or {}) do
+    local c=doc.c[i]
+    if c then
         local l=createLayer()
-        local t=e.t or "box"
-        if t=="text" then
-            TX(l,e,sc,sx,sy)
-        elseif t=="line" then
-            SC(l,e.s,{1,1,1,1})
-            setNextStrokeWidth(l,math.max(1,(tonumber(e.sw) or 2)*sc))
-            local x=SX(e.x,sx)
-            local y=SX(e.y,sy)
-            addLine(l,x,y,x+SX(e.w,sx),y+SX(e.h,sy))
-            TX(l,e,sc,sx,sy)
+        local op=c.o or "shape"
+        if op=="text" then
+            TX(l,c,sc,sx,sy)
+        elseif op=="line" then
+            LN(l,c,sc,sx,sy)
+        elseif op=="bezier" then
+            BZ(l,c,sc,sx,sy)
+        elseif op=="image" then
+            IG(l,c,sc,sx,sy)
         else
-            FC(l,e.f,{0.2,0.2,0.2,1})
-            SC(l,e.s,{1,1,1,1})
-            setNextStrokeWidth(l,math.max(0,(tonumber(e.sw) or 0)*sc))
-            local x=SX(e.x,sx)
-            local y=SX(e.y,sy)
-            local w=SX(e.w,sx)
-            local h=SX(e.h,sy)
-            if t=="circle" then
-                addCircle(l,x+w*0.5,y+h*0.5,math.min(w,h)*0.5)
-            elseif t=="boxRounded" then
-                addBoxRounded(l,x,y,w,h,math.max(0,(tonumber(e.r) or 0)*sc))
-            else
-                addBox(l,x,y,w,h)
-            end
-            TX(l,e,sc,sx,sy)
+            SH(l,c,sc,sx,sy)
         end
     end
 end

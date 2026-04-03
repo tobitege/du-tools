@@ -33,6 +33,8 @@
     if (!element) return [1, 1, 1, 1];
     if (prop === "fill") return Array.isArray(element.fill) ? element.fill.slice() : [1, 1, 1, 1];
     if (prop === "stroke") return Array.isArray(element.stroke) ? element.stroke.slice() : [1, 1, 1, 1];
+    if (prop === "textColor") return Array.isArray(element.textColor) ? element.textColor.slice() : [1, 1, 1, 1];
+    if (prop === "shadowColor") return Array.isArray(element.shadowColor) ? element.shadowColor.slice() : [0, 0, 0, 0];
     return [1, 1, 1, 1];
   }
 
@@ -67,26 +69,49 @@
     var radiusInput = qs('[data-prop="radius"]', panel);
     var strokeWidthInput = qs('[data-prop="strokeWidth"]', panel);
     var textArea = qs('[data-prop="textLines"]', panel);
+    var rotationInput = qs('[data-prop="rotation"]', panel);
+    var shadowBlurInput = qs('[data-prop="shadowBlur"]', panel);
+    var textSizeInput = qs('[data-prop="textSize"]', panel);
+    var textAlignInput = qs('[data-prop="textAlign"]', panel);
+    var imageSrcInput = qs('[data-prop="imageSrc"]', panel);
 
     if (xInput) xInput.value = Math.round(element.x);
     if (yInput) yInput.value = Math.round(element.y);
     if (wInput) wInput.value = Math.round(element.w);
     if (hInput) hInput.value = Math.round(element.h);
+    if (rotationInput) rotationInput.value = String(Number(element.rotation) || 0);
+    if (shadowBlurInput) shadowBlurInput.value = String(Number(element.shadowBlur) || 0);
     // Radius only applies to box / boxRounded
     var radiusRow = qs('[data-prop-row="radius"]', panel);
     var showRadius = (element.type === "box" || element.type === "boxRounded");
     if (radiusRow) radiusRow.style.display = showRadius ? "" : "none";
+    var textRows = ["textLines", "textColor", "textSize", "textAlign"];
+    textRows.forEach(function (rowName) {
+      var row = qs('[data-prop-row="' + rowName + '"]', panel);
+      if (row) row.style.display = element.type === "text" ? "" : "none";
+    });
+    var imageRow = qs('[data-prop-row="imageSrc"]', panel);
+    if (imageRow) imageRow.style.display = element.type === "image" ? "" : "none";
 
     if (radiusInput && showRadius) setStepperValue(radiusInput, element.radius || 0);
     if (strokeWidthInput) setStepperValue(strokeWidthInput, element.strokeWidth || 0);
+    if (textSizeInput) textSizeInput.value = String(Number(element.textSize) || 16);
+    if (textAlignInput) textAlignInput.value = String(element.textAlign || "left");
+    if (imageSrcInput) imageSrcInput.value = String(element.imageSrc || "");
 
     // Colors — update both panel and toolbar pickers
     var fillHex   = rgbaToHex(element.fill);
     var strokeHex = rgbaToHex(element.stroke);
+    var textHex = rgbaToHex(element.textColor);
+    var shadowHex = rgbaToHex(element.shadowColor);
     var fillInput = qs('[data-color-prop="fill"]', panel);
     var strokeInput = qs('[data-color-prop="stroke"]', panel);
+    var textColorInput = qs('[data-color-prop="textColor"]', panel);
+    var shadowColorInput = qs('[data-color-prop="shadowColor"]', panel);
     setColorButtonValue(fillInput, fillHex);
     setColorButtonValue(strokeInput, strokeHex);
+    setColorButtonValue(textColorInput, textHex);
+    setColorButtonValue(shadowColorInput, shadowHex);
 
     // Sync toolbar color pickers too
     var root = APP.getRoot ? APP.getRoot() : document;
@@ -105,7 +130,14 @@
   // ─── Property sync: panel → document ──────────────────────────────
 
   // Properties that should apply to all selected elements
-  var MULTI_PROPS = { fill: 1, stroke: 1, strokeWidth: 1 };
+  var MULTI_PROPS = {
+    fill: 1,
+    stroke: 1,
+    strokeWidth: 1,
+    rotation: 1,
+    shadowBlur: 1,
+    shadowColor: 1
+  };
 
   function applyPanelChange(prop, value) {
     var elementId = APP.state.selectedElementId;
@@ -153,6 +185,14 @@
           element.strokeWidth = Math.max(0, parseFloat(value) || 0);
           changed = true;
           break;
+        case "rotation":
+          element.rotation = parseFloat(value) || 0;
+          changed = true;
+          break;
+        case "shadowBlur":
+          element.shadowBlur = Math.max(0, parseFloat(value) || 0);
+          changed = true;
+          break;
         case "fill":
           element.fill = Array.isArray(value) ? value.slice(0, 4) : hexToRgba(value);
           changed = true;
@@ -161,8 +201,28 @@
           element.stroke = Array.isArray(value) ? value.slice(0, 4) : hexToRgba(value);
           changed = true;
           break;
+        case "textColor":
+          element.textColor = Array.isArray(value) ? value.slice(0, 4) : hexToRgba(value);
+          changed = true;
+          break;
+        case "shadowColor":
+          element.shadowColor = Array.isArray(value) ? value.slice(0, 4) : hexToRgba(value);
+          changed = true;
+          break;
         case "textLines":
           element.textLines = value.split("\n");
+          changed = true;
+          break;
+        case "textSize":
+          element.textSize = Math.max(1, parseFloat(value) || 1);
+          changed = true;
+          break;
+        case "textAlign":
+          element.textAlign = String(value || "left");
+          changed = true;
+          break;
+        case "imageSrc":
+          element.imageSrc = String(value || "");
           changed = true;
           break;
       }
@@ -304,6 +364,13 @@
     var prop = select.dataset.prop;
     if (!prop) return;
     applyPanelChange(prop, select.value);
+  }
+
+  function onSelectChange(e) {
+    var select = e.target;
+    if (!select || select.classList.contains("stepper-select")) return;
+    if (!select.dataset || !select.dataset.prop) return;
+    applyPanelChange(select.dataset.prop, select.value);
   }
 
   // ─── Panel position persistence ───────────────────────────────────────
@@ -452,9 +519,11 @@
     panel.removeEventListener("click", onPanelColorClick);
     panel.removeEventListener("click",  onStepperClick);
     panel.removeEventListener("change", onStepperChange);
+    panel.removeEventListener("change", onSelectChange);
     panel.addEventListener("click", onPanelColorClick);
     panel.addEventListener("click",  onStepperClick);
     panel.addEventListener("change", onStepperChange);
+    panel.addEventListener("change", onSelectChange);
   }
 
   // ─── Event listeners ──────────────────────────────────────────────

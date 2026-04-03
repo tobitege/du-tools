@@ -174,6 +174,23 @@
     emit("exit-edit");
   }
 
+  function closeUi(reason) {
+    var activeBefore = !!state.editModeActive;
+    try {
+      emit("close-dialog", reason || "close-ui");
+    } catch (_ignoreCloseDialog) {}
+    try {
+      showScreen("start");
+    } catch (_ignoreShowStart) {}
+    exitEditMode();
+    updateToggleButton();
+    return {
+      closed: true,
+      activeBefore: activeBefore,
+      currentScreen: state.currentScreen
+    };
+  }
+
   function on(event, fn) {
     if (!listeners[event]) {
       listeners[event] = [];
@@ -234,7 +251,11 @@
       KeyR: "rounded",
       KeyC: "circle",
       KeyL: "line",
-      KeyT: "text"
+      KeyT: "text",
+      KeyA: "bezierArc",
+      KeyY: "triangle",
+      KeyQ: "quad",
+      KeyI: "image"
     };
     if (toolMap[e.code] && !e.ctrlKey && !e.metaKey) {
       state.currentTool = toolMap[e.code];
@@ -484,6 +505,7 @@
     showScreen: showScreen,
     enterEditMode: enterEditMode,
     exitEditMode: exitEditMode,
+    closeUi: closeUi,
     updateToggleButton: updateToggleButton,
     on: on,
     off: off,

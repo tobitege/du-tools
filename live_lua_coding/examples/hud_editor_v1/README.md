@@ -13,8 +13,14 @@ Lua Painter gives you a visual editor for building screen layouts out of:
 - boxes
 - rounded boxes
 - circles
+- bezier arcs
+- triangles
+- quads
+- images
 - lines
 - text
+
+It also supports rotation and glow-style shadow metadata on the editable document model, so the full `renderScript/shapes.lua` demo can be represented as an actual HUD-editor layout instead of only as raw RenderScript.
 
 You edit the layout visually in-game, save the document on the programming board, and export generated Lua for runtime use on screens/signs.
 
@@ -60,6 +66,7 @@ live_lua_coding/examples/hud_editor_v1/
 ## Editor Features
 
 - visual shape creation
+- extended DU primitive creation (`bezierArc`, `triangle`, `quad`, `image`)
 - move and resize
 - multi-select
 - grouping and ungrouping
@@ -67,9 +74,11 @@ live_lua_coding/examples/hud_editor_v1/
 - clone
 - undo and redo
 - property editing
+- rotation and glow/shadow editing
 - save/load
 - board export
 - screen export
+- tracked `demo_shapes_lua_full` snippet mirroring the DU `shapes.lua` sample
 
 ## Build
 
@@ -135,8 +144,12 @@ More harness details are in `web/README.md`.
 | `js/modules/060-shapes-panel.js` | Shape insert panel |
 | `js/modules/070-properties-panel.js` | Property editing |
 | `js/modules/080-bridge-commands.js` | Bridge/runtime command flow |
+| `js/modules/082-shape-snippets.js` | Tracked snippet catalog for repeatable demo families |
+| `js/modules/083-screen-commands.js` | Shared screen draw-command normalization for export/runtime parity |
 | `js/modules/085-ide-export.js` | Generated Lua export for board/screen editors |
 | `js/modules/090-databank-sync.js` | In-game save/load integration |
+| `e2e_testing.md` | Full local + live end-to-end validation runbook |
+| `render-shape-snippet-plan.md` | Snippet-catalog roadmap for expanding primitive and effect coverage |
 | `js/modules/100-file-sync.web.js` | Web-only file/export helpers |
 | `js/modules/110-undo-redo.js` | History stack |
 | `js/modules/120-dialogs.js` | Dialogs and confirmations |
@@ -152,6 +165,10 @@ More harness details are in `web/README.md`.
 - `B` box
 - `R` rounded box
 - `C` circle
+- `A` bezier arc
+- `Y` triangle
+- `Q` quad
+- `I` image
 - `L` line
 - `T` text
 - `Ctrl+Z` undo

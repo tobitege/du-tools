@@ -16,6 +16,7 @@
   var tempElement = null;
   var tempDom = null;
   var MIN_CREATE_SIZE = 10;
+  var DEFAULT_IMAGE_PATH = "resources_generated/env/voxel/ore/aluminium-ore/icons/env_aluminium-ore_icon.png";
 
   function ensureCanvasCreateListeners() {
     var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
@@ -34,6 +35,10 @@
     box: "box",
     rounded: "boxRounded",
     circle: "circle",
+    bezierArc: "bezierArc",
+    triangle: "triangle",
+    quad: "quad",
+    image: "image",
     line: "line",
     text: "text",
   };
@@ -77,7 +82,27 @@
       textColor: [0.86, 0.88, 0.92, 1.0],
       textSize: 16,
       textAlign: "center",
+      rotation: 0,
+      shadowBlur: 0,
+      shadowColor: [0, 0, 0, 0],
+      imageSrc: "",
+      imageFit: "contain",
+      quadInset: 0.125
     };
+
+    if (type === "line" || type === "bezierArc") {
+      element.fill = [0, 0, 0, 0];
+    }
+    if (type === "text") {
+      element.fill = [0, 0, 0, 0];
+      element.strokeWidth = 0;
+    }
+    if (type === "image") {
+      element.fill = [0, 0, 0, 0];
+      element.stroke = [0, 0, 0, 0];
+      element.strokeWidth = 0;
+      element.imageSrc = DEFAULT_IMAGE_PATH;
+    }
 
     return element;
   }

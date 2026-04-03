@@ -440,6 +440,7 @@ local state = {
     renderTick = 0,
     lastRenderPublishTick = 0,
     lastRenderedScript = nil,
+    lastRenderedInput = nil,
     lastRenderError = nil,
 }
 
@@ -1040,10 +1041,6 @@ local function serializeScreenColor(color, fallback)
     )
 end
 
-local function hasVisibleScreenColor(color)
-    return type(color) == "table" and tonumber(color[4]) and tonumber(color[4]) > 0
-end
-
 local function serializeScreenTextLines(lines)
     if type(lines) ~= "table" or #lines == 0 then
         return nil
@@ -1236,10 +1233,6 @@ local function serializeScreenImageCommand(element)
     append(parts, luaNumber(element.w, 0))
     append(parts, ",h=")
     append(parts, luaNumber(element.h, 0))
-    if hasVisibleScreenColor(element.fill) then
-        append(parts, ",f=")
-        append(parts, serializeScreenColor(element.fill, SCREEN_DEFAULT_FILL))
-    end
     append(parts, ",src=")
     append(parts, luaString(element.imageSrc or ""))
     append(parts, ",fit=")
@@ -1313,9 +1306,16 @@ function HudEditorBoard.buildScreenDocument(document)
     return table.concat(parts)
 end
 
-function HudEditorBoard.publishRenderState(script)
+function HudEditorBoard.buildRenderInput(document)
+    return HudEditorBoard.buildScreenDocument(document)
+end
+
+function HudEditorBoard.publishRenderState(script, renderInput)
     if type(script) ~= "string" or script == "" then
         return false, "no_render_script"
+    end
+    if type(renderInput) ~= "string" or renderInput == "" then
+        return false, "no_render_input"
     end
     if #state.linkedScreens == 0 then
         return false, "no_linked_screens"
@@ -1328,15 +1328,19 @@ function HudEditorBoard.publishRenderState(script)
             if hasMethod(screen, "clearScriptOutput") then
                 screen.clearScriptOutput()
             end
-            dp("sr< " .. tostring(index) .. " " .. screenName .. " sc=" .. tostring(#script))
+            dp("sr< " .. tostring(index) .. " " .. screenName .. " sc=" .. tostring(#script) .. " ic=" .. tostring(#renderInput))
             screen.setRenderScript(script)
             dp("sr> " .. tostring(index) .. " " .. screenName)
+            if hasMethod(screen, "setScriptInput") then
+                screen.setScriptInput(renderInput)
+            end
             published = published + 1
         else
             skipped = skipped + 1
         end
     end
     state.lastRenderedScript = script
+    state.lastRenderedInput = renderInput
     state.lastRenderPublishTick = state.renderTick or 0
     if skipped > 0 then
         dp("Skipped " .. tostring(skipped) .. " linked screen(s) without setRenderScript")
@@ -1395,14 +1399,15 @@ function HudEditorBoard.init(bootDocument)
     if #state.linkedScreens > 0 then
         dp("Linked " .. tostring(#state.linkedScreens) .. " screen(s)")
         local startupScript, startupError = HudEditorBoard.buildRenderScript()
-        if startupScript then
-            local published = HudEditorBoard.publishRenderState(startupScript)
+        local startupInput = startupScript and HudEditorBoard.buildRenderInput() or nil
+        if startupScript and startupInput then
+            local published = HudEditorBoard.publishRenderState(startupScript, startupInput)
             if published then
                 state.lastRenderError = nil
                 dp("Initial screen publish complete")
             end
         else
-            state.lastRenderError = startupError or "no_render_script"
+            state.lastRenderError = startupError or "no_render_input"
             dp("Initial screen publish skipped: " .. tostring(state.lastRenderError))
         end
     else
@@ -1424,8 +1429,9 @@ function HudEditorBoard.onTimer(timerName)
             return
         end
         local script, renderError = HudEditorBoard.buildRenderScript()
-        if not script then
-            renderError = renderError or "no_render_script"
+        local renderInput = script and HudEditorBoard.buildRenderInput() or nil
+        if not script or not renderInput then
+            renderError = renderError or "no_render_input"
             if state.lastRenderError ~= renderError then
                 dp("Screen render skipped: " .. tostring(renderError))
                 state.lastRenderError = renderError
@@ -1435,10 +1441,11 @@ function HudEditorBoard.onTimer(timerName)
         end
         state.lastRenderError = nil
         local scriptChanged = script ~= state.lastRenderedScript
+        local inputChanged = renderInput ~= state.lastRenderedInput
         local forcePublish = ((state.renderTick or 0) - (state.lastRenderPublishTick or 0)) >= SCREEN_REPUBLISH_TICKS
-        local republishScript = scriptChanged or forcePublish
+        local republishScript = scriptChanged or inputChanged or forcePublish
         if republishScript then
-            local published = HudEditorBoard.publishRenderState(script)
+            local published = HudEditorBoard.publishRenderState(script, renderInput)
             if published then
                 state.lastRenderError = nil
             end
@@ -1448,11 +1455,14 @@ function HudEditorBoard.onTimer(timerName)
 end
 
 function HudEditorBoard.buildRenderScript(document)
-    local commandDoc = HudEditorBoard.buildScreenDocument(document)
-    if not commandDoc then
+    if not HudEditorBoard.buildRenderInput(document) then
         return nil, "no_document"
     end
-    local script = "local D=" .. commandDoc .. [=[
+    local script = [=[
+local D=nil
+local DI=nil
+local DE=""
+local DW=0
 local F={}
 local I={}
 local function G(s)
@@ -1482,6 +1492,39 @@ end
 local function SC(l,c,d)
     c=c or d
     setNextStrokeColor(l,tonumber(c[1]) or d[1],tonumber(c[2]) or d[2],tonumber(c[3]) or d[3],tonumber(c[4]) or d[4])
+end
+local function P(raw)
+    if type(raw)~="string" or raw=="" then
+        return nil,"no_input"
+    end
+    local loader,err=load("return "..raw,"@HudEditorScreenInput","t",{})
+    if not loader then
+        return nil,err
+    end
+    local ok,val=pcall(loader)
+    if not ok then
+        return nil,val
+    end
+    if type(val)~="table" then
+        return nil,"bad_input_type"
+    end
+    return val,nil
+end
+local function RD()
+    local raw=""
+    if type(getInput)=="function" then
+        local val=getInput()
+        if type(val)=="string" then
+            raw=val
+        end
+    end
+    if raw~=DI then
+        DI=raw
+        local doc,err=P(raw)
+        D=doc
+        DE=doc and "" or tostring(err or "input_error")
+    end
+    return D,DE,raw
 end
 local function SX(v,s)
     return (tonumber(v) or 0)*s
@@ -1576,9 +1619,6 @@ local function LN(l,c,sc,sx,sy)
     addLine(l,x,y,x+SX(c.w,sx),y+SX(c.h,sy))
 end
 local function IG(l,c,sc,sx,sy)
-    if c.f then
-        FC(l,c.f,{0.2,0.2,0.2,1})
-    end
     ST(l,c,sc)
     local image=IM(c.src)
     if not image then
@@ -1586,28 +1626,53 @@ local function IG(l,c,sc,sx,sy)
     end
     addImage(l,image,SX(c.x,sx),SX(c.y,sy),SX(c.w,sx),SX(c.h,sy))
 end
+local function ER(rx,ry,msg)
+    local l=createLayer()
+    FC(l,{0.1,0.1,0.12,1},{0.1,0.1,0.12,1})
+    addBoxRounded(l,24,24,math.max(80,rx-48),math.max(80,ry-48),20)
+    SC(l,{0.92,0.28,0.28,1},{0.92,0.28,0.28,1})
+    setNextStrokeWidth(l,2)
+    addBoxRounded(l,24,24,math.max(80,rx-48),math.max(80,ry-48),20)
+    FC(l,{1,0.85,0.85,1},{1,0.85,0.85,1})
+    setNextTextAlign(l,AlignH_Center,AlignV_Middle)
+    addText(l,G(math.max(14,math.floor(math.min(rx,ry)*0.05))),tostring(msg or "SCREEN INPUT ERROR"),rx*0.5,ry*0.5)
+end
 local rx,ry=getResolution()
 setBackgroundColor(0,0,0)
-local dw=math.max(1,tonumber(D.w) or rx)
-local dh=math.max(1,tonumber(D.h) or ry)
+local doc,err,raw=RD()
+if not doc then
+    ER(rx,ry,raw=="" and "HUD EDITOR: NO INPUT" or "HUD EDITOR: INPUT ERROR")
+    if raw=="" and type(requestAnimationFrame)=="function" then
+        DW=(DW or 0)+1
+        if DW<=10 then
+            requestAnimationFrame(1)
+        end
+    else
+        DW=0
+    end
+    return
+end
+DW=0
+local dw=math.max(1,tonumber(doc.w) or rx)
+local dh=math.max(1,tonumber(doc.h) or ry)
 local sx=rx/dw
 local sy=ry/dh
 local sc=math.min(sx,sy)
-local layer=createLayer()
-for i=1,#(D.c or {}) do
-    local c=D.c[i]
+for i=1,#(doc.c or {}) do
+    local c=doc.c[i]
     if c then
+        local l=createLayer()
         local op=c.o or "shape"
         if op=="text" then
-            TX(layer,c,sc,sx,sy)
+            TX(l,c,sc,sx,sy)
         elseif op=="line" then
-            LN(layer,c,sc,sx,sy)
+            LN(l,c,sc,sx,sy)
         elseif op=="bezier" then
-            BZ(layer,c,sc,sx,sy)
+            BZ(l,c,sc,sx,sy)
         elseif op=="image" then
-            IG(layer,c,sc,sx,sy)
+            IG(l,c,sc,sx,sy)
         else
-            SH(layer,c,sc,sx,sy)
+            SH(l,c,sc,sx,sy)
         end
     end
 end

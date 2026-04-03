@@ -82,6 +82,16 @@ These rules come from real live-debugging failures and take priority over conven
 - Use the calibration image `live_lua_coding/du-ref-board-screen-center.png` before board-vs-screen targeting decisions.
 - Never reinject probe or UI payload code while `lua_editor` or `screen_editor` is open.
 - If an editor looks visually closed but input still seems blocked, verify whether MCP-side cleanup already handled it before assuming a free in-world state.
+- For live HUD editor recovery, first confirm whether the client is in world mode or UI mode:
+  - take a left-side targeted screenshot
+  - if the game's vertical left toolbar is visible, you are in UI mode and the mouse should work
+  - if the left toolbar is not visible, assume world mode until a visual check proves otherwise
+- If the `lua_editor` is closed but the HUD editor overlay is still visible:
+  - preferred recovery when available: call `du_ui_invoke` with `uiKind = lua_editor` and `method = close_runtime_ui`
+  - expectation: active runtime modules dismiss their own overlay UI without being disabled
+- If `close_runtime_ui` is not yet available or does not resolve the overlay:
+  - click the top-right `HUD Editor: ON` toggle once to collapse or close the HUD overlay
+  - then press `Tab` again to return to in-world mode before trying to reopen the Programming Board editor
 - Test the simplest possible transport first. Do not add new transport layers before the direct path is actually disproven.
 
 ---
@@ -96,6 +106,18 @@ These rules come from real live-debugging failures and take priority over conven
 | ModUiExtractor | Current DLL is deployed in the server Mods folder |
 | DuMcpBridge | MCP server is running |
 | Environment variables | Optional: `DU_UI_DUMP_ROOT`, `DU_MCP_BRIDGE_ROOT`; otherwise defaults under server `tmp\\ui-dumps` |
+
+### 1.1A Build Configuration Rule
+
+- If `ModUiExtractor.dll` is rebuilt for this workflow, compile it only in `Release`.
+- Do not use `Debug` builds for DU live testing, deployment, or handoff.
+- The `Release` build should not produce `.pdb` files. If it does, fix the build configuration before using that DLL for live work.
+- Canonical command:
+
+```powershell
+cd .\ModUiExtractor
+dotnet build -c Release -nologo -v:minimal
+```
 
 ### 1.2 Paths
 
