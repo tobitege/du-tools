@@ -6,6 +6,7 @@ Some folders target the [myDU](https://github.com/dual-universe/mydu-server-mods
 
 It is highly recommended to use this repo in combination with an AI assistant to either help explain tools or install anything.
 Most sub-folders have their own respective README.md for further details.
+Some utility scripts may need paths adapted to either your own myDuServer installation.
 
 ## Projects
 
