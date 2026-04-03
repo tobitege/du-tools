@@ -220,6 +220,24 @@
 
         el("div", { className: "toolbar-divider" }),
 
+        // Size match
+        el("div", { className: "toolbar-group size-match-group" }, [
+          el("button", { className: "action-btn", dataset: { action: "size-match-smallest-w" }, title: "Match smallest width" }, [
+            el("span", { className: "tb-icon tb-icon-size-smallest-w" }),
+          ]),
+          el("button", { className: "action-btn", dataset: { action: "size-match-biggest-w" }, title: "Match biggest width" }, [
+            el("span", { className: "tb-icon tb-icon-size-biggest-w" }),
+          ]),
+          el("button", { className: "action-btn", dataset: { action: "size-match-smallest-h" }, title: "Match smallest height" }, [
+            el("span", { className: "tb-icon tb-icon-size-smallest-h" }),
+          ]),
+          el("button", { className: "action-btn", dataset: { action: "size-match-biggest-h" }, title: "Match biggest height" }, [
+            el("span", { className: "tb-icon tb-icon-size-biggest-h" }),
+          ]),
+        ]),
+
+        el("div", { className: "toolbar-divider" }),
+
         el("label", { className: "toolbar-check", title: "Auto-open collapsed panels on hover" }, [
           el("input", {
             type: "checkbox",
@@ -468,6 +486,9 @@
     }
     else if (action.indexOf("align-") === 0) {
       APP.emit("align", action.replace("align-", ""));
+    }
+    else if (action.indexOf("size-match-") === 0) {
+      APP.emit("size-match", action.replace("size-match-", ""));
     }
     else if (action === "group") {
       APP.emit("group-selection");

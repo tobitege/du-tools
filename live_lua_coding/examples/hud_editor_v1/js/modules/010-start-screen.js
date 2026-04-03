@@ -18,6 +18,11 @@
       dataset: { screen: "start" },
       style: { display: "none" },
     }, [
+      el("div", { className: "start-glow-shapes start-glow-left" }, [
+        el("div", { className: "glow-shape glow-shape-circle glow-shape-cyan" }),
+        el("div", { className: "glow-shape glow-shape-box glow-shape-purple" }),
+        el("div", { className: "glow-shape glow-shape-triangle glow-shape-amber" }),
+      ]),
       el("div", { className: "start-container" }, [
         el("div", { className: "start-header" }, [
           el("h1", { textContent: "Lua Painter" }),
@@ -65,6 +70,24 @@
             ]),
           ]),
         ]),
+        el("div", { className: "start-footer" }, [
+          el("button", {
+            className: "menu-btn exit-btn",
+            dataset: { action: "exit" },
+            title: "Close the HUD Editor"
+          }, [
+            el("span", { className: "icon", textContent: "\u2716" }),
+            el("div", { className: "label-group" }, [
+              el("span", { className: "label", textContent: "Exit" }),
+              el("span", { className: "desc", textContent: "Close the HUD Editor" }),
+            ]),
+          ]),
+        ]),
+      ]),
+      el("div", { className: "start-glow-shapes start-glow-right" }, [
+        el("div", { className: "glow-shape glow-shape-box glow-shape-green" }),
+        el("div", { className: "glow-shape glow-shape-circle glow-shape-cyan" }),
+        el("div", { className: "glow-shape glow-shape-box glow-shape-purple" }),
       ]),
     ]);
     return container;
@@ -124,6 +147,7 @@
     if (action === "new") onNewScript();
     else if (action === "load") onLoad();
     else if (action === "saveas") onSaveAs();
+    else if (action === "exit") APP.exitEditMode();
   }
 
   function updateEditorContext(status) {
@@ -158,7 +182,10 @@
 
   function mountStartScreen() {
     var root = APP.getRoot();
-    if (qs('[data-screen="start"]', root)) return;
+    var oldStart = qs('[data-screen="start"]', root);
+    if (oldStart && oldStart.parentNode) {
+      oldStart.parentNode.removeChild(oldStart);
+    }
     var startScreen = buildStartScreen();
     root.appendChild(startScreen);
     startScreen.addEventListener("click", onMenuClick);

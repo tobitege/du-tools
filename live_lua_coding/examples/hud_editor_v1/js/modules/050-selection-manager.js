@@ -868,6 +868,63 @@
     alignSelected(mode);
   });
 
+  // ─── Size Match ─────────────────────────────────────────────────────
+
+  function sizeMatchSelected(mode) {
+    var arr = activeIds();
+    if (arr.length < 2) return;
+
+    var elems = [];
+    for (var i = 0; i < arr.length; i++) {
+      var e = APP.canvas.getElementById(arr[i]);
+      if (e) elems.push(e);
+    }
+    if (elems.length < 2) return;
+
+    var targetW, targetH;
+
+    if (mode === "smallest-w") {
+      targetW = elems[0].w;
+      for (var i = 1; i < elems.length; i++) {
+        if (elems[i].w < targetW) targetW = elems[i].w;
+      }
+    } else if (mode === "biggest-w") {
+      targetW = elems[0].w;
+      for (var i = 1; i < elems.length; i++) {
+        if (elems[i].w > targetW) targetW = elems[i].w;
+      }
+    } else if (mode === "smallest-h") {
+      targetH = elems[0].h;
+      for (var i = 1; i < elems.length; i++) {
+        if (elems[i].h < targetH) targetH = elems[i].h;
+      }
+    } else if (mode === "biggest-h") {
+      targetH = elems[0].h;
+      for (var i = 1; i < elems.length; i++) {
+        if (elems[i].h > targetH) targetH = elems[i].h;
+      }
+    } else {
+      return;
+    }
+
+    if (APP.undoRedo) APP.undoRedo.push();
+
+    for (var k = 0; k < elems.length; k++) {
+      var elem = elems[k];
+      if (targetW !== undefined) elem.w = targetW;
+      if (targetH !== undefined) elem.h = targetH;
+      APP.canvas.updateElement(elem.id);
+    }
+
+    APP.state.isDirty = true;
+    APP.canvas.scheduleRender();
+    APP.emit("element-updated", arr[0]);
+  }
+
+  APP.on("size-match", function (mode) {
+    sizeMatchSelected(mode);
+  });
+
   // ─── Public API ────────────────────────────────────────────────────
 
   APP.selection = {

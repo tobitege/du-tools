@@ -49,6 +49,7 @@
 /* ══════════════════════════════════════════════════════════════════════ */
 
 [data-screen="start"] {
+  position: relative;
   width: 80vw;
   height: 80vh;
   top: 10vh;
@@ -68,6 +69,13 @@
   padding: 48px;
 }
 
+/* ─── Header with glow shapes ────────────────────────────────────────── */
+
+.start-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
 .start-header h1 {
   font-size: 52px;
   font-weight: 700;
@@ -80,7 +88,139 @@
 .start-header .subtitle {
   color: #777;
   font-size: 18px;
-  margin: 0 0 48px 0;
+  margin: 0;
+}
+
+/* Glow shape containers — absolutely positioned inside the start screen */
+.start-glow-shapes {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.start-glow-left {
+  left: 0;
+  padding-left: 8px;
+  align-items: flex-end;
+}
+
+.start-glow-right {
+  right: 0;
+  padding-right: 8px;
+  align-items: flex-start;
+}
+
+/* Base glow shape */
+.glow-shape {
+  border-radius: 4px;
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+/* Shape types */
+.glow-shape-circle {
+  border-radius: 50%;
+}
+
+.glow-shape-box {
+  border-radius: 4px;
+}
+
+.glow-shape-triangle {
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+  border-left: 30px solid transparent;
+  border-right: 30px solid transparent;
+  border-bottom: 52px solid;
+  border-top: none;
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+/* Color variants */
+.glow-shape-cyan {
+  background: rgba(14, 233, 231, 0.18);
+  border: 1px solid rgba(14, 233, 231, 0.45);
+  box-shadow: 0 0 16px rgba(14, 233, 231, 0.25), 0 0 32px rgba(14, 233, 231, 0.10);
+}
+
+.glow-shape-purple {
+  background: rgba(160, 100, 255, 0.18);
+  border: 1px solid rgba(160, 100, 255, 0.45);
+  box-shadow: 0 0 16px rgba(160, 100, 255, 0.25), 0 0 32px rgba(160, 100, 255, 0.10);
+}
+
+.glow-shape-amber {
+  background: rgba(255, 196, 92, 0.18);
+  border: 1px solid rgba(255, 196, 92, 0.45);
+  box-shadow: 0 0 16px rgba(255, 196, 92, 0.25), 0 0 32px rgba(255, 196, 92, 0.10);
+}
+
+.glow-shape-green {
+  background: rgba(80, 220, 120, 0.18);
+  border: 1px solid rgba(80, 220, 120, 0.45);
+  box-shadow: 0 0 16px rgba(80, 220, 120, 0.25), 0 0 32px rgba(80, 220, 120, 0.10);
+}
+
+/* Triangle color overrides (uses border-bottom for color) */
+.glow-shape-triangle.glow-shape-cyan {
+  border-bottom-color: rgba(14, 233, 231, 0.45);
+  filter: drop-shadow(0 0 8px rgba(14, 233, 231, 0.35));
+}
+
+.glow-shape-triangle.glow-shape-purple {
+  border-bottom-color: rgba(160, 100, 255, 0.45);
+  filter: drop-shadow(0 0 8px rgba(160, 100, 255, 0.35));
+}
+
+.glow-shape-triangle.glow-shape-amber {
+  border-bottom-color: rgba(255, 196, 92, 0.45);
+  filter: drop-shadow(0 0 8px rgba(255, 196, 92, 0.35));
+}
+
+/* Sizes — left side */
+.start-glow-left .glow-shape:nth-child(1) {
+  width: 72px;
+  height: 72px;
+  animation-delay: 0s;
+}
+
+.start-glow-left .glow-shape:nth-child(2) {
+  width: 56px;
+  height: 56px;
+  animation-delay: 1s;
+}
+
+.start-glow-left .glow-shape:nth-child(3) {
+  animation-delay: 2s;
+}
+
+/* Sizes — right side */
+.start-glow-right .glow-shape:nth-child(1) {
+  width: 64px;
+  height: 64px;
+  animation-delay: 0.5s;
+}
+
+.start-glow-right .glow-shape:nth-child(2) {
+  width: 76px;
+  height: 76px;
+  animation-delay: 1.5s;
+}
+
+.start-glow-right .glow-shape:nth-child(3) {
+  width: 48px;
+  height: 48px;
+  animation-delay: 2.5s;
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
 }
 
 .start-menu {
@@ -321,6 +461,42 @@
   box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);
 }
 
+/* Custom CSS tooltips for toolbar buttons */
+.tool-btn[title]:hover::after,
+.action-btn[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 4px 10px;
+  background: #1a1a24;
+  border: 1px solid #3a3a4a;
+  border-radius: 4px;
+  color: #c0c8d8;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  line-height: 1.3;
+}
+
+.tool-btn[title]:hover::before,
+.action-btn[title]:hover::before {
+  content: "";
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-bottom-color: #3a3a4a;
+  pointer-events: none;
+  z-index: 1000;
+}
+
 .toolbar-dropdown-trigger.active,
 .toolbar-dropdown.open .toolbar-dropdown-trigger {
   background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);
@@ -504,6 +680,43 @@
 
 .tb-icon-align-center-v::before { top: 50%; left: 2px; height: 2px; width: 14px; transform: translateY(-50%); }
 .tb-icon-align-center-v::after  { top: 50%; left: 50%; width: 7px; height: 10px; transform: translate(-50%, -50%); }
+
+/* Size match icons — solid rectangle (source) + dashed rectangle (target) with clear size contrast */
+.tb-icon-size-smallest-w::before,
+.tb-icon-size-biggest-w::before,
+.tb-icon-size-smallest-h::before,
+.tb-icon-size-biggest-h::before {
+  content: "";
+  position: absolute;
+  border: 2px solid currentColor;
+  border-radius: 1px;
+}
+
+.tb-icon-size-smallest-w::after,
+.tb-icon-size-biggest-w::after,
+.tb-icon-size-smallest-h::after,
+.tb-icon-size-biggest-h::after {
+  content: "";
+  position: absolute;
+  border: 2px dashed currentColor;
+  border-radius: 1px;
+}
+
+/* Smallest width — wide solid on left, narrow dashed on right */
+.tb-icon-size-smallest-w::before { left: 1px; top: 3px; width: 10px; height: 14px; }
+.tb-icon-size-smallest-w::after  { left: 15px; top: 3px; width: 5px; height: 14px; }
+
+/* Biggest width — narrow solid on left, wide dashed on right */
+.tb-icon-size-biggest-w::before { left: 1px; top: 3px; width: 5px; height: 14px; }
+.tb-icon-size-biggest-w::after  { left: 9px; top: 3px; width: 12px; height: 14px; }
+
+/* Smallest height — tall solid on top, short dashed on bottom */
+.tb-icon-size-smallest-h::before { left: 3px; top: 1px; width: 14px; height: 10px; }
+.tb-icon-size-smallest-h::after  { left: 3px; top: 15px; width: 14px; height: 5px; }
+
+/* Biggest height — short solid on top, tall dashed on bottom */
+.tb-icon-size-biggest-h::before { left: 3px; top: 1px; width: 14px; height: 5px; }
+.tb-icon-size-biggest-h::after  { left: 3px; top: 9px; width: 14px; height: 12px; }
 
 /* Clone tool — two overlapping rectangles with plus */
 .tb-icon-clone::before {
