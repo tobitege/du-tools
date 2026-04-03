@@ -11,6 +11,8 @@ HudEditorBoard.__index = HudEditorBoard
 HudEditorBoard.COMMAND_PREFIX = "he:"  -- All HUD editor commands start with "he:"
 HudEditorBoard.DB_KEY_INDEX = "hud_editor:index"
 HudEditorBoard.DB_KEY_DOC_PREFIX = "hud_editor:document:"
+HudEditorBoard.DB_WRITE_TIMER = "dbwrite"
+HudEditorBoard.DB_WRITE_INTERVAL = 0.05
 
 --  Command types
 
@@ -171,7 +173,12 @@ local function hasDatabankIo(target)
 end
 
 local function databankSet(target, key, value)
-    target.setStringValue(key, tostring(value or ""))
+    local payload = tostring(value or "")
+    local ok, err = pcall(target.setStringValue, target, key, payload)
+    if ok then
+        return true
+    end
+    return false, err
 end
 
 local function databankGet(target, key)
@@ -441,6 +448,7 @@ local state = {
     lastRenderPublishTick = 0,
     lastRenderedScript = nil,
     lastRenderError = nil,
+    pendingDatabankWrites = nil,
 }
 
 --  Document operations
@@ -597,9 +605,6 @@ function HudEditorBoard.refreshLinks(verbose)
         if links.primaryScreen then
             dp("Primary screen: " .. tostring(links.primaryScreen.elementName or links.primaryScreen.slotName))
         end
-        if state.databank then
-            dp("Primary databank: " .. tostring(state.databank.elementName or state.databank.slotName))
-        end
     end
     return links
 end
@@ -613,6 +618,47 @@ function HudEditorBoard.getDatabank()
         return state.databank
     end
     return nil
+end
+
+local function stopDatabankWriteTimer()
+    if hasMethod(unit, "setTimer") then
+        unit.setTimer(HudEditorBoard.DB_WRITE_TIMER, 0)
+    end
+end
+
+local function scheduleDatabankWriteTimer()
+    if hasMethod(unit, "setTimer") then
+        unit.setTimer(HudEditorBoard.DB_WRITE_TIMER, HudEditorBoard.DB_WRITE_INTERVAL)
+        return true
+    end
+    return false
+end
+
+local function flushNextDatabankWrite()
+    local pending = state.pendingDatabankWrites
+    if type(pending) ~= "table" or #pending == 0 then
+        state.pendingDatabankWrites = nil
+        stopDatabankWriteTimer()
+        return true
+    end
+
+    local write = table.remove(pending, 1)
+    local ok, err = databankSet(write.target, write.key, write.value)
+    if not ok then
+        state.pendingDatabankWrites = nil
+        stopDatabankWriteTimer()
+        return false, err
+    end
+
+    if #pending == 0 then
+        state.pendingDatabankWrites = nil
+        stopDatabankWriteTimer()
+        return true
+    end
+
+    state.pendingDatabankWrites = pending
+    scheduleDatabankWriteTimer()
+    return true
 end
 
 function HudEditorBoard.persistToDatabank()
@@ -642,11 +688,21 @@ function HudEditorBoard.persistToDatabank()
     local docPayload = HudEditorBoard.serializeDocument(doc)
     local nextIndex = upsertDatabankIndex(readDatabankIndex(db), doc.id, doc)
     local indexPayload = HudEditorBoard.serializeDocument(nextIndex)
-    dp("db< named=" .. tostring(#docPayload) .. " index=" .. tostring(#indexPayload) .. " total=" .. tostring(#docPayload + #indexPayload) .. " id=" .. tostring(doc.id))
-    databankSet(db, docKey, docPayload)
-    databankSet(db, HudEditorBoard.DB_KEY_INDEX, indexPayload)
+    state.pendingDatabankWrites = {
+        { target = db, key = docKey, value = docPayload },
+        { target = db, key = HudEditorBoard.DB_KEY_INDEX, value = indexPayload },
+    }
+    if not scheduleDatabankWriteTimer() then
+        local ok, err = flushNextDatabankWrite()
+        if ok then
+            ok, err = flushNextDatabankWrite()
+        end
+        if not ok then
+            dp("Databank write failed while flushing immediately: " .. tostring(err))
+            return false
+        end
+    end
     state.document = doc
-    dp("Persisted document revision " .. tostring(doc.revision))
     return true
 end
 
@@ -1313,24 +1369,22 @@ function HudEditorBoard.buildScreenDocument(document)
     return table.concat(parts)
 end
 
-function HudEditorBoard.publishRenderState(script)
+function HudEditorBoard.publishRenderState(script, options)
     if type(script) ~= "string" or script == "" then
         return false, "no_render_script"
     end
     if #state.linkedScreens == 0 then
         return false, "no_linked_screens"
     end
+    local announce = type(options) == "table" and options.announce == true
     local skipped = 0
     local published = 0
     for index, screen in ipairs(state.linkedScreens) do
         if hasMethod(screen, "setRenderScript") then
-            local screenName = tostring(screen.elementName or screen.slotName or index)
             if hasMethod(screen, "clearScriptOutput") then
                 screen.clearScriptOutput()
             end
-            dp("sr< " .. tostring(index) .. " " .. screenName .. " sc=" .. tostring(#script))
             screen.setRenderScript(script)
-            dp("sr> " .. tostring(index) .. " " .. screenName)
             published = published + 1
         else
             skipped = skipped + 1
@@ -1338,6 +1392,9 @@ function HudEditorBoard.publishRenderState(script)
     end
     state.lastRenderedScript = script
     state.lastRenderPublishTick = state.renderTick or 0
+    if announce and published > 0 then
+        dp("Screen publish complete (" .. tostring(published) .. " screen(s))")
+    end
     if skipped > 0 then
         dp("Skipped " .. tostring(skipped) .. " linked screen(s) without setRenderScript")
     end
@@ -1375,7 +1432,6 @@ function HudEditorBoard.init(bootDocument)
         end
         state.renderRevision = state.renderRevision + 1
         HudEditorBoard.persistToDatabank()
-        dp("Loaded boot document from exported HUD layout")
     else
         -- Try to restore last document (before checking databank)
         -- This allows working even without databank initially
@@ -1396,10 +1452,9 @@ function HudEditorBoard.init(bootDocument)
         dp("Linked " .. tostring(#state.linkedScreens) .. " screen(s)")
         local startupScript, startupError = HudEditorBoard.buildRenderScript()
         if startupScript then
-            local published = HudEditorBoard.publishRenderState(startupScript)
+            local published = HudEditorBoard.publishRenderState(startupScript, { announce = true })
             if published then
                 state.lastRenderError = nil
-                dp("Initial screen publish complete")
             end
         else
             state.lastRenderError = startupError or "no_render_script"
@@ -1416,7 +1471,13 @@ function HudEditorBoard.init(bootDocument)
 end
 
 function HudEditorBoard.onTimer(timerName)
-    if timerName == "render" then
+    if timerName == HudEditorBoard.DB_WRITE_TIMER then
+        local ok, err = flushNextDatabankWrite()
+        if not ok then
+            dp("Databank queued write failed: " .. tostring(err))
+        end
+        return
+    elseif timerName == "render" then
         state.renderTick = (state.renderTick or 0) + 1
         if #state.linkedScreens == 0 then
             HudEditorBoard.refreshLinks(false)

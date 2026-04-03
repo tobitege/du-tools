@@ -18,6 +18,7 @@ For Programming Board / lua_editor work:
 - du_editor_push_code does not open an editor
 - du_editor_save does not choose a buffer for you
 - du_editor_pull_code is not automatic proof of the visible live buffer
+- unit timer callbacks only arrive through a real `unit.onTimer(...)` filter; a Lua helper method alone is not enough unless the active unit filter forwards to it
 
 Important truth:
 - visible editor buffer and actually running board runtime are different things
@@ -77,6 +78,7 @@ These rules come from real live-debugging failures and take priority over conven
 - `du_editor_push_code` does not open an editor.
 - `du_editor_save` does not choose a target buffer.
 - `du_editor_pull_code` is not automatically the visible live buffer.
+- `unit.setTimer(...)` requires a real active `unit.onTimer(...)` filter in the running board script path. A library helper such as `HudEditorBoard.onTimer(...)` does nothing by itself unless the active `unit` filter forwards to it.
 - Before any mutation, confirm the current live state with the documented bridge or UI tools.
 - Before native inputs like `Ctrl+L` or `du_open_editor_native`, confirm the visible target state instead of guessing.
 - Use the calibration image `live_lua_coding/du-ref-board-screen-center.png` before board-vs-screen targeting decisions.

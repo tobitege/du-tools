@@ -49,6 +49,7 @@ test('loads Lua Painter harness and opens editor', async ({ page }) => {
       code: window.HudEditor.ideExport.buildBoardOnStartCode(doc),
       commandDoc: window.HudEditor.ideExport.buildScreenCommandDocument(doc),
       screenCode: window.HudEditor.ideExport.buildScreenCode(doc),
+      screenCodeCompact: window.HudEditor.ideExport.buildScreenCodeCompact(doc),
     }
   })
 
@@ -60,11 +61,15 @@ test('loads Lua Painter harness and opens editor', async ({ page }) => {
   expect(generated.commandDoc.c).toHaveLength(2)
   expect(generated.commandDoc.c[0].o).toBe('shape')
   expect(generated.commandDoc.c[1].o).toBe('text')
-  expect(generated.screenCode).toContain('local D=')
-  expect(generated.screenCode).toContain('D.c')
-  expect(generated.screenCode).toContain('local l=createLayer()')
+  expect(generated.screenCode).toContain('-- Screen export mode: readable')
+  expect(generated.screenCode).toContain('local function drawBoxRounded')
+  expect(generated.screenCode).toContain('local function drawTextBlock')
+  expect(generated.screenCode).toContain('local layer = createLayer()')
   expect(generated.screenCode).toContain('addBoxRounded')
   expect(generated.screenCode).not.toContain('function onDraw')
+  expect(generated.screenCodeCompact).toContain('-- Screen export mode: compact')
+  expect(generated.screenCodeCompact).toContain('local D=')
+  expect(generated.screenCodeCompact).toContain('D.c')
 })
 
 test('loads all-shapes fixture into the canvas', async ({ page }) => {
@@ -325,6 +330,10 @@ test('screen command document expands snippets into normalized draw commands', a
       fullCode: window.HudEditor.ideExport.buildScreenCode(
         window.HudEditor.shapeSnippets.buildDocument('demo_shapes_lua_full')
       ),
+      fullCodeCompact: window.HudEditor.ideExport.buildScreenCode(
+        window.HudEditor.shapeSnippets.buildDocument('demo_shapes_lua_full'),
+        { mode: 'compact' }
+      ),
     }
   })
 
@@ -339,12 +348,16 @@ test('screen command document expands snippets into normalized draw commands', a
   expect(commandDocs.fullDemo.c.some(cmd => cmd.o === 'shape' && cmd.k === 'quad')).toBeTruthy()
   expect(commandDocs.fullDemo.c.some(cmd => cmd.rot)).toBeTruthy()
   expect(commandDocs.fullDemo.c.some(cmd => cmd.sh)).toBeTruthy()
-  expect(commandDocs.fullCode).toContain('addBezier')
-  expect(commandDocs.fullCode).toContain('addTriangle')
-  expect(commandDocs.fullCode).toContain('addQuad')
-  expect(commandDocs.fullCode).toContain('addImage')
-  expect(commandDocs.fullCode).toContain('setNextRotation')
-  expect(commandDocs.fullCode).toContain('setNextShadow')
+  expect(commandDocs.fullCode).toContain('-- Screen export mode: readable')
+  expect(commandDocs.fullCode).toContain('drawBezierArc(layer')
+  expect(commandDocs.fullCode).toContain('drawTriangle(layer')
+  expect(commandDocs.fullCode).toContain('drawQuad(layer')
+  expect(commandDocs.fullCode).toContain('drawImageRect(layer')
+  expect(commandDocs.fullCode).toContain('applyRotationAndShadow')
+  expect(commandDocs.fullCodeCompact).toContain('-- Screen export mode: compact')
+  expect(commandDocs.fullCodeCompact).toContain('local D=')
+  expect(commandDocs.fullCodeCompact).toContain('setNextRotation')
+  expect(commandDocs.fullCodeCompact).toContain('setNextShadow')
 })
 
 test('shape snippets can be loaded into the editor canvas', async ({ page }) => {

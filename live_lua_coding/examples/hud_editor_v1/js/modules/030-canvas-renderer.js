@@ -53,6 +53,10 @@
     return "rgba(" + r + "," + g + "," + b + "," + a + ")";
   }
 
+  function hasVisibleColor(rgba) {
+    return Array.isArray(rgba) && (Number(rgba[3]) || 0) > 0;
+  }
+
   function cssToRgba(css) {
     // Parse #RRGGBB or #RGB
     var hex = css.replace("#", "");
@@ -78,12 +82,211 @@
     return dom;
   }
 
+  function createSvgElement(tagName) {
+    return document.createElementNS("http://www.w3.org/2000/svg", tagName);
+  }
+
+  function setShadowStyle(node, blur, color) {
+    if (!node || !hasVisibleColor(color) || !(blur > 0)) {
+      if (node) node.style.filter = "";
+      return;
+    }
+    node.style.filter = "drop-shadow(0 0 " + Math.max(1, blur) + "px " + rgbaToCss(color) + ")";
+  }
+
+  function createCommandLayer(command, originX, originY) {
+    var layer = el("div", { className: "canvas-command" });
+    layer.style.position = "absolute";
+    layer.style.left = Math.round((Number(command.x) - originX) * scale) + "px";
+    layer.style.top = Math.round((Number(command.y) - originY) * scale) + "px";
+    layer.style.width = Math.max(1, Math.round((Number(command.w) || 0) * scale)) + "px";
+    layer.style.height = Math.max(1, Math.round((Number(command.h) || 0) * scale)) + "px";
+    layer.style.transformOrigin = "center center";
+    layer.style.pointerEvents = "none";
+    layer.style.overflow = "visible";
+    if (command.o !== "text" && (Number(command.rot) || 0)) {
+      layer.style.transform = "rotate(" + (Number(command.rot) || 0) + "rad)";
+    }
+    return layer;
+  }
+
+  function createSvgCommandNode(command, draw) {
+    var width = Math.max(1, (Number(command.w) || 0) * scale);
+    var height = Math.max(1, (Number(command.h) || 0) * scale);
+    var svg = createSvgElement("svg");
+    svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+    svg.setAttribute("preserveAspectRatio", "none");
+    svg.style.width = "100%";
+    svg.style.height = "100%";
+    svg.style.overflow = "visible";
+    svg.style.pointerEvents = "none";
+    draw(svg, width, height);
+    setShadowStyle(svg, Math.max(0, (command.sh && Number(command.sh.b) || 0) * scale), command.sh && command.sh.c);
+    return svg;
+  }
+
+  function appendShapeNode(layer, command) {
+    var fill = hasVisibleColor(command.f) ? rgbaToCss(command.f) : "transparent";
+    var stroke = hasVisibleColor(command.s) ? rgbaToCss(command.s) : "transparent";
+    var strokeWidth = Math.max(0, (Number(command.sw) || 0) * scale);
+    var kind = String(command.k || "box");
+    var svg = createSvgCommandNode(command, function (svg, width, height) {
+      var shape;
+      if (kind === "circle") {
+        shape = createSvgElement("circle");
+        shape.setAttribute("cx", String(width * 0.5));
+        shape.setAttribute("cy", String(height * 0.5));
+        shape.setAttribute("r", String(Math.min(width, height) * 0.5));
+      } else {
+        shape = kind === "box" || kind === "boxRounded" ? createSvgElement("rect") : createSvgElement("polygon");
+        if (kind === "box" || kind === "boxRounded") {
+          shape.setAttribute("x", "0");
+          shape.setAttribute("y", "0");
+          shape.setAttribute("width", String(width));
+          shape.setAttribute("height", String(height));
+          if (kind === "boxRounded") {
+            var radius = Math.max(0, (Number(command.r) || 0) * scale);
+            shape.setAttribute("rx", String(radius));
+            shape.setAttribute("ry", String(radius));
+          }
+        } else if (kind === "triangle") {
+          shape.setAttribute("points", "0,0 " + width + ",0 0," + height);
+        } else {
+          var inset = Math.max(0, Math.min(0.45, Number(command.qi) || 0.125));
+          shape.setAttribute("points", [
+            "0,0",
+            (width * (1 - inset)) + "," + (height * inset),
+            width + "," + height,
+            (width * inset) + "," + (height * (1 - inset))
+          ].join(" "));
+        }
+      }
+      shape.setAttribute("fill", fill);
+      shape.setAttribute("stroke", stroke);
+      shape.setAttribute("stroke-width", String(strokeWidth));
+      shape.setAttribute("vector-effect", "non-scaling-stroke");
+      svg.appendChild(shape);
+    });
+    layer.appendChild(svg);
+  }
+
+  function appendBezierNode(layer, command) {
+    var stroke = hasVisibleColor(command.s) ? rgbaToCss(command.s) : "transparent";
+    var strokeWidth = Math.max(1, (Number(command.sw) || 2) * scale);
+    var svg = createSvgCommandNode(command, function (svg, width, height) {
+      var path = createSvgElement("path");
+      path.setAttribute("d", "M 0 " + height + " Q " + (width * 0.5) + " 0 " + width + " " + height);
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", stroke);
+      path.setAttribute("stroke-width", String(strokeWidth));
+      path.setAttribute("vector-effect", "non-scaling-stroke");
+      path.setAttribute("stroke-linecap", "round");
+      svg.appendChild(path);
+    });
+    layer.appendChild(svg);
+  }
+
+  function appendLineNode(layer, command) {
+    var stroke = hasVisibleColor(command.s) ? rgbaToCss(command.s) : "transparent";
+    var strokeWidth = Math.max(1, (Number(command.sw) || 2) * scale);
+    var svg = createSvgCommandNode(command, function (svg, width, height) {
+      var line = createSvgElement("line");
+      line.setAttribute("x1", "0");
+      line.setAttribute("y1", "0");
+      line.setAttribute("x2", String(width));
+      line.setAttribute("y2", String(height));
+      line.setAttribute("stroke", stroke);
+      line.setAttribute("stroke-width", String(strokeWidth));
+      line.setAttribute("vector-effect", "non-scaling-stroke");
+      line.setAttribute("stroke-linecap", "round");
+      svg.appendChild(line);
+    });
+    layer.appendChild(svg);
+  }
+
+  function appendTextNode(layer, command) {
+    var wrapper = el("div", { className: "canvas-text-node" });
+    var lines = Array.isArray(command.l) ? command.l : [];
+    var fontSize = Math.max(1, Math.floor((Number(command.ts) || 16) * scale + 0.5));
+    var strokeWidth = Math.max(0, (Number(command.sw) || 0) * scale);
+    wrapper.style.position = "absolute";
+    wrapper.style.inset = "0";
+    wrapper.style.display = "flex";
+    wrapper.style.flexDirection = "column";
+    wrapper.style.justifyContent = "center";
+    wrapper.style.alignItems = command.ta === "center" ? "center" : (command.ta === "right" ? "flex-end" : "flex-start");
+    wrapper.style.padding = "0 " + Math.round(12 * scale) + "px";
+    wrapper.style.gap = Math.max(2, Math.floor(fontSize * 0.2)) + "px";
+    wrapper.style.color = rgbaToCss(command.tc || [1, 1, 1, 1]);
+    wrapper.style.fontSize = fontSize + "px";
+    wrapper.style.fontFamily = "Play, Rajdhani, Segoe UI, sans-serif";
+    wrapper.style.lineHeight = "1";
+    wrapper.style.textAlign = command.ta || "left";
+    wrapper.style.whiteSpace = "pre";
+    wrapper.style.pointerEvents = "none";
+    if (strokeWidth > 0 && hasVisibleColor(command.s)) {
+      wrapper.style.webkitTextStroke = strokeWidth + "px " + rgbaToCss(command.s);
+    }
+    if (hasVisibleColor(command.sh && command.sh.c) && (Number(command.sh && command.sh.b) || 0) > 0) {
+      wrapper.style.textShadow = "0 0 " + Math.max(1, (Number(command.sh.b) || 0) * scale) + "px " + rgbaToCss(command.sh.c);
+    }
+    wrapper.textContent = lines.join("\n");
+    layer.appendChild(wrapper);
+  }
+
+  function appendImageNode(layer, command) {
+    var image = document.createElement("img");
+    image.alt = "preview-image";
+    image.src = command.src || "";
+    image.style.width = "100%";
+    image.style.height = "100%";
+    image.style.objectFit = command.fit || "contain";
+    image.style.display = "block";
+    image.style.pointerEvents = "none";
+    setShadowStyle(image, Math.max(0, (command.sh && Number(command.sh.b) || 0) * scale), command.sh && command.sh.c);
+    image.addEventListener("error", function () {
+      layer.style.backgroundImage = "radial-gradient(circle at 35% 35%, rgba(255,255,255,0.85), rgba(156,156,156,0.75) 35%, rgba(64,64,64,0.95) 70%)";
+      layer.style.backgroundSize = "cover";
+      layer.style.backgroundRepeat = "no-repeat";
+      layer.style.backgroundPosition = "center";
+    }, { once: true });
+    layer.appendChild(image);
+  }
+
+  function buildPreviewCommands(element) {
+    if (APP.screenCommands && typeof APP.screenCommands.buildCommandsForElement === "function") {
+      return APP.screenCommands.buildCommandsForElement(element);
+    }
+    return [];
+  }
+
+  function appendCommandNode(dom, element, command) {
+    var layer = createCommandLayer(command, Number(element.x) || 0, Number(element.y) || 0);
+    switch (command.o) {
+      case "shape":
+        appendShapeNode(layer, command);
+        break;
+      case "bezier":
+        appendBezierNode(layer, command);
+        break;
+      case "line":
+        appendLineNode(layer, command);
+        break;
+      case "text":
+        appendTextNode(layer, command);
+        break;
+      case "image":
+        appendImageNode(layer, command);
+        break;
+      default:
+        return;
+    }
+    dom.appendChild(layer);
+  }
+
   function applyElementStyles(dom, element) {
     var pos = screenToCanvas(element.x, element.y);
     var size = screenToCanvas(element.w, element.h);
-    var rotation = Number(element.rotation) || 0;
-    var shadowColor = rgbaToCss(element.shadowColor || [0, 0, 0, 0]);
-    var shadowBlur = Math.max(0, (Number(element.shadowBlur) || 0) * scale);
 
     dom.innerHTML = "";
     dom.dataset.elementType = element.type;
@@ -92,8 +295,8 @@
     dom.style.width = size.x + "px";
     dom.style.height = size.y + "px";
     dom.style.transform = "";
-    dom.style.transformOrigin = "center center";
-    dom.style.filter = shadowBlur > 0 ? ("drop-shadow(0 0 " + Math.max(1, shadowBlur) + "px " + shadowColor + ")") : "";
+    dom.style.transformOrigin = "";
+    dom.style.filter = "";
     dom.style.background = "transparent";
     dom.style.backgroundColor = "transparent";
     dom.style.backgroundImage = "none";
@@ -107,7 +310,7 @@
     dom.style.alignItems = "";
     dom.style.justifyContent = "";
     dom.style.padding = "";
-    dom.style.overflow = "hidden";
+    dom.style.overflow = "visible";
     dom.style.color = "";
     dom.style.fontSize = "";
     dom.style.fontFamily = "";
@@ -116,159 +319,9 @@
     dom.style.wordBreak = "";
     dom.style.webkitTextStroke = "";
     dom.style.textShadow = "";
-
-    var fill = rgbaToCss(element.fill);
-    var stroke = rgbaToCss(element.stroke);
-    var strokeWidth = element.strokeWidth || 0;
-
-    switch (element.type) {
-      case "boxRounded":
-        dom.style.background = fill;
-        dom.style.border = strokeWidth + "px solid " + stroke;
-        dom.style.borderRadius = (element.radius || 0) * scale + "px";
-        dom.style.boxSizing = "border-box";
-        break;
-
-      case "box":
-        dom.style.background = fill;
-        dom.style.border = strokeWidth + "px solid " + stroke;
-        dom.style.boxSizing = "border-box";
-        break;
-
-      case "circle":
-        dom.style.background = fill;
-        dom.style.border = strokeWidth + "px solid " + stroke;
-        dom.style.borderRadius = "50%";
-        dom.style.boxSizing = "border-box";
-        break;
-
-      case "triangle": {
-        var triangleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        var triangle = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-        triangleSvg.setAttribute("viewBox", "0 0 100 100");
-        triangleSvg.setAttribute("preserveAspectRatio", "none");
-        triangleSvg.style.width = "100%";
-        triangleSvg.style.height = "100%";
-        triangle.setAttribute("points", "0,0 100,0 0,100");
-        triangle.setAttribute("fill", fill);
-        triangle.setAttribute("stroke", stroke);
-        triangle.setAttribute("stroke-width", String(Math.max(0, strokeWidth * scale)));
-        triangleSvg.appendChild(triangle);
-        dom.appendChild(triangleSvg);
-        break;
-      }
-
-      case "quad": {
-        var quadSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        var quad = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-        var inset = Math.max(0, Math.min(0.45, Number(element.quadInset) || 0.125));
-        quadSvg.setAttribute("viewBox", "0 0 100 100");
-        quadSvg.setAttribute("preserveAspectRatio", "none");
-        quadSvg.style.width = "100%";
-        quadSvg.style.height = "100%";
-        quad.setAttribute("points", [
-          "0,0",
-          (100 - inset * 100) + "," + (inset * 100),
-          "100,100",
-          (inset * 100) + "," + (100 - inset * 100)
-        ].join(" "));
-        quad.setAttribute("fill", fill);
-        quad.setAttribute("stroke", stroke);
-        quad.setAttribute("stroke-width", String(Math.max(0, strokeWidth * scale)));
-        quadSvg.appendChild(quad);
-        dom.appendChild(quadSvg);
-        break;
-      }
-
-      case "bezierArc": {
-        var bezierSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        var bezier = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        bezierSvg.setAttribute("viewBox", "0 0 100 100");
-        bezierSvg.setAttribute("preserveAspectRatio", "none");
-        bezierSvg.style.width = "100%";
-        bezierSvg.style.height = "100%";
-        bezier.setAttribute("d", "M 0 100 Q 50 0 100 100");
-        bezier.setAttribute("fill", "none");
-        bezier.setAttribute("stroke", stroke);
-        bezier.setAttribute("stroke-width", String(Math.max(1, strokeWidth * scale)));
-        bezierSvg.appendChild(bezier);
-        dom.appendChild(bezierSvg);
-        break;
-      }
-
-      case "line":
-        dom.style.background = "transparent";
-        dom.style.border = "none";
-        dom.style.boxSizing = "border-box";
-        // Lines use a pseudo-element or background for the line itself
-        // For simplicity, draw as a rotated thin div
-        var len = Math.sqrt(size.x * size.x + size.y * size.y);
-        dom.style.width = len + "px";
-        dom.style.height = Math.max(1, strokeWidth) + "px";
-        dom.style.background = stroke;
-        dom.style.borderRadius = "0";
-        // Position at center
-        dom.style.left = (pos.x + size.x / 2 - len / 2) + "px";
-        dom.style.top = (pos.y + size.y / 2 - strokeWidth / 2) + "px";
-        // Approximate angle (assumes line from top-left to bottom-right)
-        var angle = (Math.atan2(size.y, size.x) + rotation) * 180 / Math.PI;
-        dom.style.transform = "rotate(" + angle + "deg)";
-        dom.style.transformOrigin = "center center";
-        break;
-
-      case "text":
-        dom.style.background = fill;
-        dom.style.border = strokeWidth + "px solid " + stroke;
-        dom.style.borderRadius = (element.radius || 0) * scale + "px";
-        dom.style.boxSizing = "border-box";
-        dom.style.display = "flex";
-        dom.style.alignItems = "center";
-        dom.style.justifyContent = element.textAlign === "center" ? "center" :
-                                   element.textAlign === "right" ? "flex-end" : "flex-start";
-        dom.style.padding = "4px 8px";
-        dom.style.overflow = "hidden";
-        dom.style.color = rgbaToCss(element.textColor || [1, 1, 1, 1]);
-        dom.style.fontSize = ((element.textSize || 16) * scale) + "px";
-        dom.style.fontFamily = "Rajdhani, Segoe UI, sans-serif";
-        dom.style.textAlign = element.textAlign || "left";
-        dom.style.whiteSpace = "pre-wrap";
-        dom.style.wordBreak = "break-word";
-        if (strokeWidth > 0) {
-          dom.style.webkitTextStroke = Math.max(0.5, strokeWidth * scale * 0.5) + "px " + stroke;
-        }
-        if (shadowBlur > 0) {
-          dom.style.textShadow = "0 0 " + Math.max(1, shadowBlur) + "px " + shadowColor;
-        }
-        // Text content
-        var lines = element.textLines || [];
-        dom.textContent = Array.isArray(lines) ? lines.join("\n") : lines;
-        break;
-
-      case "image": {
-        var image = document.createElement("img");
-        image.alt = element.id || "image";
-        image.src = element.imageSrc || "";
-        image.style.width = "100%";
-        image.style.height = "100%";
-        image.style.objectFit = element.imageFit || "contain";
-        image.style.display = "block";
-        image.addEventListener("error", function () {
-          dom.style.backgroundImage = "radial-gradient(circle at 35% 35%, rgba(255,255,255,0.85), rgba(156,156,156,0.75) 35%, rgba(64,64,64,0.95) 70%)";
-          dom.style.backgroundSize = "cover";
-        }, { once: true });
-        dom.appendChild(image);
-        break;
-      }
-
-      default:
-        dom.style.background = fill;
-        dom.style.border = strokeWidth + "px solid " + stroke;
-        dom.style.boxSizing = "border-box";
-    }
-
-    if (element.type !== "line" && rotation) {
-      dom.style.transform = "rotate(" + rotation + "rad)";
-    }
+    buildPreviewCommands(element).forEach(function (command) {
+      appendCommandNode(dom, element, command);
+    });
 
     // Hide element when visibility is off; restore when toggled back
     if (element.visible === false) {

@@ -186,5 +186,6 @@ More harness details are in `web/README.md`.
 - The browser harness is secondary; the real deliverable is the in-game Lua Painter workflow.
 - `build/` contains generated files.
 - `layouts/` may be empty until local saves exist.
-- For linked live screens, the board now sends a stable screen runtime through `setRenderScript(...)` and the current compact layout through `setScriptInput(...)`.
-- `Export Screen` still generates a standalone full RenderScript file for manual screen-editor export.
+- Linked live screens now publish a pure standalone RenderScript through `setRenderScript(...)`.
+- `Export Screen` now defaults to a readable standalone RenderScript with named helpers and explicit draw calls.
+- Compact screen code is still available through the exporter API via `buildScreenCode(doc, { mode: "compact" })`.

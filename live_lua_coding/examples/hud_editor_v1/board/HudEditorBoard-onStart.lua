@@ -20,8 +20,6 @@ system.print("[HE-Boot] pre-init")
 HudEditorBoard.init()
 system.print("[HE-Boot] post-init")
 
--- Event handlers
-
 function onInputReceived(input)
     return HudEditorBoard.onInputReceived(input)
 end
@@ -33,5 +31,6 @@ end
 -- Hide widget after init
 
 unit.hideWidget()
+unit.setTimer("startup", 0.2)
 
 system.print("HudEditorBoard initialized")

@@ -1,6 +1,6 @@
 // HUD Editor Probe - Lua Painter
 // Project: D:\github\du-tobi\live_lua_coding\examples\hud_editor_v1
-// Built: 2026-04-03T05:23:04Z
+// Built: 2026-04-03T06:16:21Z
 
 // Inlined CSS
 (function injectCSS() {
@@ -1396,6 +1396,10 @@
     return "rgba(" + r + "," + g + "," + b + "," + a + ")";
   }
 
+  function hasVisibleColor(rgba) {
+    return Array.isArray(rgba) && (Number(rgba[3]) || 0) > 0;
+  }
+
   function cssToRgba(css) {
     // Parse #RRGGBB or #RGB
     var hex = css.replace("#", "");
@@ -1421,12 +1425,211 @@
     return dom;
   }
 
+  function createSvgElement(tagName) {
+    return document.createElementNS("http://www.w3.org/2000/svg", tagName);
+  }
+
+  function setShadowStyle(node, blur, color) {
+    if (!node || !hasVisibleColor(color) || !(blur > 0)) {
+      if (node) node.style.filter = "";
+      return;
+    }
+    node.style.filter = "drop-shadow(0 0 " + Math.max(1, blur) + "px " + rgbaToCss(color) + ")";
+  }
+
+  function createCommandLayer(command, originX, originY) {
+    var layer = el("div", { className: "canvas-command" });
+    layer.style.position = "absolute";
+    layer.style.left = Math.round((Number(command.x) - originX) * scale) + "px";
+    layer.style.top = Math.round((Number(command.y) - originY) * scale) + "px";
+    layer.style.width = Math.max(1, Math.round((Number(command.w) || 0) * scale)) + "px";
+    layer.style.height = Math.max(1, Math.round((Number(command.h) || 0) * scale)) + "px";
+    layer.style.transformOrigin = "center center";
+    layer.style.pointerEvents = "none";
+    layer.style.overflow = "visible";
+    if (command.o !== "text" && (Number(command.rot) || 0)) {
+      layer.style.transform = "rotate(" + (Number(command.rot) || 0) + "rad)";
+    }
+    return layer;
+  }
+
+  function createSvgCommandNode(command, draw) {
+    var width = Math.max(1, (Number(command.w) || 0) * scale);
+    var height = Math.max(1, (Number(command.h) || 0) * scale);
+    var svg = createSvgElement("svg");
+    svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+    svg.setAttribute("preserveAspectRatio", "none");
+    svg.style.width = "100%";
+    svg.style.height = "100%";
+    svg.style.overflow = "visible";
+    svg.style.pointerEvents = "none";
+    draw(svg, width, height);
+    setShadowStyle(svg, Math.max(0, (command.sh && Number(command.sh.b) || 0) * scale), command.sh && command.sh.c);
+    return svg;
+  }
+
+  function appendShapeNode(layer, command) {
+    var fill = hasVisibleColor(command.f) ? rgbaToCss(command.f) : "transparent";
+    var stroke = hasVisibleColor(command.s) ? rgbaToCss(command.s) : "transparent";
+    var strokeWidth = Math.max(0, (Number(command.sw) || 0) * scale);
+    var kind = String(command.k || "box");
+    var svg = createSvgCommandNode(command, function (svg, width, height) {
+      var shape;
+      if (kind === "circle") {
+        shape = createSvgElement("circle");
+        shape.setAttribute("cx", String(width * 0.5));
+        shape.setAttribute("cy", String(height * 0.5));
+        shape.setAttribute("r", String(Math.min(width, height) * 0.5));
+      } else {
+        shape = kind === "box" || kind === "boxRounded" ? createSvgElement("rect") : createSvgElement("polygon");
+        if (kind === "box" || kind === "boxRounded") {
+          shape.setAttribute("x", "0");
+          shape.setAttribute("y", "0");
+          shape.setAttribute("width", String(width));
+          shape.setAttribute("height", String(height));
+          if (kind === "boxRounded") {
+            var radius = Math.max(0, (Number(command.r) || 0) * scale);
+            shape.setAttribute("rx", String(radius));
+            shape.setAttribute("ry", String(radius));
+          }
+        } else if (kind === "triangle") {
+          shape.setAttribute("points", "0,0 " + width + ",0 0," + height);
+        } else {
+          var inset = Math.max(0, Math.min(0.45, Number(command.qi) || 0.125));
+          shape.setAttribute("points", [
+            "0,0",
+            (width * (1 - inset)) + "," + (height * inset),
+            width + "," + height,
+            (width * inset) + "," + (height * (1 - inset))
+          ].join(" "));
+        }
+      }
+      shape.setAttribute("fill", fill);
+      shape.setAttribute("stroke", stroke);
+      shape.setAttribute("stroke-width", String(strokeWidth));
+      shape.setAttribute("vector-effect", "non-scaling-stroke");
+      svg.appendChild(shape);
+    });
+    layer.appendChild(svg);
+  }
+
+  function appendBezierNode(layer, command) {
+    var stroke = hasVisibleColor(command.s) ? rgbaToCss(command.s) : "transparent";
+    var strokeWidth = Math.max(1, (Number(command.sw) || 2) * scale);
+    var svg = createSvgCommandNode(command, function (svg, width, height) {
+      var path = createSvgElement("path");
+      path.setAttribute("d", "M 0 " + height + " Q " + (width * 0.5) + " 0 " + width + " " + height);
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", stroke);
+      path.setAttribute("stroke-width", String(strokeWidth));
+      path.setAttribute("vector-effect", "non-scaling-stroke");
+      path.setAttribute("stroke-linecap", "round");
+      svg.appendChild(path);
+    });
+    layer.appendChild(svg);
+  }
+
+  function appendLineNode(layer, command) {
+    var stroke = hasVisibleColor(command.s) ? rgbaToCss(command.s) : "transparent";
+    var strokeWidth = Math.max(1, (Number(command.sw) || 2) * scale);
+    var svg = createSvgCommandNode(command, function (svg, width, height) {
+      var line = createSvgElement("line");
+      line.setAttribute("x1", "0");
+      line.setAttribute("y1", "0");
+      line.setAttribute("x2", String(width));
+      line.setAttribute("y2", String(height));
+      line.setAttribute("stroke", stroke);
+      line.setAttribute("stroke-width", String(strokeWidth));
+      line.setAttribute("vector-effect", "non-scaling-stroke");
+      line.setAttribute("stroke-linecap", "round");
+      svg.appendChild(line);
+    });
+    layer.appendChild(svg);
+  }
+
+  function appendTextNode(layer, command) {
+    var wrapper = el("div", { className: "canvas-text-node" });
+    var lines = Array.isArray(command.l) ? command.l : [];
+    var fontSize = Math.max(1, Math.floor((Number(command.ts) || 16) * scale + 0.5));
+    var strokeWidth = Math.max(0, (Number(command.sw) || 0) * scale);
+    wrapper.style.position = "absolute";
+    wrapper.style.inset = "0";
+    wrapper.style.display = "flex";
+    wrapper.style.flexDirection = "column";
+    wrapper.style.justifyContent = "center";
+    wrapper.style.alignItems = command.ta === "center" ? "center" : (command.ta === "right" ? "flex-end" : "flex-start");
+    wrapper.style.padding = "0 " + Math.round(12 * scale) + "px";
+    wrapper.style.gap = Math.max(2, Math.floor(fontSize * 0.2)) + "px";
+    wrapper.style.color = rgbaToCss(command.tc || [1, 1, 1, 1]);
+    wrapper.style.fontSize = fontSize + "px";
+    wrapper.style.fontFamily = "Play, Rajdhani, Segoe UI, sans-serif";
+    wrapper.style.lineHeight = "1";
+    wrapper.style.textAlign = command.ta || "left";
+    wrapper.style.whiteSpace = "pre";
+    wrapper.style.pointerEvents = "none";
+    if (strokeWidth > 0 && hasVisibleColor(command.s)) {
+      wrapper.style.webkitTextStroke = strokeWidth + "px " + rgbaToCss(command.s);
+    }
+    if (hasVisibleColor(command.sh && command.sh.c) && (Number(command.sh && command.sh.b) || 0) > 0) {
+      wrapper.style.textShadow = "0 0 " + Math.max(1, (Number(command.sh.b) || 0) * scale) + "px " + rgbaToCss(command.sh.c);
+    }
+    wrapper.textContent = lines.join("\n");
+    layer.appendChild(wrapper);
+  }
+
+  function appendImageNode(layer, command) {
+    var image = document.createElement("img");
+    image.alt = "preview-image";
+    image.src = command.src || "";
+    image.style.width = "100%";
+    image.style.height = "100%";
+    image.style.objectFit = command.fit || "contain";
+    image.style.display = "block";
+    image.style.pointerEvents = "none";
+    setShadowStyle(image, Math.max(0, (command.sh && Number(command.sh.b) || 0) * scale), command.sh && command.sh.c);
+    image.addEventListener("error", function () {
+      layer.style.backgroundImage = "radial-gradient(circle at 35% 35%, rgba(255,255,255,0.85), rgba(156,156,156,0.75) 35%, rgba(64,64,64,0.95) 70%)";
+      layer.style.backgroundSize = "cover";
+      layer.style.backgroundRepeat = "no-repeat";
+      layer.style.backgroundPosition = "center";
+    }, { once: true });
+    layer.appendChild(image);
+  }
+
+  function buildPreviewCommands(element) {
+    if (APP.screenCommands && typeof APP.screenCommands.buildCommandsForElement === "function") {
+      return APP.screenCommands.buildCommandsForElement(element);
+    }
+    return [];
+  }
+
+  function appendCommandNode(dom, element, command) {
+    var layer = createCommandLayer(command, Number(element.x) || 0, Number(element.y) || 0);
+    switch (command.o) {
+      case "shape":
+        appendShapeNode(layer, command);
+        break;
+      case "bezier":
+        appendBezierNode(layer, command);
+        break;
+      case "line":
+        appendLineNode(layer, command);
+        break;
+      case "text":
+        appendTextNode(layer, command);
+        break;
+      case "image":
+        appendImageNode(layer, command);
+        break;
+      default:
+        return;
+    }
+    dom.appendChild(layer);
+  }
+
   function applyElementStyles(dom, element) {
     var pos = screenToCanvas(element.x, element.y);
     var size = screenToCanvas(element.w, element.h);
-    var rotation = Number(element.rotation) || 0;
-    var shadowColor = rgbaToCss(element.shadowColor || [0, 0, 0, 0]);
-    var shadowBlur = Math.max(0, (Number(element.shadowBlur) || 0) * scale);
 
     dom.innerHTML = "";
     dom.dataset.elementType = element.type;
@@ -1435,8 +1638,8 @@
     dom.style.width = size.x + "px";
     dom.style.height = size.y + "px";
     dom.style.transform = "";
-    dom.style.transformOrigin = "center center";
-    dom.style.filter = shadowBlur > 0 ? ("drop-shadow(0 0 " + Math.max(1, shadowBlur) + "px " + shadowColor + ")") : "";
+    dom.style.transformOrigin = "";
+    dom.style.filter = "";
     dom.style.background = "transparent";
     dom.style.backgroundColor = "transparent";
     dom.style.backgroundImage = "none";
@@ -1450,7 +1653,7 @@
     dom.style.alignItems = "";
     dom.style.justifyContent = "";
     dom.style.padding = "";
-    dom.style.overflow = "hidden";
+    dom.style.overflow = "visible";
     dom.style.color = "";
     dom.style.fontSize = "";
     dom.style.fontFamily = "";
@@ -1459,159 +1662,9 @@
     dom.style.wordBreak = "";
     dom.style.webkitTextStroke = "";
     dom.style.textShadow = "";
-
-    var fill = rgbaToCss(element.fill);
-    var stroke = rgbaToCss(element.stroke);
-    var strokeWidth = element.strokeWidth || 0;
-
-    switch (element.type) {
-      case "boxRounded":
-        dom.style.background = fill;
-        dom.style.border = strokeWidth + "px solid " + stroke;
-        dom.style.borderRadius = (element.radius || 0) * scale + "px";
-        dom.style.boxSizing = "border-box";
-        break;
-
-      case "box":
-        dom.style.background = fill;
-        dom.style.border = strokeWidth + "px solid " + stroke;
-        dom.style.boxSizing = "border-box";
-        break;
-
-      case "circle":
-        dom.style.background = fill;
-        dom.style.border = strokeWidth + "px solid " + stroke;
-        dom.style.borderRadius = "50%";
-        dom.style.boxSizing = "border-box";
-        break;
-
-      case "triangle": {
-        var triangleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        var triangle = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-        triangleSvg.setAttribute("viewBox", "0 0 100 100");
-        triangleSvg.setAttribute("preserveAspectRatio", "none");
-        triangleSvg.style.width = "100%";
-        triangleSvg.style.height = "100%";
-        triangle.setAttribute("points", "0,0 100,0 0,100");
-        triangle.setAttribute("fill", fill);
-        triangle.setAttribute("stroke", stroke);
-        triangle.setAttribute("stroke-width", String(Math.max(0, strokeWidth * scale)));
-        triangleSvg.appendChild(triangle);
-        dom.appendChild(triangleSvg);
-        break;
-      }
-
-      case "quad": {
-        var quadSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        var quad = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-        var inset = Math.max(0, Math.min(0.45, Number(element.quadInset) || 0.125));
-        quadSvg.setAttribute("viewBox", "0 0 100 100");
-        quadSvg.setAttribute("preserveAspectRatio", "none");
-        quadSvg.style.width = "100%";
-        quadSvg.style.height = "100%";
-        quad.setAttribute("points", [
-          "0,0",
-          (100 - inset * 100) + "," + (inset * 100),
-          "100,100",
-          (inset * 100) + "," + (100 - inset * 100)
-        ].join(" "));
-        quad.setAttribute("fill", fill);
-        quad.setAttribute("stroke", stroke);
-        quad.setAttribute("stroke-width", String(Math.max(0, strokeWidth * scale)));
-        quadSvg.appendChild(quad);
-        dom.appendChild(quadSvg);
-        break;
-      }
-
-      case "bezierArc": {
-        var bezierSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        var bezier = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        bezierSvg.setAttribute("viewBox", "0 0 100 100");
-        bezierSvg.setAttribute("preserveAspectRatio", "none");
-        bezierSvg.style.width = "100%";
-        bezierSvg.style.height = "100%";
-        bezier.setAttribute("d", "M 0 100 Q 50 0 100 100");
-        bezier.setAttribute("fill", "none");
-        bezier.setAttribute("stroke", stroke);
-        bezier.setAttribute("stroke-width", String(Math.max(1, strokeWidth * scale)));
-        bezierSvg.appendChild(bezier);
-        dom.appendChild(bezierSvg);
-        break;
-      }
-
-      case "line":
-        dom.style.background = "transparent";
-        dom.style.border = "none";
-        dom.style.boxSizing = "border-box";
-        // Lines use a pseudo-element or background for the line itself
-        // For simplicity, draw as a rotated thin div
-        var len = Math.sqrt(size.x * size.x + size.y * size.y);
-        dom.style.width = len + "px";
-        dom.style.height = Math.max(1, strokeWidth) + "px";
-        dom.style.background = stroke;
-        dom.style.borderRadius = "0";
-        // Position at center
-        dom.style.left = (pos.x + size.x / 2 - len / 2) + "px";
-        dom.style.top = (pos.y + size.y / 2 - strokeWidth / 2) + "px";
-        // Approximate angle (assumes line from top-left to bottom-right)
-        var angle = (Math.atan2(size.y, size.x) + rotation) * 180 / Math.PI;
-        dom.style.transform = "rotate(" + angle + "deg)";
-        dom.style.transformOrigin = "center center";
-        break;
-
-      case "text":
-        dom.style.background = fill;
-        dom.style.border = strokeWidth + "px solid " + stroke;
-        dom.style.borderRadius = (element.radius || 0) * scale + "px";
-        dom.style.boxSizing = "border-box";
-        dom.style.display = "flex";
-        dom.style.alignItems = "center";
-        dom.style.justifyContent = element.textAlign === "center" ? "center" :
-                                   element.textAlign === "right" ? "flex-end" : "flex-start";
-        dom.style.padding = "4px 8px";
-        dom.style.overflow = "hidden";
-        dom.style.color = rgbaToCss(element.textColor || [1, 1, 1, 1]);
-        dom.style.fontSize = ((element.textSize || 16) * scale) + "px";
-        dom.style.fontFamily = "Rajdhani, Segoe UI, sans-serif";
-        dom.style.textAlign = element.textAlign || "left";
-        dom.style.whiteSpace = "pre-wrap";
-        dom.style.wordBreak = "break-word";
-        if (strokeWidth > 0) {
-          dom.style.webkitTextStroke = Math.max(0.5, strokeWidth * scale * 0.5) + "px " + stroke;
-        }
-        if (shadowBlur > 0) {
-          dom.style.textShadow = "0 0 " + Math.max(1, shadowBlur) + "px " + shadowColor;
-        }
-        // Text content
-        var lines = element.textLines || [];
-        dom.textContent = Array.isArray(lines) ? lines.join("\n") : lines;
-        break;
-
-      case "image": {
-        var image = document.createElement("img");
-        image.alt = element.id || "image";
-        image.src = element.imageSrc || "";
-        image.style.width = "100%";
-        image.style.height = "100%";
-        image.style.objectFit = element.imageFit || "contain";
-        image.style.display = "block";
-        image.addEventListener("error", function () {
-          dom.style.backgroundImage = "radial-gradient(circle at 35% 35%, rgba(255,255,255,0.85), rgba(156,156,156,0.75) 35%, rgba(64,64,64,0.95) 70%)";
-          dom.style.backgroundSize = "cover";
-        }, { once: true });
-        dom.appendChild(image);
-        break;
-      }
-
-      default:
-        dom.style.background = fill;
-        dom.style.border = strokeWidth + "px solid " + stroke;
-        dom.style.boxSizing = "border-box";
-    }
-
-    if (element.type !== "line" && rotation) {
-      dom.style.transform = "rotate(" + rotation + "rad)";
-    }
+    buildPreviewCommands(element).forEach(function (command) {
+      appendCommandNode(dom, element, command);
+    });
 
     // Hide element when visibility is off; restore when toggled back
     if (element.visible === false) {
@@ -5025,9 +5078,320 @@
     return doc ? JSON.parse(JSON.stringify(doc)) : null;
   }
 
-  function buildRenderScriptFromCommands(commandDoc) {
+  function joinLuaArgs(values) {
+    return values.map(function (value) {
+      return toLua(value);
+    }).join(", ");
+  }
+
+  function normalizeScreenCodeMode(options) {
+    var mode = options;
+    if (mode && typeof mode === "object") {
+      mode = mode.mode;
+    }
+    mode = String(mode || "readable").toLowerCase();
+    return mode === "compact" ? "compact" : "readable";
+  }
+
+  function buildReadableBaseStyle(command) {
+    var style = {};
+    if (command && command.rot) {
+      style.rotation = command.rot;
+    }
+    if (command && command.sh) {
+      style.shadow = {
+        blur: command.sh.b,
+        color: command.sh.c
+      };
+    }
+    return style;
+  }
+
+  function buildReadableShapeStyle(command) {
+    var style = buildReadableBaseStyle(command);
+    style.fill = command && command.f ? command.f : [0.2, 0.2, 0.2, 1];
+    style.stroke = command && command.s ? command.s : [1, 1, 1, 1];
+    style.strokeWidth = command && command.sw != null ? command.sw : 0;
+    return style;
+  }
+
+  function buildReadableStrokeStyle(command, defaultWidth) {
+    var style = buildReadableBaseStyle(command);
+    style.stroke = command && command.s ? command.s : [1, 1, 1, 1];
+    style.strokeWidth = command && command.sw != null ? command.sw : defaultWidth;
+    return style;
+  }
+
+  function buildReadableImageStyle(command) {
+    var style = buildReadableBaseStyle(command);
+    if (command && command.f) {
+      style.fill = command.f;
+    }
+    return style;
+  }
+
+  function buildReadableTextStyle(command) {
+    var style = buildReadableBaseStyle(command);
+    style.stroke = command && command.s ? command.s : [0, 0, 0, 0];
+    style.strokeWidth = command && command.sw != null ? command.sw : 0;
+    style.textColor = command && command.tc ? command.tc : [1, 1, 1, 1];
+    return style;
+  }
+
+  function appendReadableCommand(lines, command, index) {
+    var kind;
+    var style;
+    if (!command) return;
+
+    lines.push("");
+    lines.push("-- Command " + index + ": " + String(command.o || "shape") + (command.k ? (" " + command.k) : ""));
+    lines.push("resetStyle(layer)");
+
+    if (command.o === "shape") {
+      kind = String(command.k || "box");
+      style = buildReadableShapeStyle(command);
+      lines.push("applyShapeStyle(layer, " + toLua(style) + ")");
+      if (kind === "circle") {
+        lines.push("drawCircle(layer, " + joinLuaArgs([command.x, command.y, command.w, command.h]) + ")");
+      } else if (kind === "boxRounded") {
+        lines.push("drawBoxRounded(layer, " + joinLuaArgs([command.x, command.y, command.w, command.h, command.r != null ? command.r : 0]) + ")");
+      } else if (kind === "triangle") {
+        lines.push("drawTriangle(layer, " + joinLuaArgs([command.x, command.y, command.w, command.h]) + ")");
+      } else if (kind === "quad") {
+        lines.push("drawQuad(layer, " + joinLuaArgs([command.x, command.y, command.w, command.h, command.qi != null ? command.qi : 0.125]) + ")");
+      } else {
+        lines.push("drawBox(layer, " + joinLuaArgs([command.x, command.y, command.w, command.h]) + ")");
+      }
+      return;
+    }
+
+    if (command.o === "bezier") {
+      lines.push("applyStrokeStyle(layer, " + toLua(buildReadableStrokeStyle(command, 2)) + ")");
+      lines.push("drawBezierArc(layer, " + joinLuaArgs([command.x, command.y, command.w, command.h]) + ")");
+      return;
+    }
+
+    if (command.o === "line") {
+      lines.push("applyStrokeStyle(layer, " + toLua(buildReadableStrokeStyle(command, 2)) + ")");
+      lines.push("drawLine(layer, " + joinLuaArgs([command.x, command.y, command.w, command.h]) + ")");
+      return;
+    }
+
+    if (command.o === "image") {
+      lines.push("applyImageStyle(layer, " + toLua(buildReadableImageStyle(command)) + ")");
+      lines.push("drawImageRect(layer, " + joinLuaArgs([command.src || "", command.x, command.y, command.w, command.h]) + ")");
+      return;
+    }
+
+    if (command.o === "text") {
+      lines.push("applyTextStyle(layer, " + toLua(buildReadableTextStyle(command)) + ")");
+      lines.push("drawTextBlock(layer, " + joinLuaArgs([
+        command.l || [],
+        command.x,
+        command.y,
+        command.w,
+        command.h,
+        {
+          size: command.ts != null ? command.ts : 16,
+          align: command.ta || "left",
+          color: command.tc || [1, 1, 1, 1]
+        }
+      ]) + ")");
+    }
+  }
+
+  function buildReadableRenderScriptFromCommands(commandDoc) {
+    var commands = commandDoc && Array.isArray(commandDoc.c) ? commandDoc.c : [];
+    var lines = [
+      "-- Generated by HUD Editor",
+      "-- Screen export mode: readable",
+      "local FONT_CACHE = {}",
+      "local IMAGE_CACHE = {}",
+      "",
+      "local function loadFontCached(size)",
+      "    size = math.max(1, math.floor(tonumber(size) or 16))",
+      "    local font = FONT_CACHE[size]",
+      "    if not font then",
+      "        font = loadFont(\"Play\", size)",
+      "        FONT_CACHE[size] = font",
+      "    end",
+      "    return font",
+      "end",
+      "",
+      "local function loadImageCached(path)",
+      "    if type(path) ~= \"string\" or path == \"\" then",
+      "        return nil",
+      "    end",
+      "    local image = IMAGE_CACHE[path]",
+      "    if not image then",
+      "        image = loadImage(path)",
+      "        IMAGE_CACHE[path] = image",
+      "    end",
+      "    return image",
+      "end",
+      "",
+      "local function applyFillColor(layer, color, fallback)",
+      "    local source = color or fallback",
+      "    setNextFillColor(",
+      "        layer,",
+      "        tonumber(source[1]) or fallback[1],",
+      "        tonumber(source[2]) or fallback[2],",
+      "        tonumber(source[3]) or fallback[3],",
+      "        tonumber(source[4]) or fallback[4]",
+      "    )",
+      "end",
+      "",
+      "local function applyStrokeColor(layer, color, fallback)",
+      "    local source = color or fallback",
+      "    setNextStrokeColor(",
+      "        layer,",
+      "        tonumber(source[1]) or fallback[1],",
+      "        tonumber(source[2]) or fallback[2],",
+      "        tonumber(source[3]) or fallback[3],",
+      "        tonumber(source[4]) or fallback[4]",
+      "    )",
+      "end",
+      "",
+      "local function resetStyle(layer)",
+      "    setNextRotation(layer, 0)",
+      "    setNextShadow(layer, 0, 0, 0, 0, 0)",
+      "    setNextFillColor(layer, 0, 0, 0, 0)",
+      "    setNextStrokeColor(layer, 0, 0, 0, 0)",
+      "    setNextStrokeWidth(layer, 0)",
+      "    setNextTextAlign(layer, AlignH_Left, AlignV_Middle)",
+      "end",
+      "",
+      "local function applyRotationAndShadow(layer, style)",
+      "    if type(style) ~= \"table\" then",
+      "        return",
+      "    end",
+      "    local rotation = tonumber(style.rotation) or 0",
+      "    if rotation ~= 0 then",
+      "        setNextRotation(layer, rotation)",
+      "    end",
+      "    local shadow = style.shadow",
+      "    local color = shadow and shadow.color or nil",
+      "    local blur = shadow and tonumber(shadow.blur) or 0",
+      "    if color and blur > 0 then",
+      "        setNextShadow(",
+      "            layer,",
+      "            blur,",
+      "            tonumber(color[1]) or 0,",
+      "            tonumber(color[2]) or 0,",
+      "            tonumber(color[3]) or 0,",
+      "            tonumber(color[4]) or 0",
+      "        )",
+      "    end",
+      "end",
+      "",
+      "local function applyShapeStyle(layer, style)",
+      "    applyRotationAndShadow(layer, style)",
+      "    applyFillColor(layer, style and style.fill, {0.2, 0.2, 0.2, 1})",
+      "    applyStrokeColor(layer, style and style.stroke, {1, 1, 1, 1})",
+      "    setNextStrokeWidth(layer, tonumber(style and style.strokeWidth) or 0)",
+      "end",
+      "",
+      "local function applyStrokeStyle(layer, style)",
+      "    applyRotationAndShadow(layer, style)",
+      "    applyStrokeColor(layer, style and style.stroke, {1, 1, 1, 1})",
+      "    setNextStrokeWidth(layer, tonumber(style and style.strokeWidth) or 0)",
+      "end",
+      "",
+      "local function applyImageStyle(layer, style)",
+      "    applyRotationAndShadow(layer, style)",
+      "    if style and style.fill then",
+      "        applyFillColor(layer, style.fill, {0.2, 0.2, 0.2, 1})",
+      "    end",
+      "end",
+      "",
+      "local function applyTextStyle(layer, style)",
+      "    applyRotationAndShadow(layer, style)",
+      "    applyStrokeColor(layer, style and style.stroke, {0, 0, 0, 0})",
+      "    setNextStrokeWidth(layer, tonumber(style and style.strokeWidth) or 0)",
+      "end",
+      "",
+      "local function drawBox(layer, x, y, w, h)",
+      "    addBox(layer, x, y, w, h)",
+      "end",
+      "",
+      "local function drawBoxRounded(layer, x, y, w, h, radius)",
+      "    addBoxRounded(layer, x, y, w, h, tonumber(radius) or 0)",
+      "end",
+      "",
+      "local function drawCircle(layer, x, y, w, h)",
+      "    addCircle(layer, x + w * 0.5, y + h * 0.5, math.min(w, h) * 0.5)",
+      "end",
+      "",
+      "local function drawTriangle(layer, x, y, w, h)",
+      "    addTriangle(layer, x, y, x + w, y, x, y + h)",
+      "end",
+      "",
+      "local function drawQuad(layer, x, y, w, h, inset)",
+      "    local qi = tonumber(inset) or 0.125",
+      "    addQuad(layer, x, y, x + w * (1 - qi), y + h * qi, x + w, y + h, x + w * qi, y + h * (1 - qi))",
+      "end",
+      "",
+      "local function drawBezierArc(layer, x, y, w, h)",
+      "    addBezier(layer, x, y + h, x + w * 0.5, y, x + w, y + h)",
+      "end",
+      "",
+      "local function drawLine(layer, x, y, w, h)",
+      "    addLine(layer, x, y, x + w, y + h)",
+      "end",
+      "",
+      "local function drawImageRect(layer, path, x, y, w, h)",
+      "    local image = loadImageCached(path)",
+      "    if not image then",
+      "        return",
+      "    end",
+      "    addImage(layer, image, x, y, w, h)",
+      "end",
+      "",
+      "local function drawTextBlock(layer, lines, x, y, w, h, options)",
+      "    if type(lines) ~= \"table\" or #lines == 0 then",
+      "        return",
+      "    end",
+      "    local size = math.max(1, math.floor(tonumber(options and options.size) or 16))",
+      "    local font = loadFontCached(size)",
+      "    if not font then",
+      "        return",
+      "    end",
+      "    local align = options and options.align or \"left\"",
+      "    local textX = x + 12",
+      "    local alignH = AlignH_Left",
+      "    if align == \"center\" then",
+      "        textX = x + w * 0.5",
+      "        alignH = AlignH_Center",
+      "    elseif align == \"right\" then",
+      "        textX = x + w - 12",
+      "        alignH = AlignH_Right",
+      "    end",
+      "    setNextTextAlign(layer, alignH, AlignV_Middle)",
+      "    local gap = math.max(2, math.floor(size * 0.2))",
+      "    local startY = y + h * 0.5 - ((#lines - 1) * (size + gap)) * 0.5",
+      "    local color = options and options.color or {1, 1, 1, 1}",
+      "    for index = 1, #lines do",
+      "        applyFillColor(layer, color, {1, 1, 1, 1})",
+      "        addText(layer, font, tostring(lines[index] or \"\"), textX, startY + (index - 1) * (size + gap))",
+      "    end",
+      "end",
+      "",
+      "setBackgroundColor(0, 0, 0)",
+      "local layer = createLayer()"
+    ];
+
+    commands.forEach(function (command, index) {
+      appendReadableCommand(lines, command, index + 1);
+    });
+
+    lines.push("");
+    return lines.join("\n");
+  }
+
+  function buildCompactRenderScriptFromCommands(commandDoc) {
     return [
       "-- Generated by HUD Editor",
+      "-- Screen export mode: compact",
       "local D=" + toLua(commandDoc),
       "local F={}",
       "local I={}",
@@ -5171,6 +5535,14 @@
     ].join("\n");
   }
 
+  function buildRenderScriptFromCommands(commandDoc, options) {
+    var mode = normalizeScreenCodeMode(options);
+    if (mode === "compact") {
+      return buildCompactRenderScriptFromCommands(commandDoc);
+    }
+    return buildReadableRenderScriptFromCommands(commandDoc);
+  }
+
   function buildBoardOnStartCode(doc) {
     var embedded = toLua(cloneDocument(doc));
     return [
@@ -5201,9 +5573,17 @@
     ].join("\n");
   }
 
-  function buildScreenCode(doc) {
+  function buildScreenCode(doc, options) {
     var commandDoc = APP.screenCommands.buildCommandDocument(doc);
-    return commandDoc ? buildRenderScriptFromCommands(commandDoc) : "";
+    return commandDoc ? buildRenderScriptFromCommands(commandDoc, options) : "";
+  }
+
+  function buildScreenCodeReadable(doc) {
+    return buildScreenCode(doc, { mode: "readable" });
+  }
+
+  function buildScreenCodeCompact(doc) {
+    return buildScreenCode(doc, { mode: "compact" });
   }
 
   function queueIdeImport(targetKind, code) {
@@ -5226,11 +5606,11 @@
     return queueIdeImport("lua_editor", buildBoardOnStartCode(doc));
   }
 
-  function exportScreen() {
+  function exportScreen(options) {
     var doc = getDocument();
     var code;
     if (!doc) return { ok: false, error: "no_document" };
-    code = buildScreenCode(doc);
+    code = buildScreenCode(doc, options);
     if (!code) return { ok: false, error: "no_document" };
     if (code.length > SCREEN_SCRIPT_LIMIT) {
       return { ok: false, error: "screen_script_too_long", length: code.length };
@@ -5242,8 +5622,12 @@
     toLua: toLua,
     buildBoardOnStartCode: buildBoardOnStartCode,
     buildRenderScriptFromCommands: buildRenderScriptFromCommands,
+    buildReadableRenderScriptFromCommands: buildReadableRenderScriptFromCommands,
+    buildCompactRenderScriptFromCommands: buildCompactRenderScriptFromCommands,
     buildScreenCommandDocument: APP.screenCommands.buildCommandDocument,
     buildScreenCode: buildScreenCode,
+    buildScreenCodeReadable: buildScreenCodeReadable,
+    buildScreenCodeCompact: buildScreenCodeCompact,
     exportBoard: exportBoard,
     exportScreen: exportScreen
   };
