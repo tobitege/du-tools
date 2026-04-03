@@ -10,6 +10,7 @@
   var DEFAULT_STROKE = [1, 1, 1, 1];
   var DEFAULT_TEXT = [1, 1, 1, 1];
   var DEFAULT_SHADOW = [0, 0, 0, 0];
+  var CLEAR_TEXT_STROKE = [0, 0, 0, 0];
 
   function cloneDocument(doc) {
     return doc ? JSON.parse(JSON.stringify(doc)) : null;
@@ -74,10 +75,11 @@
       h: toFiniteNumber(raw.h, 0),
       l: lines,
       tc: compactColor(raw.textColor, DEFAULT_TEXT),
-      s: compactColor(raw.stroke, DEFAULT_STROKE),
-      sw: toFiniteNumber(raw.strokeWidth, 0),
+      s: CLEAR_TEXT_STROKE.slice(),
+      sw: 0,
       ts: toFiniteNumber(raw.textSize, 16),
-      ta: String(raw.textAlign || "left")
+      ta: String(raw.textAlign || "left"),
+      tv: String(raw.textVAlign || "center")
     };
     return buildCommonStyle(raw, command);
   }

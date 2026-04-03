@@ -17,6 +17,26 @@
     return APP.state && APP.state.document ? APP.state.document : null;
   }
 
+  function isNodeVisible(node) {
+    if (!node) return false;
+    if (node.classList && node.classList.contains("hide")) return false;
+    if (node.style && node.style.display === "none") return false;
+    return node.offsetParent !== null || node === document.activeElement;
+  }
+
+  function getVisibleScreenEditorPanel() {
+    var panels = document.querySelectorAll(".screen_content_editor_panel");
+    var index;
+    var panel;
+    for (index = 0; index < panels.length; index += 1) {
+      panel = panels[index];
+      if (isNodeVisible(panel)) {
+        return panel;
+      }
+    }
+    return null;
+  }
+
   function luaEscapeString(value) {
     return JSON.stringify(String(value == null ? "" : value))
       .replace(/\u2028/g, "\\u2028")
@@ -169,6 +189,7 @@
         {
           size: command.ts != null ? command.ts : 16,
           align: command.ta || "left",
+          valign: command.tv || "center",
           color: command.tc || [1, 1, 1, 1]
         }
       ]) + ")");
@@ -332,8 +353,10 @@
       "        return",
       "    end",
       "    local align = options and options.align or \"left\"",
+      "    local valign = options and options.valign or \"center\"",
       "    local textX = x + 12",
       "    local alignH = AlignH_Left",
+      "    local alignV = AlignV_Middle",
       "    if align == \"center\" then",
       "        textX = x + w * 0.5",
       "        alignH = AlignH_Center",
@@ -341,9 +364,20 @@
       "        textX = x + w - 12",
       "        alignH = AlignH_Right",
       "    end",
-      "    setNextTextAlign(layer, alignH, AlignV_Middle)",
+      "    if valign == \"top\" then",
+      "        alignV = AlignV_Top",
+      "    elseif valign == \"bottom\" then",
+      "        alignV = AlignV_Bottom",
+      "    end",
+      "    setNextTextAlign(layer, alignH, alignV)",
       "    local gap = math.max(2, math.floor(size * 0.2))",
-      "    local startY = y + h * 0.5 - ((#lines - 1) * (size + gap)) * 0.5",
+      "    local blockHeight = #lines * size + (#lines - 1) * gap",
+      "    local startY = y + h * 0.5 - (blockHeight - size) * 0.5",
+      "    if valign == \"top\" then",
+      "        startY = y + 12",
+      "    elseif valign == \"bottom\" then",
+      "        startY = y + h - 12 - (blockHeight - size)",
+      "    end",
       "    local color = options and options.color or {1, 1, 1, 1}",
       "    for index = 1, #lines do",
       "        applyFillColor(layer, color, {1, 1, 1, 1})",
@@ -418,8 +452,10 @@
       "    local f=G(s)",
       "    if not f then return end",
       "    local a=c.ta or \"left\"",
+      "    local va=c.tv or \"center\"",
       "    local x=(tonumber(c.x) or 0)+12",
       "    local h=AlignH_Left",
+      "    local v=AlignV_Middle",
       "    local w=tonumber(c.w) or 0",
       "    if a==\"center\" then",
       "        x=(tonumber(c.x) or 0)+w*0.5",
@@ -428,9 +464,20 @@
       "        x=(tonumber(c.x) or 0)+w-12",
       "        h=AlignH_Right",
       "    end",
-      "    setNextTextAlign(l,h,AlignV_Middle)",
+      "    if va==\"top\" then",
+      "        v=AlignV_Top",
+      "    elseif va==\"bottom\" then",
+      "        v=AlignV_Bottom",
+      "    end",
+      "    setNextTextAlign(l,h,v)",
       "    local g=math.max(2,math.floor(s*0.2))",
-      "    local y=(tonumber(c.y) or 0)+(tonumber(c.h) or 0)*0.5-((#lines-1)*(s+g))*0.5",
+      "    local bh=#lines*s+(#lines-1)*g",
+      "    local y=(tonumber(c.y) or 0)+(tonumber(c.h) or 0)*0.5-(bh-s)*0.5",
+      "    if va==\"top\" then",
+      "        y=(tonumber(c.y) or 0)+12",
+      "    elseif va==\"bottom\" then",
+      "        y=(tonumber(c.y) or 0)+(tonumber(c.h) or 0)-12-(bh-s)",
+      "    end",
       "    local tc=c.tc or {1,1,1,1}",
       "    for i=1,#lines do",
       "        FC(l,tc,{1,1,1,1})",
@@ -586,12 +633,26 @@
     var doc = getDocument();
     var code;
     if (!doc) return { ok: false, error: "no_document" };
+    if (!getVisibleScreenEditorPanel()) {
+      return { ok: false, error: "screen_editor_not_visible" };
+    }
     code = buildScreenCode(doc, options);
     if (!code) return { ok: false, error: "no_document" };
     if (code.length > SCREEN_SCRIPT_LIMIT) {
       return { ok: false, error: "screen_script_too_long", length: code.length };
     }
     return queueIdeImport("screen_editor", code);
+  }
+
+  function canPublishScreenViaBoard() {
+    return !!(
+      APP &&
+      APP.databank &&
+      typeof APP.databank.publishScreenViaBoard === "function" &&
+      APP.bridge &&
+      typeof APP.bridge.isAvailable === "function" &&
+      APP.bridge.isAvailable()
+    );
   }
 
   APP.ideExport = {
@@ -618,9 +679,15 @@
   });
 
   APP.on("export-screen", function () {
+    if (canPublishScreenViaBoard()) {
+      APP.emit("publish-screen-via-board");
+      return;
+    }
     var result = exportScreen();
     if (result && result.ok) {
       APP.emit("toast", { type: "success", text: "Screen export queued" });
+    } else if (result && result.error === "screen_editor_not_visible") {
+      APP.emit("toast", { type: "error", text: "Open the linked screen editor, then export again" });
     } else if (result && result.error === "screen_script_too_long") {
       APP.emit("toast", { type: "error", text: "Screen export too long: " + result.length });
     } else {

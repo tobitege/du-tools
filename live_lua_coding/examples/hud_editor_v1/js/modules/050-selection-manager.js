@@ -37,18 +37,32 @@
     return activeIds().length >= 2;
   }
 
-  function getGroupBounds() {
+  function getBoundsForIds(targetIds) {
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    var members = groupState.memberIds.slice();
-    for (var i = 0; i < members.length; i++) {
-      var el = APP.canvas.getElementById(members[i]);
+    for (var i = 0; i < targetIds.length; i++) {
+      var el = APP.canvas.getElementById(targetIds[i]);
       if (!el) continue;
       if (el.x < minX) minX = el.x;
       if (el.y < minY) minY = el.y;
       if (el.x + el.w > maxX) maxX = el.x + el.w;
       if (el.y + el.h > maxY) maxY = el.y + el.h;
     }
+    if (minX === Infinity || minY === Infinity || maxX === -Infinity || maxY === -Infinity) {
+      return null;
+    }
     return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  }
+
+  function getGroupBounds() {
+    var members = groupState.memberIds.slice();
+    if (members.length === 0) return null;
+    return getBoundsForIds(members);
+  }
+
+  function getAggregateBounds() {
+    var selectedIds = activeIds();
+    if (selectedIds.length === 0) return null;
+    return getBoundsForIds(selectedIds);
   }
 
   // ─── Hit testing ───────────────────────────────────────────────────
@@ -595,7 +609,8 @@
     if (!isAggregateSelection()) return;
 
     var handleType = handle.dataset.h;
-    var bounds = getGroupBounds();
+    var bounds = getAggregateBounds();
+    if (!bounds || bounds.w <= 0 || bounds.h <= 0) return;
 
     var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
     if (!preview) return;
@@ -786,24 +801,34 @@
 
     if (APP.undoRedo) APP.undoRedo.push();
 
-    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (var j = 0; j < elems.length; j++) {
-      var el = elems[j];
-      if (el.x < minX) minX = el.x;
-      if (el.y < minY) minY = el.y;
-      if (el.x + el.w > maxX) maxX = el.x + el.w;
-      if (el.y + el.h > maxY) maxY = el.y + el.h;
+    var anchorId = APP.state.selectedElementId;
+    if (!anchorId || arr.indexOf(anchorId) === -1) {
+      anchorId = arr[arr.length - 1];
     }
+    var anchor = APP.canvas.getElementById(anchorId);
+    if (!anchor) {
+      anchor = elems[elems.length - 1];
+    }
+    if (!anchor) return;
+
+    var anchorLeft = Number(anchor.x) || 0;
+    var anchorTop = Number(anchor.y) || 0;
+    var anchorWidth = Math.max(0, Number(anchor.w) || 0);
+    var anchorHeight = Math.max(0, Number(anchor.h) || 0);
+    var anchorRight = anchorLeft + anchorWidth;
+    var anchorBottom = anchorTop + anchorHeight;
+    var anchorCenterX = anchorLeft + anchorWidth / 2;
+    var anchorCenterY = anchorTop + anchorHeight / 2;
 
     for (var k = 0; k < elems.length; k++) {
       var elem = elems[k];
       switch (mode) {
-        case "left":      elem.x = minX; break;
-        case "right":     elem.x = maxX - elem.w; break;
-        case "center-h":  elem.x = minX + (maxX - minX) / 2 - elem.w / 2; break;
-        case "top":       elem.y = minY; break;
-        case "bottom":    elem.y = maxY - elem.h; break;
-        case "center-v":  elem.y = minY + (maxY - minY) / 2 - elem.h / 2; break;
+        case "left":      elem.x = anchorLeft; break;
+        case "right":     elem.x = anchorRight - elem.w; break;
+        case "center-h":  elem.x = anchorCenterX - elem.w / 2; break;
+        case "top":       elem.y = anchorTop; break;
+        case "bottom":    elem.y = anchorBottom - elem.h; break;
+        case "center-v":  elem.y = anchorCenterY - elem.h / 2; break;
       }
       APP.canvas.updateElement(elem.id);
     }

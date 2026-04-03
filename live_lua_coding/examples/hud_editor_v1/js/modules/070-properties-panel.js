@@ -47,18 +47,87 @@
     });
   }
 
+  function supportsTextEditing(element) {
+    return !!element && element.type !== "line";
+  }
+
+  function setPanelEmptyState() {
+    var panel = qs("#properties-panel");
+    if (!panel) return;
+    panel.classList.add("visible");
+    panel.classList.add("is-empty");
+    panel.dataset.activeTab = "shape";
+    var textTabButton = qs('[data-panel-tab-btn="text"]', panel);
+    var deleteRow = qs('[data-prop-row="delete"]', panel);
+    if (textTabButton) textTabButton.style.display = "none";
+    if (deleteRow) deleteRow.style.display = "none";
+    qsa("[data-panel-tab-btn]", panel).forEach(function (button) {
+      button.classList.toggle("active", button.dataset.panelTabBtn === "shape");
+    });
+    qsa("[data-panel-tab-page]", panel).forEach(function (page) {
+      page.classList.toggle("active", page.dataset.panelTabPage === "shape");
+    });
+  }
+
+  function clearPanelEmptyState() {
+    var panel = qs("#properties-panel");
+    if (!panel) return;
+    panel.classList.remove("is-empty");
+    var deleteRow = qs('[data-prop-row="delete"]', panel);
+    if (deleteRow) deleteRow.style.display = "";
+  }
+
+  function syncPropDropdown(prop, value) {
+    var panel = qs("#properties-panel");
+    if (!panel) return;
+    var dropdown = qs('[data-prop-dropdown="' + prop + '"]', panel);
+    if (!dropdown) return;
+    var nextValue = String(value || "");
+    dropdown.dataset.value = nextValue;
+    var label = qs('[data-prop-dropdown-label="' + prop + '"]', dropdown);
+    var activeText = "";
+    qsa('[data-prop-dropdown-value]', dropdown).forEach(function (option) {
+      var isActive = option.dataset.propDropdownValue === prop && option.dataset.value === nextValue;
+      option.classList.toggle("active", isActive);
+      if (isActive) activeText = option.textContent || "";
+    });
+    if (label) label.textContent = activeText || nextValue;
+  }
+
+  function closePropDropdowns() {
+    var panel = qs("#properties-panel");
+    if (!panel) return;
+    qsa(".prop-dropdown.open", panel).forEach(function (dropdown) {
+      dropdown.classList.remove("open");
+    });
+  }
+
+  function setActivePanelTab(tabName) {
+    var panel = qs("#properties-panel");
+    if (!panel) return;
+    var nextTab = tabName === "text" ? "text" : "shape";
+    panel.dataset.activeTab = nextTab;
+    qsa("[data-panel-tab-btn]", panel).forEach(function (button) {
+      button.classList.toggle("active", button.dataset.panelTabBtn === nextTab);
+    });
+    qsa("[data-panel-tab-page]", panel).forEach(function (page) {
+      page.classList.toggle("active", page.dataset.panelTabPage === nextTab);
+    });
+  }
+
   // ─── Property sync: document → panel ───────────────────────────────
 
   function populatePanel(elementId) {
     var element = APP.canvas.getElementById(elementId);
     if (!element) {
-      hidePanel();
+      setPanelEmptyState();
       return;
     }
 
     var panel = qs("#properties-panel");
     if (!panel) return;
 
+    clearPanelEmptyState();
     panel.classList.add("visible");
 
     // Position X/Y
@@ -72,31 +141,39 @@
     var rotationInput = qs('[data-prop="rotation"]', panel);
     var shadowBlurInput = qs('[data-prop="shadowBlur"]', panel);
     var textSizeInput = qs('[data-prop="textSize"]', panel);
-    var textAlignInput = qs('[data-prop="textAlign"]', panel);
     var imageSrcInput = qs('[data-prop="imageSrc"]', panel);
+    var textTabButton = qs('[data-panel-tab-btn="text"]', panel);
 
     if (xInput) xInput.value = Math.round(element.x);
     if (yInput) yInput.value = Math.round(element.y);
     if (wInput) wInput.value = Math.round(element.w);
     if (hInput) hInput.value = Math.round(element.h);
     if (rotationInput) rotationInput.value = String(Number(element.rotation) || 0);
-    if (shadowBlurInput) shadowBlurInput.value = String(Number(element.shadowBlur) || 0);
+    if (shadowBlurInput) setStepperValue(shadowBlurInput, Number(element.shadowBlur) || 0);
     // Radius only applies to box / boxRounded
     var radiusRow = qs('[data-prop-row="radius"]', panel);
     var showRadius = (element.type === "box" || element.type === "boxRounded");
     if (radiusRow) radiusRow.style.display = showRadius ? "" : "none";
     var textRows = ["textLines", "textColor", "textSize", "textAlign"];
+    var showText = supportsTextEditing(element);
+    var textVAlignRow = qs('[data-prop-row="textVAlign"]', panel);
     textRows.forEach(function (rowName) {
       var row = qs('[data-prop-row="' + rowName + '"]', panel);
-      if (row) row.style.display = element.type === "text" ? "" : "none";
+      if (row) row.style.display = showText ? "" : "none";
     });
+    if (textVAlignRow) textVAlignRow.style.display = showText ? "" : "none";
+    if (textTabButton) textTabButton.style.display = showText ? "" : "none";
+    if (!showText && panel.dataset.activeTab === "text") {
+      setActivePanelTab("shape");
+    }
     var imageRow = qs('[data-prop-row="imageSrc"]', panel);
     if (imageRow) imageRow.style.display = element.type === "image" ? "" : "none";
 
     if (radiusInput && showRadius) setStepperValue(radiusInput, element.radius || 0);
     if (strokeWidthInput) setStepperValue(strokeWidthInput, element.strokeWidth || 0);
-    if (textSizeInput) textSizeInput.value = String(Number(element.textSize) || 16);
-    if (textAlignInput) textAlignInput.value = String(element.textAlign || "left");
+    if (textSizeInput) setStepperValue(textSizeInput, Number(element.textSize) || 16);
+    syncPropDropdown("textAlign", String(element.textAlign || "left"));
+    syncPropDropdown("textVAlign", String(element.textVAlign || "center"));
     if (imageSrcInput) imageSrcInput.value = String(element.imageSrc || "");
 
     // Colors — update both panel and toolbar pickers
@@ -134,6 +211,10 @@
     fill: 1,
     stroke: 1,
     strokeWidth: 1,
+    textColor: 1,
+    textSize: 1,
+    textAlign: 1,
+    textVAlign: 1,
     rotation: 1,
     shadowBlur: 1,
     shadowColor: 1
@@ -210,7 +291,7 @@
           changed = true;
           break;
         case "textLines":
-          element.textLines = value.split("\n");
+          element.textLines = value ? value.split("\n") : [];
           changed = true;
           break;
         case "textSize":
@@ -219,6 +300,10 @@
           break;
         case "textAlign":
           element.textAlign = String(value || "left");
+          changed = true;
+          break;
+        case "textVAlign":
+          element.textVAlign = String(value || "center");
           changed = true;
           break;
         case "imageSrc":
@@ -491,8 +576,35 @@
     var button = e.target.closest("#properties-panel [data-color-prop]");
     if (!button) return;
     var prop = button.dataset.colorProp;
-    if (prop !== "fill" && prop !== "stroke") return;
+    if (prop !== "fill" && prop !== "stroke" && prop !== "textColor" && prop !== "shadowColor") return;
     openColorDialog(prop);
+  }
+
+  function onPanelTabClick(e) {
+    var button = e.target.closest("#properties-panel [data-panel-tab-btn]");
+    if (!button) return;
+    if (button.style.display === "none") return;
+    closePropDropdowns();
+    setActivePanelTab(button.dataset.panelTabBtn || "shape");
+  }
+
+  function onPropDropdownClick(e) {
+    var option = e.target.closest("#properties-panel [data-prop-dropdown-value]");
+    if (option) {
+      var prop = option.dataset.propDropdownValue;
+      var value = option.dataset.value;
+      closePropDropdowns();
+      syncPropDropdown(prop, value);
+      applyPanelChange(prop, value);
+      return;
+    }
+    var trigger = e.target.closest("#properties-panel [data-prop-dropdown-trigger]");
+    if (!trigger) return;
+    var dropdown = trigger.closest(".prop-dropdown");
+    if (!dropdown) return;
+    var willOpen = !dropdown.classList.contains("open");
+    closePropDropdowns();
+    dropdown.classList.toggle("open", willOpen);
   }
 
   // ─── Attach panel events ───────────────────────────────────────────
@@ -517,10 +629,14 @@
 
     // Stepper clicks (+/−) and select changes — use delegation on panel
     panel.removeEventListener("click", onPanelColorClick);
+    panel.removeEventListener("click", onPanelTabClick);
+    panel.removeEventListener("click", onPropDropdownClick);
     panel.removeEventListener("click",  onStepperClick);
     panel.removeEventListener("change", onStepperChange);
     panel.removeEventListener("change", onSelectChange);
     panel.addEventListener("click", onPanelColorClick);
+    panel.addEventListener("click", onPanelTabClick);
+    panel.addEventListener("click", onPropDropdownClick);
     panel.addEventListener("click",  onStepperClick);
     panel.addEventListener("change", onStepperChange);
     panel.addEventListener("change", onSelectChange);
@@ -532,10 +648,16 @@
     if (elementId) {
       populatePanel(elementId);
       showPanel();
+      if (!qs("#properties-panel").dataset.activeTab) {
+        setActivePanelTab("shape");
+      }
       attachPanelListeners();
       attachDragListener();
     } else {
-      hidePanel();
+      setPanelEmptyState();
+      showPanel();
+      attachPanelListeners();
+      attachDragListener();
     }
   });
 
@@ -545,6 +667,12 @@
       attachDragListener();
       attachHoverOpenListener();
       attachToolbarColorListeners();
+      if (APP.state.selectedElementId) {
+        populatePanel(APP.state.selectedElementId);
+      } else {
+        setPanelEmptyState();
+        showPanel();
+      }
     }, 200);
   });
 
@@ -563,6 +691,11 @@
   APP.on("auto-open-panels-changed", function (enabled) {
     var panel = qs("#properties-panel");
     if (!enabled && panel) panel.classList.remove("hover-open");
+  });
+
+  document.addEventListener("click", function (e) {
+    if (e.target.closest("#properties-panel .prop-dropdown")) return;
+    closePropDropdowns();
   });
 
 })();

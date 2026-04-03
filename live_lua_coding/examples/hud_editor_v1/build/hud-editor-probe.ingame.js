@@ -1,6 +1,6 @@
 // HUD Editor Probe - Lua Painter
 // Project: D:\github\du-tobi\live_lua_coding\examples\hud_editor_v1
-// Built: 2026-04-03T06:16:21Z
+// Built: 2026-04-03T15:55:41Z
 
 // Inlined CSS
 (function injectCSS() {
@@ -10,7 +10,7 @@
   }
   var style = document.createElement('style');
   style.id = 'hud-editor-styles';
-  style.textContent = "/* hud-editor.css - All HUD Editor styles\n   Project: D:\\\\github\\\\du-tobi\\\\live_lua_coding\\\\examples\\\\hud_editor_v1\n   Self-contained - does NOT use ModUiExtractor core styles\n*/\n\n/* ─── Root container ────────────────────────────────────────────────── */\n\n#hud-editor-root {\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n  z-index: 99999;\n  pointer-events: none;\n  font-family: 'Rajdhani', 'Segoe UI', Tahoma, sans-serif;\n  font-size: 14px;\n  color: #ccc;\n  background: rgba(0, 0, 0, 0.70);\n  display: none;\n  overflow: hidden;\n  user-select: none;\n  -webkit-user-select: none;\n  -moz-user-select: none;\n  -ms-user-select: none;\n}\n\n#hud-editor-root[style*=\"block\"] {\n  pointer-events: auto;\n}\n\n/* ─── Screens ────────────────────────────────────────────────────────── */\n\n.hud-screen {\n  display: none;\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n}\n\n.hud-screen.active {\n  display: flex;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           START SCREEN                                */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"start\"] {\n  width: 80vw;\n  height: 80vh;\n  top: 10vh;\n  left: 10vw;\n  align-items: center;\n  justify-content: center;\n  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);\n  overflow: auto;\n}\n\n.start-container {\n  text-align: center;\n  max-width: 520px;\n  padding: 48px;\n}\n\n.start-header h1 {\n  font-size: 52px;\n  font-weight: 700;\n  color: #fff;\n  margin: 0 0 8px 0;\n  text-shadow: 0 0 30px rgba(14, 233, 231, 0.4);\n  letter-spacing: 1px;\n}\n\n.start-header .subtitle {\n  color: #777;\n  font-size: 18px;\n  margin: 0 0 48px 0;\n}\n\n.start-menu {\n  display: flex;\n  flex-direction: column;\n  gap: 14px;\n}\n\n.start-context-card {\n  display: flex;\n  flex-direction: column;\n  gap: 10px;\n  margin-bottom: 18px;\n  padding: 14px 16px;\n  background: rgba(255, 255, 255, 0.035);\n  border: 1px solid rgba(255, 255, 255, 0.07);\n  border-radius: 12px;\n}\n\n.start-context-title {\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.12em;\n  text-transform: uppercase;\n  color: #8a91a4;\n}\n\n.start-context-pill,\n.editor-context-pill {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 28px;\n  padding: 0 12px;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 999px;\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n}\n\n.start-context-pill.is-online,\n.editor-context-pill.is-online {\n  background: rgba(14, 233, 231, 0.14);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #94fffd;\n}\n\n.start-context-pill.is-offline,\n.editor-context-pill.is-offline {\n  background: rgba(255, 196, 92, 0.12);\n  border-color: rgba(255, 196, 92, 0.28);\n  color: #ffcf7c;\n}\n\n.start-context-copy {\n  margin: 0;\n  font-size: 13px;\n  line-height: 1.45;\n  color: #8e96ab;\n}\n\n.menu-btn {\n  display: flex;\n  align-items: center;\n  width: 100%;\n  padding: 18px 24px;\n  background: rgba(255, 255, 255, 0.04);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 12px;\n  cursor: pointer;\n  transition: all 0.2s ease;\n  text-align: left;\n  color: inherit;\n  font-family: inherit;\n  font-size: 16px;\n}\n\n.menu-btn:hover {\n  background: rgba(14, 233, 231, 0.08);\n  border-color: rgba(14, 233, 231, 0.3);\n  transform: translateX(6px);\n}\n\n.menu-btn.primary {\n  background: rgba(14, 233, 231, 0.10);\n  border-color: rgba(14, 233, 231, 0.3);\n}\n\n.menu-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.18);\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.menu-btn:disabled,\n.status-btn:disabled,\n.btn:disabled {\n  cursor: not-allowed;\n  opacity: 0.48;\n  transform: none;\n  box-shadow: none;\n}\n\n.menu-btn:disabled:hover,\n.status-btn:disabled:hover,\n.btn:disabled:hover {\n  background: inherit;\n  border-color: inherit;\n  color: inherit;\n  transform: none;\n}\n\n.menu-btn .icon {\n  font-size: 26px;\n  margin-right: 18px;\n  width: 32px;\n  text-align: center;\n  flex-shrink: 0;\n}\n\n.menu-btn .label-group {\n  display: flex;\n  flex-direction: column;\n}\n\n.menu-btn .label {\n  color: #fff;\n  font-size: 20px;\n  font-weight: 600;\n}\n\n.menu-btn .desc {\n  color: #666;\n  font-size: 13px;\n  margin-top: 3px;\n}\n\n.start-footer {\n  margin-top: 40px;\n}\n\n.hint {\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EDITOR SCREEN                               */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"editor\"] {\n  top: 8vh;\n  left: 6vw;\n  width: 88vw;\n  height: 84vh;\n  flex-direction: column;\n  background: #12121a;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* ─── Toolbar ────────────────────────────────────────────────────────── */\n\n#editor-toolbar {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  padding: 5px 10px;\n  background: linear-gradient(180deg, #1c1c28 0%, #16161e 100%);\n  border-bottom: 1px solid #0e0e14;\n  flex-shrink: 0;\n  height: 50px;\n}\n\n.toolbar-group {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n}\n\n.toolbar-divider {\n  width: 1px;\n  height: 26px;\n  background: linear-gradient(180deg, transparent 0%, #2a2a3a 30%, #2a2a3a 70%, transparent 100%);\n  margin: 0 8px;\n}\n\n.toolbar-spacer {\n  flex: 1;\n}\n\n.toolbar-dropdown {\n  position: relative;\n}\n\n/* Tool & action buttons — bordered, recessed panel look */\n.tool-btn,\n.action-btn {\n  position: relative;\n  display: inline-flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  width: 46px;\n  height: 44px;\n  padding: 0;\n  border: 1px solid #2a2a36;\n  border-radius: 5px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  color: #8f98ac;\n  cursor: pointer;\n  transition: all 0.12s ease;\n  font-family: inherit;\n}\n\n.tool-btn:hover,\n.action-btn:hover {\n  background: linear-gradient(180deg, #2a2a38 0%, #22222e 100%);\n  border-color: #3a3a4a;\n  color: #b0b8c8;\n}\n\n.tool-btn:active,\n.action-btn:active {\n  background: linear-gradient(180deg, #181822 0%, #1e1e28 100%);\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);\n}\n\n.tool-btn.active {\n  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);\n}\n\n.toolbar-dropdown-trigger.active,\n.toolbar-dropdown.open .toolbar-dropdown-trigger {\n  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);\n}\n\n.toolbar-dropdown-caret {\n  position: absolute;\n  right: 4px;\n  bottom: 2px;\n  font-size: 10px;\n  line-height: 1;\n  color: currentColor;\n  opacity: 0.9;\n}\n\n.toolbar-dropdown-menu {\n  position: absolute;\n  top: calc(100% + 8px);\n  left: 0;\n  min-width: 188px;\n  padding: 6px;\n  border: 1px solid #2a2a3a;\n  border-radius: 10px;\n  background: linear-gradient(180deg, rgba(28, 30, 43, 0.98), rgba(16, 18, 27, 0.98));\n  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);\n  display: none;\n  flex-direction: column;\n  gap: 4px;\n  z-index: 320;\n}\n\n.toolbar-dropdown.open .toolbar-dropdown-menu {\n  display: flex;\n}\n\n.dropdown-tool-btn {\n  width: 100%;\n  min-height: 40px;\n  height: auto;\n  padding: 8px 10px;\n  flex-direction: row;\n  justify-content: flex-start;\n  gap: 10px;\n}\n\n.dropdown-tool-btn .tb-icon {\n  width: 22px;\n  height: 22px;\n  flex-shrink: 0;\n}\n\n.dropdown-tool-copy {\n  display: flex;\n  min-width: 0;\n  flex: 1;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n}\n\n.dropdown-tool-title {\n  font-size: 13px;\n  font-weight: 600;\n  color: #dce4f3;\n  white-space: nowrap;\n}\n\n.dropdown-tool-key {\n  font-size: 11px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  color: #70809b;\n  text-transform: uppercase;\n}\n\n.dropdown-tool-btn.active .dropdown-tool-title,\n.dropdown-tool-btn.active .dropdown-tool-key {\n  color: inherit;\n}\n\n/* Icon shape — rendered via CSS */\n.tb-icon {\n  display: block;\n  width: 26px;\n  height: 26px;\n  position: relative;\n}\n\n/* Select tool — mouse pointer arrow */\n.tb-icon-select::before,\n.tb-icon-box::before,\n.tb-icon-rounded::before,\n.tb-icon-circle::before,\n.tb-icon-line::before,\n.tb-icon-text::before {\n  content: none;\n}\n\n.tb-icon-select::after {\n  content: none;\n}\n\n.tb-icon-glyph {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-weight: 700;\n  line-height: 1;\n  color: currentColor;\n  text-shadow: 0 0 8px rgba(255, 255, 255, 0.04);\n  font-family: \"Segoe UI Symbol\", \"Segoe UI\", Arial, sans-serif;\n}\n\n.tb-icon-glyph-select {\n  font-size: 24px;\n}\n\n.tb-icon-glyph-box,\n.tb-icon-glyph-rounded,\n.tb-icon-glyph-circle {\n  font-size: 23px;\n}\n\n.tb-icon-glyph-line {\n  font-size: 27px;\n  transform: translateY(-1px) scaleX(1.08);\n}\n\n.tb-icon-glyph-text {\n  font-size: 22px;\n  font-family: inherit;\n}\n\n.dropdown-tool-btn .tb-icon-glyph-line {\n  transform: translateY(-1px);\n}\n\n/* Alignment icons — bar + rectangle pattern */\n.tb-icon-align-left::before,\n.tb-icon-align-right::before,\n.tb-icon-align-center-h::before,\n.tb-icon-align-top::before,\n.tb-icon-align-bottom::before,\n.tb-icon-align-center-v::before {\n  content: \"\";\n  position: absolute;\n  background: currentColor;\n}\n\n.tb-icon-align-left::after,\n.tb-icon-align-right::after,\n.tb-icon-align-center-h::after,\n.tb-icon-align-top::after,\n.tb-icon-align-bottom::after,\n.tb-icon-align-center-v::after {\n  content: \"\";\n  position: absolute;\n  border: 2px solid currentColor;\n  border-radius: 1px;\n  box-sizing: border-box;\n}\n\n/* Align icons use a tighter centered draw box */\n.tb-icon-align-left::before  { left: 2px; top: 2px; width: 2px; height: 14px; }\n.tb-icon-align-left::after   { left: 7px; top: 50%; width: 10px; height: 7px; transform: translateY(-50%); }\n\n.tb-icon-align-right::before { right: 2px; top: 2px; width: 2px; height: 14px; }\n.tb-icon-align-right::after  { right: 7px; top: 50%; width: 10px; height: 7px; transform: translateY(-50%); }\n\n.tb-icon-align-center-h::before { left: 50%; top: 2px; width: 2px; height: 14px; transform: translateX(-50%); }\n.tb-icon-align-center-h::after  { left: 50%; top: 50%; width: 10px; height: 7px; transform: translate(-50%, -50%); }\n\n.tb-icon-align-top::before { top: 2px; left: 2px; height: 2px; width: 14px; }\n.tb-icon-align-top::after  { top: 7px; left: 50%; width: 7px; height: 10px; transform: translateX(-50%); }\n\n.tb-icon-align-bottom::before { bottom: 2px; left: 2px; height: 2px; width: 14px; }\n.tb-icon-align-bottom::after  { bottom: 7px; left: 50%; width: 7px; height: 10px; transform: translateX(-50%); }\n\n.tb-icon-align-center-v::before { top: 50%; left: 2px; height: 2px; width: 14px; transform: translateY(-50%); }\n.tb-icon-align-center-v::after  { top: 50%; left: 50%; width: 7px; height: 10px; transform: translate(-50%, -50%); }\n\n/* Clone tool — two overlapping rectangles with plus */\n.tb-icon-clone::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-clone::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  background-image:\n    linear-gradient(currentColor, currentColor),\n    linear-gradient(currentColor, currentColor);\n  background-repeat: no-repeat;\n  background-size: 5px 1.5px, 1.5px 5px;\n  background-position: center center, center center;\n}\n\n/* Group tool — overlapping grouped rectangles */\n.tb-icon-group::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-group::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  opacity: 0.9;\n}\n\n/* Ungroup tool — two separated rectangles */\n.tb-icon-ungroup::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  bottom: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-ungroup::after {\n  content: \"\";\n  position: absolute;\n  right: 0;\n  top: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Keyboard hint */\n.tb-key {\n  display: none;\n}\n\n.tool-btn.active .tb-key {\n  opacity: 0.65;\n}\n\n/* Action buttons (undo/redo) */\n.action-btn {\n  width: 46px;\n  height: 44px;\n}\n\n.action-btn .tb-icon {\n  font-size: 20px;\n  width: 24px;\n  height: 24px;\n}\n\n/* ─── Color swatches ─────────────────────────────────────────────────── */\n\n.toolbar-group.colors {\n  gap: 12px;\n  margin: 0 10px 0 6px;\n  padding: 0 8px;\n}\n\n.swatch-pair {\n  display: flex;\n  align-items: center;\n  gap: 14px;\n  margin-right: 10px;\n  padding: 0 10px;\n}\n\n.swatch-pair:last-child {\n  margin-right: 0;\n}\n\n.swatch-label {\n  min-width: 40px;\n  font-size: 11px;\n  font-weight: 600;\n  color: #7e879c;\n  text-transform: uppercase;\n  letter-spacing: 0.7px;\n  text-align: right;\n  margin-right: 6px;\n}\n\n.color-swatch-btn,\n.prop-color-btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 34px;\n  height: 34px;\n  appearance: none;\n  -webkit-appearance: none;\n  border: 1px solid #2a2a36;\n  border-radius: 6px;\n  cursor: pointer;\n  background-color: #1b1b25;\n  background-image: linear-gradient(180deg, #232332 0%, #171721 100%);\n  padding: 3px;\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  transition: border-color 0.12s ease, transform 0.12s ease;\n  flex-shrink: 0;\n  margin-left: 6px;\n}\n\n.color-swatch-btn:hover,\n.prop-color-btn:hover {\n  border-color: #4a4a5a;\n  transform: translateY(-1px);\n}\n\n.color-swatch-chip,\n.prop-color-chip {\n  width: 24px;\n  height: 24px;\n  display: block;\n  border-radius: 4px;\n  background: var(--swatch-color, #ffffff);\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);\n  flex: 0 0 auto;\n}\n\n.prop-color-btn {\n  width: 42px;\n  margin-left: auto;\n}\n\n.prop-color-chip {\n  width: 30px;\n  height: 30px;\n}\n\n.size-input {\n  width: 56px;\n  height: 36px;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 6px;\n  text-align: center;\n  font-family: inherit;\n}\n\n.size-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n/* ─── Canvas area ────────────────────────────────────────────────────── */\n\n#canvas-container {\n  flex: 1;\n  overflow: hidden;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 20px;\n  background: #0a0a10;\n  position: relative;\n}\n\n#canvas-preview {\n  position: relative;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* Canvas elements (rendered from document.elements) */\n.canvas-element {\n  position: absolute;\n  box-sizing: border-box;\n  cursor: pointer;\n  transition: opacity 0.1s ease;\n}\n\n.canvas-element:hover {\n  opacity: 0.85;\n}\n\n.canvas-element.selected {\n  outline: 2px solid rgba(14, 233, 231, 0.9);\n  outline-offset: 2px;\n  cursor: move;\n}\n\n/* Selection handles */\n.resize-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #0ee9e7;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.resize-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.resize-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.resize-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.resize-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.resize-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.resize-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n/* Group selection overlay — orange bounding box */\n.group-overlay {\n  position: absolute;\n  pointer-events: none;\n  z-index: 90;\n}\n\n.group-outline {\n  position: absolute;\n  inset: 0;\n  border: 2px solid rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.04);\n}\n\n/* Group resize handles — same as individual but orange */\n.group-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #ff8c00;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.group-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.group-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.group-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.group-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.group-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.group-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n.toolbar-check {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  padding: 0 8px;\n  min-height: 32px;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(35, 39, 56, 0.96), rgba(23, 25, 36, 0.96));\n  color: #9aa4ba;\n  cursor: pointer;\n  user-select: none;\n}\n\n.toolbar-check:hover {\n  border-color: #3b465f;\n  color: #cfd8e8;\n}\n\n.toolbar-check-input {\n  position: absolute;\n  opacity: 0;\n  pointer-events: none;\n}\n\n.toolbar-check-box {\n  width: 13px;\n  height: 13px;\n  border: 1px solid #4a556d;\n  border-radius: 3px;\n  background: rgba(9, 12, 18, 0.85);\n  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);\n  position: relative;\n  flex-shrink: 0;\n}\n\n.toolbar-check-input:checked + .toolbar-check-box {\n  border-color: rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.18);\n}\n\n.toolbar-check-input:checked + .toolbar-check-box::after {\n  content: \"\";\n  position: absolute;\n  left: 3px;\n  top: 1px;\n  width: 4px;\n  height: 7px;\n  border: solid #ffb04d;\n  border-width: 0 2px 2px 0;\n  transform: rotate(45deg);\n}\n\n.toolbar-check-label {\n  font-size: 11px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  white-space: nowrap;\n}\n\n/* ─── Layers / shapes panel ────────────────────────────────────────── */\n\n#shapes-panel {\n  position: absolute;\n  right: 12px;\n  top: 72px;\n  width: 240px;\n  min-width: 180px;\n  min-height: 80px;\n  max-height: 60vh;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow: hidden;\n  resize: both;\n  display: none;\n  flex-direction: column;\n}\n\n#shapes-panel.visible {\n  display: flex;\n}\n\n.shapes-list {\n  flex: 1;\n  overflow-y: auto;\n  overflow-x: hidden;\n  padding: 6px;\n}\n\n.layers-empty {\n  padding: 16px;\n  text-align: center;\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* Layer item row */\n.layer-item {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 5px 8px;\n  margin-bottom: 6px;\n  cursor: pointer;\n  transition: background 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;\n  border: 1px solid #2a2a36;\n  border-left: 3px solid transparent;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);\n}\n\n.layer-item:hover {\n  background: linear-gradient(180deg, #272734 0%, #1d1d28 100%);\n  border-color: #363646;\n}\n\n.layer-item.selected {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.12) 0%, rgba(14, 233, 231, 0.07) 100%);\n  border-color: rgba(14, 233, 231, 0.22);\n  border-left-color: #0ee9e7;\n}\n\n.layer-group-box {\n  margin-bottom: 8px;\n  padding: 6px;\n  border: 1px solid rgba(255, 140, 0, 0.42);\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(255, 140, 0, 0.08) 0%, rgba(72, 44, 17, 0.26) 100%);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.04);\n}\n\n.layer-group-box.selected {\n  border-color: rgba(255, 140, 0, 0.85);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.10);\n}\n\n.layer-item.grouped-member {\n  padding-left: 10px;\n}\n\n.layer-group-sep {\n  height: 1px;\n  margin: 2px 6px 8px;\n  background: linear-gradient(90deg, transparent 0%, #2f3242 18%, #2f3242 82%, transparent 100%);\n}\n\n.layer-icon {\n  width: 18px;\n  text-align: center;\n  font-size: 14px;\n  color: #666;\n  flex-shrink: 0;\n}\n\n.layer-item.selected .layer-icon {\n  color: #0ee9e7;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-icon {\n  color: #ffb04d;\n}\n\n.layer-name {\n  flex: 1;\n  font-size: 12px;\n  color: #aaa;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.layer-item.selected .layer-name {\n  color: #ddd;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-name {\n  color: #e5d0b4;\n}\n\n/* Layer action buttons (visibility, z-order) */\n.layer-btn {\n  width: 22px;\n  height: 22px;\n  border: none;\n  background: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 12px;\n  border-radius: 3px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  flex-shrink: 0;\n  padding: 0;\n  transition: all 0.1s ease;\n}\n\n.layer-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #ccc;\n}\n\n/* Visibility eye toggle */\n.layer-vis {\n  font-size: 11px;\n  width: 20px;\n}\n\n.layer-vis::before {\n  content: \"\";\n  display: block;\n  width: 14px;\n  height: 10px;\n  border: 2px solid #0ee9e7;\n  border-radius: 75% / 100%;\n  position: relative;\n  box-sizing: border-box;\n}\n\n.layer-vis::after {\n  content: \"\";\n  display: block;\n  width: 4px;\n  height: 4px;\n  border-radius: 50%;\n  background: #0ee9e7;\n  position: relative;\n  top: -8px;\n  left: 5px;\n}\n\n.layer-vis.off::before {\n  border-color: #333;\n}\n\n.layer-vis.off::after {\n  background: #333;\n}\n\n/* Z-order arrows */\n.layer-z {\n  font-size: 14px;\n  min-width: 22px;\n  min-height: 22px;\n  color: #555;\n}\n\n.layer-z:hover {\n  color: #0ee9e7;\n  background: rgba(14, 233, 231, 0.08);\n}\n\n/* ─── Properties panel ──────────────────────────────────────────────── */\n\n#properties-panel {\n  position: absolute;\n  left: 12px;\n  top: 72px;\n  width: 340px;\n  min-width: 280px;\n  min-height: 80px;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow-x: hidden;\n  overflow-y: auto;\n  resize: both;\n  display: none;\n}\n\n#properties-panel.visible {\n  display: block;\n}\n\n.panel-header {\n  display: flex;\n  align-items: center;\n  padding: 10px 14px;\n  background: #1e1e2a;\n  border-bottom: 1px solid #2a2a3a;\n  font-weight: 600;\n  font-size: 13px;\n  color: #aaa;\n  cursor: grab;\n  user-select: none;\n}\n\n.panel-header:active {\n  cursor: grabbing;\n}\n\n/* Collapse / expand toggle */\n.panel-toggle {\n  margin-left: auto;\n  background: none;\n  border: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 14px;\n  padding: 0 2px;\n  line-height: 1;\n  border-radius: 3px;\n  transition: color 0.1s ease;\n}\n\n.panel-toggle:hover {\n  color: #ccc;\n}\n\n/* Collapsed state — hide content, disable resize */\n#properties-panel.collapsed .panel-content,\n#shapes-panel.collapsed .shapes-list {\n  display: none !important;\n}\n\n#properties-panel.collapsed.hover-open .panel-content,\n#shapes-panel.collapsed.hover-open .shapes-list {\n  display: block !important;\n}\n\n#properties-panel.collapsed,\n#shapes-panel.collapsed {\n  resize: none;\n  min-height: auto;\n}\n\n#properties-panel.collapsed.hover-open,\n#shapes-panel.collapsed.hover-open {\n  resize: both;\n}\n\n#properties-panel.collapsed .panel-header,\n#shapes-panel.collapsed .panel-header {\n  border-bottom: none;\n}\n\n#properties-panel.collapsed.hover-open .panel-header,\n#shapes-panel.collapsed.hover-open .panel-header {\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.panel-content {\n  padding: 12px;\n}\n\n.prop-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-bottom: 10px;\n}\n\n.prop-row.vertical {\n  flex-direction: column;\n  align-items: flex-start;\n}\n\n.prop-row label {\n  font-size: 12px;\n  color: #777;\n  min-width: 28px;\n}\n\n.prop-input {\n  width: 72px;\n  flex: 0 0 72px;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 6px;\n  font-family: inherit;\n  text-align: right;\n}\n\n.prop-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-color {\n  width: 32px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  cursor: pointer;\n  background: none;\n  padding: 1px;\n}\n\n.prop-textarea {\n  width: 100%;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 6px;\n  font-family: inherit;\n  resize: vertical;\n}\n\n.prop-textarea:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-delete {\n  width: 100%;\n  padding: 8px;\n  background: rgba(255, 70, 70, 0.12);\n  border: 1px solid rgba(255, 70, 70, 0.3);\n  border-radius: 6px;\n  color: #ff6666;\n  cursor: pointer;\n  font-size: 13px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.prop-delete:hover {\n  background: rgba(255, 70, 70, 0.22);\n  border-color: rgba(255, 70, 70, 0.5);\n}\n\n/* ─── Status bar ────────────────────────────────────────────────────── */\n\n#editor-statusbar {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 8px 12px;\n  background: #1a1a24;\n  border-top: 1px solid #2a2a3a;\n  flex-shrink: 0;\n  min-height: 60px;\n}\n\n.statusbar-left,\n.statusbar-right {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  flex: 0 0 auto;\n}\n\n.statusbar-center {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  flex: 1 1 auto;\n  flex-wrap: wrap;\n  justify-content: center;\n  min-width: 0;\n  padding: 0 16px;\n}\n\n.status-btn {\n  min-width: 140px;\n  height: 40px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  padding: 0 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 15px;\n  font-weight: 600;\n  line-height: 1;\n  font-family: inherit;\n  transition: all 0.15s ease;\n  white-space: nowrap;\n  text-align: center;\n}\n\n.status-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.status-btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.status-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.status-btn.danger {\n  background: rgba(255, 70, 70, 0.08);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.status-btn.danger:hover {\n  background: rgba(255, 70, 70, 0.18);\n}\n\n.status-hint {\n  font-size: 13px;\n  color: #8a91a4;\n  max-width: 360px;\n  line-height: 1.35;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           DIALOGS                                     */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.dialog-overlay {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  background: rgba(0, 0, 0, 0.7);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 100000;\n}\n\n.dialog {\n  background: #1e1e2a;\n  border: 1px solid #3a3a4a;\n  border-radius: 12px;\n  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);\n  width: 420px;\n  max-width: 90vw;\n  max-height: 80vh;\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n}\n\n.dialog-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 16px 20px;\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.dialog-header h3 {\n  margin: 0;\n  font-size: 18px;\n  color: #fff;\n  font-weight: 600;\n}\n\n.dialog-close {\n  width: 28px;\n  height: 28px;\n  border: none;\n  background: none;\n  color: #777;\n  font-size: 20px;\n  cursor: pointer;\n  border-radius: 4px;\n}\n\n.dialog-close:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.dialog-content {\n  padding: 20px;\n  overflow-y: auto;\n}\n\n.dialog-content.centered {\n  text-align: center;\n  padding-top: 28px;\n  padding-bottom: 24px;\n}\n\n.dialog-content.centered h3 {\n  margin: 0 0 10px;\n  font-size: 24px;\n  color: #f4f7fb;\n}\n\n.dialog-content.centered p {\n  margin: 0;\n  color: #b9c4d6;\n  font-size: 17px;\n  line-height: 1.45;\n}\n\n.dialog-color-preview {\n  width: 100%;\n  height: 54px;\n  margin-bottom: 14px;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  background: #ffffff;\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);\n}\n\n.color-strip-label {\n  display: block;\n  margin-bottom: 8px;\n  color: #d8deea;\n  font-size: 13px;\n}\n\n.color-strip-range {\n  width: 100%;\n  height: 22px;\n  margin: 0 0 16px;\n  appearance: none;\n  -webkit-appearance: none;\n  border: 1px solid #3a3a4a;\n  border-radius: 999px;\n  background: linear-gradient(90deg, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);\n  outline: none;\n}\n\n.color-strip-range::-webkit-slider-thumb {\n  -webkit-appearance: none;\n  width: 14px;\n  height: 28px;\n  border-radius: 999px;\n  border: 1px solid rgba(255, 255, 255, 0.7);\n  background: #f8fbff;\n  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);\n  cursor: pointer;\n}\n\n.color-field-row {\n  display: flex;\n  align-items: flex-start;\n  justify-content: space-between;\n  gap: 10px;\n  margin-bottom: 10px;\n}\n\n.color-field {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-start;\n  gap: 6px;\n  color: #d8deea;\n}\n\n.color-field-label {\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n  color: #8a91a4;\n}\n\n.color-number-input {\n  width: 4ch;\n  min-width: 4ch;\n  height: 34px;\n  padding: 0 6px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #e7ecf5;\n  font-size: 14px;\n  text-align: center;\n  font-family: inherit;\n  outline: none;\n}\n\n.color-number-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.color-number-input::-webkit-outer-spin-button,\n.color-number-input::-webkit-inner-spin-button,\n.color-strip-range::-webkit-outer-spin-button,\n.color-strip-range::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n  margin: 0;\n}\n\n.color-hex-input {\n  text-transform: uppercase;\n  letter-spacing: 0.04em;\n}\n\n.dialog-footer {\n  display: flex;\n  align-items: center;\n  justify-content: flex-end;\n  gap: 10px;\n  padding: 14px 20px;\n  border-top: 1px solid #2a2a3a;\n}\n\n.dialog-footer.centered {\n  justify-content: center;\n  flex-wrap: nowrap;\n}\n\n/* Script list in load dialog */\n.script-list {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  max-height: 300px;\n  overflow-y: auto;\n}\n\n.script-item {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 10px 14px;\n  background: rgba(255, 255, 255, 0.03);\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  cursor: pointer;\n  transition: all 0.15s ease;\n}\n\n.script-item:hover {\n  background: rgba(14, 233, 231, 0.06);\n  border-color: rgba(14, 233, 231, 0.2);\n}\n\n.script-item .script-name {\n  font-size: 14px;\n  color: #ddd;\n}\n\n.script-item .script-meta {\n  font-size: 11px;\n  color: #666;\n}\n\n/* Save As dialog input */\n.saveas-input {\n  width: 100%;\n  height: 36px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 12px;\n  font-family: inherit;\n  margin-top: 8px;\n}\n\n.saveas-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.save-note {\n  font-size: 12px;\n  color: #666;\n  margin-top: 8px;\n}\n\n/* Confirm dialog icon */\n.confirm-icon {\n  position: relative;\n  width: 52px;\n  height: 52px;\n  margin: 0 auto 18px;\n  border-radius: 14px;\n  background: radial-gradient(circle at 50% 35%, rgba(255, 206, 104, 0.16) 0%, rgba(255, 206, 104, 0.06) 55%, rgba(255, 206, 104, 0) 100%);\n}\n\n.confirm-icon::before {\n  content: \"\";\n  position: absolute;\n  left: 50%;\n  top: 50%;\n  width: 28px;\n  height: 28px;\n  transform: translate(-50%, -50%) rotate(45deg);\n  border: 2px solid rgba(255, 199, 93, 0.72);\n  border-radius: 4px;\n  background: rgba(255, 187, 61, 0.08);\n  box-shadow: 0 8px 20px rgba(255, 177, 58, 0.12);\n}\n\n.confirm-icon::after {\n  content: \"!\";\n  position: absolute;\n  left: 50%;\n  top: 50%;\n  transform: translate(-50%, -50%);\n  font-size: 22px;\n  line-height: 1;\n  font-weight: 700;\n  color: #ffc86b;\n}\n\n/* ─── Dialog buttons ─────────────────────────────────────────────────── */\n\n.btn {\n  min-width: 132px;\n  height: 42px;\n  padding: 0 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #262634 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);\n  color: #c6cfdb;\n  cursor: pointer;\n  font-size: 14px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.btn:hover {\n  background: linear-gradient(180deg, #2d2d3c 0%, #20202c 100%);\n  border-color: #4a4a5e;\n  color: #fff;\n}\n\n.btn:active {\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.32);\n}\n\n.btn.secondary {\n  color: #d6dfeb;\n}\n\n.btn.primary {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.22) 0%, rgba(6, 120, 135, 0.3) 100%);\n  border-color: rgba(14, 233, 231, 0.45);\n  color: #8ffaf8;\n}\n\n.btn.primary:hover {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.28) 0%, rgba(8, 137, 153, 0.38) 100%);\n}\n\n.btn.danger {\n  background: linear-gradient(180deg, rgba(255, 92, 92, 0.16) 0%, rgba(110, 29, 40, 0.28) 100%);\n  border-color: rgba(255, 92, 92, 0.38);\n  color: #ff8a8a;\n}\n\n.btn.danger:hover {\n  background: linear-gradient(180deg, rgba(255, 92, 92, 0.22) 0%, rgba(130, 34, 47, 0.35) 100%);\n}\n\n.btn.secondary {\n  background: rgba(255, 255, 255, 0.04);\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EMPTY STATE                                 */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.empty-state {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  color: #444;\n  font-size: 16px;\n  gap: 12px;\n}\n\n.empty-state .icon {\n  font-size: 48px;\n  opacity: 0.3;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           TOAST NOTIFICATIONS                         */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.toast-container {\n  position: fixed;\n  /* Below toolbar: editor starts at 8vh, toolbar ~56px tall */\n  top: calc(8vh + 64px);\n  left: 50%;\n  transform: translateX(-50%);\n  z-index: 200000;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  align-items: center;\n  pointer-events: none;\n}\n\n.toast {\n  padding: 10px 20px;\n  background: #2a2a3a;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  color: #ccc;\n  font-size: 13px;\n  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);\n  animation: toast-in 0.3s ease;\n  transition: opacity 0.25s ease, transform 0.25s ease;\n  pointer-events: auto;\n}\n\n.toast.success {\n  border-color: rgba(50, 200, 100, 0.4);\n  background: rgba(50, 200, 100, 0.1);\n  color: #6fd898;\n}\n\n.toast.error {\n  border-color: rgba(255, 70, 70, 0.4);\n  background: rgba(255, 70, 70, 0.1);\n  color: #ff8888;\n}\n\n.toast.info {\n  border-color: rgba(14, 233, 231, 0.3);\n  background: rgba(14, 233, 231, 0.08);\n  color: #0ee9e7;\n}\n\n@keyframes toast-in {\n  from { opacity: 0; transform: translateY(10px); }\n  to { opacity: 1; transform: translateY(0); }\n}\n\n/* ─── Stepper controls ───────────────────────────────────────────────── */\n\n.stepper-ctrl {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n  flex: 1;\n}\n\n.stepper-dec,\n.stepper-inc {\n  flex-shrink: 0;\n  width: 26px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  background: #12121a;\n  color: #ccc;\n  cursor: pointer;\n  font-size: 16px;\n  line-height: 1;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-family: inherit;\n}\n\n.stepper-dec:hover,\n.stepper-inc:hover {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n}\n\n.stepper-select {\n  flex: 1;\n  height: 28px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 4px;\n  font-family: inherit;\n  text-align: center;\n  cursor: pointer;\n}\n\n.stepper-select:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n";
+  style.textContent = "/* hud-editor.css - All HUD Editor styles\n   Project: D:\\\\github\\\\du-tobi\\\\live_lua_coding\\\\examples\\\\hud_editor_v1\n   Self-contained - does NOT use ModUiExtractor core styles\n*/\n\n/* ─── Root container ────────────────────────────────────────────────── */\n\n#hud-editor-root {\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n  z-index: 99999;\n  pointer-events: none;\n  font-family: 'Rajdhani', 'Segoe UI', Tahoma, sans-serif;\n  font-size: 14px;\n  color: #ccc;\n  background: rgba(0, 0, 0, 0.70);\n  display: none;\n  overflow: hidden;\n  user-select: none;\n  -webkit-user-select: none;\n  -moz-user-select: none;\n  -ms-user-select: none;\n}\n\n#hud-editor-root[style*=\"block\"] {\n  pointer-events: auto;\n}\n\n/* ─── Screens ────────────────────────────────────────────────────────── */\n\n.hud-screen {\n  display: none;\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n}\n\n.hud-screen.active {\n  display: flex;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           START SCREEN                                */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"start\"] {\n  width: 80vw;\n  height: 80vh;\n  top: 10vh;\n  left: 10vw;\n  align-items: center;\n  justify-content: center;\n  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);\n  overflow: auto;\n}\n\n.start-container {\n  text-align: center;\n  max-width: 520px;\n  padding: 48px;\n}\n\n.start-header h1 {\n  font-size: 52px;\n  font-weight: 700;\n  color: #fff;\n  margin: 0 0 8px 0;\n  text-shadow: 0 0 30px rgba(14, 233, 231, 0.4);\n  letter-spacing: 1px;\n}\n\n.start-header .subtitle {\n  color: #777;\n  font-size: 18px;\n  margin: 0 0 48px 0;\n}\n\n.start-menu {\n  display: flex;\n  flex-direction: column;\n  gap: 14px;\n}\n\n.start-context-card {\n  display: flex;\n  flex-direction: column;\n  gap: 10px;\n  margin-bottom: 18px;\n  padding: 14px 16px;\n  background: rgba(255, 255, 255, 0.035);\n  border: 1px solid rgba(255, 255, 255, 0.07);\n  border-radius: 12px;\n}\n\n.start-context-title {\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.12em;\n  text-transform: uppercase;\n  color: #8a91a4;\n}\n\n.start-context-pill,\n.editor-context-pill {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 28px;\n  padding: 0 12px;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 999px;\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n}\n\n.start-context-pill.is-online,\n.editor-context-pill.is-online {\n  background: rgba(14, 233, 231, 0.14);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #94fffd;\n}\n\n.start-context-pill.is-offline,\n.editor-context-pill.is-offline {\n  background: rgba(255, 196, 92, 0.12);\n  border-color: rgba(255, 196, 92, 0.28);\n  color: #ffcf7c;\n}\n\n.start-context-copy {\n  margin: 0;\n  font-size: 13px;\n  line-height: 1.45;\n  color: #8e96ab;\n}\n\n.menu-btn {\n  display: flex;\n  align-items: center;\n  width: 100%;\n  padding: 18px 24px;\n  background: rgba(255, 255, 255, 0.04);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 12px;\n  cursor: pointer;\n  transition: all 0.2s ease;\n  text-align: left;\n  color: inherit;\n  font-family: inherit;\n  font-size: 16px;\n}\n\n.menu-btn:hover {\n  background: rgba(14, 233, 231, 0.08);\n  border-color: rgba(14, 233, 231, 0.3);\n  transform: translateX(6px);\n}\n\n.menu-btn.primary {\n  background: rgba(14, 233, 231, 0.10);\n  border-color: rgba(14, 233, 231, 0.3);\n}\n\n.menu-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.18);\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.menu-btn:disabled,\n.status-btn:disabled,\n.btn:disabled {\n  cursor: not-allowed;\n  opacity: 0.48;\n  transform: none;\n  box-shadow: none;\n}\n\n.menu-btn:disabled:hover,\n.status-btn:disabled:hover,\n.btn:disabled:hover {\n  background: inherit;\n  border-color: inherit;\n  color: inherit;\n  transform: none;\n}\n\n.menu-btn .icon {\n  font-size: 26px;\n  margin-right: 18px;\n  width: 32px;\n  text-align: center;\n  flex-shrink: 0;\n}\n\n.menu-btn .label-group {\n  display: flex;\n  flex-direction: column;\n}\n\n.menu-btn .label {\n  color: #fff;\n  font-size: 20px;\n  font-weight: 600;\n}\n\n.menu-btn .desc {\n  color: #666;\n  font-size: 13px;\n  margin-top: 3px;\n}\n\n.start-footer {\n  margin-top: 40px;\n}\n\n.hint {\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EDITOR SCREEN                               */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"editor\"] {\n  top: 8vh;\n  left: 6vw;\n  width: 88vw;\n  height: 84vh;\n  flex-direction: column;\n  background: #12121a;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* ─── Toolbar ────────────────────────────────────────────────────────── */\n\n#editor-toolbar {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  padding: 5px 10px;\n  background: linear-gradient(180deg, #1c1c28 0%, #16161e 100%);\n  border-bottom: 1px solid #0e0e14;\n  flex-shrink: 0;\n  height: 50px;\n}\n\n.toolbar-group {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n}\n\n.toolbar-divider {\n  width: 1px;\n  height: 26px;\n  background: linear-gradient(180deg, transparent 0%, #2a2a3a 30%, #2a2a3a 70%, transparent 100%);\n  margin: 0 8px;\n}\n\n.toolbar-spacer {\n  flex: 1;\n}\n\n.toolbar-dropdown {\n  position: relative;\n}\n\n/* Tool & action buttons — bordered, recessed panel look */\n.tool-btn,\n.action-btn {\n  position: relative;\n  display: inline-flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  width: 46px;\n  height: 44px;\n  padding: 0;\n  border: 1px solid #2a2a36;\n  border-radius: 5px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  color: #8f98ac;\n  cursor: pointer;\n  transition: all 0.12s ease;\n  font-family: inherit;\n}\n\n.tool-btn:hover,\n.action-btn:hover {\n  background: linear-gradient(180deg, #2a2a38 0%, #22222e 100%);\n  border-color: #3a3a4a;\n  color: #b0b8c8;\n}\n\n.tool-btn:active,\n.action-btn:active {\n  background: linear-gradient(180deg, #181822 0%, #1e1e28 100%);\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);\n}\n\n.tool-btn.active {\n  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);\n}\n\n.toolbar-dropdown-trigger.active,\n.toolbar-dropdown.open .toolbar-dropdown-trigger {\n  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);\n}\n\n.toolbar-dropdown-caret {\n  position: absolute;\n  right: 4px;\n  bottom: 2px;\n  font-size: 10px;\n  line-height: 1;\n  color: currentColor;\n  opacity: 0.9;\n}\n\n.toolbar-dropdown-menu {\n  position: absolute;\n  top: calc(100% + 8px);\n  left: 0;\n  min-width: 188px;\n  padding: 6px;\n  border: 1px solid #2a2a3a;\n  border-radius: 10px;\n  background: linear-gradient(180deg, rgba(28, 30, 43, 0.98), rgba(16, 18, 27, 0.98));\n  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);\n  display: none;\n  flex-direction: column;\n  gap: 4px;\n  z-index: 320;\n}\n\n.toolbar-dropdown.open .toolbar-dropdown-menu {\n  display: flex;\n}\n\n.dropdown-tool-btn {\n  width: 100%;\n  min-height: 40px;\n  height: auto;\n  padding: 8px 10px;\n  flex-direction: row;\n  justify-content: flex-start;\n  gap: 10px;\n}\n\n.dropdown-tool-btn .tb-icon {\n  width: 22px;\n  height: 22px;\n  flex-shrink: 0;\n}\n\n.dropdown-tool-copy {\n  display: flex;\n  min-width: 0;\n  flex: 1;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n}\n\n.dropdown-tool-title {\n  font-size: 13px;\n  font-weight: 600;\n  color: #dce4f3;\n  white-space: nowrap;\n}\n\n.dropdown-tool-key {\n  font-size: 11px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  color: #70809b;\n  text-transform: uppercase;\n}\n\n.dropdown-tool-btn.active .dropdown-tool-title,\n.dropdown-tool-btn.active .dropdown-tool-key {\n  color: inherit;\n}\n\n/* Icon shape — rendered via CSS */\n.tb-icon {\n  display: block;\n  width: 26px;\n  height: 26px;\n  position: relative;\n}\n\n/* Select tool — mouse pointer arrow */\n.tb-icon-select::before,\n.tb-icon-box::before,\n.tb-icon-rounded::before,\n.tb-icon-circle::before,\n.tb-icon-line::before,\n.tb-icon-text::before {\n  content: none;\n}\n\n.tb-icon-select::after {\n  content: none;\n}\n\n.tb-icon-glyph {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-weight: 700;\n  line-height: 1;\n  color: currentColor;\n  text-shadow: 0 0 8px rgba(255, 255, 255, 0.04);\n  font-family: \"Segoe UI Symbol\", \"Segoe UI\", Arial, sans-serif;\n}\n\n.tb-icon-glyph-select {\n  font-size: 24px;\n}\n\n.tb-icon-glyph-box,\n.tb-icon-glyph-rounded,\n.tb-icon-glyph-circle {\n  font-size: 23px;\n}\n\n.tb-icon-glyph-line {\n  font-size: 27px;\n  transform: translateY(-1px) scaleX(1.08);\n}\n\n.tb-icon-glyph-text {\n  font-size: 22px;\n  font-family: inherit;\n}\n\n.dropdown-tool-btn .tb-icon-glyph-line {\n  transform: translateY(-1px);\n}\n\n/* Alignment icons — bar + rectangle pattern */\n.tb-icon-align-left::before,\n.tb-icon-align-right::before,\n.tb-icon-align-center-h::before,\n.tb-icon-align-top::before,\n.tb-icon-align-bottom::before,\n.tb-icon-align-center-v::before {\n  content: \"\";\n  position: absolute;\n  background: currentColor;\n}\n\n.tb-icon-align-left::after,\n.tb-icon-align-right::after,\n.tb-icon-align-center-h::after,\n.tb-icon-align-top::after,\n.tb-icon-align-bottom::after,\n.tb-icon-align-center-v::after {\n  content: \"\";\n  position: absolute;\n  border: 2px solid currentColor;\n  border-radius: 1px;\n  box-sizing: border-box;\n}\n\n/* Align icons use a tighter centered draw box */\n.tb-icon-align-left::before  { left: 2px; top: 2px; width: 2px; height: 14px; }\n.tb-icon-align-left::after   { left: 7px; top: 50%; width: 10px; height: 7px; transform: translateY(-50%); }\n\n.tb-icon-align-right::before { right: 2px; top: 2px; width: 2px; height: 14px; }\n.tb-icon-align-right::after  { right: 7px; top: 50%; width: 10px; height: 7px; transform: translateY(-50%); }\n\n.tb-icon-align-center-h::before { left: 50%; top: 2px; width: 2px; height: 14px; transform: translateX(-50%); }\n.tb-icon-align-center-h::after  { left: 50%; top: 50%; width: 10px; height: 7px; transform: translate(-50%, -50%); }\n\n.tb-icon-align-top::before { top: 2px; left: 2px; height: 2px; width: 14px; }\n.tb-icon-align-top::after  { top: 7px; left: 50%; width: 7px; height: 10px; transform: translateX(-50%); }\n\n.tb-icon-align-bottom::before { bottom: 2px; left: 2px; height: 2px; width: 14px; }\n.tb-icon-align-bottom::after  { bottom: 7px; left: 50%; width: 7px; height: 10px; transform: translateX(-50%); }\n\n.tb-icon-align-center-v::before { top: 50%; left: 2px; height: 2px; width: 14px; transform: translateY(-50%); }\n.tb-icon-align-center-v::after  { top: 50%; left: 50%; width: 7px; height: 10px; transform: translate(-50%, -50%); }\n\n/* Clone tool — two overlapping rectangles with plus */\n.tb-icon-clone::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-clone::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  background-image:\n    linear-gradient(currentColor, currentColor),\n    linear-gradient(currentColor, currentColor);\n  background-repeat: no-repeat;\n  background-size: 5px 1.5px, 1.5px 5px;\n  background-position: center center, center center;\n}\n\n/* Group tool — overlapping grouped rectangles */\n.tb-icon-group::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-group::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  opacity: 0.9;\n}\n\n/* Ungroup tool — two separated rectangles */\n.tb-icon-ungroup::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  bottom: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-ungroup::after {\n  content: \"\";\n  position: absolute;\n  right: 0;\n  top: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Keyboard hint */\n.tb-key {\n  display: none;\n}\n\n.tool-btn.active .tb-key {\n  opacity: 0.65;\n}\n\n/* Action buttons (undo/redo) */\n.action-btn {\n  width: 46px;\n  height: 44px;\n}\n\n.action-btn .tb-icon {\n  font-size: 20px;\n  width: 24px;\n  height: 24px;\n}\n\n/* ─── Color swatches ─────────────────────────────────────────────────── */\n\n.toolbar-group.colors {\n  gap: 12px;\n  margin: 0 10px 0 6px;\n  padding: 0 8px;\n}\n\n.swatch-pair {\n  display: flex;\n  align-items: center;\n  gap: 14px;\n  margin-right: 10px;\n  padding: 0 10px;\n}\n\n.swatch-pair:last-child {\n  margin-right: 0;\n}\n\n.swatch-label {\n  min-width: 40px;\n  font-size: 11px;\n  font-weight: 600;\n  color: #7e879c;\n  text-transform: uppercase;\n  letter-spacing: 0.7px;\n  text-align: right;\n  margin-right: 6px;\n}\n\n.color-swatch-btn,\n.prop-color-btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 34px;\n  height: 34px;\n  appearance: none;\n  -webkit-appearance: none;\n  border: 1px solid #2a2a36;\n  border-radius: 6px;\n  cursor: pointer;\n  background-color: #1b1b25;\n  background-image: linear-gradient(180deg, #232332 0%, #171721 100%);\n  padding: 3px;\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  transition: border-color 0.12s ease, transform 0.12s ease;\n  flex-shrink: 0;\n  margin-left: 6px;\n}\n\n.color-swatch-btn:hover,\n.prop-color-btn:hover {\n  border-color: #4a4a5a;\n  transform: translateY(-1px);\n}\n\n.color-swatch-chip,\n.prop-color-chip {\n  width: 24px;\n  height: 24px;\n  display: block;\n  border-radius: 4px;\n  background: var(--swatch-color, #ffffff);\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);\n  flex: 0 0 auto;\n}\n\n.prop-color-btn {\n  width: 36px;\n  height: 30px;\n  margin-left: auto;\n  padding: 2px;\n}\n\n.prop-color-chip {\n  width: 100%;\n  height: 100%;\n}\n\n.size-input {\n  width: 56px;\n  height: 36px;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 6px;\n  text-align: center;\n  font-family: inherit;\n}\n\n.size-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n/* ─── Canvas area ────────────────────────────────────────────────────── */\n\n#canvas-container {\n  flex: 1;\n  overflow: hidden;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 20px;\n  background: #0a0a10;\n  position: relative;\n}\n\n#canvas-preview {\n  position: relative;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* Canvas elements (rendered from document.elements) */\n.canvas-element {\n  position: absolute;\n  box-sizing: border-box;\n  cursor: pointer;\n  transition: opacity 0.1s ease;\n}\n\n.canvas-element:hover {\n  opacity: 0.85;\n}\n\n.canvas-element.selected {\n  outline: 2px solid rgba(14, 233, 231, 0.9);\n  outline-offset: 2px;\n  cursor: move;\n}\n\n/* Selection handles */\n.resize-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #0ee9e7;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.resize-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.resize-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.resize-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.resize-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.resize-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.resize-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n/* Group selection overlay — orange bounding box */\n.group-overlay {\n  position: absolute;\n  pointer-events: none;\n  z-index: 90;\n}\n\n.group-outline {\n  position: absolute;\n  inset: 0;\n  border: 2px solid rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.04);\n}\n\n/* Group resize handles — same as individual but orange */\n.group-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #ff8c00;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.group-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.group-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.group-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.group-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.group-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.group-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n.toolbar-check {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  padding: 0 8px;\n  min-height: 32px;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(35, 39, 56, 0.96), rgba(23, 25, 36, 0.96));\n  color: #9aa4ba;\n  cursor: pointer;\n  user-select: none;\n}\n\n.toolbar-check:hover {\n  border-color: #3b465f;\n  color: #cfd8e8;\n}\n\n.toolbar-check-input {\n  position: absolute;\n  opacity: 0;\n  pointer-events: none;\n}\n\n.toolbar-check-box {\n  width: 13px;\n  height: 13px;\n  border: 1px solid #4a556d;\n  border-radius: 3px;\n  background: rgba(9, 12, 18, 0.85);\n  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);\n  position: relative;\n  flex-shrink: 0;\n}\n\n.toolbar-check-input:checked + .toolbar-check-box {\n  border-color: rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.18);\n}\n\n.toolbar-check-input:checked + .toolbar-check-box::after {\n  content: \"\";\n  position: absolute;\n  left: 3px;\n  top: 1px;\n  width: 4px;\n  height: 7px;\n  border: solid #ffb04d;\n  border-width: 0 2px 2px 0;\n  transform: rotate(45deg);\n}\n\n.toolbar-check-label {\n  font-size: 11px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  white-space: nowrap;\n}\n\n/* ─── Layers / shapes panel ────────────────────────────────────────── */\n\n#shapes-panel {\n  position: absolute;\n  right: 12px;\n  top: 72px;\n  width: 240px;\n  min-width: 180px;\n  min-height: 80px;\n  max-height: 60vh;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow: hidden;\n  resize: both;\n  display: none;\n  flex-direction: column;\n}\n\n#shapes-panel.visible {\n  display: flex;\n}\n\n.shapes-list {\n  flex: 1;\n  overflow-y: auto;\n  overflow-x: hidden;\n  padding: 6px;\n}\n\n.layers-empty {\n  padding: 16px;\n  text-align: center;\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* Layer item row */\n.layer-item {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 5px 8px;\n  margin-bottom: 6px;\n  cursor: pointer;\n  transition: background 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;\n  border: 1px solid #2a2a36;\n  border-left: 3px solid transparent;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);\n}\n\n.layer-item:hover {\n  background: linear-gradient(180deg, #272734 0%, #1d1d28 100%);\n  border-color: #363646;\n}\n\n.layer-item.selected {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.12) 0%, rgba(14, 233, 231, 0.07) 100%);\n  border-color: rgba(14, 233, 231, 0.22);\n  border-left-color: #0ee9e7;\n}\n\n.layer-group-box {\n  margin-bottom: 8px;\n  padding: 6px;\n  border: 1px solid rgba(255, 140, 0, 0.42);\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(255, 140, 0, 0.08) 0%, rgba(72, 44, 17, 0.26) 100%);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.04);\n}\n\n.layer-group-box.selected {\n  border-color: rgba(255, 140, 0, 0.85);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.10);\n}\n\n.layer-item.grouped-member {\n  padding-left: 10px;\n}\n\n.layer-group-sep {\n  height: 1px;\n  margin: 2px 6px 8px;\n  background: linear-gradient(90deg, transparent 0%, #2f3242 18%, #2f3242 82%, transparent 100%);\n}\n\n.layer-icon {\n  width: 18px;\n  text-align: center;\n  font-size: 14px;\n  color: #666;\n  flex-shrink: 0;\n}\n\n.layer-item.selected .layer-icon {\n  color: #0ee9e7;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-icon {\n  color: #ffb04d;\n}\n\n.layer-name {\n  flex: 1;\n  font-size: 12px;\n  color: #aaa;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.layer-item.selected .layer-name {\n  color: #ddd;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-name {\n  color: #e5d0b4;\n}\n\n/* Layer action buttons (visibility, z-order) */\n.layer-btn {\n  width: 22px;\n  height: 22px;\n  border: none;\n  background: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 12px;\n  border-radius: 3px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  flex-shrink: 0;\n  padding: 0;\n  transition: all 0.1s ease;\n}\n\n.layer-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #ccc;\n}\n\n/* Visibility eye toggle */\n.layer-vis {\n  font-size: 11px;\n  width: 20px;\n}\n\n.layer-vis::before {\n  content: \"\";\n  display: block;\n  width: 14px;\n  height: 10px;\n  border: 2px solid #0ee9e7;\n  border-radius: 75% / 100%;\n  position: relative;\n  box-sizing: border-box;\n}\n\n.layer-vis::after {\n  content: \"\";\n  display: block;\n  width: 4px;\n  height: 4px;\n  border-radius: 50%;\n  background: #0ee9e7;\n  position: relative;\n  top: -8px;\n  left: 5px;\n}\n\n.layer-vis.off::before {\n  border-color: #333;\n}\n\n.layer-vis.off::after {\n  background: #333;\n}\n\n/* Z-order arrows */\n.layer-z {\n  font-size: 14px;\n  min-width: 22px;\n  min-height: 22px;\n  color: #555;\n}\n\n.layer-z:hover {\n  color: #0ee9e7;\n  background: rgba(14, 233, 231, 0.08);\n}\n\n/* ─── Properties panel ──────────────────────────────────────────────── */\n\n#properties-panel {\n  position: absolute;\n  left: 12px;\n  top: 72px;\n  width: 352px;\n  min-width: 280px;\n  min-height: 80px;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow-x: hidden;\n  overflow-y: auto;\n  resize: both;\n  display: none;\n}\n\n#properties-panel.visible {\n  display: block;\n}\n\n.panel-header {\n  display: flex;\n  align-items: center;\n  padding: 10px 14px;\n  background: #1e1e2a;\n  border-bottom: 1px solid #2a2a3a;\n  font-weight: 600;\n  font-size: 13px;\n  color: #aaa;\n  cursor: grab;\n  user-select: none;\n}\n\n.panel-header:active {\n  cursor: grabbing;\n}\n\n/* Collapse / expand toggle */\n.panel-toggle {\n  margin-left: auto;\n  background: none;\n  border: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 14px;\n  padding: 0 2px;\n  line-height: 1;\n  border-radius: 3px;\n  transition: color 0.1s ease;\n}\n\n.panel-toggle:hover {\n  color: #ccc;\n}\n\n/* Collapsed state — hide content, disable resize */\n#properties-panel.collapsed .panel-content,\n#shapes-panel.collapsed .shapes-list {\n  display: none !important;\n}\n\n#properties-panel.collapsed.hover-open .panel-content,\n#shapes-panel.collapsed.hover-open .shapes-list {\n  display: block !important;\n}\n\n#properties-panel.collapsed,\n#shapes-panel.collapsed {\n  resize: none;\n  min-height: auto;\n}\n\n#properties-panel.collapsed.hover-open,\n#shapes-panel.collapsed.hover-open {\n  resize: both;\n}\n\n#properties-panel.collapsed .panel-header,\n#shapes-panel.collapsed .panel-header {\n  border-bottom: none;\n}\n\n#properties-panel.collapsed.hover-open .panel-header,\n#shapes-panel.collapsed.hover-open .panel-header {\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.panel-content {\n  padding: 12px;\n}\n\n.panel-empty-state {\n  display: none;\n  padding: 6px 0 10px;\n  color: #8d98ad;\n  font-size: 12px;\n  line-height: 1.45;\n}\n\n#properties-panel.is-empty .panel-empty-state {\n  display: block;\n}\n\n#properties-panel.is-empty .panel-tabs {\n  display: none;\n}\n\n#properties-panel.is-empty .panel-tab-page,\n#properties-panel.is-empty [data-prop-row=\"delete\"] {\n  display: none !important;\n}\n\n.panel-tabs {\n  display: flex;\n  gap: 6px;\n  margin-bottom: 10px;\n}\n\n.panel-tab {\n  flex: 1 1 0;\n  min-width: 0;\n  height: 28px;\n  border: 1px solid #2f3444;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #232634 0%, #181b27 100%);\n  color: #97a4ba;\n  font-size: 11px;\n  font-weight: 700;\n  letter-spacing: 0.04em;\n  text-transform: uppercase;\n  cursor: pointer;\n  transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;\n}\n\n.panel-tab:hover {\n  border-color: #42506a;\n  color: #d9e4f3;\n}\n\n.panel-tab.active {\n  border-color: rgba(14, 233, 231, 0.45);\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.16) 0%, rgba(10, 80, 92, 0.22) 100%);\n  color: #b5ffff;\n}\n\n.panel-tab-page {\n  display: none;\n}\n\n.panel-tab-page.active {\n  display: block;\n}\n\n.prop-dropdown {\n  position: relative;\n  flex: 1 1 auto;\n  min-width: 0;\n}\n\n.prop-dropdown-trigger {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 10px;\n  width: 100%;\n  cursor: pointer;\n  text-align: left;\n}\n\n.prop-dropdown-label {\n  min-width: 0;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.prop-dropdown-caret {\n  flex: 0 0 auto;\n  font-size: 10px;\n  color: #93a2bb;\n}\n\n.prop-dropdown-menu {\n  position: absolute;\n  top: calc(100% + 6px);\n  left: 0;\n  right: 0;\n  display: none;\n  flex-direction: column;\n  gap: 4px;\n  padding: 6px;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(28, 30, 43, 0.98), rgba(16, 18, 27, 0.98));\n  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.36);\n  z-index: 8;\n}\n\n.prop-dropdown.open .prop-dropdown-menu {\n  display: flex;\n}\n\n.prop-dropdown-option {\n  width: 100%;\n  min-height: 30px;\n  padding: 6px 10px;\n  border: 1px solid #2f3444;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #232634 0%, #181b27 100%);\n  color: #d2d9e6;\n  font-size: 12px;\n  text-align: left;\n  cursor: pointer;\n}\n\n.prop-dropdown-option:hover {\n  border-color: #42506a;\n  color: #ffffff;\n}\n\n.prop-dropdown-option.active {\n  border-color: rgba(14, 233, 231, 0.45);\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.16) 0%, rgba(10, 80, 92, 0.22) 100%);\n  color: #b5ffff;\n}\n\n.prop-row {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  margin-bottom: 8px;\n  min-height: 30px;\n}\n\n.prop-row.vertical {\n  flex-direction: column;\n  align-items: stretch;\n  min-height: 0;\n  gap: 6px;\n}\n\n.prop-row-dual {\n  align-items: flex-start;\n  gap: 8px;\n}\n\n.prop-inline-field {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  flex: 1 1 0;\n  min-width: 0;\n}\n\n.prop-inline-field label {\n  flex: 0 0 46px;\n  min-width: 46px;\n}\n\n.prop-row label {\n  flex: 0 0 54px;\n  min-width: 54px;\n  font-size: 11px;\n  color: #777;\n  line-height: 1.15;\n  white-space: nowrap;\n}\n\n.prop-input {\n  width: 72px;\n  flex: 0 0 72px;\n  height: 30px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 6px;\n  font-family: inherit;\n  text-align: right;\n}\n\n.prop-row.vertical label {\n  flex: none;\n  min-width: 0;\n}\n\n.prop-input.prop-input-wide {\n  width: 100%;\n  flex: 1 1 auto;\n  text-align: left;\n}\n\nselect.prop-input {\n  text-align: left;\n}\n\n.prop-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-color {\n  width: 32px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  cursor: pointer;\n  background: none;\n  padding: 1px;\n}\n\n.prop-textarea {\n  width: 100%;\n  min-height: 84px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 6px;\n  font-family: inherit;\n  resize: vertical;\n  line-height: 1.35;\n  box-sizing: border-box;\n}\n\n.prop-textarea:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-delete {\n  width: 100%;\n  padding: 8px;\n  background: rgba(255, 70, 70, 0.12);\n  border: 1px solid rgba(255, 70, 70, 0.3);\n  border-radius: 6px;\n  color: #ff6666;\n  cursor: pointer;\n  font-size: 13px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.prop-delete:hover {\n  background: rgba(255, 70, 70, 0.22);\n  border-color: rgba(255, 70, 70, 0.5);\n}\n\n/* ─── Status bar ────────────────────────────────────────────────────── */\n\n#editor-statusbar {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 8px 12px;\n  background: #1a1a24;\n  border-top: 1px solid #2a2a3a;\n  flex-shrink: 0;\n  min-height: 60px;\n}\n\n.statusbar-left,\n.statusbar-right {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  flex: 0 0 auto;\n}\n\n.statusbar-center {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  flex: 1 1 auto;\n  flex-wrap: wrap;\n  justify-content: center;\n  min-width: 0;\n  padding: 0 16px;\n}\n\n.status-btn {\n  min-width: 140px;\n  height: 40px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  padding: 0 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 15px;\n  font-weight: 600;\n  line-height: 1;\n  font-family: inherit;\n  transition: all 0.15s ease;\n  white-space: nowrap;\n  text-align: center;\n}\n\n.status-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.status-btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.status-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.status-btn.danger {\n  background: rgba(255, 70, 70, 0.08);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.status-btn.danger:hover {\n  background: rgba(255, 70, 70, 0.18);\n}\n\n.status-hint {\n  font-size: 13px;\n  color: #8a91a4;\n  max-width: 360px;\n  line-height: 1.35;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           DIALOGS                                     */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.dialog-overlay {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  background: rgba(0, 0, 0, 0.7);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 100000;\n}\n\n.dialog {\n  background: #1e1e2a;\n  border: 1px solid #3a3a4a;\n  border-radius: 12px;\n  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);\n  width: 460px;\n  max-width: 90vw;\n  max-height: 80vh;\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n}\n\n.dialog-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 16px 20px;\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.dialog-header h3 {\n  margin: 0;\n  font-size: 18px;\n  color: #fff;\n  font-weight: 600;\n}\n\n.dialog-close {\n  width: 28px;\n  height: 28px;\n  border: none;\n  background: none;\n  color: #777;\n  font-size: 20px;\n  cursor: pointer;\n  border-radius: 4px;\n}\n\n.dialog-close:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.dialog-content {\n  padding: 20px;\n  overflow-y: auto;\n}\n\n.dialog-content.centered {\n  text-align: center;\n  padding-top: 28px;\n  padding-bottom: 24px;\n}\n\n.dialog-content.centered h3 {\n  margin: 0 0 10px;\n  font-size: 24px;\n  color: #f4f7fb;\n}\n\n.dialog-content.centered p {\n  margin: 0;\n  color: #b9c4d6;\n  font-size: 17px;\n  line-height: 1.45;\n}\n\n.dialog-color-preview {\n  width: 100%;\n  height: 54px;\n  margin-bottom: 14px;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  background: #ffffff;\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);\n}\n\n.color-strip-label {\n  display: block;\n  margin-bottom: 8px;\n  color: #d8deea;\n  font-size: 13px;\n}\n\n.color-strip-range {\n  width: 100%;\n  height: 22px;\n  margin: 0 0 16px;\n  appearance: none;\n  -webkit-appearance: none;\n  border: 1px solid #3a3a4a;\n  border-radius: 999px;\n  background: linear-gradient(90deg, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);\n  outline: none;\n}\n\n.color-strip-range::-webkit-slider-thumb {\n  -webkit-appearance: none;\n  width: 14px;\n  height: 28px;\n  border-radius: 999px;\n  border: 1px solid rgba(255, 255, 255, 0.7);\n  background: #f8fbff;\n  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);\n  cursor: pointer;\n}\n\n.color-field-row {\n  display: flex;\n  align-items: flex-start;\n  justify-content: space-between;\n  gap: 10px;\n  margin-bottom: 10px;\n}\n\n.color-field {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-start;\n  gap: 6px;\n  color: #d8deea;\n}\n\n.color-field-label {\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n  color: #8a91a4;\n}\n\n.color-number-input {\n  width: 4ch;\n  min-width: 4ch;\n  height: 34px;\n  padding: 0 6px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #e7ecf5;\n  font-size: 14px;\n  text-align: center;\n  font-family: inherit;\n  outline: none;\n}\n\n.color-number-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.color-number-input::-webkit-outer-spin-button,\n.color-number-input::-webkit-inner-spin-button,\n.color-strip-range::-webkit-outer-spin-button,\n.color-strip-range::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n  margin: 0;\n}\n\n.color-hex-input {\n  text-transform: uppercase;\n  letter-spacing: 0.04em;\n}\n\n.dialog-footer {\n  display: flex;\n  align-items: center;\n  justify-content: flex-end;\n  gap: 10px;\n  padding: 14px 20px;\n  border-top: 1px solid #2a2a3a;\n}\n\n.dialog-footer.centered {\n  justify-content: center;\n  flex-wrap: nowrap;\n}\n\n/* Script list in load dialog */\n.script-list {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  max-height: 300px;\n  overflow-y: auto;\n}\n\n.script-item {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 10px 14px;\n  background: rgba(255, 255, 255, 0.03);\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  cursor: pointer;\n  transition: all 0.15s ease;\n}\n\n.script-item:hover {\n  background: rgba(14, 233, 231, 0.06);\n  border-color: rgba(14, 233, 231, 0.2);\n}\n\n.script-item .script-name {\n  font-size: 14px;\n  color: #ddd;\n}\n\n.script-item .script-meta {\n  font-size: 11px;\n  color: #666;\n}\n\n/* Save As dialog input */\n.saveas-input {\n  width: 100%;\n  height: 36px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 12px;\n  font-family: inherit;\n  margin-top: 8px;\n}\n\n.saveas-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.save-note {\n  font-size: 12px;\n  color: #666;\n  margin-top: 8px;\n}\n\n/* Confirm dialog icon */\n.confirm-icon {\n  position: relative;\n  width: 52px;\n  height: 52px;\n  margin: 0 auto 18px;\n  border-radius: 14px;\n  background: radial-gradient(circle at 50% 35%, rgba(255, 206, 104, 0.16) 0%, rgba(255, 206, 104, 0.06) 55%, rgba(255, 206, 104, 0) 100%);\n}\n\n.confirm-icon::before {\n  content: \"\";\n  position: absolute;\n  left: 50%;\n  top: 50%;\n  width: 28px;\n  height: 28px;\n  transform: translate(-50%, -50%) rotate(45deg);\n  border: 2px solid rgba(255, 199, 93, 0.72);\n  border-radius: 4px;\n  background: rgba(255, 187, 61, 0.08);\n  box-shadow: 0 8px 20px rgba(255, 177, 58, 0.12);\n}\n\n.confirm-icon::after {\n  content: \"!\";\n  position: absolute;\n  left: 50%;\n  top: 50%;\n  transform: translate(-50%, -50%);\n  font-size: 22px;\n  line-height: 1;\n  font-weight: 700;\n  color: #ffc86b;\n}\n\n/* ─── Dialog buttons ─────────────────────────────────────────────────── */\n\n.btn {\n  min-width: 132px;\n  min-height: 42px;\n  padding: 10px 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #262634 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);\n  color: #c6cfdb;\n  cursor: pointer;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  font-size: 14px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  line-height: 1.2;\n  font-family: inherit;\n  text-align: center;\n  white-space: nowrap;\n  transition: all 0.15s ease;\n}\n\n.btn:hover {\n  background: linear-gradient(180deg, #2d2d3c 0%, #20202c 100%);\n  border-color: #4a4a5e;\n  color: #fff;\n}\n\n.btn:active {\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.32);\n}\n\n.btn.secondary {\n  color: #d6dfeb;\n}\n\n.btn.primary {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.22) 0%, rgba(6, 120, 135, 0.3) 100%);\n  border-color: rgba(14, 233, 231, 0.45);\n  color: #8ffaf8;\n}\n\n.btn.primary:hover {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.28) 0%, rgba(8, 137, 153, 0.38) 100%);\n}\n\n.btn.danger {\n  background: linear-gradient(180deg, rgba(255, 92, 92, 0.16) 0%, rgba(110, 29, 40, 0.28) 100%);\n  border-color: rgba(255, 92, 92, 0.38);\n  color: #ff8a8a;\n}\n\n.btn.danger:hover {\n  background: linear-gradient(180deg, rgba(255, 92, 92, 0.22) 0%, rgba(130, 34, 47, 0.35) 100%);\n}\n\n.btn.secondary {\n  background: rgba(255, 255, 255, 0.04);\n}\n\n.dialog-footer.centered .btn {\n  flex: 1 1 0;\n  min-width: 0;\n  padding-left: 12px;\n  padding-right: 12px;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EMPTY STATE                                 */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.empty-state {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  color: #444;\n  font-size: 16px;\n  gap: 12px;\n}\n\n.empty-state .icon {\n  font-size: 48px;\n  opacity: 0.3;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           TOAST NOTIFICATIONS                         */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.toast-container {\n  position: fixed;\n  /* Below toolbar: editor starts at 8vh, toolbar ~56px tall */\n  top: calc(8vh + 64px);\n  left: 50%;\n  transform: translateX(-50%);\n  z-index: 200000;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  align-items: center;\n  pointer-events: none;\n}\n\n.toast {\n  padding: 10px 20px;\n  background: #2a2a3a;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  color: #ccc;\n  font-size: 13px;\n  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);\n  animation: toast-in 0.3s ease;\n  transition: opacity 0.25s ease, transform 0.25s ease;\n  pointer-events: auto;\n}\n\n.toast.success {\n  border-color: rgba(50, 200, 100, 0.4);\n  background: rgba(50, 200, 100, 0.1);\n  color: #6fd898;\n}\n\n.toast.error {\n  border-color: rgba(255, 70, 70, 0.4);\n  background: rgba(255, 70, 70, 0.1);\n  color: #ff8888;\n}\n\n.toast.info {\n  border-color: rgba(14, 233, 231, 0.3);\n  background: rgba(14, 233, 231, 0.08);\n  color: #0ee9e7;\n}\n\n@keyframes toast-in {\n  from { opacity: 0; transform: translateY(10px); }\n  to { opacity: 1; transform: translateY(0); }\n}\n\n/* ─── Stepper controls ───────────────────────────────────────────────── */\n\n.stepper-ctrl {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  flex: 1 1 auto;\n  min-width: 0;\n}\n\n.stepper-dec,\n.stepper-inc {\n  flex-shrink: 0;\n  width: 24px;\n  height: 30px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  background: #12121a;\n  color: #ccc;\n  cursor: pointer;\n  font-size: 14px;\n  line-height: 1;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-family: inherit;\n}\n\n.stepper-dec:hover,\n.stepper-inc:hover {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n}\n\n.stepper-select {\n  flex: 1;\n  min-width: 0;\n  height: 30px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 12px;\n  padding: 0 8px;\n  font-family: inherit;\n  text-align: center;\n  cursor: pointer;\n}\n\n.stepper-select:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n";
   document.head.appendChild(style);
 })();
 // --- 000-core.js ---
@@ -747,6 +747,8 @@
 
   var STROKE_PRESETS = [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20];
   var RADIUS_PRESETS = [0, 2, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 50, 75, 100];
+  var GLOW_PRESETS = [0, 2, 4, 6, 8, 10, 12, 16, 20, 24, 32, 40, 50, 64, 80, 100];
+  var TEXT_SIZE_PRESETS = [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 40, 44, 48, 56, 64, 80, 96, 128, 160, 200];
   var SHAPE_TOOL_OPTIONS = [
     { tool: "box", title: "Box", shortcut: "B", glyph: "\u25A1", iconClass: "tb-icon-box tb-icon-glyph tb-icon-glyph-box" },
     { tool: "rounded", title: "Rounded Box", shortcut: "R", glyph: "\u25A2", iconClass: "tb-icon-rounded tb-icon-glyph tb-icon-glyph-rounded" },
@@ -773,6 +775,31 @@
       el("button", { className: "stepper-dec", dataset: { stepperProp: prop }, textContent: "\u2212" }),
       el("select", { className: "stepper-select", dataset: { prop: prop } }, options),
       el("button", { className: "stepper-inc", dataset: { stepperProp: prop }, textContent: "+" }),
+    ]);
+  }
+
+  function buildPropDropdown(prop, options) {
+    return el("div", { className: "prop-dropdown", dataset: { propDropdown: prop } }, [
+      el("button", {
+        type: "button",
+        className: "prop-dropdown-trigger prop-input prop-input-wide",
+        dataset: { propDropdownTrigger: prop }
+      }, [
+        el("span", {
+          className: "prop-dropdown-label",
+          dataset: { propDropdownLabel: prop },
+          textContent: options[0] ? options[0].label : ""
+        }),
+        el("span", { className: "prop-dropdown-caret", textContent: "\u25BE" }),
+      ]),
+      el("div", { className: "prop-dropdown-menu" }, options.map(function (option) {
+        return el("button", {
+          type: "button",
+          className: "prop-dropdown-option",
+          dataset: { propDropdownValue: prop, value: option.value },
+          textContent: option.label
+        });
+      })),
     ]);
   }
 
@@ -944,99 +971,136 @@
           el("button", { className: "panel-toggle", dataset: { action: "toggle-collapse" }, textContent: "\u25BE" }),
         ]),
         el("div", { className: "panel-content" }, [
-          el("div", { className: "prop-row" }, [
-            el("label", { textContent: "X" }),
-            el("input", { type: "number", className: "prop-input", dataset: { prop: "x" } }),
-            el("label", { textContent: "Y" }),
-            el("input", { type: "number", className: "prop-input", dataset: { prop: "y" } }),
-          ]),
-          el("div", { className: "prop-row" }, [
-            el("label", { textContent: "W" }),
-            el("input", { type: "number", className: "prop-input", dataset: { prop: "w" } }),
-            el("label", { textContent: "H" }),
-            el("input", { type: "number", className: "prop-input", dataset: { prop: "h" } }),
-          ]),
-          el("div", { className: "prop-row" }, [
-            el("label", { textContent: "Fill" }),
+          el("div", { className: "panel-tabs", dataset: { tabs: "properties" } }, [
             el("button", {
               type: "button",
-              className: "prop-color-btn",
-              title: "Fill color",
-              dataset: { colorProp: "fill", colorHex: "#3366FF" }
-            }, [
-              el("span", { className: "prop-color-chip" }),
-            ]),
-          ]),
-          el("div", { className: "prop-row" }, [
-            el("label", { textContent: "Stroke" }),
+              className: "panel-tab active",
+              dataset: { panelTabBtn: "shape" },
+              textContent: "Shape"
+            }),
             el("button", {
               type: "button",
-              className: "prop-color-btn",
-              title: "Stroke color",
-              dataset: { colorProp: "stroke", colorHex: "#FFFFFF" }
-            }, [
-              el("span", { className: "prop-color-chip" }),
+              className: "panel-tab",
+              dataset: { panelTabBtn: "text" },
+              textContent: "Text"
+            }),
+          ]),
+          el("div", {
+            className: "panel-empty-state",
+            textContent: "Select an element to edit its properties."
+          }),
+          el("div", { className: "panel-tab-page active", dataset: { panelTabPage: "shape" } }, [
+            el("div", { className: "prop-row" }, [
+              el("label", { textContent: "X" }),
+              el("input", { type: "number", className: "prop-input", dataset: { prop: "x" } }),
+              el("label", { textContent: "Y" }),
+              el("input", { type: "number", className: "prop-input", dataset: { prop: "y" } }),
+            ]),
+            el("div", { className: "prop-row" }, [
+              el("label", { textContent: "W" }),
+              el("input", { type: "number", className: "prop-input", dataset: { prop: "w" } }),
+              el("label", { textContent: "H" }),
+              el("input", { type: "number", className: "prop-input", dataset: { prop: "h" } }),
+            ]),
+            el("div", { className: "prop-row" }, [
+              el("label", { textContent: "Fill" }),
+              el("button", {
+                type: "button",
+                className: "prop-color-btn",
+                title: "Fill color",
+                dataset: { colorProp: "fill", colorHex: "#3366FF" }
+              }, [
+                el("span", { className: "prop-color-chip" }),
+              ]),
+            ]),
+            el("div", { className: "prop-row" }, [
+              el("label", { textContent: "Stroke" }),
+              el("button", {
+                type: "button",
+                className: "prop-color-btn",
+                title: "Stroke color",
+                dataset: { colorProp: "stroke", colorHex: "#FFFFFF" }
+              }, [
+                el("span", { className: "prop-color-chip" }),
+              ]),
+            ]),
+            el("div", { className: "prop-row" }, [
+              el("label", { textContent: "Stroke W" }),
+              buildStepper("strokeWidth", STROKE_PRESETS),
+            ]),
+            el("div", { className: "prop-row", dataset: { propRow: "radius" } }, [
+              el("label", { textContent: "Radius" }),
+              buildStepper("radius", RADIUS_PRESETS),
+            ]),
+            el("div", { className: "prop-row", dataset: { propRow: "rotation" } }, [
+              el("label", { textContent: "Rot (rad)" }),
+              el("input", { type: "number", step: "0.01", className: "prop-input", dataset: { prop: "rotation" } }),
+            ]),
+            el("div", { className: "prop-row", dataset: { propRow: "shadowBlur" } }, [
+              el("label", { textContent: "Glow" }),
+              buildStepper("shadowBlur", GLOW_PRESETS),
+            ]),
+            el("div", { className: "prop-row", dataset: { propRow: "shadowColor" } }, [
+              el("label", { textContent: "Glow Col" }),
+              el("button", {
+                type: "button",
+                className: "prop-color-btn",
+                title: "Glow color",
+                dataset: { colorProp: "shadowColor", colorHex: "#000000" }
+              }, [
+                el("span", { className: "prop-color-chip" }),
+              ]),
+            ]),
+            el("div", { className: "prop-row vertical", dataset: { propRow: "imageSrc" } }, [
+              el("label", { textContent: "Image" }),
+              el("input", { type: "text", className: "prop-input prop-input-wide", dataset: { prop: "imageSrc" } }),
             ]),
           ]),
-          el("div", { className: "prop-row" }, [
-            el("label", { textContent: "Stroke W" }),
-            buildStepper("strokeWidth", STROKE_PRESETS),
-          ]),
-          el("div", { className: "prop-row", dataset: { propRow: "radius" } }, [
-            el("label", { textContent: "Radius" }),
-            buildStepper("radius", RADIUS_PRESETS),
-          ]),
-          el("div", { className: "prop-row", dataset: { propRow: "rotation" } }, [
-            el("label", { textContent: "Rot (rad)" }),
-            el("input", { type: "number", step: "0.01", className: "prop-input", dataset: { prop: "rotation" } }),
-          ]),
-          el("div", { className: "prop-row", dataset: { propRow: "shadowBlur" } }, [
-            el("label", { textContent: "Glow" }),
-            el("input", { type: "number", step: "1", min: "0", className: "prop-input", dataset: { prop: "shadowBlur" } }),
-          ]),
-          el("div", { className: "prop-row", dataset: { propRow: "shadowColor" } }, [
-            el("label", { textContent: "Glow Col" }),
-            el("button", {
-              type: "button",
-              className: "prop-color-btn",
-              title: "Glow color",
-              dataset: { colorProp: "shadowColor", colorHex: "#000000" }
-            }, [
-              el("span", { className: "prop-color-chip" }),
+          el("div", { className: "panel-tab-page", dataset: { panelTabPage: "text" } }, [
+            el("div", { className: "prop-row", dataset: { propRow: "textColor" } }, [
+              el("label", { textContent: "Text Col" }),
+              el("button", {
+                type: "button",
+                className: "prop-color-btn",
+                title: "Text color",
+                dataset: { colorProp: "textColor", colorHex: "#FFFFFF" }
+              }, [
+                el("span", { className: "prop-color-chip" }),
+              ]),
+            ]),
+            el("div", { className: "prop-row", dataset: { propRow: "textSize" } }, [
+              el("label", { textContent: "Size" }),
+              buildStepper("textSize", TEXT_SIZE_PRESETS),
+            ]),
+            el("div", { className: "prop-row prop-row-dual" }, [
+              el("div", { className: "prop-inline-field", dataset: { propRow: "textAlign" } }, [
+                el("label", { textContent: "H Align" }),
+                buildPropDropdown("textAlign", [
+                  { value: "left", label: "Left" },
+                  { value: "center", label: "Center" },
+                  { value: "right", label: "Right" },
+                ]),
+              ]),
+              el("div", { className: "prop-inline-field", dataset: { propRow: "textVAlign" } }, [
+                el("label", { textContent: "V Align" }),
+                buildPropDropdown("textVAlign", [
+                  { value: "top", label: "Top" },
+                  { value: "center", label: "Center" },
+                  { value: "bottom", label: "Bottom" },
+                ]),
+              ]),
+            ]),
+            el("div", { className: "prop-row vertical", dataset: { propRow: "textLines" } }, [
+              el("label", { textContent: "Text" }),
+              el("textarea", {
+                className: "prop-textarea",
+                rows: "4",
+                placeholder: "Line 1\nLine 2",
+                dataset: { prop: "textLines" }
+              }),
             ]),
           ]),
-          el("div", { className: "prop-row", dataset: { propRow: "textColor" } }, [
-            el("label", { textContent: "Text Col" }),
-            el("button", {
-              type: "button",
-              className: "prop-color-btn",
-              title: "Text color",
-              dataset: { colorProp: "textColor", colorHex: "#FFFFFF" }
-            }, [
-              el("span", { className: "prop-color-chip" }),
-            ]),
-          ]),
-          el("div", { className: "prop-row", dataset: { propRow: "textSize" } }, [
-            el("label", { textContent: "Text Size" }),
-            el("input", { type: "number", step: "1", min: "1", className: "prop-input", dataset: { prop: "textSize" } }),
-          ]),
-          el("div", { className: "prop-row", dataset: { propRow: "textAlign" } }, [
-            el("label", { textContent: "Text Align" }),
-            el("select", { className: "prop-input", dataset: { prop: "textAlign" } }, [
-              el("option", { value: "left", textContent: "Left" }),
-              el("option", { value: "center", textContent: "Center" }),
-              el("option", { value: "right", textContent: "Right" }),
-            ]),
-          ]),
-          el("div", { className: "prop-row vertical", dataset: { propRow: "textLines" } }, [
-            el("label", { textContent: "Text" }),
-            el("textarea", { className: "prop-textarea", rows: "3", dataset: { prop: "textLines" } }),
-          ]),
-          el("div", { className: "prop-row vertical", dataset: { propRow: "imageSrc" } }, [
-            el("label", { textContent: "Image Path" }),
-            el("input", { type: "text", className: "prop-input", dataset: { prop: "imageSrc" } }),
-          ]),
-          el("div", { className: "prop-row" }, [
+          el("div", { className: "prop-row", dataset: { propRow: "delete" } }, [
             el("button", {
               className: "prop-delete",
               dataset: { action: "delete-element" },
@@ -1549,31 +1613,40 @@
 
   function appendTextNode(layer, command) {
     var wrapper = el("div", { className: "canvas-text-node" });
+    var content = el("div", { className: "canvas-text-content" });
     var lines = Array.isArray(command.l) ? command.l : [];
     var fontSize = Math.max(1, Math.floor((Number(command.ts) || 16) * scale + 0.5));
     var strokeWidth = Math.max(0, (Number(command.sw) || 0) * scale);
+    var valign = String(command.tv || "center");
     wrapper.style.position = "absolute";
-    wrapper.style.inset = "0";
+    wrapper.style.left = "0";
+    wrapper.style.top = "0";
+    wrapper.style.width = "100%";
+    wrapper.style.height = "100%";
+    wrapper.style.boxSizing = "border-box";
     wrapper.style.display = "flex";
     wrapper.style.flexDirection = "column";
-    wrapper.style.justifyContent = "center";
-    wrapper.style.alignItems = command.ta === "center" ? "center" : (command.ta === "right" ? "flex-end" : "flex-start");
-    wrapper.style.padding = "0 " + Math.round(12 * scale) + "px";
-    wrapper.style.gap = Math.max(2, Math.floor(fontSize * 0.2)) + "px";
-    wrapper.style.color = rgbaToCss(command.tc || [1, 1, 1, 1]);
-    wrapper.style.fontSize = fontSize + "px";
-    wrapper.style.fontFamily = "Play, Rajdhani, Segoe UI, sans-serif";
-    wrapper.style.lineHeight = "1";
-    wrapper.style.textAlign = command.ta || "left";
-    wrapper.style.whiteSpace = "pre";
+    wrapper.style.justifyContent = valign === "top" ? "flex-start" : (valign === "bottom" ? "flex-end" : "center");
+    wrapper.style.alignItems = "stretch";
+    wrapper.style.padding = Math.round(10 * scale) + "px " + Math.round(12 * scale) + "px";
     wrapper.style.pointerEvents = "none";
+    content.style.width = "100%";
+    content.style.boxSizing = "border-box";
+    content.style.color = rgbaToCss(command.tc || [1, 1, 1, 1]);
+    content.style.fontSize = fontSize + "px";
+    content.style.fontFamily = "Play, Rajdhani, Segoe UI, sans-serif";
+    content.style.lineHeight = "1";
+    content.style.textAlign = command.ta || "left";
+    content.style.whiteSpace = "pre";
+    content.style.pointerEvents = "none";
     if (strokeWidth > 0 && hasVisibleColor(command.s)) {
-      wrapper.style.webkitTextStroke = strokeWidth + "px " + rgbaToCss(command.s);
+      content.style.webkitTextStroke = strokeWidth + "px " + rgbaToCss(command.s);
     }
     if (hasVisibleColor(command.sh && command.sh.c) && (Number(command.sh && command.sh.b) || 0) > 0) {
-      wrapper.style.textShadow = "0 0 " + Math.max(1, (Number(command.sh.b) || 0) * scale) + "px " + rgbaToCss(command.sh.c);
+      content.style.textShadow = "0 0 " + Math.max(1, (Number(command.sh.b) || 0) * scale) + "px " + rgbaToCss(command.sh.c);
     }
-    wrapper.textContent = lines.join("\n");
+    content.textContent = lines.join("\n");
+    wrapper.appendChild(content);
     layer.appendChild(wrapper);
   }
 
@@ -2133,6 +2206,7 @@
       textColor: [0.86, 0.88, 0.92, 1.0],
       textSize: 16,
       textAlign: "center",
+      textVAlign: "center",
       rotation: 0,
       shadowBlur: 0,
       shadowColor: [0, 0, 0, 0],
@@ -2387,18 +2461,32 @@
     return activeIds().length >= 2;
   }
 
-  function getGroupBounds() {
+  function getBoundsForIds(targetIds) {
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    var members = groupState.memberIds.slice();
-    for (var i = 0; i < members.length; i++) {
-      var el = APP.canvas.getElementById(members[i]);
+    for (var i = 0; i < targetIds.length; i++) {
+      var el = APP.canvas.getElementById(targetIds[i]);
       if (!el) continue;
       if (el.x < minX) minX = el.x;
       if (el.y < minY) minY = el.y;
       if (el.x + el.w > maxX) maxX = el.x + el.w;
       if (el.y + el.h > maxY) maxY = el.y + el.h;
     }
+    if (minX === Infinity || minY === Infinity || maxX === -Infinity || maxY === -Infinity) {
+      return null;
+    }
     return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  }
+
+  function getGroupBounds() {
+    var members = groupState.memberIds.slice();
+    if (members.length === 0) return null;
+    return getBoundsForIds(members);
+  }
+
+  function getAggregateBounds() {
+    var selectedIds = activeIds();
+    if (selectedIds.length === 0) return null;
+    return getBoundsForIds(selectedIds);
   }
 
   // ─── Hit testing ───────────────────────────────────────────────────
@@ -2945,7 +3033,8 @@
     if (!isAggregateSelection()) return;
 
     var handleType = handle.dataset.h;
-    var bounds = getGroupBounds();
+    var bounds = getAggregateBounds();
+    if (!bounds || bounds.w <= 0 || bounds.h <= 0) return;
 
     var preview = APP.canvas && APP.canvas._getPreview ? APP.canvas._getPreview() : null;
     if (!preview) return;
@@ -3136,24 +3225,34 @@
 
     if (APP.undoRedo) APP.undoRedo.push();
 
-    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (var j = 0; j < elems.length; j++) {
-      var el = elems[j];
-      if (el.x < minX) minX = el.x;
-      if (el.y < minY) minY = el.y;
-      if (el.x + el.w > maxX) maxX = el.x + el.w;
-      if (el.y + el.h > maxY) maxY = el.y + el.h;
+    var anchorId = APP.state.selectedElementId;
+    if (!anchorId || arr.indexOf(anchorId) === -1) {
+      anchorId = arr[arr.length - 1];
     }
+    var anchor = APP.canvas.getElementById(anchorId);
+    if (!anchor) {
+      anchor = elems[elems.length - 1];
+    }
+    if (!anchor) return;
+
+    var anchorLeft = Number(anchor.x) || 0;
+    var anchorTop = Number(anchor.y) || 0;
+    var anchorWidth = Math.max(0, Number(anchor.w) || 0);
+    var anchorHeight = Math.max(0, Number(anchor.h) || 0);
+    var anchorRight = anchorLeft + anchorWidth;
+    var anchorBottom = anchorTop + anchorHeight;
+    var anchorCenterX = anchorLeft + anchorWidth / 2;
+    var anchorCenterY = anchorTop + anchorHeight / 2;
 
     for (var k = 0; k < elems.length; k++) {
       var elem = elems[k];
       switch (mode) {
-        case "left":      elem.x = minX; break;
-        case "right":     elem.x = maxX - elem.w; break;
-        case "center-h":  elem.x = minX + (maxX - minX) / 2 - elem.w / 2; break;
-        case "top":       elem.y = minY; break;
-        case "bottom":    elem.y = maxY - elem.h; break;
-        case "center-v":  elem.y = minY + (maxY - minY) / 2 - elem.h / 2; break;
+        case "left":      elem.x = anchorLeft; break;
+        case "right":     elem.x = anchorRight - elem.w; break;
+        case "center-h":  elem.x = anchorCenterX - elem.w / 2; break;
+        case "top":       elem.y = anchorTop; break;
+        case "bottom":    elem.y = anchorBottom - elem.h; break;
+        case "center-v":  elem.y = anchorCenterY - elem.h / 2; break;
       }
       APP.canvas.updateElement(elem.id);
     }
@@ -3674,18 +3773,87 @@
     });
   }
 
+  function supportsTextEditing(element) {
+    return !!element && element.type !== "line";
+  }
+
+  function setPanelEmptyState() {
+    var panel = qs("#properties-panel");
+    if (!panel) return;
+    panel.classList.add("visible");
+    panel.classList.add("is-empty");
+    panel.dataset.activeTab = "shape";
+    var textTabButton = qs('[data-panel-tab-btn="text"]', panel);
+    var deleteRow = qs('[data-prop-row="delete"]', panel);
+    if (textTabButton) textTabButton.style.display = "none";
+    if (deleteRow) deleteRow.style.display = "none";
+    qsa("[data-panel-tab-btn]", panel).forEach(function (button) {
+      button.classList.toggle("active", button.dataset.panelTabBtn === "shape");
+    });
+    qsa("[data-panel-tab-page]", panel).forEach(function (page) {
+      page.classList.toggle("active", page.dataset.panelTabPage === "shape");
+    });
+  }
+
+  function clearPanelEmptyState() {
+    var panel = qs("#properties-panel");
+    if (!panel) return;
+    panel.classList.remove("is-empty");
+    var deleteRow = qs('[data-prop-row="delete"]', panel);
+    if (deleteRow) deleteRow.style.display = "";
+  }
+
+  function syncPropDropdown(prop, value) {
+    var panel = qs("#properties-panel");
+    if (!panel) return;
+    var dropdown = qs('[data-prop-dropdown="' + prop + '"]', panel);
+    if (!dropdown) return;
+    var nextValue = String(value || "");
+    dropdown.dataset.value = nextValue;
+    var label = qs('[data-prop-dropdown-label="' + prop + '"]', dropdown);
+    var activeText = "";
+    qsa('[data-prop-dropdown-value]', dropdown).forEach(function (option) {
+      var isActive = option.dataset.propDropdownValue === prop && option.dataset.value === nextValue;
+      option.classList.toggle("active", isActive);
+      if (isActive) activeText = option.textContent || "";
+    });
+    if (label) label.textContent = activeText || nextValue;
+  }
+
+  function closePropDropdowns() {
+    var panel = qs("#properties-panel");
+    if (!panel) return;
+    qsa(".prop-dropdown.open", panel).forEach(function (dropdown) {
+      dropdown.classList.remove("open");
+    });
+  }
+
+  function setActivePanelTab(tabName) {
+    var panel = qs("#properties-panel");
+    if (!panel) return;
+    var nextTab = tabName === "text" ? "text" : "shape";
+    panel.dataset.activeTab = nextTab;
+    qsa("[data-panel-tab-btn]", panel).forEach(function (button) {
+      button.classList.toggle("active", button.dataset.panelTabBtn === nextTab);
+    });
+    qsa("[data-panel-tab-page]", panel).forEach(function (page) {
+      page.classList.toggle("active", page.dataset.panelTabPage === nextTab);
+    });
+  }
+
   // ─── Property sync: document → panel ───────────────────────────────
 
   function populatePanel(elementId) {
     var element = APP.canvas.getElementById(elementId);
     if (!element) {
-      hidePanel();
+      setPanelEmptyState();
       return;
     }
 
     var panel = qs("#properties-panel");
     if (!panel) return;
 
+    clearPanelEmptyState();
     panel.classList.add("visible");
 
     // Position X/Y
@@ -3699,31 +3867,39 @@
     var rotationInput = qs('[data-prop="rotation"]', panel);
     var shadowBlurInput = qs('[data-prop="shadowBlur"]', panel);
     var textSizeInput = qs('[data-prop="textSize"]', panel);
-    var textAlignInput = qs('[data-prop="textAlign"]', panel);
     var imageSrcInput = qs('[data-prop="imageSrc"]', panel);
+    var textTabButton = qs('[data-panel-tab-btn="text"]', panel);
 
     if (xInput) xInput.value = Math.round(element.x);
     if (yInput) yInput.value = Math.round(element.y);
     if (wInput) wInput.value = Math.round(element.w);
     if (hInput) hInput.value = Math.round(element.h);
     if (rotationInput) rotationInput.value = String(Number(element.rotation) || 0);
-    if (shadowBlurInput) shadowBlurInput.value = String(Number(element.shadowBlur) || 0);
+    if (shadowBlurInput) setStepperValue(shadowBlurInput, Number(element.shadowBlur) || 0);
     // Radius only applies to box / boxRounded
     var radiusRow = qs('[data-prop-row="radius"]', panel);
     var showRadius = (element.type === "box" || element.type === "boxRounded");
     if (radiusRow) radiusRow.style.display = showRadius ? "" : "none";
     var textRows = ["textLines", "textColor", "textSize", "textAlign"];
+    var showText = supportsTextEditing(element);
+    var textVAlignRow = qs('[data-prop-row="textVAlign"]', panel);
     textRows.forEach(function (rowName) {
       var row = qs('[data-prop-row="' + rowName + '"]', panel);
-      if (row) row.style.display = element.type === "text" ? "" : "none";
+      if (row) row.style.display = showText ? "" : "none";
     });
+    if (textVAlignRow) textVAlignRow.style.display = showText ? "" : "none";
+    if (textTabButton) textTabButton.style.display = showText ? "" : "none";
+    if (!showText && panel.dataset.activeTab === "text") {
+      setActivePanelTab("shape");
+    }
     var imageRow = qs('[data-prop-row="imageSrc"]', panel);
     if (imageRow) imageRow.style.display = element.type === "image" ? "" : "none";
 
     if (radiusInput && showRadius) setStepperValue(radiusInput, element.radius || 0);
     if (strokeWidthInput) setStepperValue(strokeWidthInput, element.strokeWidth || 0);
-    if (textSizeInput) textSizeInput.value = String(Number(element.textSize) || 16);
-    if (textAlignInput) textAlignInput.value = String(element.textAlign || "left");
+    if (textSizeInput) setStepperValue(textSizeInput, Number(element.textSize) || 16);
+    syncPropDropdown("textAlign", String(element.textAlign || "left"));
+    syncPropDropdown("textVAlign", String(element.textVAlign || "center"));
     if (imageSrcInput) imageSrcInput.value = String(element.imageSrc || "");
 
     // Colors — update both panel and toolbar pickers
@@ -3761,6 +3937,10 @@
     fill: 1,
     stroke: 1,
     strokeWidth: 1,
+    textColor: 1,
+    textSize: 1,
+    textAlign: 1,
+    textVAlign: 1,
     rotation: 1,
     shadowBlur: 1,
     shadowColor: 1
@@ -3837,7 +4017,7 @@
           changed = true;
           break;
         case "textLines":
-          element.textLines = value.split("\n");
+          element.textLines = value ? value.split("\n") : [];
           changed = true;
           break;
         case "textSize":
@@ -3846,6 +4026,10 @@
           break;
         case "textAlign":
           element.textAlign = String(value || "left");
+          changed = true;
+          break;
+        case "textVAlign":
+          element.textVAlign = String(value || "center");
           changed = true;
           break;
         case "imageSrc":
@@ -4118,8 +4302,35 @@
     var button = e.target.closest("#properties-panel [data-color-prop]");
     if (!button) return;
     var prop = button.dataset.colorProp;
-    if (prop !== "fill" && prop !== "stroke") return;
+    if (prop !== "fill" && prop !== "stroke" && prop !== "textColor" && prop !== "shadowColor") return;
     openColorDialog(prop);
+  }
+
+  function onPanelTabClick(e) {
+    var button = e.target.closest("#properties-panel [data-panel-tab-btn]");
+    if (!button) return;
+    if (button.style.display === "none") return;
+    closePropDropdowns();
+    setActivePanelTab(button.dataset.panelTabBtn || "shape");
+  }
+
+  function onPropDropdownClick(e) {
+    var option = e.target.closest("#properties-panel [data-prop-dropdown-value]");
+    if (option) {
+      var prop = option.dataset.propDropdownValue;
+      var value = option.dataset.value;
+      closePropDropdowns();
+      syncPropDropdown(prop, value);
+      applyPanelChange(prop, value);
+      return;
+    }
+    var trigger = e.target.closest("#properties-panel [data-prop-dropdown-trigger]");
+    if (!trigger) return;
+    var dropdown = trigger.closest(".prop-dropdown");
+    if (!dropdown) return;
+    var willOpen = !dropdown.classList.contains("open");
+    closePropDropdowns();
+    dropdown.classList.toggle("open", willOpen);
   }
 
   // ─── Attach panel events ───────────────────────────────────────────
@@ -4144,10 +4355,14 @@
 
     // Stepper clicks (+/−) and select changes — use delegation on panel
     panel.removeEventListener("click", onPanelColorClick);
+    panel.removeEventListener("click", onPanelTabClick);
+    panel.removeEventListener("click", onPropDropdownClick);
     panel.removeEventListener("click",  onStepperClick);
     panel.removeEventListener("change", onStepperChange);
     panel.removeEventListener("change", onSelectChange);
     panel.addEventListener("click", onPanelColorClick);
+    panel.addEventListener("click", onPanelTabClick);
+    panel.addEventListener("click", onPropDropdownClick);
     panel.addEventListener("click",  onStepperClick);
     panel.addEventListener("change", onStepperChange);
     panel.addEventListener("change", onSelectChange);
@@ -4159,10 +4374,16 @@
     if (elementId) {
       populatePanel(elementId);
       showPanel();
+      if (!qs("#properties-panel").dataset.activeTab) {
+        setActivePanelTab("shape");
+      }
       attachPanelListeners();
       attachDragListener();
     } else {
-      hidePanel();
+      setPanelEmptyState();
+      showPanel();
+      attachPanelListeners();
+      attachDragListener();
     }
   });
 
@@ -4172,6 +4393,12 @@
       attachDragListener();
       attachHoverOpenListener();
       attachToolbarColorListeners();
+      if (APP.state.selectedElementId) {
+        populatePanel(APP.state.selectedElementId);
+      } else {
+        setPanelEmptyState();
+        showPanel();
+      }
     }, 200);
   });
 
@@ -4190,6 +4417,11 @@
   APP.on("auto-open-panels-changed", function (enabled) {
     var panel = qs("#properties-panel");
     if (!enabled && panel) panel.classList.remove("hover-open");
+  });
+
+  document.addEventListener("click", function (e) {
+    if (e.target.closest("#properties-panel .prop-dropdown")) return;
+    closePropDropdowns();
   });
 
 })();
@@ -4725,6 +4957,7 @@
       textColor: normalizeColor(raw.textColor, [1, 1, 1, 1]),
       textSize: toFiniteNumber(raw.textSize, 16),
       textAlign: raw.textAlign ? String(raw.textAlign) : "left",
+      textVAlign: raw.textVAlign ? String(raw.textVAlign) : "center",
       rotation: toFiniteNumber(raw.rotation, 0),
       shadowBlur: toFiniteNumber(raw.shadowBlur, 0),
       shadowColor: normalizeColor(raw.shadowColor, [0, 0, 0, 0]),
@@ -4957,6 +5190,7 @@
       textColor: [1, 1, 1, 1],
       textSize: 18,
       textAlign: "center",
+      textVAlign: "center",
       rotation: 0,
       shadowBlur: 0,
       shadowColor: [0, 0, 0, 0],
@@ -5535,6 +5769,7 @@
   var DEFAULT_STROKE = [1, 1, 1, 1];
   var DEFAULT_TEXT = [1, 1, 1, 1];
   var DEFAULT_SHADOW = [0, 0, 0, 0];
+  var CLEAR_TEXT_STROKE = [0, 0, 0, 0];
 
   function cloneDocument(doc) {
     return doc ? JSON.parse(JSON.stringify(doc)) : null;
@@ -5599,10 +5834,11 @@
       h: toFiniteNumber(raw.h, 0),
       l: lines,
       tc: compactColor(raw.textColor, DEFAULT_TEXT),
-      s: compactColor(raw.stroke, DEFAULT_STROKE),
-      sw: toFiniteNumber(raw.strokeWidth, 0),
+      s: CLEAR_TEXT_STROKE.slice(),
+      sw: 0,
       ts: toFiniteNumber(raw.textSize, 16),
-      ta: String(raw.textAlign || "left")
+      ta: String(raw.textAlign || "left"),
+      tv: String(raw.textVAlign || "center")
     };
     return buildCommonStyle(raw, command);
   }
@@ -5749,6 +5985,26 @@
 
   function getDocument() {
     return APP.state && APP.state.document ? APP.state.document : null;
+  }
+
+  function isNodeVisible(node) {
+    if (!node) return false;
+    if (node.classList && node.classList.contains("hide")) return false;
+    if (node.style && node.style.display === "none") return false;
+    return node.offsetParent !== null || node === document.activeElement;
+  }
+
+  function getVisibleScreenEditorPanel() {
+    var panels = document.querySelectorAll(".screen_content_editor_panel");
+    var index;
+    var panel;
+    for (index = 0; index < panels.length; index += 1) {
+      panel = panels[index];
+      if (isNodeVisible(panel)) {
+        return panel;
+      }
+    }
+    return null;
   }
 
   function luaEscapeString(value) {
@@ -5903,6 +6159,7 @@
         {
           size: command.ts != null ? command.ts : 16,
           align: command.ta || "left",
+          valign: command.tv || "center",
           color: command.tc || [1, 1, 1, 1]
         }
       ]) + ")");
@@ -6066,8 +6323,10 @@
       "        return",
       "    end",
       "    local align = options and options.align or \"left\"",
+      "    local valign = options and options.valign or \"center\"",
       "    local textX = x + 12",
       "    local alignH = AlignH_Left",
+      "    local alignV = AlignV_Middle",
       "    if align == \"center\" then",
       "        textX = x + w * 0.5",
       "        alignH = AlignH_Center",
@@ -6075,9 +6334,20 @@
       "        textX = x + w - 12",
       "        alignH = AlignH_Right",
       "    end",
-      "    setNextTextAlign(layer, alignH, AlignV_Middle)",
+      "    if valign == \"top\" then",
+      "        alignV = AlignV_Top",
+      "    elseif valign == \"bottom\" then",
+      "        alignV = AlignV_Bottom",
+      "    end",
+      "    setNextTextAlign(layer, alignH, alignV)",
       "    local gap = math.max(2, math.floor(size * 0.2))",
-      "    local startY = y + h * 0.5 - ((#lines - 1) * (size + gap)) * 0.5",
+      "    local blockHeight = #lines * size + (#lines - 1) * gap",
+      "    local startY = y + h * 0.5 - (blockHeight - size) * 0.5",
+      "    if valign == \"top\" then",
+      "        startY = y + 12",
+      "    elseif valign == \"bottom\" then",
+      "        startY = y + h - 12 - (blockHeight - size)",
+      "    end",
       "    local color = options and options.color or {1, 1, 1, 1}",
       "    for index = 1, #lines do",
       "        applyFillColor(layer, color, {1, 1, 1, 1})",
@@ -6152,8 +6422,10 @@
       "    local f=G(s)",
       "    if not f then return end",
       "    local a=c.ta or \"left\"",
+      "    local va=c.tv or \"center\"",
       "    local x=(tonumber(c.x) or 0)+12",
       "    local h=AlignH_Left",
+      "    local v=AlignV_Middle",
       "    local w=tonumber(c.w) or 0",
       "    if a==\"center\" then",
       "        x=(tonumber(c.x) or 0)+w*0.5",
@@ -6162,9 +6434,20 @@
       "        x=(tonumber(c.x) or 0)+w-12",
       "        h=AlignH_Right",
       "    end",
-      "    setNextTextAlign(l,h,AlignV_Middle)",
+      "    if va==\"top\" then",
+      "        v=AlignV_Top",
+      "    elseif va==\"bottom\" then",
+      "        v=AlignV_Bottom",
+      "    end",
+      "    setNextTextAlign(l,h,v)",
       "    local g=math.max(2,math.floor(s*0.2))",
-      "    local y=(tonumber(c.y) or 0)+(tonumber(c.h) or 0)*0.5-((#lines-1)*(s+g))*0.5",
+      "    local bh=#lines*s+(#lines-1)*g",
+      "    local y=(tonumber(c.y) or 0)+(tonumber(c.h) or 0)*0.5-(bh-s)*0.5",
+      "    if va==\"top\" then",
+      "        y=(tonumber(c.y) or 0)+12",
+      "    elseif va==\"bottom\" then",
+      "        y=(tonumber(c.y) or 0)+(tonumber(c.h) or 0)-12-(bh-s)",
+      "    end",
       "    local tc=c.tc or {1,1,1,1}",
       "    for i=1,#lines do",
       "        FC(l,tc,{1,1,1,1})",
@@ -6277,6 +6560,7 @@
       "end",
       "",
       "unit.hideWidget()",
+      "unit.setTimer(\"startup\", 0.2)",
       "system.print(\"HudEditorBoard initialized\")",
       ""
     ].join("\n");
@@ -6319,12 +6603,26 @@
     var doc = getDocument();
     var code;
     if (!doc) return { ok: false, error: "no_document" };
+    if (!getVisibleScreenEditorPanel()) {
+      return { ok: false, error: "screen_editor_not_visible" };
+    }
     code = buildScreenCode(doc, options);
     if (!code) return { ok: false, error: "no_document" };
     if (code.length > SCREEN_SCRIPT_LIMIT) {
       return { ok: false, error: "screen_script_too_long", length: code.length };
     }
     return queueIdeImport("screen_editor", code);
+  }
+
+  function canPublishScreenViaBoard() {
+    return !!(
+      APP &&
+      APP.databank &&
+      typeof APP.databank.publishScreenViaBoard === "function" &&
+      APP.bridge &&
+      typeof APP.bridge.isAvailable === "function" &&
+      APP.bridge.isAvailable()
+    );
   }
 
   APP.ideExport = {
@@ -6351,9 +6649,15 @@
   });
 
   APP.on("export-screen", function () {
+    if (canPublishScreenViaBoard()) {
+      APP.emit("publish-screen-via-board");
+      return;
+    }
     var result = exportScreen();
     if (result && result.ok) {
       APP.emit("toast", { type: "success", text: "Screen export queued" });
+    } else if (result && result.error === "screen_editor_not_visible") {
+      APP.emit("toast", { type: "error", text: "Open the linked screen editor, then export again" });
     } else if (result && result.error === "screen_script_too_long") {
       APP.emit("toast", { type: "error", text: "Screen export too long: " + result.length });
     } else {
@@ -6372,6 +6676,7 @@
   if (!APP) return;
 
   var pendingLoadToEditor = false;
+  var pendingSaveAction = null;
 
   function hasBridge() {
     return !!(APP.bridge && typeof APP.bridge.isAvailable === "function" && APP.bridge.isAvailable());
@@ -6400,7 +6705,7 @@
     }
     APP.emit("toast", {
       type: "error",
-      text: "Open the programming board Lua editor and keep it visible for load/save"
+      text: "Open the programming board Lua editor and keep it visible for load/save/export"
     });
     return false;
   }
@@ -6474,11 +6779,21 @@
     return false;
   }
 
-  APP.on("save", function () {
+  function requestBoardSave(actionName) {
     if (!ensureVisibleEditorForBoardAction()) {
-      return;
+      pendingSaveAction = null;
+      return false;
     }
+    pendingSaveAction = String(actionName || "save");
     if (!requestSave()) {
+      pendingSaveAction = null;
+      return false;
+    }
+    return true;
+  }
+
+  APP.on("save", function () {
+    if (!requestBoardSave("save")) {
       APP.emit("toast", { type: "error", text: "Lua editor bridge unavailable" });
     }
   });
@@ -6487,10 +6802,13 @@
     if (APP.state.document) {
       APP.state.document.name = String(name || "").trim() || "Layout";
     }
-    if (!ensureVisibleEditorForBoardAction()) {
-      return;
+    if (!requestBoardSave("save")) {
+      APP.emit("toast", { type: "error", text: "Lua editor bridge unavailable" });
     }
-    if (!requestSave()) {
+  });
+
+  APP.on("publish-screen-via-board", function () {
+    if (!requestBoardSave("export-screen")) {
       APP.emit("toast", { type: "error", text: "Lua editor bridge unavailable" });
     }
   });
@@ -6550,13 +6868,27 @@
   });
 
   APP.on("board-save", function (result) {
+    var action = pendingSaveAction || "save";
+    pendingSaveAction = null;
     readEditorContext();
     if (result && result.ok) {
       APP.state.isDirty = false;
-      APP.emit("toast", { type: "success", text: "Saved to unit.onStart" });
-      handlePostSaveEditorClose();
+      if (action === "export-screen") {
+        APP.emit("toast", {
+          type: "success",
+          text: "Boot document applied to unit.onStart; restart the board to update the linked screen"
+        });
+        handlePostSaveEditorClose("Lua editor applied and closed; restart the board to update the linked screen");
+      } else {
+        APP.emit("toast", { type: "success", text: "Saved to unit.onStart" });
+        handlePostSaveEditorClose();
+      }
     } else {
-      APP.emit("toast", { type: "error", text: "Save to unit.onStart failed" });
+      if (action === "export-screen") {
+        APP.emit("toast", { type: "error", text: "Boot document export to unit.onStart failed" });
+      } else {
+        APP.emit("toast", { type: "error", text: "Save to unit.onStart failed" });
+      }
     }
   });
 
@@ -6568,17 +6900,22 @@
     readEditorContext();
     var message = String((err && err.message) || err || "unknown");
     if (message === "lua editor not visible") {
-      APP.emit("toast", {
-        type: "error",
-        text: "Open the programming board Lua editor and keep it visible for load/save"
-      });
+        APP.emit("toast", {
+          type: "error",
+          text: "Open the programming board Lua editor and keep it visible for load/save/export"
+        });
       return;
     }
     APP.emit("toast", { type: "error", text: "Lua editor error: " + message });
   });
 
   APP.databank = {
-    save: requestSave,
+    save: function () {
+      return requestBoardSave("save");
+    },
+    publishScreenViaBoard: function () {
+      return requestBoardSave("export-screen");
+    },
     load: requestLoad,
     list: requestList,
     sync: requestSync

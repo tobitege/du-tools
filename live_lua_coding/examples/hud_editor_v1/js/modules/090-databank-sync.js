@@ -7,6 +7,7 @@
   if (!APP) return;
 
   var pendingLoadToEditor = false;
+  var pendingSaveAction = null;
 
   function hasBridge() {
     return !!(APP.bridge && typeof APP.bridge.isAvailable === "function" && APP.bridge.isAvailable());
@@ -35,7 +36,7 @@
     }
     APP.emit("toast", {
       type: "error",
-      text: "Open the programming board Lua editor and keep it visible for load/save"
+      text: "Open the programming board Lua editor and keep it visible for load/save/export"
     });
     return false;
   }
@@ -109,11 +110,21 @@
     return false;
   }
 
-  APP.on("save", function () {
+  function requestBoardSave(actionName) {
     if (!ensureVisibleEditorForBoardAction()) {
-      return;
+      pendingSaveAction = null;
+      return false;
     }
+    pendingSaveAction = String(actionName || "save");
     if (!requestSave()) {
+      pendingSaveAction = null;
+      return false;
+    }
+    return true;
+  }
+
+  APP.on("save", function () {
+    if (!requestBoardSave("save")) {
       APP.emit("toast", { type: "error", text: "Lua editor bridge unavailable" });
     }
   });
@@ -122,10 +133,13 @@
     if (APP.state.document) {
       APP.state.document.name = String(name || "").trim() || "Layout";
     }
-    if (!ensureVisibleEditorForBoardAction()) {
-      return;
+    if (!requestBoardSave("save")) {
+      APP.emit("toast", { type: "error", text: "Lua editor bridge unavailable" });
     }
-    if (!requestSave()) {
+  });
+
+  APP.on("publish-screen-via-board", function () {
+    if (!requestBoardSave("export-screen")) {
       APP.emit("toast", { type: "error", text: "Lua editor bridge unavailable" });
     }
   });
@@ -185,13 +199,27 @@
   });
 
   APP.on("board-save", function (result) {
+    var action = pendingSaveAction || "save";
+    pendingSaveAction = null;
     readEditorContext();
     if (result && result.ok) {
       APP.state.isDirty = false;
-      APP.emit("toast", { type: "success", text: "Saved to unit.onStart" });
-      handlePostSaveEditorClose();
+      if (action === "export-screen") {
+        APP.emit("toast", {
+          type: "success",
+          text: "Boot document applied to unit.onStart; restart the board to update the linked screen"
+        });
+        handlePostSaveEditorClose("Lua editor applied and closed; restart the board to update the linked screen");
+      } else {
+        APP.emit("toast", { type: "success", text: "Saved to unit.onStart" });
+        handlePostSaveEditorClose();
+      }
     } else {
-      APP.emit("toast", { type: "error", text: "Save to unit.onStart failed" });
+      if (action === "export-screen") {
+        APP.emit("toast", { type: "error", text: "Boot document export to unit.onStart failed" });
+      } else {
+        APP.emit("toast", { type: "error", text: "Save to unit.onStart failed" });
+      }
     }
   });
 
@@ -203,17 +231,22 @@
     readEditorContext();
     var message = String((err && err.message) || err || "unknown");
     if (message === "lua editor not visible") {
-      APP.emit("toast", {
-        type: "error",
-        text: "Open the programming board Lua editor and keep it visible for load/save"
-      });
+        APP.emit("toast", {
+          type: "error",
+          text: "Open the programming board Lua editor and keep it visible for load/save/export"
+        });
       return;
     }
     APP.emit("toast", { type: "error", text: "Lua editor error: " + message });
   });
 
   APP.databank = {
-    save: requestSave,
+    save: function () {
+      return requestBoardSave("save");
+    },
+    publishScreenViaBoard: function () {
+      return requestBoardSave("export-screen");
+    },
     load: requestLoad,
     list: requestList,
     sync: requestSync

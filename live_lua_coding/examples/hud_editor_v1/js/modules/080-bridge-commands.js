@@ -528,6 +528,7 @@
       textColor: normalizeColor(raw.textColor, [1, 1, 1, 1]),
       textSize: toFiniteNumber(raw.textSize, 16),
       textAlign: raw.textAlign ? String(raw.textAlign) : "left",
+      textVAlign: raw.textVAlign ? String(raw.textVAlign) : "center",
       rotation: toFiniteNumber(raw.rotation, 0),
       shadowBlur: toFiniteNumber(raw.shadowBlur, 0),
       shadowColor: normalizeColor(raw.shadowColor, [0, 0, 0, 0]),

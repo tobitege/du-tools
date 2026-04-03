@@ -1145,13 +1145,15 @@ local function serializeScreenTextCommand(element)
     append(parts, ",tc=")
     append(parts, serializeScreenColor(element.textColor, SCREEN_DEFAULT_TEXT))
     append(parts, ",s=")
-    append(parts, serializeScreenColor(element.stroke, SCREEN_DEFAULT_STROKE))
+    append(parts, serializeScreenColor({ 0, 0, 0, 0 }, SCREEN_DEFAULT_SHADOW))
     append(parts, ",sw=")
-    append(parts, luaNumber(element.strokeWidth, 0))
+    append(parts, luaNumber(0, 0))
     append(parts, ",ts=")
     append(parts, luaNumber(element.textSize, 16))
     append(parts, ",ta=")
     append(parts, luaString(element.textAlign or "left"))
+    append(parts, ",tv=")
+    append(parts, luaString(element.textVAlign or "center"))
     if tonumber(element.rotation) and tonumber(element.rotation) ~= 0 then
         append(parts, ",rot=")
         append(parts, luaNumber(element.rotation, 0))
@@ -1576,8 +1578,10 @@ local function TX(l,c,sc,sx,sy)
     local f=G(s)
     if not f then return end
     local a=c.ta or "left"
+    local va=c.tv or "center"
     local x=SX(c.x,sx)+12*sc
     local h=AlignH_Left
+    local v=AlignV_Middle
     local w=SX(c.w,sx)
     if a=="center" then
         x=SX(c.x,sx)+w*0.5
@@ -1586,9 +1590,20 @@ local function TX(l,c,sc,sx,sy)
         x=SX(c.x,sx)+w-12*sc
         h=AlignH_Right
     end
-    setNextTextAlign(l,h,AlignV_Middle)
+    if va=="top" then
+        v=AlignV_Top
+    elseif va=="bottom" then
+        v=AlignV_Bottom
+    end
+    setNextTextAlign(l,h,v)
     local g=math.max(2,math.floor(s*0.2))
-    local y=SX(c.y,sy)+SX(c.h,sy)*0.5-((#lines-1)*(s+g))*0.5
+    local blockHeight=#lines*s+(#lines-1)*g
+    local y=SX(c.y,sy)+SX(c.h,sy)*0.5-(blockHeight-s)*0.5
+    if va=="top" then
+        y=SX(c.y,sy)+12*sc
+    elseif va=="bottom" then
+        y=SX(c.y,sy)+SX(c.h,sy)-12*sc-(blockHeight-s)
+    end
     local tc=c.tc or {1,1,1,1}
     for i=1,#lines do
         FC(l,tc,{1,1,1,1})

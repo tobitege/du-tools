@@ -669,13 +669,15 @@
 }
 
 .prop-color-btn {
-  width: 42px;
+  width: 36px;
+  height: 30px;
   margin-left: auto;
+  padding: 2px;
 }
 
 .prop-color-chip {
-  width: 30px;
-  height: 30px;
+  width: 100%;
+  height: 100%;
 }
 
 .size-input {
@@ -1055,7 +1057,7 @@
   position: absolute;
   left: 12px;
   top: 72px;
-  width: 340px;
+  width: 352px;
   min-width: 280px;
   min-height: 80px;
   background: #1a1a24;
@@ -1144,28 +1146,187 @@
   padding: 12px;
 }
 
+.panel-empty-state {
+  display: none;
+  padding: 6px 0 10px;
+  color: #8d98ad;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+#properties-panel.is-empty .panel-empty-state {
+  display: block;
+}
+
+#properties-panel.is-empty .panel-tabs {
+  display: none;
+}
+
+#properties-panel.is-empty .panel-tab-page,
+#properties-panel.is-empty [data-prop-row="delete"] {
+  display: none !important;
+}
+
+.panel-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.panel-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 28px;
+  border: 1px solid #2f3444;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #232634 0%, #181b27 100%);
+  color: #97a4ba;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.panel-tab:hover {
+  border-color: #42506a;
+  color: #d9e4f3;
+}
+
+.panel-tab.active {
+  border-color: rgba(14, 233, 231, 0.45);
+  background: linear-gradient(180deg, rgba(14, 233, 231, 0.16) 0%, rgba(10, 80, 92, 0.22) 100%);
+  color: #b5ffff;
+}
+
+.panel-tab-page {
+  display: none;
+}
+
+.panel-tab-page.active {
+  display: block;
+}
+
+.prop-dropdown {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.prop-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+}
+
+.prop-dropdown-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prop-dropdown-caret {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: #93a2bb;
+}
+
+.prop-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid #2a2a3a;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(28, 30, 43, 0.98), rgba(16, 18, 27, 0.98));
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.36);
+  z-index: 8;
+}
+
+.prop-dropdown.open .prop-dropdown-menu {
+  display: flex;
+}
+
+.prop-dropdown-option {
+  width: 100%;
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 1px solid #2f3444;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #232634 0%, #181b27 100%);
+  color: #d2d9e6;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.prop-dropdown-option:hover {
+  border-color: #42506a;
+  color: #ffffff;
+}
+
+.prop-dropdown-option.active {
+  border-color: rgba(14, 233, 231, 0.45);
+  background: linear-gradient(180deg, rgba(14, 233, 231, 0.16) 0%, rgba(10, 80, 92, 0.22) 100%);
+  color: #b5ffff;
+}
+
 .prop-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 6px;
+  margin-bottom: 8px;
+  min-height: 30px;
 }
 
 .prop-row.vertical {
   flex-direction: column;
+  align-items: stretch;
+  min-height: 0;
+  gap: 6px;
+}
+
+.prop-row-dual {
   align-items: flex-start;
+  gap: 8px;
+}
+
+.prop-inline-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.prop-inline-field label {
+  flex: 0 0 46px;
+  min-width: 46px;
 }
 
 .prop-row label {
-  font-size: 12px;
+  flex: 0 0 54px;
+  min-width: 54px;
+  font-size: 11px;
   color: #777;
-  min-width: 28px;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
 .prop-input {
   width: 72px;
   flex: 0 0 72px;
-  height: 28px;
+  height: 30px;
   background: #12121a;
   border: 1px solid #3a3a4a;
   border-radius: 4px;
@@ -1174,6 +1335,21 @@
   padding: 0 6px;
   font-family: inherit;
   text-align: right;
+}
+
+.prop-row.vertical label {
+  flex: none;
+  min-width: 0;
+}
+
+.prop-input.prop-input-wide {
+  width: 100%;
+  flex: 1 1 auto;
+  text-align: left;
+}
+
+select.prop-input {
+  text-align: left;
 }
 
 .prop-input:focus {
@@ -1193,6 +1369,7 @@
 
 .prop-textarea {
   width: 100%;
+  min-height: 84px;
   background: #12121a;
   border: 1px solid #3a3a4a;
   border-radius: 4px;
@@ -1201,6 +1378,8 @@
   padding: 6px;
   font-family: inherit;
   resize: vertical;
+  line-height: 1.35;
+  box-sizing: border-box;
 }
 
 .prop-textarea:focus {
@@ -1333,7 +1512,7 @@
   border: 1px solid #3a3a4a;
   border-radius: 12px;
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
-  width: 420px;
+  width: 460px;
   max-width: 90vw;
   max-height: 80vh;
   overflow: hidden;
@@ -1608,18 +1787,24 @@
 
 .btn {
   min-width: 132px;
-  height: 42px;
-  padding: 0 18px;
+  min-height: 42px;
+  padding: 10px 18px;
   border: 1px solid #3a3a4a;
   border-radius: 6px;
   background: linear-gradient(180deg, #262634 0%, #1a1a24 100%);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   color: #c6cfdb;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.02em;
+  line-height: 1.2;
   font-family: inherit;
+  text-align: center;
+  white-space: nowrap;
   transition: all 0.15s ease;
 }
 
@@ -1659,6 +1844,13 @@
 
 .btn.secondary {
   background: rgba(255, 255, 255, 0.04);
+}
+
+.dialog-footer.centered .btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 /* ══════════════════════════════════════════════════════════════════════ */
@@ -1740,21 +1932,22 @@
 .stepper-ctrl {
   display: flex;
   align-items: center;
-  gap: 3px;
-  flex: 1;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .stepper-dec,
 .stepper-inc {
   flex-shrink: 0;
-  width: 26px;
-  height: 28px;
+  width: 24px;
+  height: 30px;
   border: 1px solid #3a3a4a;
   border-radius: 4px;
   background: #12121a;
   color: #ccc;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1;
   display: flex;
   align-items: center;
@@ -1771,13 +1964,14 @@
 
 .stepper-select {
   flex: 1;
-  height: 28px;
+  min-width: 0;
+  height: 30px;
   background: #12121a;
   border: 1px solid #3a3a4a;
   border-radius: 4px;
   color: #ccc;
   font-size: 12px;
-  padding: 0 4px;
+  padding: 0 8px;
   font-family: inherit;
   text-align: center;
   cursor: pointer;

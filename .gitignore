@@ -237,3 +237,4 @@ ui-extractions/
 **/node_modules
 /devlogs
 test-artifacts
+tmp/

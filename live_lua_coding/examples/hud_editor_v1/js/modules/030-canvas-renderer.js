@@ -206,31 +206,40 @@
 
   function appendTextNode(layer, command) {
     var wrapper = el("div", { className: "canvas-text-node" });
+    var content = el("div", { className: "canvas-text-content" });
     var lines = Array.isArray(command.l) ? command.l : [];
     var fontSize = Math.max(1, Math.floor((Number(command.ts) || 16) * scale + 0.5));
     var strokeWidth = Math.max(0, (Number(command.sw) || 0) * scale);
+    var valign = String(command.tv || "center");
     wrapper.style.position = "absolute";
-    wrapper.style.inset = "0";
+    wrapper.style.left = "0";
+    wrapper.style.top = "0";
+    wrapper.style.width = "100%";
+    wrapper.style.height = "100%";
+    wrapper.style.boxSizing = "border-box";
     wrapper.style.display = "flex";
     wrapper.style.flexDirection = "column";
-    wrapper.style.justifyContent = "center";
-    wrapper.style.alignItems = command.ta === "center" ? "center" : (command.ta === "right" ? "flex-end" : "flex-start");
-    wrapper.style.padding = "0 " + Math.round(12 * scale) + "px";
-    wrapper.style.gap = Math.max(2, Math.floor(fontSize * 0.2)) + "px";
-    wrapper.style.color = rgbaToCss(command.tc || [1, 1, 1, 1]);
-    wrapper.style.fontSize = fontSize + "px";
-    wrapper.style.fontFamily = "Play, Rajdhani, Segoe UI, sans-serif";
-    wrapper.style.lineHeight = "1";
-    wrapper.style.textAlign = command.ta || "left";
-    wrapper.style.whiteSpace = "pre";
+    wrapper.style.justifyContent = valign === "top" ? "flex-start" : (valign === "bottom" ? "flex-end" : "center");
+    wrapper.style.alignItems = "stretch";
+    wrapper.style.padding = Math.round(10 * scale) + "px " + Math.round(12 * scale) + "px";
     wrapper.style.pointerEvents = "none";
+    content.style.width = "100%";
+    content.style.boxSizing = "border-box";
+    content.style.color = rgbaToCss(command.tc || [1, 1, 1, 1]);
+    content.style.fontSize = fontSize + "px";
+    content.style.fontFamily = "Play, Rajdhani, Segoe UI, sans-serif";
+    content.style.lineHeight = "1";
+    content.style.textAlign = command.ta || "left";
+    content.style.whiteSpace = "pre";
+    content.style.pointerEvents = "none";
     if (strokeWidth > 0 && hasVisibleColor(command.s)) {
-      wrapper.style.webkitTextStroke = strokeWidth + "px " + rgbaToCss(command.s);
+      content.style.webkitTextStroke = strokeWidth + "px " + rgbaToCss(command.s);
     }
     if (hasVisibleColor(command.sh && command.sh.c) && (Number(command.sh && command.sh.b) || 0) > 0) {
-      wrapper.style.textShadow = "0 0 " + Math.max(1, (Number(command.sh.b) || 0) * scale) + "px " + rgbaToCss(command.sh.c);
+      content.style.textShadow = "0 0 " + Math.max(1, (Number(command.sh.b) || 0) * scale) + "px " + rgbaToCss(command.sh.c);
     }
-    wrapper.textContent = lines.join("\n");
+    content.textContent = lines.join("\n");
+    wrapper.appendChild(content);
     layer.appendChild(wrapper);
   }
 

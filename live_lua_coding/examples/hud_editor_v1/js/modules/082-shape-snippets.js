@@ -51,6 +51,7 @@
       textColor: [1, 1, 1, 1],
       textSize: 18,
       textAlign: "center",
+      textVAlign: "center",
       rotation: 0,
       shadowBlur: 0,
       shadowColor: [0, 0, 0, 0],

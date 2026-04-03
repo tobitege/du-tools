@@ -31,6 +31,8 @@
 
   var STROKE_PRESETS = [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20];
   var RADIUS_PRESETS = [0, 2, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 50, 75, 100];
+  var GLOW_PRESETS = [0, 2, 4, 6, 8, 10, 12, 16, 20, 24, 32, 40, 50, 64, 80, 100];
+  var TEXT_SIZE_PRESETS = [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 40, 44, 48, 56, 64, 80, 96, 128, 160, 200];
   var SHAPE_TOOL_OPTIONS = [
     { tool: "box", title: "Box", shortcut: "B", glyph: "\u25A1", iconClass: "tb-icon-box tb-icon-glyph tb-icon-glyph-box" },
     { tool: "rounded", title: "Rounded Box", shortcut: "R", glyph: "\u25A2", iconClass: "tb-icon-rounded tb-icon-glyph tb-icon-glyph-rounded" },
@@ -57,6 +59,31 @@
       el("button", { className: "stepper-dec", dataset: { stepperProp: prop }, textContent: "\u2212" }),
       el("select", { className: "stepper-select", dataset: { prop: prop } }, options),
       el("button", { className: "stepper-inc", dataset: { stepperProp: prop }, textContent: "+" }),
+    ]);
+  }
+
+  function buildPropDropdown(prop, options) {
+    return el("div", { className: "prop-dropdown", dataset: { propDropdown: prop } }, [
+      el("button", {
+        type: "button",
+        className: "prop-dropdown-trigger prop-input prop-input-wide",
+        dataset: { propDropdownTrigger: prop }
+      }, [
+        el("span", {
+          className: "prop-dropdown-label",
+          dataset: { propDropdownLabel: prop },
+          textContent: options[0] ? options[0].label : ""
+        }),
+        el("span", { className: "prop-dropdown-caret", textContent: "\u25BE" }),
+      ]),
+      el("div", { className: "prop-dropdown-menu" }, options.map(function (option) {
+        return el("button", {
+          type: "button",
+          className: "prop-dropdown-option",
+          dataset: { propDropdownValue: prop, value: option.value },
+          textContent: option.label
+        });
+      })),
     ]);
   }
 
@@ -228,99 +255,136 @@
           el("button", { className: "panel-toggle", dataset: { action: "toggle-collapse" }, textContent: "\u25BE" }),
         ]),
         el("div", { className: "panel-content" }, [
-          el("div", { className: "prop-row" }, [
-            el("label", { textContent: "X" }),
-            el("input", { type: "number", className: "prop-input", dataset: { prop: "x" } }),
-            el("label", { textContent: "Y" }),
-            el("input", { type: "number", className: "prop-input", dataset: { prop: "y" } }),
-          ]),
-          el("div", { className: "prop-row" }, [
-            el("label", { textContent: "W" }),
-            el("input", { type: "number", className: "prop-input", dataset: { prop: "w" } }),
-            el("label", { textContent: "H" }),
-            el("input", { type: "number", className: "prop-input", dataset: { prop: "h" } }),
-          ]),
-          el("div", { className: "prop-row" }, [
-            el("label", { textContent: "Fill" }),
+          el("div", { className: "panel-tabs", dataset: { tabs: "properties" } }, [
             el("button", {
               type: "button",
-              className: "prop-color-btn",
-              title: "Fill color",
-              dataset: { colorProp: "fill", colorHex: "#3366FF" }
-            }, [
-              el("span", { className: "prop-color-chip" }),
-            ]),
-          ]),
-          el("div", { className: "prop-row" }, [
-            el("label", { textContent: "Stroke" }),
+              className: "panel-tab active",
+              dataset: { panelTabBtn: "shape" },
+              textContent: "Shape"
+            }),
             el("button", {
               type: "button",
-              className: "prop-color-btn",
-              title: "Stroke color",
-              dataset: { colorProp: "stroke", colorHex: "#FFFFFF" }
-            }, [
-              el("span", { className: "prop-color-chip" }),
+              className: "panel-tab",
+              dataset: { panelTabBtn: "text" },
+              textContent: "Text"
+            }),
+          ]),
+          el("div", {
+            className: "panel-empty-state",
+            textContent: "Select an element to edit its properties."
+          }),
+          el("div", { className: "panel-tab-page active", dataset: { panelTabPage: "shape" } }, [
+            el("div", { className: "prop-row" }, [
+              el("label", { textContent: "X" }),
+              el("input", { type: "number", className: "prop-input", dataset: { prop: "x" } }),
+              el("label", { textContent: "Y" }),
+              el("input", { type: "number", className: "prop-input", dataset: { prop: "y" } }),
+            ]),
+            el("div", { className: "prop-row" }, [
+              el("label", { textContent: "W" }),
+              el("input", { type: "number", className: "prop-input", dataset: { prop: "w" } }),
+              el("label", { textContent: "H" }),
+              el("input", { type: "number", className: "prop-input", dataset: { prop: "h" } }),
+            ]),
+            el("div", { className: "prop-row" }, [
+              el("label", { textContent: "Fill" }),
+              el("button", {
+                type: "button",
+                className: "prop-color-btn",
+                title: "Fill color",
+                dataset: { colorProp: "fill", colorHex: "#3366FF" }
+              }, [
+                el("span", { className: "prop-color-chip" }),
+              ]),
+            ]),
+            el("div", { className: "prop-row" }, [
+              el("label", { textContent: "Stroke" }),
+              el("button", {
+                type: "button",
+                className: "prop-color-btn",
+                title: "Stroke color",
+                dataset: { colorProp: "stroke", colorHex: "#FFFFFF" }
+              }, [
+                el("span", { className: "prop-color-chip" }),
+              ]),
+            ]),
+            el("div", { className: "prop-row" }, [
+              el("label", { textContent: "Stroke W" }),
+              buildStepper("strokeWidth", STROKE_PRESETS),
+            ]),
+            el("div", { className: "prop-row", dataset: { propRow: "radius" } }, [
+              el("label", { textContent: "Radius" }),
+              buildStepper("radius", RADIUS_PRESETS),
+            ]),
+            el("div", { className: "prop-row", dataset: { propRow: "rotation" } }, [
+              el("label", { textContent: "Rot (rad)" }),
+              el("input", { type: "number", step: "0.01", className: "prop-input", dataset: { prop: "rotation" } }),
+            ]),
+            el("div", { className: "prop-row", dataset: { propRow: "shadowBlur" } }, [
+              el("label", { textContent: "Glow" }),
+              buildStepper("shadowBlur", GLOW_PRESETS),
+            ]),
+            el("div", { className: "prop-row", dataset: { propRow: "shadowColor" } }, [
+              el("label", { textContent: "Glow Col" }),
+              el("button", {
+                type: "button",
+                className: "prop-color-btn",
+                title: "Glow color",
+                dataset: { colorProp: "shadowColor", colorHex: "#000000" }
+              }, [
+                el("span", { className: "prop-color-chip" }),
+              ]),
+            ]),
+            el("div", { className: "prop-row vertical", dataset: { propRow: "imageSrc" } }, [
+              el("label", { textContent: "Image" }),
+              el("input", { type: "text", className: "prop-input prop-input-wide", dataset: { prop: "imageSrc" } }),
             ]),
           ]),
-          el("div", { className: "prop-row" }, [
-            el("label", { textContent: "Stroke W" }),
-            buildStepper("strokeWidth", STROKE_PRESETS),
-          ]),
-          el("div", { className: "prop-row", dataset: { propRow: "radius" } }, [
-            el("label", { textContent: "Radius" }),
-            buildStepper("radius", RADIUS_PRESETS),
-          ]),
-          el("div", { className: "prop-row", dataset: { propRow: "rotation" } }, [
-            el("label", { textContent: "Rot (rad)" }),
-            el("input", { type: "number", step: "0.01", className: "prop-input", dataset: { prop: "rotation" } }),
-          ]),
-          el("div", { className: "prop-row", dataset: { propRow: "shadowBlur" } }, [
-            el("label", { textContent: "Glow" }),
-            el("input", { type: "number", step: "1", min: "0", className: "prop-input", dataset: { prop: "shadowBlur" } }),
-          ]),
-          el("div", { className: "prop-row", dataset: { propRow: "shadowColor" } }, [
-            el("label", { textContent: "Glow Col" }),
-            el("button", {
-              type: "button",
-              className: "prop-color-btn",
-              title: "Glow color",
-              dataset: { colorProp: "shadowColor", colorHex: "#000000" }
-            }, [
-              el("span", { className: "prop-color-chip" }),
+          el("div", { className: "panel-tab-page", dataset: { panelTabPage: "text" } }, [
+            el("div", { className: "prop-row", dataset: { propRow: "textColor" } }, [
+              el("label", { textContent: "Text Col" }),
+              el("button", {
+                type: "button",
+                className: "prop-color-btn",
+                title: "Text color",
+                dataset: { colorProp: "textColor", colorHex: "#FFFFFF" }
+              }, [
+                el("span", { className: "prop-color-chip" }),
+              ]),
+            ]),
+            el("div", { className: "prop-row", dataset: { propRow: "textSize" } }, [
+              el("label", { textContent: "Size" }),
+              buildStepper("textSize", TEXT_SIZE_PRESETS),
+            ]),
+            el("div", { className: "prop-row prop-row-dual" }, [
+              el("div", { className: "prop-inline-field", dataset: { propRow: "textAlign" } }, [
+                el("label", { textContent: "H Align" }),
+                buildPropDropdown("textAlign", [
+                  { value: "left", label: "Left" },
+                  { value: "center", label: "Center" },
+                  { value: "right", label: "Right" },
+                ]),
+              ]),
+              el("div", { className: "prop-inline-field", dataset: { propRow: "textVAlign" } }, [
+                el("label", { textContent: "V Align" }),
+                buildPropDropdown("textVAlign", [
+                  { value: "top", label: "Top" },
+                  { value: "center", label: "Center" },
+                  { value: "bottom", label: "Bottom" },
+                ]),
+              ]),
+            ]),
+            el("div", { className: "prop-row vertical", dataset: { propRow: "textLines" } }, [
+              el("label", { textContent: "Text" }),
+              el("textarea", {
+                className: "prop-textarea",
+                rows: "4",
+                placeholder: "Line 1\nLine 2",
+                dataset: { prop: "textLines" }
+              }),
             ]),
           ]),
-          el("div", { className: "prop-row", dataset: { propRow: "textColor" } }, [
-            el("label", { textContent: "Text Col" }),
-            el("button", {
-              type: "button",
-              className: "prop-color-btn",
-              title: "Text color",
-              dataset: { colorProp: "textColor", colorHex: "#FFFFFF" }
-            }, [
-              el("span", { className: "prop-color-chip" }),
-            ]),
-          ]),
-          el("div", { className: "prop-row", dataset: { propRow: "textSize" } }, [
-            el("label", { textContent: "Text Size" }),
-            el("input", { type: "number", step: "1", min: "1", className: "prop-input", dataset: { prop: "textSize" } }),
-          ]),
-          el("div", { className: "prop-row", dataset: { propRow: "textAlign" } }, [
-            el("label", { textContent: "Text Align" }),
-            el("select", { className: "prop-input", dataset: { prop: "textAlign" } }, [
-              el("option", { value: "left", textContent: "Left" }),
-              el("option", { value: "center", textContent: "Center" }),
-              el("option", { value: "right", textContent: "Right" }),
-            ]),
-          ]),
-          el("div", { className: "prop-row vertical", dataset: { propRow: "textLines" } }, [
-            el("label", { textContent: "Text" }),
-            el("textarea", { className: "prop-textarea", rows: "3", dataset: { prop: "textLines" } }),
-          ]),
-          el("div", { className: "prop-row vertical", dataset: { propRow: "imageSrc" } }, [
-            el("label", { textContent: "Image Path" }),
-            el("input", { type: "text", className: "prop-input", dataset: { prop: "imageSrc" } }),
-          ]),
-          el("div", { className: "prop-row" }, [
+          el("div", { className: "prop-row", dataset: { propRow: "delete" } }, [
             el("button", {
               className: "prop-delete",
               dataset: { action: "delete-element" },
