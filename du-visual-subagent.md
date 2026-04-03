@@ -4,6 +4,11 @@ Purpose: define a probe-first workflow for a helper subagent that uses screensho
 
 This is a dev-process document, not a production feature contract.
 
+Screenshot tooling note:
+
+- the screenshot MCP is optional, not required for normal DU work
+- if it is not installed, stay probe-first and continue without screenshot-only validation
+
 ## Why This Exists
 
 For live DU work, normal `DuMcpBridge` probe calls should stay the default path because they are smaller, faster, and more structured than screenshots.
@@ -30,6 +35,8 @@ The design goal is:
 5. For the same `playerId`, do not let the main agent and the visual subagent both send live in-game actions at the same time.
 6. Treat the visual subagent as the temporary owner of in-game input for the duration of its step sequence.
 7. If a screenshot was requested, the subagent must state explicitly whether it actually used the screenshot tool and must include a few concrete visual details from the image. Probe state alone does not count as visual confirmation.
+8. For live Dual Universe work in this repo, read `du-tests.md` before the first live MCP step and treat it as authoritative.
+9. If a screenshot is too large to return inline, save it under `tmp/` with a deterministic name and report the file path back to the main agent.
 
 ## Recommended Ownership Model
 
@@ -46,6 +53,10 @@ This avoids races in the live DU UI.
 
 ### Phase 1: Probe First
 
+0. Read `du-tests.md` first and keep its truth model active:
+   - visible result wins over chat
+   - board runtime validation requires a real off/on cycle
+   - session-sensitive live calls for the same `playerId` must stay sequential
 1. Read the latest structured state first:
    - `du_list_active_sessions`
    - `du_ui_describe(uiKind = lua_editor)` or `du_ui_wait(uiKind = lua_editor)`
@@ -67,6 +78,16 @@ Preferred screenshot call:
 - `ScreenShotNet.capture_window_screenshot`
   - `windowTitle = "Dual Universe"`
 
+If the full window is too large or too noisy, prefer:
+
+- `ScreenShotNet.capture_center_screenshot`
+- `ScreenShotNet.capture_screenshot` with a targeted region
+
+If inline image return would exceed tool limits:
+
+- use `savePath`
+- then return the saved image path plus a text summary of what is visible
+
 Goal:
 
 - confirm the visible DU client state, not to drive normal UI automation by pixels
@@ -76,6 +97,8 @@ Typical states to classify:
 - in-world looking at board/screen
 - Lua editor open
 - screen editor open
+- context menu open
+- submenu open with expected item ordering
 - wrong UI open
 - blocked by overlay or dialog
 - unclear / ambiguous
@@ -140,7 +163,7 @@ Do not pass this whole document to the subagent every time.
 Use a short task brief instead, for example:
 
 ```text
-Probe first. Only use Dual Universe window screenshots if the visible state is unclear.
+Read du-tests.md first. Probe first. Only use Dual Universe window screenshots if the visible state is unclear or the task is explicitly visual.
 
 For player 10000:
 1. check current probe state
@@ -156,6 +179,11 @@ Return text only:
 - state_after
 - result
 - next_safe_step
+
+If you captured images:
+- say which screenshot tool you used
+- include concrete visual details
+- if inline return is too large, save under tmp/ and return the file path
 
 Do not run parallel live in-game actions with the main agent for this player while you own this step.
 ```
@@ -181,6 +209,7 @@ Good moments to use this workflow:
 - right after `du_editor_save`
 - when a user says the visible client behavior does not match the tool result
 - when the main agent suspects wrong UI focus, stuck overlays, or accidental `Escape`
+- when the task is explicitly about context menus, submenu ordering, or visual-only UI labels
 
 ## Non-Goals
 

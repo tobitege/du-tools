@@ -1,4 +1,4 @@
-# du-tobi
+# du-tools
 
 Tools and utilities for Dual Universe, targeting the [myDU](https://github.com/dual-universe/mydu-server-mods) local server installation.
 

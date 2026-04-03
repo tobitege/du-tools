@@ -11,6 +11,11 @@ For a new agent session without access to earlier tool outputs, copy the block b
 ```text
 You are working in repo du-tobi on DuMcpBridge + ModUiExtractor. Use du-tests.md as the authority for live Dual Universe work.
 
+Repo hint:
+- repo root is typically `d:\github\du-tobi`
+- this repo also contains related live-work docs such as `du-visual-subagent.md`, `live_lua_coding/README.md`, `DuMcpBridge/README.md`, and `ModUiExtractor/README.md`
+- when a live task mentions a repo file path, resolve it from this repo root before guessing
+
 Before each run, call du_list_active_sessions and then keep all relevant MCP calls for the same playerId sequential. Do not parallelize session-sensitive live calls.
 
 For Programming Board / lua_editor work:
