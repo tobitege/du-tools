@@ -133,7 +133,6 @@
       el("div", { className: "start-container" }, [
         el("div", { className: "start-header" }, [
           el("h1", { textContent: "Lua Painter" }),
-          el("p", { className: "subtitle", textContent: "HUD Layout Editor" }),
         ]),
         el("div", { id: "start-editor-context", className: "start-context-card" }, [
           el("div", { className: "start-context-title", textContent: "Lua Editor Connection" }),
@@ -152,7 +151,7 @@
               }, [
                 el("span", { className: "icon", textContent: "\u270F" }),
                 el("div", { className: "label-group" }, [
-                  el("span", { className: "label", textContent: "New Script" }),
+                  el("span", { className: "label", textContent: "New Layout" }),
                   el("span", { className: "desc", textContent: "Start a fresh layout" }),
                 ]),
               ]),
@@ -163,8 +162,8 @@
               }, [
                 el("span", { className: "icon", textContent: "\u2714" }),
                 el("div", { className: "label-group" }, [
-                  el("span", { className: "label", textContent: "Save As" }),
-                  el("span", { className: "desc", textContent: "Save current layout into unit.onStart" }),
+                  el("span", { className: "label", textContent: "Save" }),
+                  el("span", { className: "desc", textContent: "Save current layout" }),
                 ]),
               ]),
             ]),
@@ -178,7 +177,7 @@
               el("span", { className: "icon", textContent: "\u27A4" }),
               el("div", { className: "label-group" }, [
                 el("span", { className: "label", textContent: "Load" }),
-                el("span", { className: "desc", textContent: "Open selected layout from unit.onStart" }),
+                el("span", { className: "desc", textContent: "Open selected layout" }),
               ]),
             ]),
             el("div", { className: "start-script-card" }, [

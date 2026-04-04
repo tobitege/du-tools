@@ -229,10 +229,10 @@
       var count = Array.isArray(result.document.elements) ? result.document.elements.length : 0;
       APP.emit("toast", {
         type: "success",
-        text: "Loaded " + count + " element" + (count === 1 ? "" : "s") + " from unit.onStart"
+        text: "Loaded " + count + " element" + (count === 1 ? "" : "s")
       });
     } else {
-      APP.emit("toast", { type: "error", text: "Load from unit.onStart failed" });
+      APP.emit("toast", { type: "error", text: "Load failed" });
     }
   });
 
