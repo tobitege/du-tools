@@ -857,7 +857,7 @@ That snapshot is often the IDE-sync workspace file:
 
 - `D:\MyDUserver\tmp\ui-dumps\ide-workspace\player-<playerId>\lua_editor\snippet.lua`
 
-This usually reflects the latest IDE Sync export or staged import state.
+This usually reflects the latest IDE Sync workspace export.
 It does not guarantee that the currently visible Lua editor buffer is the same code.
 
 If the sync watcher was not running at export time, this file can remain unchanged even after a real in-game `IDE Sync` click.
@@ -876,6 +876,7 @@ So when you need to answer "what code is live on screen right now?", use:
 - `du_ui_invoke(uiKind = lua_editor, method = outer_html, selector = ".CodeMirror", playerId = <playerId>)`
 
 Use `du_editor_pull_code` only as a recent local snapshot for external work, not as proof of current live slot/filter content.
+If you need to inspect what is currently staged to be written back into the editor, use `du_editor_pending_import` instead of inferring from `du_editor_pull_code`.
 
 ### 11.3 Push Code
 

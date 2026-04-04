@@ -323,6 +323,7 @@ Minimal generic test:
 
 - Tool: `du_editor_pull_code`
 - Note: this may reflect the file workspace or snippet state, not the per-filter visible live CodeMirror content
+- If you need the staged write payload instead, use `du_editor_pending_import`
 
 ---
 

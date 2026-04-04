@@ -1012,13 +1012,11 @@ Why this exists:
 
 Purpose:
 
-- read the last known code snapshot for a session
+- read the last known workspace snippet for a session
 
 Lookup order:
 
-1. `state/{targetKind}-{playerId}.json`
-2. `ide-workspace/player-<playerId>/<targetKind>/snippet.lua|snippet.txt`
-3. `payload-overrides/ide_import.player-<playerId>.<targetKind>.json`
+1. `ide-workspace/player-<playerId>/<targetKind>/snippet.lua|snippet.txt`
 
 Return fields:
 
@@ -1030,7 +1028,37 @@ Return fields:
 - `path`
 - `lastModifiedUtc`
 
-This reads the last known snapshot. It does not force a fresh export from the game client.
+This reads the last known workspace snippet. It does not force a fresh export from the game client.
+It does not fall back to pending `ide_import` payloads, because those are staged write artifacts, not proof of current editor content.
+
+### `du_editor_pending_import`
+
+Purpose:
+
+- read the currently staged IDE import payload for a session
+
+Lookup path:
+
+1. `payload-overrides/ide_import.player-<playerId>.<targetKind>.json`
+
+Useful fields:
+
+- `found`
+- `requestId`
+- `code`
+- `codeCharLength`
+- `codeUtf8Bytes`
+- `codeHash32`
+- `codeSha256`
+- `contextKey`
+- `sourceSyncId`
+- `workspaceCodePath`
+- `workspaceMetaPath`
+- `requestCreatedAtUtc`
+- `exportedAtUtc`
+- `lastModifiedUtc`
+
+Use this when you explicitly want to inspect what is staged for import. It is a pending write artifact, not proof of current visible editor content.
 
 ### `du_editor_save`
 

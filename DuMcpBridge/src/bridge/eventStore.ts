@@ -97,6 +97,50 @@ export interface ActiveCodeSnapshot {
   lastModifiedUtc: string | null;
 }
 
+export interface PendingIdeImportSnapshot {
+  found: boolean;
+  targetKind: "lua_editor" | "screen_editor";
+  playerId: number;
+  requestId: string | null;
+  code: string | null;
+  codeCharLength: number | null;
+  codeUtf8Bytes: number | null;
+  codeHash32: string | null;
+  codeSha256: string | null;
+  sourceSyncId: string | null;
+  contextKey: string | null;
+  path: string | null;
+  workspaceCodePath: string | null;
+  workspaceMetaPath: string | null;
+  requestCreatedAtUtc: string | null;
+  exportedAtUtc: string | null;
+  lastModifiedUtc: string | null;
+}
+
+interface IdeImportPayload {
+  requestId?: unknown;
+  playerId?: unknown;
+  code?: unknown;
+  codeCharLength?: unknown;
+  codeUtf8Bytes?: unknown;
+  codeHash32?: unknown;
+  codeSha256?: unknown;
+  sourceSyncId?: unknown;
+  contextKey?: unknown;
+  workspaceCodePath?: unknown;
+  workspaceMetaPath?: unknown;
+  requestCreatedAtUtc?: unknown;
+  exportedAtUtc?: unknown;
+}
+
+function optionalString(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function optionalNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 export interface SessionSummary {
   playerId: number;
   lastActivityUtc: string | null;
@@ -407,21 +451,6 @@ export class BridgeEventStore {
       };
     }
 
-    const playerImportPath = getPlayerIdeImportFile(this.config, playerId, targetKind);
-    const importJson = await readJsonFileIfExists<{ code?: string; playerId?: number }>(playerImportPath);
-    if (typeof importJson?.code === "string" && (typeof importJson.playerId !== "number" || importJson.playerId === playerId)) {
-      const stats = await statFileIfExists(playerImportPath);
-      return {
-        found: true,
-        targetKind,
-        playerId,
-        code: importJson.code,
-        source: "ide_import",
-        path: playerImportPath,
-        lastModifiedUtc: stats?.mtimeUtc ?? null
-      };
-    }
-
     return {
       found: false,
       targetKind,
@@ -430,6 +459,75 @@ export class BridgeEventStore {
       source: null,
       path: null,
       lastModifiedUtc: null
+    };
+  }
+
+  public async readPendingIdeImport(targetKind: "lua_editor" | "screen_editor", playerId: number): Promise<PendingIdeImportSnapshot> {
+    const playerImportPath = getPlayerIdeImportFile(this.config, playerId, targetKind);
+    const importJson = await readJsonFileIfExists<IdeImportPayload>(playerImportPath);
+    if (importJson === null) {
+      return {
+        found: false,
+        targetKind,
+        playerId,
+        requestId: null,
+        code: null,
+        codeCharLength: null,
+        codeUtf8Bytes: null,
+        codeHash32: null,
+        codeSha256: null,
+        sourceSyncId: null,
+        contextKey: null,
+        path: null,
+        workspaceCodePath: null,
+        workspaceMetaPath: null,
+        requestCreatedAtUtc: null,
+        exportedAtUtc: null,
+        lastModifiedUtc: null
+      };
+    }
+
+    if (typeof importJson.playerId === "number" && importJson.playerId !== playerId) {
+      return {
+        found: false,
+        targetKind,
+        playerId,
+        requestId: null,
+        code: null,
+        codeCharLength: null,
+        codeUtf8Bytes: null,
+        codeHash32: null,
+        codeSha256: null,
+        sourceSyncId: null,
+        contextKey: null,
+        path: playerImportPath,
+        workspaceCodePath: null,
+        workspaceMetaPath: null,
+        requestCreatedAtUtc: null,
+        exportedAtUtc: null,
+        lastModifiedUtc: null
+      };
+    }
+
+    const stats = await statFileIfExists(playerImportPath);
+    return {
+      found: true,
+      targetKind,
+      playerId,
+      requestId: optionalString(importJson.requestId),
+      code: typeof importJson.code === "string" ? importJson.code : null,
+      codeCharLength: optionalNumber(importJson.codeCharLength),
+      codeUtf8Bytes: optionalNumber(importJson.codeUtf8Bytes),
+      codeHash32: optionalString(importJson.codeHash32),
+      codeSha256: optionalString(importJson.codeSha256),
+      sourceSyncId: optionalString(importJson.sourceSyncId),
+      contextKey: optionalString(importJson.contextKey),
+      path: playerImportPath,
+      workspaceCodePath: optionalString(importJson.workspaceCodePath),
+      workspaceMetaPath: optionalString(importJson.workspaceMetaPath),
+      requestCreatedAtUtc: optionalString(importJson.requestCreatedAtUtc),
+      exportedAtUtc: optionalString(importJson.exportedAtUtc),
+      lastModifiedUtc: stats?.mtimeUtc ?? null
     };
   }
 

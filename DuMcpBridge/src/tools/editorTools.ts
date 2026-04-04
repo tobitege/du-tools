@@ -48,6 +48,26 @@ const pullCodeOutputSchema = {
   lastModifiedUtc: z.string().nullable()
 };
 
+const pendingIdeImportOutputSchema = {
+  found: z.boolean(),
+  targetKind: editorTargetKindSchema,
+  playerId: z.number().int().nonnegative(),
+  requestId: z.string().nullable(),
+  code: z.string().nullable(),
+  codeCharLength: z.number().int().nonnegative().nullable(),
+  codeUtf8Bytes: z.number().int().nonnegative().nullable(),
+  codeHash32: z.string().nullable(),
+  codeSha256: z.string().nullable(),
+  sourceSyncId: z.string().nullable(),
+  contextKey: z.string().nullable(),
+  path: z.string().nullable(),
+  workspaceCodePath: z.string().nullable(),
+  workspaceMetaPath: z.string().nullable(),
+  requestCreatedAtUtc: z.string().nullable(),
+  exportedAtUtc: z.string().nullable(),
+  lastModifiedUtc: z.string().nullable()
+};
+
 const luaProbeOutputSchema = {
   found: z.boolean(),
   commandId: z.string(),
@@ -2452,8 +2472,8 @@ export function registerEditorTools(
   server.registerTool(
     "du_editor_pull_code",
     {
-      title: "Read Active Editor Code",
-      description: "Reads the currently exported editor code from the bridge workspace.",
+      title: "Read Workspace Editor Code",
+      description: "Reads the last known editor workspace snippet for a session.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Player ID for session scoping"),
         targetKind: editorTargetKindSchema.default("lua_editor").describe("Target editor kind")
@@ -2472,6 +2492,36 @@ export function registerEditorTools(
             text: snapshot.found
               ? snapshot.code ?? ""
               : `No active code snapshot found for player ${playerId} (${targetKind}).`
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
+  server.registerTool(
+    "du_editor_pending_import",
+    {
+      title: "Read Pending Editor Import",
+      description: "Reads the currently staged IDE import payload for a session, if one exists.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Player ID for session scoping"),
+        targetKind: editorTargetKindSchema.default("lua_editor").describe("Target editor kind")
+      },
+      outputSchema: pendingIdeImportOutputSchema
+    },
+    async ({ playerId, targetKind }) => {
+      const snapshot = await eventStore.readPendingIdeImport(targetKind, playerId);
+      const structuredContent = {
+        ...snapshot
+      };
+      return {
+        content: [
+          {
+            type: "text",
+            text: snapshot.found
+              ? snapshot.code ?? ""
+              : `No pending IDE import found for player ${playerId} (${targetKind}).`
           }
         ],
         structuredContent
