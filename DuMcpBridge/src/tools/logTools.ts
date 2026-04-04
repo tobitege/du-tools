@@ -29,6 +29,55 @@ const sessionSummaryOutputSchema = {
   )
 };
 
+const bridgeEventFileSummarySchema = z.object({
+  path: z.string(),
+  name: z.string(),
+  sizeBytes: z.number().int().nonnegative(),
+  mtimeUtc: z.string().nullable(),
+  dateKey: z.string().nullable(),
+  sequence: z.number().int().nullable(),
+  legacy: z.boolean()
+});
+
+const bridgeEventStatusOutputSchema = {
+  currentWritableFilePath: z.string(),
+  currentWritableFileName: z.string(),
+  currentWritableFileSizeBytes: z.number().int().nonnegative(),
+  latestActiveFilePath: z.string().nullable(),
+  latestActiveFileName: z.string().nullable(),
+  maxFileSizeBytes: z.number().int().positive(),
+  eventRetentionDays: z.number().int().positive(),
+  processedCommandRetentionDays: z.number().int().positive(),
+  maxFilesScanned: z.number().int().positive(),
+  activeFileCount: z.number().int().nonnegative(),
+  archiveFileCount: z.number().int().nonnegative(),
+  processedCommandFileCount: z.number().int().nonnegative(),
+  activeTotalBytes: z.number().int().nonnegative(),
+  archiveTotalBytes: z.number().int().nonnegative(),
+  processedCommandTotalBytes: z.number().int().nonnegative(),
+  oldestActiveMtimeUtc: z.string().nullable(),
+  newestActiveMtimeUtc: z.string().nullable(),
+  oldestArchiveMtimeUtc: z.string().nullable(),
+  newestArchiveMtimeUtc: z.string().nullable(),
+  legacyFilePresent: z.boolean(),
+  largestActiveFiles: z.array(bridgeEventFileSummarySchema)
+};
+
+const bridgeEventHousekeepingOutputSchema = {
+  dryRun: z.boolean(),
+  rotated: z.boolean(),
+  reset: z.boolean(),
+  archivedFileCount: z.number().int().nonnegative(),
+  prunedEventFileCount: z.number().int().nonnegative(),
+  prunedArchiveFileCount: z.number().int().nonnegative(),
+  prunedProcessedCommandCount: z.number().int().nonnegative(),
+  archivedPaths: z.array(z.string()),
+  deletedEventPaths: z.array(z.string()),
+  deletedArchivePaths: z.array(z.string()),
+  deletedProcessedCommandPaths: z.array(z.string()),
+  status: z.object(bridgeEventStatusOutputSchema)
+};
+
 export function registerLogTools(server: McpServer, eventStore: BridgeEventStore): void {
   server.registerTool(
     "du_get_last_result",
@@ -131,6 +180,79 @@ export function registerLogTools(server: McpServer, eventStore: BridgeEventStore
           count: sessions.length,
           sessions
         }
+      };
+    }
+  );
+
+  server.registerTool(
+    "du_bridge_events_status",
+    {
+      title: "Bridge Event File Status",
+      description: "Reports active bridge-event files, archive usage, and the current writable file.",
+      inputSchema: {},
+      outputSchema: bridgeEventStatusOutputSchema
+    },
+    async () => {
+      const status = await eventStore.getBridgeEventStatus();
+      return {
+        content: [
+          {
+            type: "text",
+            text: [
+              `current=${status.currentWritableFileName} size=${status.currentWritableFileSizeBytes}/${status.maxFileSizeBytes}`,
+              `activeFiles=${status.activeFileCount} activeBytes=${status.activeTotalBytes}`,
+              `archiveFiles=${status.archiveFileCount} archiveBytes=${status.archiveTotalBytes}`,
+              `processedCommands=${status.processedCommandFileCount} bytes=${status.processedCommandTotalBytes}`,
+              `legacyPresent=${status.legacyFilePresent}`
+            ].join("\n")
+          }
+        ],
+        structuredContent: status as unknown as Record<string, unknown>
+      };
+    }
+  );
+
+  server.registerTool(
+    "du_bridge_events_housekeeping",
+    {
+      title: "Bridge Event Housekeeping",
+      description: "Rotates or resets the active bridge-event file and prunes old event or processed-command files.",
+      inputSchema: {
+        dryRun: z.boolean().default(false).describe("When true, report actions without changing files."),
+        pruneEventFilesOlderThanDays: z.number().int().min(0).max(30).default(3).describe("Delete active and archived bridge-event files older than this many days."),
+        pruneProcessedCommandsOlderThanDays: z.number().int().min(0).max(30).default(3).describe("Delete processed command files older than this many days."),
+        rotateNow: z.boolean().default(false).describe("Archive the latest active bridge-event file immediately."),
+        resetCurrent: z.boolean().default(false).describe("Archive the latest active bridge-event file and create a fresh current file.")
+      },
+      outputSchema: bridgeEventHousekeepingOutputSchema
+    },
+    async ({
+      dryRun,
+      pruneEventFilesOlderThanDays,
+      pruneProcessedCommandsOlderThanDays,
+      rotateNow,
+      resetCurrent
+    }) => {
+      const result = await eventStore.runBridgeEventHousekeeping({
+        dryRun,
+        pruneEventFilesOlderThanDays,
+        pruneProcessedCommandsOlderThanDays,
+        rotateNow,
+        resetCurrent
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: [
+              `dryRun=${result.dryRun} rotated=${result.rotated} reset=${result.reset}`,
+              `archived=${result.archivedFileCount} prunedEvents=${result.prunedEventFileCount} prunedArchive=${result.prunedArchiveFileCount} prunedProcessedCommands=${result.prunedProcessedCommandCount}`,
+              `current=${result.status.currentWritableFileName} size=${result.status.currentWritableFileSizeBytes}/${result.status.maxFileSizeBytes}`
+            ].join("\n")
+          }
+        ],
+        structuredContent: result as unknown as Record<string, unknown>
       };
     }
   );

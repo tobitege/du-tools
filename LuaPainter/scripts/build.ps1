@@ -12,7 +12,7 @@
 # Notes:
 # - Module order is read from js/manifest.txt (comments/blank lines ignored).
 # - CSS is inlined into the final payload so the JS is fully self-contained.
-# - Does NOT modify ModUiExtractor at all.
+# - Does NOT modify ModUiToolbox at all.
 param(
     [string]$ProjectDir = "",
     [ValidateSet("web", "ingame")]

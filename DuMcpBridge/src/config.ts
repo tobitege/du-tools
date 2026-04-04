@@ -7,6 +7,7 @@ export interface BridgePaths {
   mcpBridgeRoot: string;
   commandsDir: string;
   eventsDir: string;
+  eventsArchiveDir: string;
   stateDir: string;
   processedCommandsDir: string;
   payloadOverridesDir: string;
@@ -18,6 +19,10 @@ export interface BridgeConfig {
   version: string;
   pollIntervalMs: number;
   maxEventsReturned: number;
+  maxEventFilesScanned: number;
+  bridgeEventFileMaxBytes: number;
+  bridgeEventRetentionDays: number;
+  processedCommandRetentionDays: number;
   paths: BridgePaths;
 }
 
@@ -42,6 +47,7 @@ export function loadConfig(): BridgeConfig {
     mcpBridgeRoot,
     commandsDir: join(mcpBridgeRoot, "commands"),
     eventsDir: join(mcpBridgeRoot, "events"),
+    eventsArchiveDir: join(mcpBridgeRoot, "events", "archive"),
     stateDir: join(mcpBridgeRoot, "state"),
     processedCommandsDir: join(mcpBridgeRoot, "state", "processed-commands"),
     payloadOverridesDir: join(dumpRoot, "payload-overrides"),
@@ -53,6 +59,10 @@ export function loadConfig(): BridgeConfig {
     version: "0.1.0",
     pollIntervalMs: envInt("DU_MCP_BRIDGE_POLL_MS", 500),
     maxEventsReturned: envInt("DU_MCP_BRIDGE_MAX_EVENTS", 100),
+    maxEventFilesScanned: envInt("DU_MCP_BRIDGE_MAX_EVENT_FILES_SCANNED", 12),
+    bridgeEventFileMaxBytes: envInt("DU_MCP_BRIDGE_EVENT_FILE_MAX_BYTES", 512 * 1024),
+    bridgeEventRetentionDays: envInt("DU_MCP_BRIDGE_EVENT_RETENTION_DAYS", 3),
+    processedCommandRetentionDays: envInt("DU_MCP_BRIDGE_PROCESSED_COMMAND_RETENTION_DAYS", 3),
     paths
   };
 }
@@ -63,6 +73,7 @@ export function ensureBridgeDirectories(config: BridgeConfig): void {
     config.paths.mcpBridgeRoot,
     config.paths.commandsDir,
     config.paths.eventsDir,
+    config.paths.eventsArchiveDir,
     config.paths.stateDir,
     config.paths.processedCommandsDir,
     config.paths.payloadOverridesDir,

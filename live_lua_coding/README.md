@@ -24,7 +24,7 @@ Concrete demos now live under `live_lua_coding/examples/`.
 
 - `examples/form_editor/` — First example. Screen-side form editor where a board restores persisted layout state, renders a reduced screen script, and accepts move or resize deltas back from the screen.
 - `examples/form_editor_v2/` — Simplified form editor workflow using a library-onStart pattern.
-- `LuaPainter/` — **Lua Painter**: an in-game layout painter delivered as an optional ModUiExtractor runtime plugin. Users paint shapes visually, save layouts on a programming board, and export generated Lua/RenderScript for screens and signs. See section 4A below.
+- `LuaPainter/` — **Lua Painter**: an in-game layout painter delivered as an optional ModUiToolbox runtime plugin. Users paint shapes visually, save layouts on a programming board, and export generated Lua/RenderScript for screens and signs. See section 4A below.
 
 That split keeps the root folder reusable for future examples without tying every workflow note to one specific demo.
 
@@ -516,7 +516,7 @@ Second example in `live_lua_coding/examples/form_editor_v2/`:
 
 This example is an in-game Lua Painter for Dual Universe.
 
-The actual product is not the browser harness. The actual product is an optional runtime plugin injected through the ModUiExtractor helper flow. Once injected, it can be enabled or disabled from the special kebab menu in the in-game mod UI.
+The actual product is not the browser harness. The actual product is an optional runtime plugin injected through the ModUiToolbox helper flow. Once injected, it can be enabled or disabled from the special kebab menu in the in-game mod UI.
 
 Purpose:
 
@@ -531,7 +531,7 @@ Current structure:
 - `js/assets/` — CSS
 - `board/` — programming board Lua files
 - `screen/` — screen runtime Lua
-- `scripts/publish.ps1` — build web + ingame bundles and publish into ModUiExtractor runtime modules (`build.ps1` is the internal bundle step)
+- `scripts/publish.ps1` — build web + ingame bundles and publish into ModUiToolbox runtime modules (`build.ps1` is the internal bundle step)
 - `web/` — browser-only development and test harness
 
 Important editor modules:

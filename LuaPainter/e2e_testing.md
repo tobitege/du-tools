@@ -58,8 +58,8 @@ pwsh -File .\LuaPainter\scripts\publish.ps1
 
 Expected:
 
-- the HUD editor runtime module is copied into `ModUiExtractor\payload\lua-editor-runtime-modules\hud-editor`
-- ModUiExtractor publish completes
+- the HUD editor runtime module is copied into `ModUiToolbox\payload\lua-editor-runtime-modules\hud-editor`
+- ModUiToolbox publish completes
 
 ## Live Validation
 

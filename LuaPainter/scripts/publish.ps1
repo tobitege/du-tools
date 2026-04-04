@@ -2,10 +2,10 @@
 #
 # Workflow:
 # 1. Build the web bundle (hud-editor-probe.js) and the ingame payload/runtime-module wrapper.
-# 2. Copy the generated runtime-module files into ModUiExtractor source.
-# 3. Publish the lua probe via ModUiExtractor's canonical publish script.
+# 2. Copy the generated runtime-module files into ModUiToolbox source.
+# 3. Publish the lua probe via ModUiToolbox's canonical publish script.
 param(
-    [string]$ModUiExtractorDir = "D:\github\du-tobi\ModUiExtractor",
+    [string]$ModUiToolboxDir = "D:\github\du-tobi\ModUiToolbox",
     [string]$DumpDir = "D:\MyDUserver\tmp\ui-dumps"
 )
 
@@ -39,7 +39,7 @@ if (-not (Test-Path $runtimeModuleMeta)) {
     throw "Runtime module metadata not found: $runtimeModuleMeta"
 }
 
-$moduleTargetDir = Join-Path $ModUiExtractorDir "payload\lua-editor-runtime-modules\hud-editor"
+$moduleTargetDir = Join-Path $ModUiToolboxDir "payload\lua-editor-runtime-modules\hud-editor"
 New-Item -ItemType Directory -Path $moduleTargetDir -Force | Out-Null
 
 Copy-Item -Path $runtimeModuleSrc -Destination (Join-Path $moduleTargetDir "module.js") -Force
@@ -62,15 +62,15 @@ foreach ($legacyFile in $legacyFiles) {
     }
 }
 
-$canonicalPublish = Join-Path $ModUiExtractorDir "tools\publish-lua-probe.ps1"
+$canonicalPublish = Join-Path $ModUiToolboxDir "tools\publish-lua-probe.ps1"
 if (-not (Test-Path $canonicalPublish)) {
     throw "Canonical lua probe publish script not found: $canonicalPublish"
 }
 
-Write-Host "Publishing via ModUiExtractor canonical workflow..."
+Write-Host "Publishing via ModUiToolbox canonical workflow..."
 & $canonicalPublish -DumpDir $DumpDir
 if ($LASTEXITCODE -ne 0) {
-    throw "ModUiExtractor publish failed with exit code $LASTEXITCODE"
+    throw "ModUiToolbox publish failed with exit code $LASTEXITCODE"
 }
 
 Write-Host ""

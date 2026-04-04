@@ -7,13 +7,13 @@ It does not directly modify the game client on its own.
 Instead, it drops request files into your `MyDUserver` working folders, waits for the in-game side to pick them up, and then reads the result files that come back.
 
 That means an agent can ask for things like "read the currently open Lua editor", "write this code into the editor", or "send this chat message", and `DuMcpBridge` passes those requests into the existing Dual Universe modding workflow.
-The actual UI interaction still happens on the game side through `ModUiExtractor`.
+The actual UI interaction still happens on the game side through `ModUiToolbox`.
 
 Its job is intentionally narrow:
 
 - accept MCP tool calls from a local agent or editor
 - write bridge commands into a file bus
-- let `ModUiExtractor` consume those commands inside the game pipeline
+- let `ModUiToolbox` consume those commands inside the game pipeline
 - let injected JavaScript operate on the live UI
 - receive structured events back from the game client
 - expose those results again through MCP tools and resources
@@ -26,11 +26,11 @@ Before starting this MCP server, make sure it knows where your `MyDUserver` fold
 If this path is wrong, the bridge will read and write the wrong bus folders and the server will not work.
 
 `DuMcpBridge` does not talk to the game client by itself.
-It exchanges files with `ModUiExtractor`, which is the in-game bridge that reads command files from `MyDUserver\tmp\ui-dumps`, injects JavaScript into the live Dual Universe UI, and writes event files back out.
+It exchanges files with `ModUiToolbox`, which is the in-game bridge that reads command files from `MyDUserver\tmp\ui-dumps`, injects JavaScript into the live Dual Universe UI, and writes event files back out.
 
 Important:
 
-- `ModUiExtractor` is not inside `DuMcpBridge`
+- `ModUiToolbox` is not inside `DuMcpBridge`
 - it may live in a different folder in this workspace
 - it may also live in a separate repository entirely
 - both tools must point at the same `MyDUserver` installation, or this MCP server will not work
@@ -70,7 +70,7 @@ The current bridge is split into three layers:
 1. `DuMcpBridge`
    A local MCP server that exposes tools and resources.
 
-2. `ModUiExtractor`
+2. `ModUiToolbox`
    The in-game bridge that reads queued commands, injects JavaScript into the HUD client, and writes structured events back out.
 
 3. Lua runtime probe
@@ -82,11 +82,13 @@ The current bridge is split into three layers:
 MCP client
   -> DuMcpBridge
   -> D:\MyDUserver\tmp\ui-dumps\mcp-bridge\commands\*.json
-  -> ModUiExtractor
+  -> ModUiToolbox
   -> injected JavaScript inside the live Dual Universe UI
-  -> D:\MyDUserver\tmp\ui-dumps\mcp-bridge\events\bridge-events.ndjson
+  -> D:\MyDUserver\tmp\ui-dumps\mcp-bridge\events\bridge-events-YYYYMMDD*.ndjson
   -> DuMcpBridge / logmgr
 ```
+
+Bridge-event files are UTC-dated and roll over at `512 KB` per active file. The MCP bridge also exposes `du_bridge_events_status` and `du_bridge_events_housekeeping` so old event files and processed command files can be inspected, rotated, reset, and pruned explicitly.
 
 ## Preferred Lua Workflow
 

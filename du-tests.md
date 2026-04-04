@@ -1,6 +1,6 @@
 # DuMcpBridge & Lua Probe - Live Test Guide
 
-Step-by-step order for manual or agent-driven testing of the MCP tools. The bridge is transport only; real behavior comes from ModUiExtractor plus the injected Lua probe.
+Step-by-step order for manual or agent-driven testing of the MCP tools. The bridge is transport only; real behavior comes from ModUiToolbox plus the injected Lua probe.
 
 ---
 
@@ -9,11 +9,11 @@ Step-by-step order for manual or agent-driven testing of the MCP tools. The brid
 For a new agent session without access to earlier tool outputs, copy the block below before the first MCP step. Treat this file, `du-tests.md`, as the authority for live steps and expectations.
 
 ```text
-You are working in repo du-tobi on DuMcpBridge + ModUiExtractor. Use du-tests.md as the authority for live Dual Universe work.
+You are working in repo du-tobi on DuMcpBridge + ModUiToolbox. Use du-tests.md as the authority for live Dual Universe work.
 
 Repo hint:
 - repo root is typically `d:\github\du-tobi`
-- this repo also contains related live-work docs such as `du-visual-subagent.md`, `live_lua_coding/README.md`, `DuMcpBridge/README.md`, and `ModUiExtractor/README.md`
+- this repo also contains related live-work docs such as `du-visual-subagent.md`, `live_lua_coding/README.md`, `DuMcpBridge/README.md`, and `ModUiToolbox/README.md`
 - when a live task mentions a repo file path, resolve it from this repo root before guessing
 
 Before each run, call du_list_active_sessions and then keep all relevant MCP calls for the same playerId sequential. Do not parallelize session-sensitive live calls.
@@ -110,19 +110,19 @@ These rules come from real live-debugging failures and take priority over conven
 | Component | Expectation |
 | --- | --- |
 | Dual Universe server + client | Player is logged in and the relevant editor context can exist |
-| ModUiExtractor | Current DLL is deployed in the server Mods folder |
+| ModUiToolbox | Current DLL is deployed in the server Mods folder |
 | DuMcpBridge | MCP server is running |
 | Environment variables | Optional: `DU_UI_DUMP_ROOT`, `DU_MCP_BRIDGE_ROOT`; otherwise defaults under server `tmp\\ui-dumps` |
 
 ### 1.1A Build Configuration Rule
 
-- If `ModUiExtractor.dll` is rebuilt for this workflow, compile it only in `Release`.
+- If `ModUiToolbox.dll` is rebuilt for this workflow, compile it only in `Release`.
 - Do not use `Debug` builds for DU live testing, deployment, or handoff.
 - The `Release` build should not produce `.pdb` files. If it does, fix the build configuration before using that DLL for live work.
 - Canonical command:
 
 ```powershell
-cd .\ModUiExtractor
+cd .\ModUiToolbox
 dotnet build -c Release -nologo -v:minimal
 ```
 
@@ -137,7 +137,7 @@ Default examples from the docs:
 
 ### 1.3 Lua Probe / Board
 
-1. In the repo, run `ModUiExtractor\tools\build-lua-probe.ps1`.
+1. In the repo, run `ModUiToolbox\tools\build-lua-probe.ps1`.
 2. Optionally publish with `tools\publish-lua-probe.ps1` or copy the built module override files manually.
 3. In game, inject the Lua probe. The private chat line should include the probe timestamp and short hash.
 4. Open the Lua editor on the correct board and context.
@@ -370,7 +370,7 @@ If a direct known API call fails, the failure should be visible instead of being
 ## 10. Build / Release Checklist
 
 - [ ] `DuMcpBridge`: `npm run build`
-- [ ] `ModUiExtractor`: `dotnet build -c Release` and deploy the DLL
+- [ ] `ModUiToolbox`: `dotnet build -c Release` and deploy the DLL
 - [ ] Build the Lua probe, publish the override, inject it, and verify the chat hash line
 - [ ] Restart or reload the MCP client if tool schemas changed
 
@@ -379,7 +379,7 @@ If a direct known API call fails, the failure should be visible instead of being
 ## 11. Repo References
 
 - [README.md](/d:/github/du-tobi/DuMcpBridge/README.md)
-- [README.md](/d:/github/du-tobi/ModUiExtractor/README.md)
+- [README.md](/d:/github/du-tobi/ModUiToolbox/README.md)
 - [README.md](/d:/github/du-tobi/live_lua_coding/README.md)
 - [du-visual-subagent.md](/d:/github/du-tobi/du-visual-subagent.md)
 

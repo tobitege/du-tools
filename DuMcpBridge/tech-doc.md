@@ -42,6 +42,8 @@ Meaning:
   queued JSON command files for the game-side consumer
 - `events/`
   structured NDJSON events written by the bridge and the mod
+- `events/archive/`
+  rotated or reset bridge-event files moved out of the active scan path
 - `state/`
   snapshots used for pull/read operations
 
@@ -86,14 +88,14 @@ Main responsibility:
 - apply changes through the actual in-game editor
 - report structured results back to the bridge
 
-Relevant files are in "../ModUiExtractor/payload/lua-editor-probe.modules/" folder.
+Relevant files are in "../ModUiToolbox/payload/lua-editor-probe.modules/" folder.
 
 ## Requirements
 
 The bridge only works if all of the following are true:
 
 - `DuMcpBridge` is running locally
-- `ModUiExtractor.dll` is deployed and loaded by the game server
+- `ModUiToolbox.dll` is deployed and loaded by the game server
 - the player is online
 - the target editor UI is already open in-game
 
@@ -129,7 +131,7 @@ Editor content transfer now has exactly one supported write path:
 1. local source file in the workspace
 2. `du_editor_push_code` with `sourcePath`
 3. bridge writes the player-/target-scoped workspace snapshot plus `ide_import.player-<playerId>.<targetKind>.json`
-4. `ModUiExtractor` injects `applyIdeImport(payload)` into the live UI
+4. `ModUiToolbox` injects `applyIdeImport(payload)` into the live UI
 5. the probe validates target/context/reference metadata and emits `ide_import_result`
 
 Important consequences:
@@ -150,6 +152,17 @@ cd .\DuMcpBridge
 npm install
 npm run build
 ```
+
+Useful environment knobs for bridge-event retention and scanning:
+
+- `DU_MCP_BRIDGE_EVENT_FILE_MAX_BYTES`
+  max active bridge-event file size before rollover, default `524288` (`512 KB`)
+- `DU_MCP_BRIDGE_EVENT_RETENTION_DAYS`
+  active/archive event retention, default `3`
+- `DU_MCP_BRIDGE_PROCESSED_COMMAND_RETENTION_DAYS`
+  processed command retention, default `3`
+- `DU_MCP_BRIDGE_MAX_EVENT_FILES_SCANNED`
+  newest active event files scanned by the reader, default `12`
 
 ## Start
 
@@ -173,7 +186,7 @@ It exists because some MCP host UIs do not reliably preserve the configured work
 For editor content, `lua_editor` now accepts only the file-based IDE import path:
 
 1. `DuMcpBridge` stages `ide_import.player-<playerId>.lua_editor.json`
-2. `ModUiExtractor` injects `window.__UI_EXTRACTOR_LUA_PROBE_STATE__.applyIdeImport(payload)`
+2. `ModUiToolbox` injects `window.__UI_TOOLBOX_LUA_PROBE_STATE__.applyIdeImport(payload)`
 3. the probe validates target/context/reference metadata and emits `ide_import_result`
 4. a later explicit `du_editor_save` calls `LUAEditorManager.apply()`
 
@@ -224,7 +237,7 @@ Instead of hardcoding editor logic into the MCP server, the runtime probe lets t
 
 The runtime probe attaches its API to:
 
-- `window.__UI_EXTRACTOR_LUA_PROBE_STATE__.mcp`
+- `window.__UI_TOOLBOX_LUA_PROBE_STATE__.mcp`
 
 Currently supported probe methods:
 
@@ -242,7 +255,7 @@ Currently supported probe methods:
 The dedicated MCP chat tools still use the runtime probe internally, but they now run against the distinct `hud_chat` bridge target instead of piggybacking on `lua_editor`. Chat methods are not exposed through the generic `du_ui_invoke` method enum.
 
 The probe emits `lua_mcp_result` packets for editor actions plus `chat_snapshot`, `chat_send_result`, and `chat_channel_result` packets for chat-specific actions.
-`ModUiExtractor` converts those packets into bridge events of type `probe_result`, `chat_snapshot`, `chat_send_result`, and `chat_channel_result`.
+`ModUiToolbox` converts those packets into bridge events of type `probe_result`, `chat_snapshot`, `chat_send_result`, and `chat_channel_result`.
 
 This means the final roundtrip is:
 
@@ -325,7 +338,17 @@ Supported actions today:
 
 Bridge events are written into:
 
-- `D:\MyDUserver\tmp\ui-dumps\mcp-bridge\events\bridge-events.ndjson`
+- `D:\MyDUserver\tmp\ui-dumps\mcp-bridge\events\bridge-events-YYYYMMDD.ndjson`
+- rollover files for the same UTC day use `bridge-events-YYYYMMDD-001.ndjson`, `-002`, and so on
+- the active event reader ignores `events/archive/` and reads only the newest active files in `events/`
+
+Current rollover / retention behavior:
+
+- both `DuMcpBridge` and `ModUiToolbox` append into UTC-dated bridge-event files
+- active files roll over at `512 KB`
+- the bridge reader scans newest-first and stops after enough recent events have been collected
+- reset/rotate operations move old files into `events/archive/` so they stop inflating normal MCP reads
+- housekeeping can also prune old files from `events/`, `events/archive/`, and `state/processed-commands/`
 
 Currently relevant event types:
 
@@ -480,7 +503,7 @@ Behavior:
 1. `DuMcpBridge` reads the local source file
 2. `DuMcpBridge` writes the player-/target-scoped workspace snapshot
 3. `DuMcpBridge` writes `ide_import.player-<playerId>.<targetKind>.json`
-4. `ModUiExtractor` picks up that import file and injects `applyIdeImport(payload)`
+4. `ModUiToolbox` picks up that import file and injects `applyIdeImport(payload)`
 5. the live probe validates the active target and acks with `ide_import_result`
 
 Return fields:
@@ -520,7 +543,7 @@ The live MCP surface is intentionally centered on a small set of tool families:
 - `du_editor_push_code`, `du_editor_pull_code`, `du_editor_save`
   File-based IDE import, last-known snapshot reads, and explicit save/apply.
 - `du_ui_dump`
-  Full UI dump via ModUiExtractor (chunked NDJSON). Supports `htmlSelector` to target specific DOM elements.
+  Full UI dump via ModUiToolbox (chunked NDJSON). Supports `htmlSelector` to target specific DOM elements.
 - `du_chat_*`
   Dedicated chat read/write helpers that add structured semantics beyond a raw probe result.
 - `du_camera_move`
@@ -531,6 +554,8 @@ The live MCP surface is intentionally centered on a small set of tool families:
   The single native entry point for opening supported element editors through `Ctrl+L`.
 - `du_get_last_result`, `du_tail_runtime_logs`, `du_list_active_sessions`
   Observability and session discovery.
+- `du_bridge_events_status`, `du_bridge_events_housekeeping`
+  Bridge-event observability and explicit file maintenance.
 
 Wrapper tools such as `du_lua_*` and `du_ui_eval_raw` are intentionally no longer part of the public surface. The generic UI path now owns the semantics that mattered in practice:
 
@@ -625,7 +650,7 @@ Inputs:
 Behavior:
 
 - runs a trusted `raw_eval` against `lua_editor`
-- reads `window.__UI_EXTRACTOR_LUA_PROBE_CONFIG`
+- reads `window.__UI_TOOLBOX_LUA_PROBE_CONFIG`
 - calls `window.CPPMod.sendModAction(modName, injectActionId, [], "")`
 - optionally reopens the Lua editor through the existing native `Ctrl+L` helper and returns the follow-up describe snapshot
 
@@ -640,7 +665,7 @@ Important scope note:
 
 Purpose:
 
-- queue a full UI dump via ModUiExtractor (Action 1/2)
+- queue a full UI dump via ModUiToolbox (Action 1/2)
 - outputs chunked NDJSON to `tmp/ui-dumps/`
 - use `htmlSelector` to target a specific DOM element instead of the full document
 - useful for extracting the F1/Help codex or other overlay UIs
@@ -655,7 +680,7 @@ Inputs:
 Behavior:
 
 1. `DuMcpBridge` queues `action = ui_dump` with config
-2. `ModUiExtractor` injects the extractor payload with `htmlSelector` support
+2. `ModUiToolbox` injects the extractor payload with `htmlSelector` support
 3. the payload collects HTML, stylesheets, scripts, and metadata in chunks
 4. results are written to `tmp/ui-dumps/ui-<id>.ndjson`
 5. use `reassemble-ui-dump.ps1` to reassemble into `reassembled/<id>/`
@@ -709,10 +734,10 @@ Inputs:
 Behavior:
 
 1. `DuMcpBridge` queues `action = probe_call` with `probeMethod = chat_snapshot`
-2. `ModUiExtractor` injects the runtime probe call into the HUD
+2. `ModUiToolbox` injects the runtime probe call into the HUD
 3. the probe reads the selected channel plus recent messages from the existing chat UI state
 4. the probe emits a `chat_snapshot` packet
-5. `ModUiExtractor` writes a `chat_snapshot` event
+5. `ModUiToolbox` writes a `chat_snapshot` event
 6. `DuMcpBridge` waits for that event and returns the snapshot
 
 Return fields:
@@ -784,7 +809,7 @@ Purpose:
 
 - read recent chat messages across server-side channels relevant to the player
 - avoid the visible HUD tab restriction of the normal `du_chat_snapshot` path
-- use an explicit opt-in path that requires a `ModUiExtractor` build with server chat support
+- use an explicit opt-in path that requires a `ModUiToolbox` build with server chat support
 
 Inputs:
 
@@ -795,7 +820,7 @@ Inputs:
 Behavior:
 
 1. `DuMcpBridge` queues a server-side read command instead of a HUD probe call
-2. `ModUiExtractor` executes the opt-in `server_chat` read path in the server process
+2. `ModUiToolbox` executes the opt-in `server_chat` read path in the server process
 3. the mod writes a `server_chat_snapshot` bridge event
 4. `DuMcpBridge` waits for that event and returns the structured snapshot
 
@@ -839,7 +864,7 @@ Inputs:
 Behavior:
 
 1. `DuMcpBridge` queues the same server-side snapshot read as `du_chat_server_snapshot`
-2. `ModUiExtractor` writes a `server_chat_snapshot` bridge event
+2. `ModUiToolbox` writes a `server_chat_snapshot` bridge event
 3. `DuMcpBridge` filters the returned messages to plain `@ai` or, if `agentId` is set, to `@ai:<agentId>`
 4. messages with a leading `[AI:<agentId>]` prefix are ignored to avoid self-loops across multiple MCP-side agents
 
@@ -1044,7 +1069,7 @@ Filters:
 
 Source:
 
-- `bridge-events.ndjson`
+- newest active `bridge-events-YYYYMMDD*.ndjson` files in `events/`
 
 ### `du_tail_runtime_logs`
 
@@ -1072,6 +1097,37 @@ Sources:
 
 - recent bridge events
 - player-scoped IDE import files such as `ide_import.player-<playerId>.lua_editor.json`
+
+### `du_bridge_events_status`
+
+Purpose:
+
+- report the current active bridge-event file, retention settings, byte totals, and whether legacy `bridge-events.ndjson` is still present
+
+Return fields include:
+
+- current writable file path/name and current size
+- latest active file
+- active/archive/processed-command file counts and byte totals
+- retention settings
+- largest active files
+
+### `du_bridge_events_housekeeping`
+
+Purpose:
+
+- rotate or reset the active bridge-event file
+- prune event files older than a chosen age
+- prune processed command files older than a chosen age
+- support `dryRun` before destructive cleanup
+
+Important behavior:
+
+- `rotateNow` archives the latest active event file immediately
+- `resetCurrent` archives the latest active event file and starts a fresh current file
+- pruning applies to both `events/` and `events/archive/`
+- processed-command pruning applies to `state/processed-commands/`
+- housekeeping returns the post-action bridge-event status snapshot
 
 ## MCP Resources
 
@@ -1135,3 +1191,4 @@ That makes command results and probe results visible outside the game immediatel
 - normal HUD mention reads are intentionally limited to the currently selected client tab; cross-channel reads require the opt-in `server_chat` path
 - there is still no arbitrary raw hotkey contract: native key input is intentionally limited to the `du_send_key_native` whitelist rather than free-form key strings
 - `sendEscapeFirst = true` is not a harmless preflight: from a normal in-world state it can open the game Options menu. If that happens, the next recovery step is another `Escape` to get back in-world before you assume a clean retry state.
+- legacy `bridge-events.ndjson` can still exist from older runs; status/housekeeping will report it, but older files are not auto-migrated into the dated naming scheme

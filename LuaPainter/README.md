@@ -26,7 +26,7 @@ You edit the layout visually in-game, save the document on the programming board
 
 ## In-Game Workflow
 
-1. Open Lua Painter in-game (see **Opening Lua Painter via DuMcpBridge** below for an MCP-only path, or use the in-game ModUiExtractor runtime-module UI).
+1. Open Lua Painter in-game (see **Opening Lua Painter via DuMcpBridge** below for an MCP-only path, or use the in-game ModUiToolbox runtime-module UI).
 2. Enable the Lua Painter runtime plugin (runtime module id `hud-editor`, display name **Lua Painter**; see build stamp in `build/hud-editor-runtime-module.ingame.json`).
 3. Paint and edit shapes on the canvas.
 4. Save/load the current layout through the programming board flow.
@@ -37,7 +37,7 @@ You edit the layout visually in-game, save the document on the programming board
 
 Use this when you control the client through **DuMcpBridge** MCP tools only (no repo source spelunking). Authoritative live rules, probe behavior, and sequencing are in the repo root file **`du-tests.md`**; follow that first.
 
-**Prerequisites (from `du-tests.md`):** DuMcpBridge running, Dual Universe client logged in, ModUiExtractor + Lua probe as required for `lua_editor` probe calls. Keep all steps **sequential** for the same `playerId` (do not parallelize session-sensitive calls).
+**Prerequisites (from `du-tests.md`):** DuMcpBridge running, Dual Universe client logged in, ModUiToolbox + Lua probe as required for `lua_editor` probe calls. Keep all steps **sequential** for the same `playerId` (do not parallelize session-sensitive calls).
 
 **Tool calls (DuMcpBridge):**
 
@@ -114,13 +114,13 @@ LuaPainter/
 
 ## Build and publish
 
-Build web and in-game bundles and publish the in-game runtime module through ModUiExtractor:
+Build web and in-game bundles and publish the in-game runtime module through ModUiToolbox:
 
 ```powershell
 pwsh -File .\LuaPainter\scripts\publish.ps1
 ```
 
-This runs the bundle build (web + ingame), copies the module into ModUiExtractor's runtime-module folder, and then runs ModUiExtractor's normal publish step. Generated files go into `build/`.
+This runs the bundle build (web + ingame), copies the module into ModUiToolbox's runtime-module folder, and then runs ModUiToolbox's normal publish step. Generated files go into `build/`.
 
 `scripts/build.ps1` remains the low-level builder; you normally do not need to invoke it directly.
 
@@ -178,7 +178,7 @@ More harness details are in `web/README.md`.
 
 ## Shortcuts
 
-- Lua Painter availability in-game: ModUiExtractor runtime-module UI (kebab menu), or the **Opening Lua Painter via DuMcpBridge** MCP sequence above
+- Lua Painter availability in-game: ModUiToolbox runtime-module UI (kebab menu), or the **Opening Lua Painter via DuMcpBridge** MCP sequence above
 - `V` select
 - `B` box
 - `R` rounded box

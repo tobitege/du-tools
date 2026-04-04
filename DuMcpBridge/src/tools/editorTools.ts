@@ -1577,7 +1577,7 @@ export function registerEditorTools(
     {
       title: "Read Server Chat Snapshot",
       description:
-        "Reads recent chat messages across server-side channels relevant to the player without depending on the visible HUD chat. This path is opt-in and requires ModUiExtractor to be built with server chat support.",
+        "Reads recent chat messages across server-side channels relevant to the player without depending on the visible HUD chat. This path is opt-in and requires ModUiToolbox to be built with server chat support.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         limit: z.number().int().min(1).max(500).default(120).describe("Maximum number of recent chat messages to return across relevant server-side channels"),
@@ -1633,7 +1633,7 @@ export function registerEditorTools(
     {
       title: "Read Server AI Chat Mentions",
       description:
-        "Reads recent server-side chat messages across channels relevant to the player and returns only AI mentions. This path is opt-in and requires ModUiExtractor to be built with server chat support.",
+        "Reads recent server-side chat messages across channels relevant to the player and returns only AI mentions. This path is opt-in and requires ModUiToolbox to be built with server chat support.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         agentId: z
@@ -2060,8 +2060,8 @@ export function registerEditorTools(
     async ({ playerId, openEditorAfter, timeoutMs, reopenDelayMs, reopenTimeoutMs, activateWindow, ahkPath, windowTitle }) => {
       const functionBody = [
         "try {",
-        "  var cfg = window.__UI_EXTRACTOR_LUA_PROBE_CONFIG || {};",
-        "  var modName = cfg.modName || 'NQ.UIExtractor';",
+        "  var cfg = window.__UI_TOOLBOX_LUA_PROBE_CONFIG || {};",
+        "  var modName = cfg.modName || 'NQ.UIToolbox';",
         "  var actionId = parseInt(cfg.injectActionId || 5, 10) || 5;",
         "  if (!window.CPPMod || typeof window.CPPMod.sendModAction !== 'function') {",
         "    return { ok: false, reason: 'sendModAction_unavailable', modName: modName, actionId: actionId };",
@@ -2577,7 +2577,7 @@ export function registerEditorTools(
     {
       title: "Queue UI Dump",
       description:
-        "Queues a full UI dump (ModUiExtractor Action 1/2). Outputs chunked NDJSON to tmp/ui-dumps/. Use initialDelayMs to wait (e.g. for F1/Help system to load) before scraping. Use htmlSelector to target a specific DOM element instead of the full document.",
+        "Queues a full UI dump (ModUiToolbox Action 1/2). Outputs chunked NDJSON to tmp/ui-dumps/. Use initialDelayMs to wait (e.g. for F1/Help system to load) before scraping. Use htmlSelector to target a specific DOM element instead of the full document.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         deep: z.boolean().default(true).describe("Deep mode (true) or safe mode (false)"),

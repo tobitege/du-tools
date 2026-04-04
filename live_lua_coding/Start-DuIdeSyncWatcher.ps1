@@ -6,7 +6,7 @@ param(
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
-$syncScript = Join-Path $repoRoot "ModUiExtractor\tools\sync-ide.ps1"
+$syncScript = Join-Path $repoRoot "ModUiToolbox\tools\sync-ide.ps1"
 
 if (-not (Test-Path $syncScript)) {
     throw "sync-ide.ps1 not found at $syncScript"
@@ -54,7 +54,7 @@ $argumentList = @(
 $process = Start-Process `
     -FilePath $pwsh `
     -ArgumentList $argumentList `
-    -WorkingDirectory (Join-Path $repoRoot "ModUiExtractor") `
+    -WorkingDirectory (Join-Path $repoRoot "ModUiToolbox") `
     -PassThru
 
 Write-Host "Started sync-ide watcher."
