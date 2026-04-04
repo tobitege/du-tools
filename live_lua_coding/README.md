@@ -24,7 +24,7 @@ Concrete demos now live under `live_lua_coding/examples/`.
 
 - `examples/form_editor/` — First example. Screen-side form editor where a board restores persisted layout state, renders a reduced screen script, and accepts move or resize deltas back from the screen.
 - `examples/form_editor_v2/` — Simplified form editor workflow using a library-onStart pattern.
-- `examples/hud_editor_v1/` — **Lua Painter**: an in-game layout painter delivered as an optional ModUiExtractor runtime plugin. Users paint shapes visually, save layouts on a programming board, and export generated Lua/RenderScript for screens and signs. See section 4A below.
+- `LuaPainter/` — **Lua Painter**: an in-game layout painter delivered as an optional ModUiExtractor runtime plugin. Users paint shapes visually, save layouts on a programming board, and export generated Lua/RenderScript for screens and signs. See section 4A below.
 
 That split keeps the root folder reusable for future examples without tying every workflow note to one specific demo.
 
@@ -512,7 +512,7 @@ Second example in `live_lua_coding/examples/form_editor_v2/`:
 - `ScreenLayoutEditor.lua`
   Shared ScreenLayoutEditor module.
 
-### 4A. Lua Painter — `examples/hud_editor_v1/`
+### 4A. Lua Painter — `LuaPainter/`
 
 This example is an in-game Lua Painter for Dual Universe.
 
@@ -531,8 +531,7 @@ Current structure:
 - `js/assets/` — CSS
 - `board/` — programming board Lua files
 - `screen/` — screen runtime Lua
-- `scripts/build.ps1` — bundle builder
-- `scripts/publish.ps1` — publish into ModUiExtractor runtime modules
+- `scripts/publish.ps1` — build web + ingame bundles and publish into ModUiExtractor runtime modules (`build.ps1` is the internal bundle step)
 - `web/` — browser-only development and test harness
 
 Important editor modules:
@@ -548,14 +547,7 @@ Important editor modules:
 Build and publish:
 
 ```powershell
-# Build web bundle
-pwsh -File .\live_lua_coding\examples\hud_editor_v1\scripts\build.ps1
-
-# Build in-game bundle
-pwsh -File .\live_lua_coding\examples\hud_editor_v1\scripts\build.ps1 -Target ingame
-
-# Publish as ModUiExtractor runtime module
-pwsh -File .\live_lua_coding\examples\hud_editor_v1\scripts\publish.ps1
+pwsh -File .\LuaPainter\scripts\publish.ps1
 ```
 
 The `web/` folder is only for faster local iteration and Playwright coverage. It is useful, but it is not the shipped workflow.
@@ -1273,7 +1265,7 @@ Action:
 - [Client Pixel Live Tests](du-client-pixel-live-tests.md)
 - [Camera Steering Tests](du-camera-steering-tests.md)
 - [DU Visual Subagent Notes](../du-visual-subagent.md)
-- [HUD Editor Plan](examples/hud_editor_v1/hud-editor.md)
+- [HUD Editor Plan](LuaPainter/hud-editor.md)
 
 ## 18. Maintaining The Tracked Live Snapshots
 

@@ -15,7 +15,7 @@ Some utility scripts may need paths adapted to either your own myDuServer instal
 | Tool | Description |
 | ---- | ----------- |
 | [DuMcpBridge](DuMcpBridge/) | Local MCP server that turns the existing ModUiExtractor + Lua probe pipeline into a transport layer for live Dual Universe automation. Exposes tools for reading and writing open Lua or screen editors, chat interaction, native editor open steps, and related live UI actions. |
-| [live_lua_coding](live_lua_coding/) | Operator manual and tracked artifact area for live bridge-driven Lua work. Contains the shared safety rules, editor targeting workflow, tracked live snapshots, and concrete examples such as `examples/hud_editor_v1/` (**Lua Painter**) for in-game layout painting and generated Lua/RenderScript export. |
+| [live_lua_coding](live_lua_coding/) | Operator manual and tracked artifact area for live bridge-driven Lua work. Contains the shared safety rules, editor targeting workflow, tracked live snapshots, and concrete examples such as `LuaPainter/` (**Lua Painter**) for in-game layout painting and generated Lua/RenderScript export. |
 
 Note: parts of this live workflow can rely on separately installed helper tools such as `ScreenShotNet` and `AutoHotkey v2`.
 
