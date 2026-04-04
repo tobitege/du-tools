@@ -186,6 +186,25 @@ test('shape dropdown auto-closes after selecting a tool', async ({ page }) => {
   expect(activeTool).toBe('line')
 })
 
+test('status bar help button opens the bottom bar guide', async ({ page }) => {
+  await page.goto('/web/index.html')
+
+  await ensureHarnessExpanded(page)
+  await page.getByRole('button', { name: 'New Script' }).first().click()
+  await expect(page.locator('#canvas-preview')).toBeVisible()
+  await collapseHarness(page)
+
+  await page.getByRole('button', { name: 'Bottom bar help' }).click()
+
+  const helpDialog = page.locator('#dialog-help')
+  await expect(helpDialog).toBeVisible()
+  await expect(helpDialog).toContainText('Bottom Bar Help')
+  await expect(helpDialog).toContainText('Apply + Close HUD')
+  await expect(helpDialog).toContainText('Export Board')
+  await expect(helpDialog).toContainText('Export Screen')
+  await expect(helpDialog).toContainText('Close')
+})
+
 test('shape dropdown lists the extended DU shape tool set', async ({ page }) => {
   await page.goto('/web/index.html')
 

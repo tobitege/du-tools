@@ -1,4 +1,4 @@
-// 120-dialogs.js - Dialog components (load, saveas, close confirm)
+// 120-dialogs.js - Dialog components (load, saveas, help, close confirm)
 (function hudEditorDialogs() {
   "use strict";
 
@@ -287,6 +287,73 @@
     ]);
     root.appendChild(colorD);
 
+    // ── Bottom bar help dialog ────────────────────────────────────
+    var helpItems = [
+      {
+        title: "Apply + Close HUD",
+        description: "Writes the current layout back to the connected programming board unit.onStart and closes Lua Painter."
+      },
+      {
+        title: "Help",
+        description: "Opens this quick guide for the bottom action bar."
+      },
+      {
+        title: "Export Board",
+        description: "Builds the board-side Lua export so you can paste or inspect the generated programming board code."
+      },
+      {
+        title: "Export Screen",
+        description: "Builds the linked-screen RenderScript export for the current layout."
+      },
+      {
+        title: "Close",
+        description: "Leaves the editor. If you still have unsaved changes, Lua Painter asks how you want to proceed."
+      }
+    ];
+
+    var helpD = el("div", {
+      id: "dialog-help",
+      className: "dialog-overlay",
+      style: { display: "none" },
+    }, [
+      el("div", { className: "dialog help-dialog" }, [
+        el("div", { className: "dialog-header" }, [
+          el("h3", { textContent: "Bottom Bar Help" }),
+          el("button", {
+            className: "dialog-close",
+            dataset: { action: "close-help" },
+            textContent: "\u00D7",
+          }),
+        ]),
+        el("div", { className: "dialog-content help-dialog-content" }, [
+          el("p", {
+            className: "help-dialog-intro",
+            textContent: "Use these controls to save your layout, export Lua, or leave the editor."
+          }),
+          el("div", { className: "help-topic-list" }, helpItems.map(function (item) {
+            return el("div", { className: "help-topic-item" }, [
+              el("div", { className: "help-topic-copy" }, [
+                el("div", { className: "help-topic-name", textContent: item.title }),
+                el("div", { className: "help-topic-desc", textContent: item.description }),
+              ]),
+            ]);
+          })),
+          el("p", {
+            className: "help-dialog-note",
+            textContent: "The center status pill shows whether Lua Painter is connected to the current programming board."
+          }),
+        ]),
+        el("div", { className: "dialog-footer" }, [
+          el("button", {
+            className: "btn primary",
+            dataset: { action: "close-help" },
+            textContent: "Back to Editor",
+          }),
+        ]),
+      ]),
+    ]);
+    root.appendChild(helpD);
+
     // ── Close confirmation dialog ─────────────────────────────────
     var closeD = el("div", {
       id: "dialog-close",
@@ -372,6 +439,8 @@
     } else if (action === "close-saveas") {
       hideDialog();
     } else if (action === "close-color") {
+      hideDialog();
+    } else if (action === "close-help") {
       hideDialog();
     } else if (action === "close-cancel") {
       hideDialog();
@@ -467,6 +536,10 @@
       if (typeof input.focus === "function") input.focus();
       if (typeof input.select === "function") input.select();
     }
+  });
+
+  APP.on("status-help-open", function () {
+    showDialog("help");
   });
 
   APP.on("close-editor", function () {

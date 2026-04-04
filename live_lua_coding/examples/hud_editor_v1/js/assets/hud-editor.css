@@ -1273,6 +1273,7 @@
   width: 352px;
   min-width: 280px;
   min-height: 80px;
+  height: 50vh;
   background: #1a1a24;
   border: 1px solid #2a2a3a;
   border-radius: 8px;
@@ -1511,7 +1512,8 @@
 
 .prop-row-dual {
   align-items: flex-start;
-  gap: 8px;
+  gap: 6px;
+  flex-direction: column;
 }
 
 .prop-inline-field {
@@ -1530,21 +1532,21 @@
 .prop-row label {
   flex: 0 0 54px;
   min-width: 54px;
-  font-size: 11px;
+  font-size: 1.1vw;
   color: #777;
   line-height: 1.15;
   white-space: nowrap;
 }
 
 .prop-input {
-  width: 72px;
-  flex: 0 0 72px;
+  width: 60px;
+  flex: 0 0 60px;
   height: 30px;
   background: #12121a;
   border: 1px solid #3a3a4a;
   border-radius: 4px;
   color: #ccc;
-  font-size: 12px;
+  font-size: 0.85vw;
   padding: 0 6px;
   font-family: inherit;
   text-align: right;
@@ -1587,7 +1589,7 @@ select.prop-input {
   border: 1px solid #3a3a4a;
   border-radius: 4px;
   color: #ccc;
-  font-size: 12px;
+  font-size: 1vw;
   padding: 6px;
   font-family: inherit;
   resize: vertical;
@@ -1671,6 +1673,14 @@ select.prop-input {
   text-align: center;
 }
 
+.status-btn.icon-only {
+  min-width: 40px;
+  width: 40px;
+  padding: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
 .status-btn:hover {
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
@@ -1684,6 +1694,18 @@ select.prop-input {
 
 .status-btn.primary:hover {
   background: rgba(14, 233, 231, 0.22);
+}
+
+.status-btn-help {
+  background: linear-gradient(180deg, rgba(255, 196, 92, 0.16) 0%, rgba(112, 74, 18, 0.28) 100%);
+  border-color: rgba(255, 196, 92, 0.34);
+  color: #ffd38a;
+  box-shadow: inset 0 1px 0 rgba(255, 240, 203, 0.04);
+}
+
+.status-btn-help:hover {
+  background: linear-gradient(180deg, rgba(255, 196, 92, 0.24) 0%, rgba(126, 83, 21, 0.34) 100%);
+  color: #ffe6ba;
 }
 
 .status-btn.danger {
@@ -1786,6 +1808,85 @@ select.prop-input {
   color: #b9c4d6;
   font-size: 17px;
   line-height: 1.45;
+}
+
+.help-dialog {
+  width: min(92vw, clamp(560px, 56vw, 1100px));
+}
+
+.help-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(22px, 1.8vw, 28px);
+}
+
+.help-dialog .dialog-header {
+  padding: clamp(18px, 1.8vw, 28px) clamp(24px, 2.3vw, 36px);
+}
+
+.help-dialog .dialog-header h3 {
+  font-size: 24px;
+}
+
+.help-dialog .dialog-close {
+  width: 34px;
+  height: 34px;
+  font-size: 24px;
+}
+
+.help-dialog .dialog-content {
+  padding: clamp(24px, 2.3vw, 36px);
+}
+
+.help-dialog-intro,
+.help-dialog-note {
+  margin: 0;
+  color: #b7c3d8;
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.help-dialog-note {
+  color: #8e9bb1;
+}
+
+.help-topic-list {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(12px, 1.1vw, 18px);
+}
+
+.help-topic-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 16px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: background 0.15s ease;
+}
+
+.help-topic-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.help-topic-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.help-topic-name {
+  color: #f4f7fb;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.help-topic-desc {
+  color: #9aa4b8;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .dialog-color-preview {
@@ -2021,6 +2122,17 @@ select.prop-input {
   transition: all 0.15s ease;
 }
 
+.help-dialog .dialog-footer {
+  gap: clamp(10px, 1vw, 14px);
+  padding: clamp(14px, 1.4vw, 22px) clamp(20px, 2vw, 32px);
+}
+
+.help-dialog .btn {
+  min-height: clamp(42px, 3vw, 52px);
+  padding: clamp(10px, 0.9vw, 14px) clamp(18px, 1.4vw, 24px);
+  font-size: 18px;
+}
+
 .btn:hover {
   background: linear-gradient(180deg, #2d2d3c 0%, #20202c 100%);
   border-color: #4a4a5e;
@@ -2145,22 +2257,22 @@ select.prop-input {
 .stepper-ctrl {
   display: flex;
   align-items: center;
-  gap: 4px;
-  flex: 1 1 auto;
+  gap: 2px;
+  flex: 0 0 50%;
   min-width: 0;
 }
 
 .stepper-dec,
 .stepper-inc {
   flex-shrink: 0;
-  width: 24px;
-  height: 30px;
+  width: 1.2vw;
+  height: 2.5vh;
   border: 1px solid #3a3a4a;
   border-radius: 4px;
   background: #12121a;
   color: #ccc;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 1vw;
   line-height: 1;
   display: flex;
   align-items: center;
@@ -2178,13 +2290,13 @@ select.prop-input {
 .stepper-select {
   flex: 1;
   min-width: 0;
-  height: 30px;
+  height: 2.5vh;
   background: #12121a;
   border: 1px solid #3a3a4a;
   border-radius: 4px;
   color: #ccc;
-  font-size: 12px;
-  padding: 0 8px;
+  font-size: 0.85vw;
+  padding: 0 4px;
   font-family: inherit;
   text-align: center;
   cursor: pointer;

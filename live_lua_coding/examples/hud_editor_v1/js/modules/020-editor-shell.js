@@ -343,7 +343,7 @@
               buildStepper("shadowBlur", GLOW_PRESETS),
             ]),
             el("div", { className: "prop-row", dataset: { propRow: "shadowColor" } }, [
-              el("label", { textContent: "Glow Col" }),
+              el("label", { textContent: "Glow Color" }),
               el("button", {
                 type: "button",
                 className: "prop-color-btn",
@@ -431,6 +431,13 @@
         ]),
         el("div", { className: "statusbar-right" }, [
           el("button", {
+            className: "status-btn icon-only status-btn-help",
+            dataset: { action: "status-help" },
+            textContent: "?",
+            title: "Bottom bar help",
+            "aria-label": "Bottom bar help",
+          }),
+          el("button", {
             className: "status-btn",
             dataset: { action: "export-board" },
             textContent: "Export Board",
@@ -478,6 +485,7 @@
     if (action === "undo") APP.emit("undo");
     else if (action === "redo") APP.emit("redo");
     else if (action === "save") APP.emit("save");
+    else if (action === "status-help") APP.emit("status-help-open");
     else if (action === "export-board") APP.emit("export-board");
     else if (action === "export-screen") APP.emit("export-screen");
     else if (action === "close") APP.emit("close-editor");
