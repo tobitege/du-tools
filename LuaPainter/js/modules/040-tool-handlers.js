@@ -163,6 +163,9 @@
 
     // Add to document once
     if (APP.state.document && APP.state.document.elements) {
+      if (APP.undoRedo && typeof APP.undoRedo.push === "function") {
+        APP.undoRedo.push();
+      }
       APP.state.document.elements.push(tempElement);
       APP.state.isDirty = true;
 

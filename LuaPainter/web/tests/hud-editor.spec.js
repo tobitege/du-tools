@@ -394,6 +394,39 @@ test('line tool only creates a line after a drag, not a click', async ({ page })
   expect(afterDragCount).toBe(beforeCount + 1)
 })
 
+test('adding a shape can be undone', async ({ page }) => {
+  await page.goto('/web/index.html')
+
+  await ensureHarnessExpanded(page)
+  await page.getByRole('button', { name: 'New Script' }).first().click()
+  await expect(page.locator('#canvas-preview')).toBeVisible()
+  await collapseHarness(page)
+
+  await chooseShapeTool(page, 'box')
+
+  const beforeCount = await page.evaluate(() => window.HudEditor.state.document.elements.length)
+  expect(beforeCount).toBe(2)
+
+  const previewBox = await page.locator('#canvas-preview').boundingBox()
+  expect(previewBox).not.toBeNull()
+
+  const startX = previewBox.x + 420
+  const startY = previewBox.y + 220
+  const endX = previewBox.x + 560
+  const endY = previewBox.y + 320
+
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+  await page.mouse.move(endX, endY)
+  await page.mouse.up()
+
+  await expect.poll(async () => page.evaluate(() => window.HudEditor.state.document.elements.length)).toBe(beforeCount + 1)
+
+  await page.evaluate(() => window.HudEditor.emit('undo'))
+
+  await expect.poll(async () => page.evaluate(() => window.HudEditor.state.document.elements.length)).toBe(beforeCount)
+})
+
 test('shape snippet catalog exposes the planned families and can build documents', async ({ page }) => {
   await page.goto('/web/index.html')
 
