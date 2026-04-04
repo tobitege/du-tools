@@ -290,7 +290,11 @@
         },
       ],
     });
-    APP.state.isDirty = false;
+    if (typeof APP.setSavedDocumentBaseline === "function") {
+      APP.setSavedDocumentBaseline(APP.state.document);
+    } else {
+      APP.state.isDirty = false;
+    }
     APP.showScreen("editor");
     APP.emit("document-created", APP.state.document);
   }

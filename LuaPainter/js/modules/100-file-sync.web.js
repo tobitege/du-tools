@@ -105,6 +105,9 @@
     }
     if (APP.state && APP.state.document && String(APP.state.document.id || "") === String(id)) {
       APP.state.document.name = finalName;
+      if (typeof APP.setSavedDocumentBaseline === "function") {
+        APP.setSavedDocumentBaseline(APP.state.document);
+      }
       APP.emit("document-loaded", APP.state.document);
     }
     return true;
@@ -124,7 +127,11 @@
     var success = saveLayoutLocally(doc.id, doc.name, deepCopyDoc(doc));
 
     if (success) {
-      APP.state.isDirty = false;
+      if (typeof APP.setSavedDocumentBaseline === "function") {
+        APP.setSavedDocumentBaseline(doc);
+      } else {
+        APP.state.isDirty = false;
+      }
       return doc.id;
     }
     return null;
@@ -147,7 +154,11 @@
     }
     APP.state.document = doc;
     APP.state.selectedElementId = null;
-    APP.state.isDirty = false;
+    if (typeof APP.setSavedDocumentBaseline === "function") {
+      APP.setSavedDocumentBaseline(APP.state.document);
+    } else {
+      APP.state.isDirty = false;
+    }
     APP.emit("document-loaded", APP.state.document);
     return stored;
   }

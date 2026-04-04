@@ -1,6 +1,6 @@
 // Lua Painter Probe
 // Project: D:\github\du-tobi\LuaPainter
-// Built: 2026-04-04T12:11:08Z
+// Built: 2026-04-04T12:44:48Z
 
 // Inlined CSS
 (function injectCSS() {
@@ -46,6 +46,7 @@
     selectedElementId: null,
     selectedElementIds: [],
     isDirty: false,
+    savedDocumentBaseline: null,
     document: null,
     connectedScreen: false,
     editorContext: {
@@ -101,6 +102,33 @@
     doc.id = id;
     doc.name = trimString(doc.name) || "Layout";
     return doc;
+  }
+
+  function serializeDocumentForDirtyState(doc) {
+    if (!doc) {
+      return null;
+    }
+    return JSON.stringify(doc);
+  }
+
+  function setSavedDocumentBaseline(doc) {
+    state.savedDocumentBaseline = serializeDocumentForDirtyState(doc || state.document);
+    state.isDirty = false;
+    return state.savedDocumentBaseline;
+  }
+
+  function refreshDirtyState(doc) {
+    var current = serializeDocumentForDirtyState(doc || state.document);
+    if (!current) {
+      state.isDirty = false;
+      return false;
+    }
+    if (state.savedDocumentBaseline == null) {
+      state.isDirty = true;
+      return true;
+    }
+    state.isDirty = current !== state.savedDocumentBaseline;
+    return state.isDirty;
   }
 
   function cloneJsonValue(value, fallbackValue) {
@@ -651,6 +679,8 @@
     getRuntimeCtx: getRuntimeCtx,
     getPersistentValue: getPersistentValue,
     setPersistentValue: setPersistentValue,
+    setSavedDocumentBaseline: setSavedDocumentBaseline,
+    refreshDirtyState: refreshDirtyState,
     getPreviewImageRoot: getPreviewImageRoot,
     setPreviewImageRoot: setPreviewImageRoot,
     resolvePreviewImageSrc: resolvePreviewImageSrc,
@@ -963,7 +993,11 @@
         },
       ],
     });
-    APP.state.isDirty = false;
+    if (typeof APP.setSavedDocumentBaseline === "function") {
+      APP.setSavedDocumentBaseline(APP.state.document);
+    } else {
+      APP.state.isDirty = false;
+    }
     APP.showScreen("editor");
     APP.emit("document-created", APP.state.document);
   }
@@ -2855,6 +2889,9 @@
 
     // Add to document once
     if (APP.state.document && APP.state.document.elements) {
+      if (APP.undoRedo && typeof APP.undoRedo.push === "function") {
+        APP.undoRedo.push();
+      }
       APP.state.document.elements.push(tempElement);
       APP.state.isDirty = true;
 
@@ -5848,7 +5885,11 @@
     APP.state.document = doc;
     APP.state.selectedElementId = null;
     APP.state.selectedElementIds = [];
-    APP.state.isDirty = false;
+    if (typeof APP.setSavedDocumentBaseline === "function") {
+      APP.setSavedDocumentBaseline(doc);
+    } else {
+      APP.state.isDirty = false;
+    }
     APP.emit("document-loaded", doc);
     if (typeof APP.goToEditor === "function") {
       APP.goToEditor();
@@ -6605,6 +6646,9 @@
     }
     if (APP.state && APP.state.document && String(APP.state.document.id || "") === String(id)) {
       APP.state.document.name = finalName;
+      if (typeof APP.setSavedDocumentBaseline === "function") {
+        APP.setSavedDocumentBaseline(APP.state.document);
+      }
       APP.emit("document-loaded", APP.state.document);
     }
     return true;
@@ -6624,7 +6668,11 @@
     var success = saveLayoutLocally(doc.id, doc.name, deepCopyDoc(doc));
 
     if (success) {
-      APP.state.isDirty = false;
+      if (typeof APP.setSavedDocumentBaseline === "function") {
+        APP.setSavedDocumentBaseline(doc);
+      } else {
+        APP.state.isDirty = false;
+      }
       return doc.id;
     }
     return null;
@@ -6647,7 +6695,11 @@
     }
     APP.state.document = doc;
     APP.state.selectedElementId = null;
-    APP.state.isDirty = false;
+    if (typeof APP.setSavedDocumentBaseline === "function") {
+      APP.setSavedDocumentBaseline(APP.state.document);
+    } else {
+      APP.state.isDirty = false;
+    }
     APP.emit("document-loaded", APP.state.document);
     return stored;
   }
@@ -6837,7 +6889,11 @@
     APP.state.document = snapshot;
     APP.state.selectedElementId = null;
     APP.state.selectedElementIds = [];
-    APP.state.isDirty = true;
+    if (typeof APP.refreshDirtyState === "function") {
+      APP.refreshDirtyState(snapshot);
+    } else {
+      APP.state.isDirty = true;
+    }
     APP.emit("selection-changed", null);
     APP.emit("document-loaded", snapshot);
     APP.emit("toast", { type: "info", text: "Undone" });
@@ -6866,7 +6922,11 @@
     APP.state.document = snapshot;
     APP.state.selectedElementId = null;
     APP.state.selectedElementIds = [];
-    APP.state.isDirty = true;
+    if (typeof APP.refreshDirtyState === "function") {
+      APP.refreshDirtyState(snapshot);
+    } else {
+      APP.state.isDirty = true;
+    }
     APP.emit("selection-changed", null);
     APP.emit("document-loaded", snapshot);
     APP.emit("toast", { type: "info", text: "Redone" });

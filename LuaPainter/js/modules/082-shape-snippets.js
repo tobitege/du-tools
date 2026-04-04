@@ -598,7 +598,11 @@
     APP.state.document = doc;
     APP.state.selectedElementId = null;
     APP.state.selectedElementIds = [];
-    APP.state.isDirty = false;
+    if (typeof APP.setSavedDocumentBaseline === "function") {
+      APP.setSavedDocumentBaseline(doc);
+    } else {
+      APP.state.isDirty = false;
+    }
     APP.emit("document-loaded", doc);
     if (typeof APP.goToEditor === "function") {
       APP.goToEditor();

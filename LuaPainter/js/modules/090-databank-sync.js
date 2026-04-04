@@ -64,7 +64,11 @@
     APP.state.document = doc;
     APP.state.selectedElementId = null;
     APP.state.selectedElementIds = [];
-    APP.state.isDirty = false;
+    if (typeof APP.setSavedDocumentBaseline === "function") {
+      APP.setSavedDocumentBaseline(doc);
+    } else {
+      APP.state.isDirty = false;
+    }
     APP.emit("document-loaded", doc);
 
     if (options && options.enterEditor && typeof APP.goToEditor === "function") {
@@ -242,7 +246,11 @@
     pendingSaveAction = null;
     readEditorContext();
     if (result && result.ok) {
-      APP.state.isDirty = false;
+      if (typeof APP.setSavedDocumentBaseline === "function") {
+        APP.setSavedDocumentBaseline(APP.state.document);
+      } else {
+        APP.state.isDirty = false;
+      }
       if (action === "export-screen") {
         APP.emit("toast", {
           type: "success",

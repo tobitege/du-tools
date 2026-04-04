@@ -56,7 +56,11 @@
     APP.state.document = snapshot;
     APP.state.selectedElementId = null;
     APP.state.selectedElementIds = [];
-    APP.state.isDirty = true;
+    if (typeof APP.refreshDirtyState === "function") {
+      APP.refreshDirtyState(snapshot);
+    } else {
+      APP.state.isDirty = true;
+    }
     APP.emit("selection-changed", null);
     APP.emit("document-loaded", snapshot);
     APP.emit("toast", { type: "info", text: "Undone" });
@@ -85,7 +89,11 @@
     APP.state.document = snapshot;
     APP.state.selectedElementId = null;
     APP.state.selectedElementIds = [];
-    APP.state.isDirty = true;
+    if (typeof APP.refreshDirtyState === "function") {
+      APP.refreshDirtyState(snapshot);
+    } else {
+      APP.state.isDirty = true;
+    }
     APP.emit("selection-changed", null);
     APP.emit("document-loaded", snapshot);
     APP.emit("toast", { type: "info", text: "Redone" });

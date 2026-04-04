@@ -30,6 +30,7 @@
     selectedElementId: null,
     selectedElementIds: [],
     isDirty: false,
+    savedDocumentBaseline: null,
     document: null,
     connectedScreen: false,
     editorContext: {
@@ -85,6 +86,33 @@
     doc.id = id;
     doc.name = trimString(doc.name) || "Layout";
     return doc;
+  }
+
+  function serializeDocumentForDirtyState(doc) {
+    if (!doc) {
+      return null;
+    }
+    return JSON.stringify(doc);
+  }
+
+  function setSavedDocumentBaseline(doc) {
+    state.savedDocumentBaseline = serializeDocumentForDirtyState(doc || state.document);
+    state.isDirty = false;
+    return state.savedDocumentBaseline;
+  }
+
+  function refreshDirtyState(doc) {
+    var current = serializeDocumentForDirtyState(doc || state.document);
+    if (!current) {
+      state.isDirty = false;
+      return false;
+    }
+    if (state.savedDocumentBaseline == null) {
+      state.isDirty = true;
+      return true;
+    }
+    state.isDirty = current !== state.savedDocumentBaseline;
+    return state.isDirty;
   }
 
   function cloneJsonValue(value, fallbackValue) {
@@ -635,6 +663,8 @@
     getRuntimeCtx: getRuntimeCtx,
     getPersistentValue: getPersistentValue,
     setPersistentValue: setPersistentValue,
+    setSavedDocumentBaseline: setSavedDocumentBaseline,
+    refreshDirtyState: refreshDirtyState,
     getPreviewImageRoot: getPreviewImageRoot,
     setPreviewImageRoot: setPreviewImageRoot,
     resolvePreviewImageSrc: resolvePreviewImageSrc,

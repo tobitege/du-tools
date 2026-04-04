@@ -20,16 +20,36 @@ $runtimeModuleSrc = Join-Path $buildOutDir "hud-editor-runtime-module.ingame.js"
 $runtimeModuleMeta = Join-Path $buildOutDir "hud-editor-runtime-module.ingame.json"
 $debugPayload = Join-Path $buildOutDir "hud-editor-probe.ingame.js"
 
+function Invoke-CheckedPowerShellScript {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ScriptPath,
+        [Parameter(Mandatory = $true)]
+        [string]$FailureMessage,
+        [Parameter()]
+        [hashtable]$Parameters = @{}
+    )
+
+    $global:LASTEXITCODE = 0
+    & $ScriptPath @Parameters
+    if (-not $?) {
+        throw $FailureMessage
+    }
+    if ($LASTEXITCODE -ne 0) {
+        throw "$FailureMessage with exit code $LASTEXITCODE"
+    }
+}
+
 Write-Host "Building web bundle (harness / hud-editor-probe.js)..."
-& $buildScript -ProjectDir $projectDir -Target web
-if ($LASTEXITCODE -ne 0) {
-    throw "Web build failed with exit code $LASTEXITCODE"
+Invoke-CheckedPowerShellScript -ScriptPath $buildScript -FailureMessage "Web build failed" -Parameters @{
+    ProjectDir = $projectDir
+    Target = "web"
 }
 
 Write-Host "Building Lua Painter runtime module (ingame)..."
-& $buildScript -ProjectDir $projectDir -Target ingame
-if ($LASTEXITCODE -ne 0) {
-    throw "Build failed with exit code $LASTEXITCODE"
+Invoke-CheckedPowerShellScript -ScriptPath $buildScript -FailureMessage "Build failed" -Parameters @{
+    ProjectDir = $projectDir
+    Target = "ingame"
 }
 
 if (-not (Test-Path $runtimeModuleSrc)) {
@@ -68,9 +88,8 @@ if (-not (Test-Path $canonicalPublish)) {
 }
 
 Write-Host "Publishing via ModUiToolbox canonical workflow..."
-& $canonicalPublish -DumpDir $DumpDir
-if ($LASTEXITCODE -ne 0) {
-    throw "ModUiToolbox publish failed with exit code $LASTEXITCODE"
+Invoke-CheckedPowerShellScript -ScriptPath $canonicalPublish -FailureMessage "ModUiToolbox publish failed" -Parameters @{
+    DumpDir = $DumpDir
 }
 
 Write-Host ""
