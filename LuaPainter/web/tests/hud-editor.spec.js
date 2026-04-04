@@ -73,6 +73,101 @@ test('loads Lua Painter harness and opens editor', async ({ page }) => {
   expect(generated.screenCodeCompact).toContain('P.tx(L,')
 })
 
+test('preview image root resolves DU resource paths for HUD preview only', async ({ page }) => {
+  await page.goto('/web/index.html')
+
+  const previewRoot = 'D:\\MyDualUniverse\\Game\\data\\resources_generated'
+  const resolvedPreviewPath = 'file:///D:/MyDualUniverse/Game/data/resources_generated/env/voxel/ore/aluminium-ore/icons/env_aluminium-ore_icon.png'
+  const ingamePath = 'resources_generated/env/voxel/ore/aluminium-ore/icons/env_aluminium-ore_icon.png'
+
+  const input = page.locator('#start-preview-image-root')
+  await expect(input).toBeVisible()
+  await input.fill(previewRoot)
+  await input.dispatchEvent('change')
+
+  await expect(page.locator('#start-preview-image-example')).toContainText(resolvedPreviewPath)
+
+  await page.evaluate(() => window.hudHarness.loadSnippet('demo_shapes_lua_full'))
+  await expect(page.locator('#canvas-preview canvas[aria-label="preview-image"]').first()).toHaveAttribute('data-preview-src', resolvedPreviewPath)
+
+  const exported = await page.evaluate(() => {
+    const doc = window.HudEditor.state.document
+    const commands = window.HudEditor.ideExport.buildScreenCommandDocument(doc)
+    const imageCommand = commands.c.find(cmd => cmd.o === 'image')
+    return imageCommand ? imageCommand.src : null
+  })
+
+  expect(exported).toBe(ingamePath)
+})
+
+test('image preview applies fill tint to the rendered canvas', async ({ page }) => {
+  await page.goto('/web/index.html')
+
+  const tintedPixels = await page.evaluate(async () => {
+    const svg = [
+      "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'>",
+      "<rect width='4' height='8' fill='rgb(64,64,64)'/>",
+      "<rect x='4' width='4' height='8' fill='rgb(224,224,224)'/>",
+      "</svg>",
+    ].join('')
+    const imageSrc = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
+    await window.hudHarness.loadSnippet('demo_shapes_lua_full')
+    const doc = window.HudEditor.state.document
+    const imageElements = doc && doc.elements ? doc.elements.filter(el => el.type === 'image') : []
+    if (!imageElements.length) {
+      throw new Error('image elements not found')
+    }
+
+    imageElements.forEach(imageElement => {
+      imageElement.imageSrc = imageSrc
+      imageElement.fill = [1, 0, 0, 1]
+      imageElement.stroke = [0, 0, 0, 0]
+      imageElement.strokeWidth = 0
+      imageElement.shadowBlur = 32
+      imageElement.shadowColor = [0, 1, 0, 1]
+    })
+
+    window.HudEditor.emit('document-loaded', doc)
+
+    function waitForTintedCanvas(resolve, reject, startedAt) {
+      const canvas = document.querySelector('#canvas-preview canvas[aria-label="preview-image"]')
+      let leftPixel
+      let rightPixel
+      if (canvas && canvas.width > 0 && canvas.height > 0) {
+        leftPixel = Array.from(canvas.getContext('2d').getImageData(Math.max(1, Math.floor(canvas.width * 0.25)), Math.floor(canvas.height / 2), 1, 1).data)
+        rightPixel = Array.from(canvas.getContext('2d').getImageData(Math.max(1, Math.floor(canvas.width * 0.75)), Math.floor(canvas.height / 2), 1, 1).data)
+        if (leftPixel[0] > 0 && rightPixel[0] > leftPixel[0] && leftPixel[1] < 10 && rightPixel[1] < 10 && leftPixel[2] < 10 && rightPixel[2] < 10) {
+          resolve({
+            leftPixel,
+            rightPixel,
+            filter: canvas.style.filter || ''
+          })
+          return
+        }
+      }
+      if (Date.now() - startedAt > 3000) {
+        reject(new Error('Timed out waiting for tinted image canvas'))
+        return
+      }
+      requestAnimationFrame(function () {
+        waitForTintedCanvas(resolve, reject, startedAt)
+      })
+    }
+
+    return new Promise((resolve, reject) => {
+      waitForTintedCanvas(resolve, reject, Date.now())
+    })
+  })
+
+  expect(tintedPixels.leftPixel[0]).toBeGreaterThan(0)
+  expect(tintedPixels.rightPixel[0]).toBeGreaterThan(tintedPixels.leftPixel[0])
+  expect(tintedPixels.leftPixel[1]).toBeLessThan(10)
+  expect(tintedPixels.rightPixel[1]).toBeLessThan(10)
+  expect(tintedPixels.leftPixel[2]).toBeLessThan(10)
+  expect(tintedPixels.rightPixel[2]).toBeLessThan(10)
+  expect(tintedPixels.filter).toBe('')
+})
+
 test('loads all-shapes fixture into the canvas', async ({ page }) => {
   await page.goto('/web/index.html')
 

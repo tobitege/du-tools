@@ -70,6 +70,72 @@
     return [r, g, b, 1];
   }
 
+  function rgbToHsl(r, g, b) {
+    var max = Math.max(r, g, b);
+    var min = Math.min(r, g, b);
+    var h = 0;
+    var s = 0;
+    var l = (max + min) * 0.5;
+    var d;
+
+    if (max !== min) {
+      d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r:
+          h = (g - b) / d + (g < b ? 6 : 0);
+          break;
+        case g:
+          h = (b - r) / d + 2;
+          break;
+        default:
+          h = (r - g) / d + 4;
+          break;
+      }
+      h /= 6;
+    }
+
+    return { h: h, s: s, l: l };
+  }
+
+  function shouldUseLiveImageCssTint() {
+    return !!(
+      APP &&
+      APP.bridge &&
+      typeof APP.bridge.isAvailable === "function" &&
+      APP.bridge.isAvailable()
+    );
+  }
+
+  function buildImageCssTintFilter(rgba) {
+    var color = Array.isArray(rgba) ? rgba : null;
+    var hsl;
+    var hueRotate;
+    var saturatePct;
+    var brightness;
+    var contrast;
+    if (!hasVisibleColor(color)) {
+      return "";
+    }
+    hsl = rgbToHsl(
+      Math.max(0, Math.min(1, Number(color[0]) || 0)),
+      Math.max(0, Math.min(1, Number(color[1]) || 0)),
+      Math.max(0, Math.min(1, Number(color[2]) || 0))
+    );
+    hueRotate = Math.round(hsl.h * 360 - 35);
+    saturatePct = Math.round(100 + hsl.s * 600);
+    brightness = (0.45 + hsl.l * 0.58).toFixed(2);
+    contrast = (1 + hsl.s * 0.08).toFixed(2);
+    return [
+      "grayscale(1)",
+      "sepia(1)",
+      "saturate(" + saturatePct + "%)",
+      "hue-rotate(" + hueRotate + "deg)",
+      "brightness(" + brightness + ")",
+      "contrast(" + contrast + ")"
+    ].join(" ");
+  }
+
   // ─── Element DOM creation ───────────────────────────────────────────
 
   function createElementDom(element) {
@@ -243,23 +309,119 @@
     layer.appendChild(wrapper);
   }
 
+  function computeImageFitRect(destW, destH, srcW, srcH, fit) {
+    var sourceW = Math.max(1, Number(srcW) || 1);
+    var sourceH = Math.max(1, Number(srcH) || 1);
+    var targetW = Math.max(1, Number(destW) || 1);
+    var targetH = Math.max(1, Number(destH) || 1);
+    var mode = String(fit || "contain");
+    var scaleFactor;
+    var drawW;
+    var drawH;
+    var drawX;
+    var drawY;
+
+    if (mode !== "contain" && mode !== "cover") {
+      return { x: 0, y: 0, w: targetW, h: targetH };
+    }
+
+    scaleFactor = mode === "cover"
+      ? Math.max(targetW / sourceW, targetH / sourceH)
+      : Math.min(targetW / sourceW, targetH / sourceH);
+    drawW = sourceW * scaleFactor;
+    drawH = sourceH * scaleFactor;
+    drawX = (targetW - drawW) * 0.5;
+    drawY = (targetH - drawH) * 0.5;
+    return { x: drawX, y: drawY, w: drawW, h: drawH };
+  }
+
+  function renderImageCanvas(canvas, image, command) {
+    var ctx = canvas && typeof canvas.getContext === "function" ? canvas.getContext("2d") : null;
+    var tint = command && command.f ? command.f : null;
+    var rect;
+    var imageData;
+    var data;
+    var i;
+    var shade;
+    var alpha;
+    var tintAlpha;
+    if (!ctx || !image) return;
+
+    canvas.width = Math.max(1, Math.round((Number(command.w) || 0) * scale));
+    canvas.height = Math.max(1, Math.round((Number(command.h) || 0) * scale));
+    rect = computeImageFitRect(canvas.width, canvas.height, image.naturalWidth || image.width || 1, image.naturalHeight || image.height || 1, command.fit);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(image, rect.x, rect.y, rect.w, rect.h);
+
+    if (hasVisibleColor(tint)) {
+      imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      data = imageData.data;
+      tintAlpha = Math.max(0, Math.min(1, Number(tint[3])));
+      for (i = 0; i < data.length; i += 4) {
+        alpha = data[i + 3];
+        if (!alpha) continue;
+        shade = (data[i] + data[i + 1] + data[i + 2]) / (3 * 255);
+        data[i] = Math.round(255 * Math.max(0, Math.min(1, Number(tint[0]) || 0)) * shade);
+        data[i + 1] = Math.round(255 * Math.max(0, Math.min(1, Number(tint[1]) || 0)) * shade);
+        data[i + 2] = Math.round(255 * Math.max(0, Math.min(1, Number(tint[2]) || 0)) * shade);
+        data[i + 3] = Math.round(alpha * tintAlpha);
+      }
+      ctx.putImageData(imageData, 0, 0);
+      canvas.style.opacity = "";
+    } else {
+      canvas.style.opacity = "";
+    }
+
+    ctx.restore();
+  }
+
   function appendImageNode(layer, command) {
-    var image = document.createElement("img");
-    image.alt = "preview-image";
-    image.src = command.src || "";
-    image.style.width = "100%";
-    image.style.height = "100%";
-    image.style.objectFit = command.fit || "contain";
-    image.style.display = "block";
-    image.style.pointerEvents = "none";
-    setShadowStyle(image, Math.max(0, (command.sh && Number(command.sh.b) || 0) * scale), command.sh && command.sh.c);
+    var resolvedSrc = APP.resolvePreviewImageSrc ? APP.resolvePreviewImageSrc(command.src || "") : (command.src || "");
+    var tint = command && command.f ? command.f : null;
+    var liveImage;
+    var canvas = document.createElement("canvas");
+    var image = new Image();
+    if (shouldUseLiveImageCssTint()) {
+      liveImage = document.createElement("img");
+      liveImage.alt = "preview-image";
+      liveImage.setAttribute("data-preview-src", resolvedSrc);
+      liveImage.style.width = "100%";
+      liveImage.style.height = "100%";
+      liveImage.style.objectFit = command.fit || "contain";
+      liveImage.style.display = "block";
+      liveImage.style.pointerEvents = "none";
+      liveImage.style.opacity = hasVisibleColor(tint) ? String(Math.max(0, Math.min(1, Number(tint[3])))) : "";
+      liveImage.style.filter = buildImageCssTintFilter(tint);
+      liveImage.addEventListener("error", function () {
+        layer.style.backgroundImage = "radial-gradient(circle at 35% 35%, rgba(255,255,255,0.85), rgba(156,156,156,0.75) 35%, rgba(64,64,64,0.95) 70%)";
+        layer.style.backgroundSize = "cover";
+        layer.style.backgroundRepeat = "no-repeat";
+        layer.style.backgroundPosition = "center";
+      }, { once: true });
+      liveImage.src = resolvedSrc;
+      layer.appendChild(liveImage);
+      return;
+    }
+    canvas.setAttribute("aria-label", "preview-image");
+    canvas.setAttribute("data-preview-src", resolvedSrc);
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    canvas.style.display = "block";
+    canvas.style.pointerEvents = "none";
+    image.addEventListener("load", function () {
+      renderImageCanvas(canvas, image, command);
+    }, { once: true });
     image.addEventListener("error", function () {
       layer.style.backgroundImage = "radial-gradient(circle at 35% 35%, rgba(255,255,255,0.85), rgba(156,156,156,0.75) 35%, rgba(64,64,64,0.95) 70%)";
       layer.style.backgroundSize = "cover";
       layer.style.backgroundRepeat = "no-repeat";
       layer.style.backgroundPosition = "center";
     }, { once: true });
-    layer.appendChild(image);
+    image.src = resolvedSrc;
+    layer.appendChild(canvas);
   }
 
   function buildPreviewCommands(element) {
@@ -670,6 +832,10 @@
 
   APP.on("resize", function () {
     sizeCanvasPreview();
+    scheduleRender();
+  });
+
+  APP.on("preview-image-root-changed", function () {
     scheduleRender();
   });
 

@@ -12,6 +12,7 @@
   var selectedStartScriptId = "";
   var selectedStartScriptName = "";
   var currentStartScripts = [];
+  var SAMPLE_IMAGE_PATH = "resources_generated/env/voxel/ore/aluminium-ore/icons/env_aluminium-ore_icon.png";
 
   function getSavedLayoutAccess(status) {
     var canUseBoard = !!(status && status.canAccessOnStart);
@@ -117,6 +118,27 @@
     APP.emit("request-script-list");
   }
 
+  function updatePreviewImageRootUi() {
+    var root = APP.getRoot();
+    var input = qs("#start-preview-image-root", root);
+    var hint = qs("#start-preview-image-hint", root);
+    var example = qs("#start-preview-image-example", root);
+    var value = APP.getPreviewImageRoot ? APP.getPreviewImageRoot() : "";
+    var resolved = APP.resolvePreviewImageSrc ? APP.resolvePreviewImageSrc(SAMPLE_IMAGE_PATH) : SAMPLE_IMAGE_PATH;
+
+    if (input && input.value !== value) {
+      input.value = value;
+    }
+    if (hint) {
+      hint.textContent = value
+        ? "Used for browser and external preview. Live DU preview resolves resources_generated/... through coui://data automatically."
+        : "Optional. Paste your local Dual Universe Game\\\\data folder here for browser and external preview. Live DU preview resolves resources_generated/... through coui://data automatically.";
+    }
+    if (example) {
+      example.textContent = "Example: " + SAMPLE_IMAGE_PATH + " -> " + resolved;
+    }
+  }
+
   // ─── Build start screen DOM ──────────────────────────────────────────
 
   function buildStartScreen() {
@@ -140,6 +162,25 @@
           el("p", {
             className: "start-context-copy",
             textContent: "Open the programming board Lua editor to load from or save to unit.onStart."
+          }),
+        ]),
+        el("div", { id: "start-preview-image-card", className: "start-context-card start-preview-card" }, [
+          el("div", { className: "start-context-title", textContent: "HUD Image Preview Root" }),
+          el("input", {
+            id: "start-preview-image-root",
+            className: "start-preview-input",
+            type: "text",
+            placeholder: "D:\\MyDualUniverse\\Game\\data"
+          }),
+          el("p", {
+            id: "start-preview-image-hint",
+            className: "start-context-copy",
+            textContent: "Optional. Paste your local Dual Universe Game\\data folder here for browser and external preview. Live DU preview resolves resources_generated/... through coui://data automatically."
+          }),
+          el("div", {
+            id: "start-preview-image-example",
+            className: "start-preview-example",
+            textContent: "Example: " + SAMPLE_IMAGE_PATH
           }),
         ]),
         el("div", { className: "start-main" }, [
@@ -296,6 +337,15 @@
     }
   }
 
+  function onStartInput(e) {
+    var input = e.target;
+    if (!input || input.id !== "start-preview-image-root") return;
+    if (typeof APP.setPreviewImageRoot === "function") {
+      APP.setPreviewImageRoot(input.value || "");
+      updatePreviewImageRootUi();
+    }
+  }
+
   function updateEditorContext(status) {
     var root = APP.getRoot();
     var saveAsBtn = qs("#start-saveas-btn", root);
@@ -327,6 +377,7 @@
 
   APP.on("editor-context", updateEditorContext);
   APP.on("script-list-response", populateStartScriptList);
+  APP.on("preview-image-root-changed", updatePreviewImageRootUi);
   APP.on("saveas-confirm", function () {
     setTimeout(requestStartScriptList, 50);
   });
@@ -343,8 +394,11 @@
     var startScreen = buildStartScreen();
     root.appendChild(startScreen);
     startScreen.addEventListener("click", onMenuClick);
+    startScreen.addEventListener("input", onStartInput);
+    startScreen.addEventListener("change", onStartInput);
     clearStartScriptSelection();
     requestStartScriptList();
+    updatePreviewImageRootUi();
   }
 
   APP.init = (function (origInit) {
@@ -352,9 +406,11 @@
       origInit();
       mountStartScreen();
       updateEditorContext(APP.state.editorContext || null);
+      updatePreviewImageRootUi();
     };
   })(APP.init);
 
   mountStartScreen();
   updateEditorContext(APP.state.editorContext || null);
+  updatePreviewImageRootUi();
 })();

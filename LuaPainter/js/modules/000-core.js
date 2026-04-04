@@ -18,6 +18,7 @@
   var listeners = {};
   var cleanupFns = [];
   var activeToasts = {};
+  var PREVIEW_IMAGE_ROOT_KEY = "hud_editor_preview_image_root";
 
   var state = {
     initialized: false,
@@ -25,6 +26,7 @@
     currentScreen: "start",
     currentTool: "select",
     autoOpenPanels: false,
+    previewImageRoot: "",
     selectedElementId: null,
     selectedElementIds: [],
     isDirty: false,
@@ -110,6 +112,106 @@
       return false;
     }
     return runtimeCtx.setState(key, cloneJsonValue(value, value));
+  }
+
+  function isAbsoluteUrl(value) {
+    return /^(?:https?|data|blob):/i.test(value) || /^file:\/\//i.test(value) || /^\/\//.test(value);
+  }
+
+  function isWindowsAbsolutePath(value) {
+    return /^[A-Za-z]:[\\/]/.test(String(value || ""));
+  }
+
+  function normalizePathSeparators(value) {
+    return String(value == null ? "" : value).replace(/\\/g, "/");
+  }
+
+  function joinPathSegments(basePath, relativePath) {
+    var base = normalizePathSeparators(trimString(basePath)).replace(/\/+$/, "");
+    var relative = normalizePathSeparators(trimString(relativePath)).replace(/^\/+/, "");
+    if (!base) {
+      return relative;
+    }
+    if (!relative) {
+      return base;
+    }
+    if (/\/resources_generated$/i.test(base) && /^resources_generated\//i.test(relative)) {
+      relative = relative.replace(/^resources_generated\//i, "");
+    }
+    return base + "/" + relative;
+  }
+
+  function toFileUrl(path) {
+    var normalized = normalizePathSeparators(path);
+    if (isAbsoluteUrl(normalized)) {
+      return normalized;
+    }
+    if (isWindowsAbsolutePath(normalized)) {
+      return encodeURI("file:///" + normalized);
+    }
+    return normalized;
+  }
+
+  function canUseLivePreviewResolver() {
+    var app = WIN[NS];
+    return !!(
+      app &&
+      app.bridge &&
+      typeof app.bridge.isAvailable === "function" &&
+      app.bridge.isAvailable()
+    );
+  }
+
+  function joinUrlSegments(baseUrl, relativePath) {
+    var base = String(baseUrl || "").replace(/\/+$/, "");
+    var relative = normalizePathSeparators(relativePath).replace(/^\/+/, "");
+    return base + "/" + relative;
+  }
+
+  function resolvePreviewImageSrc(sourcePath) {
+    var source = trimString(sourcePath);
+    var basePath = trimString(state.previewImageRoot);
+    var joinedPath;
+    var relativePath;
+    if (!source) {
+      return "";
+    }
+    if (isAbsoluteUrl(source)) {
+      return source;
+    }
+    if (isWindowsAbsolutePath(source)) {
+      return toFileUrl(source);
+    }
+    if (!basePath) {
+      if (canUseLivePreviewResolver()) {
+        return joinUrlSegments("coui://data", source);
+      }
+      return source;
+    }
+    joinedPath = joinPathSegments(basePath, source);
+    relativePath = normalizePathSeparators(trimString(source)).replace(/^\/+/, "");
+    if (/\/resources_generated$/i.test(normalizePathSeparators(basePath)) && /^resources_generated\//i.test(relativePath)) {
+      relativePath = relativePath.replace(/^resources_generated\//i, "");
+    }
+    if (canUseLivePreviewResolver()) {
+      return joinUrlSegments("coui://data", relativePath);
+    }
+    return toFileUrl(joinedPath);
+  }
+
+  function getPreviewImageRoot() {
+    return trimString(state.previewImageRoot);
+  }
+
+  function setPreviewImageRoot(value) {
+    var nextValue = trimString(value);
+    if (state.previewImageRoot === nextValue) {
+      return nextValue;
+    }
+    state.previewImageRoot = nextValue;
+    setPersistentValue(PREVIEW_IMAGE_ROOT_KEY, nextValue);
+    emit("preview-image-root-changed", nextValue);
+    return nextValue;
   }
 
   function el(tag, attrs, children) {
@@ -454,6 +556,7 @@
       return;
     }
     state.initialized = true;
+    state.previewImageRoot = trimString(getPersistentValue(PREVIEW_IMAGE_ROOT_KEY, ""));
 
     DOC.addEventListener("keydown", onKeyDown, true);
     WIN.addEventListener("keydown", onKeyDown, true);
@@ -532,6 +635,9 @@
     getRuntimeCtx: getRuntimeCtx,
     getPersistentValue: getPersistentValue,
     setPersistentValue: setPersistentValue,
+    getPreviewImageRoot: getPreviewImageRoot,
+    setPreviewImageRoot: setPreviewImageRoot,
+    resolvePreviewImageSrc: resolvePreviewImageSrc,
     showScreen: showScreen,
     enterEditMode: enterEditMode,
     exitEditMode: exitEditMode,
