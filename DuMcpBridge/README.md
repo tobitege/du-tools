@@ -90,6 +90,17 @@ MCP client
 
 Bridge-event files are UTC-dated and roll over at `512 KB` per active file. The MCP bridge also exposes `du_bridge_events_status` and `du_bridge_events_housekeeping` so old event files and processed command files can be inspected, rotated, reset, and pruned explicitly.
 
+## Live Screen Resolution Note
+
+For live Dual Universe screen work, do not assume that screen units always expose a `1920x1080` rendering surface.
+
+Verified live behavior:
+
+- screen size `M` resolves to `1024x613`
+- screen sizes `XS` and `S` should be treated the same as `M` for layout assumptions unless a fresh live check proves otherwise
+
+This matters when validating or designing screen content through `screen_editor`, because text and panel layouts that look fine at `1080p` can overlap or clip on `1024x613`.
+
 ## Preferred Lua Workflow
 
 For live Programming Board work, prefer the higher-level Lua tools instead of stitching together multiple low-level calls.
