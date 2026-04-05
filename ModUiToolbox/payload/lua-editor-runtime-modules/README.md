@@ -17,7 +17,7 @@ Current modules in this folder:
 - `industry-panel`
   - Adds the centered `Industry Helper` button when the industry panel is visible.
   - The helper opens quick controls for time precision, production mode, and the live `Start` / `Finish & stop` / `Stop` buttons.
-  - While the helper is enabled, the shared theme switcher also appears near the top-left of the industry page.
+  - While the helper is enabled, the shared theme switcher also stays available near the top-left of the industry page across the industry tabs.
   - That shared switcher uses shortcut dots for `daisy-black`, `daisy-emerald`, and `daisy-smooth`, plus `...` for the full catalog and `Off` to disable theming without clearing the selected theme.
   - Persists the helper toggle plus its `timePrecisionUnits` preference for the extractor-side industry panel probe.
   - Reuses the shared `lua-editor-enhancements` theme selection and theme on/off state instead of storing separate industry-only theme preferences.

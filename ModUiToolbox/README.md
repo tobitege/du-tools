@@ -262,7 +262,7 @@ Runtime-module relationship:
   - `2-unit time display`
   - `Run`, `Make`, `Maintain`
   - `Start`, `Finish & stop`, `Stop`
-- While the helper is enabled, the same shared theme switcher used by the Lua editor and screen editor is also available near the top-left of the industry page.
+- While the helper is enabled, the same shared theme switcher used by the Lua editor and screen editor stays available near the top-left of the industry page across the industry tabs.
 - That switcher currently provides:
   - shortcut dots for `daisy-black`, `daisy-emerald`, and `daisy-smooth`
   - `...` to open the full Daisy theme catalog

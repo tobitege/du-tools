@@ -491,7 +491,7 @@
   }
 
   function isIndustryPanelVisible(panel) {
-    return isNodeVisible(getIndustryPanelRootNode(panel));
+    return isNodeVisible(getIndustryThemeAnchorRoot(panel));
   }
 
   function ensureIndustryKebabStyle() {
