@@ -37,6 +37,7 @@ Main features:
 - remembers viewport and caret position for editor contexts so reopening the same context is less disruptive
 - provides themed editor UI, runtime-module loading, and extra in-game controls such as `IDE Sync`
 - can capture full UI dumps, stylesheet dumps, and script dumps when deeper inspection is needed
+- exposes an `industry_panel` bridge target for live industry panel inspection/control without leaving the open panel UI
 - supports optional server-side chat snapshot reads for bridge workflows that need more than the visible HUD tab
 - rotates bridge-event files by UTC date and rolls over each active file at `512 KB` so one long session does not create one giant event file
 
@@ -96,13 +97,16 @@ If you only remember one thing, remember this: `ModUiToolbox` is the in-game tra
 
 - `ModUIToolbox.csproj`: C# mod project
 - `ModUIToolbox.cs`: mod implementation (`GetName() == NQ.UIToolbox`)
-- `payload/ModUiToolbox-payload.js`: embedded payload
+- `payload/ModUiToolbox-payload.js`: embedded extractor payload base script
+- `payload/ModUiToolbox-payload.modules/`: additive extractor payload modules loaded after the base script. This is the extension layer for non-editor HUD probes such as the industry panel probe.
 - `payload/lua-editor-probe.modules/`: source modules for the Lua probe bundle (manifest-driven). This is one extension layer of the modular plugin-style system: add or change module files here, then build + publish, and the live probe can pick up the new bundle without replacing the mod DLL.
 - `payload/lua-editor-probe.js`: composed Lua probe payload (generated from modules)
 - `payload/lua-editor-probe.build.json`: fingerprint from `build-lua-probe.ps1` (`contentSha256Short` matches the chat hash); **embedded** in the DLL (LogicalName `lua-editor-probe.build.json`) and mirrored under `lua-editor-probe.modules/` for publishes
 - `payload/lua-editor-runtime-modules/`: separately discovered runtime modules shown in the Lua probe kebab menu. This is the second extension layer: add a new module directory with `module.json` + entry script, publish it to `payload-overrides`, and it becomes available live without replacing the mod DLL.
+  Some modules, such as `industry-panel`, use that persisted toggle state from other payload surfaces instead of rendering their UI directly inside the Lua editor page.
 - `payload/theme-imports/`: optional theme catalog imports that are also published into runtime overrides for live probe usage
 - `tools/build-lua-probe.ps1`: compose `lua-editor-probe.modules` into `payload/lua-editor-probe.js` (injects outer IIFE + `"use strict"`; module sources omit the wrapper so IDEs can lint them). **Important:** this does **not** copy anything into `tmp/ui-dumps/payload-overrides`.
+- `tools/publish-extractor-payload.ps1`: publish the base extractor payload plus additive extractor modules to `payload-overrides\ModUiToolbox-payload.override.js` and `payload-overrides\ModUiToolbox-payload.modules\`
 - `tools/publish-lua-probe.ps1`: compose + publish all live override assets to runtime override paths (default `DumpDir`: `C:\MyDUserver\tmp\ui-dumps`): `lua-editor-probe.override.js`, `lua-editor-probe.build.json`, `lua-editor-probe.modules/`, `lua-editor-runtime-modules/`, and `theme-imports/`. Use this for every live probe test after JS/module changes.
 - `tools/reassemble-ui-dump.ps1`: reassemble NDJSON to files
 - `tools/split-html-dump.py`: split `html.html` by direct `<body>` root elements
@@ -182,6 +186,7 @@ Runtime payload override directory (read fresh on every injection):
 
 - `C:\MyDUserver\tmp\ui-dumps\payload-overrides`
 - `ModUiToolbox-payload.override.js`
+- `ModUiToolbox-payload.modules\manifest.txt` (optional additive extractor module mode)
 - `lua-editor-probe.override.js`
 - `lua-editor-probe.build.json` (optional: repo fingerprint from `build-lua-probe.ps1`; compare `contentSha256Short` to the chat suffix hash)
 - `lua-editor-probe.modules\manifest.txt` (optional module override mode)
@@ -190,11 +195,88 @@ Each run writes:
 
 - `<dumpId>.ndjson`
 
+## Hot-Reload Workflow (Extractor Payload)
+
+Use this when you want to tweak the base UI dump or non-editor HUD probe behavior live without rebuilding the DLL.
+
+Edit one of these for live changes:
+
+- `C:\MyDUserver\tmp\ui-dumps\payload-overrides\ModUiToolbox-payload.override.js`
+- `C:\MyDUserver\tmp\ui-dumps\payload-overrides\ModUiToolbox-payload.modules\*.js` (with `manifest.txt`)
+
+Extractor override resolution order on each inject:
+
+1. base extractor script (`ModUiToolbox-payload.override.js` if present, otherwise embedded `payload/ModUiToolbox-payload.js`)
+2. additive extractor modules from `payload-overrides\ModUiToolbox-payload.modules\manifest.txt`
+
+The additive module layer runs after the base payload script is loaded but before payload bootstrap dispatch begins. Modules can register extra payload modes through `window.__UI_TOOLBOX_PAYLOAD_API__`.
+
+Current additive module:
+
+- `900-industry-panel-probe.js`
+  - handles payload mode `industry_panel_probe`
+  - is driven through the `industry_panel` bridge target rather than visible outer mod-menu actions
+  - can inspect current industry panel state
+  - can override the live `Time remaining` label with a finer multi-unit format
+  - currently the helper uses `2` precision units (`min` + `s`) and leaves the game's original label untouched when the remaining time drops below `60` seconds
+  - can report current production mode plus visible `Make` / `Maintain` values
+  - can switch production mode to `Run`, `Make`, or `Maintain`
+  - can set `Make` / `Maintain` values through payload config
+  - can show an optional centered `Industry Helper` button while the industry panel is visible
+  - uses the persisted `industry-panel` runtime-module toggle when `industryPanelKebabEnabled` is not set explicitly
+  - uses the persisted `industry-panel` runtime-module `timePrecisionUnits` state when `industryPanelTimePrecisionUnits` is not set explicitly
+  - can press the live `Start`, `Finish & stop`, and `Stop` buttons
+
+Supported `industry_panel_probe` payload config keys:
+
+- `industryPanelInstallTimeOverride: true`
+- `industryPanelTimePrecisionUnits: 1 | 2`
+  - `1` restores the game's original time label behavior
+  - `2` installs the current helper format (`min` + `s` while at least `60` seconds remain)
+- `industryPanelButtonAction: "start" | "finish_stop" | "stop"`
+- `industryPanelModeAction: "run" | "make" | "maintain"`
+- `industryPanelMakeAmount: <int>`
+- `industryPanelMaintainAmount: <int>`
+- `industryPanelKebabEnabled: true | false`
+  - when omitted, the persisted `industry-panel` runtime-module toggle is used
+- `industryPanelCssText: "<css>"`
+- `industryPanelCssStyleId: "ui-toolbox-industry-panel-style"`
+- `industryPanelHtml: "<html>"`
+- `industryPanelHtmlTargetSelector: "#industryPanel_productionSubPanel_wrapper"`
+- `industryPanelHtmlApplyMode: "replace_inner" | "replace_outer"`
+
+Current HTML/CSS transport behavior:
+
+- CSS is applied through a managed `<style>` tag and can be updated by reinjecting new `industryPanelCssText`.
+- HTML is applied to a selected target node, then the module rebinds production subpanel node references and button handlers.
+- Existing `Make` / `Maintain` number input components are preserved and reattached after HTML replacement.
+- After HTML apply, the module refreshes recipe, container, status, mode, and time display state against the live `industryPanel` object.
+
+Runtime-module relationship:
+
+- The runtime module `industry-panel` is the user-facing toggle in the Lua probe `Runtime Modules` menu.
+- When enabled and the industry panel is visible, it shows a centered `Industry Helper` button at the top of the UI.
+- That helper opens quick controls for:
+  - `2-unit time display`
+  - `Run`, `Make`, `Maintain`
+  - `Start`, `Finish & stop`, `Stop`
+- The runtime module persists both:
+  - whether the helper is enabled at all
+  - the last chosen `timePrecisionUnits` value
+- The extractor-side `industry_panel_probe` consumes that persisted state so bridge-driven panel control and the visible helper stay in sync.
+- The feature is intentionally scoped to the industry panel UI. It does not add outer mod-menu actions.
+
+Useful sync command:
+
+```powershell
+.\tools\publish-extractor-payload.ps1
+```
+
 ## Hot-Reload Workflow (Lua Probe)
 
 Use this when you want to tweak Lua editor UI behavior live without rebuilding the DLL.
 
-**THIS OFTEN GETS FORGOTTEN: AFTER *EVERY* PAYLOAD CHANGE, ALWAYS RUN THE scripts/publish.ps1 SCRIPT! THEN USER CAN REINJECT IN-GAME.**
+**THIS OFTEN GETS FORGOTTEN: AFTER *EVERY* PAYLOAD CHANGE, ALWAYS RUN THE publish script for the payload you changed, THEN REINJECT IN-GAME.**
 
 Edit one of these for live changes:
 
@@ -212,7 +294,7 @@ Probe override resolution order on each inject:
 ### Probe composition (IIFE wrapper)
 
 - **Module files** (`*.js` in `payload/lua-editor-probe.modules/`) do **not** contain the outer `(function () { … })();` — they must parse as normal scripts (no top-level `return`).
-- **`build-lua-probe.ps1`** wraps the concatenated manifest body with the same preamble/postamble as **`ModUIToolbox.ResolveRuntimeModuleScript`** (`LuaProbeModulesPreamble` / `LuaProbeModulesPostamble` in `ModUIToolbox.cs`). If you change one, keep the other in sync.
+- **`build-lua-probe.ps1`** wraps the concatenated manifest body with the same preamble/postamble as **`ModUIToolbox.ResolveRuntimeModuleScript`** (`WrappedModuleScriptPreamble` / `WrappedModuleScriptPostamble` in `ModUIToolbox.cs`). If you change one, keep the other in sync.
 - Without that wrapper, runtime **module override** mode would inject invalid JS (illegal top-level `return`).
 
 ### Lua editor themes & footer buttons (probe UI)
@@ -255,10 +337,18 @@ Useful sync commands:
 # Required before an in-game reinject if you changed probe JS/modules
 .\tools\publish-lua-probe.ps1
 
+# Publish the base extractor payload + additive extractor modules
+.\tools\publish-extractor-payload.ps1
+
 # Source base mod payload -> live override
 Copy-Item `
   '<repo-root>\ModUiToolbox\payload\ModUiToolbox-payload.js' `
   'D:\MyDUserver\tmp\ui-dumps\payload-overrides\ModUiToolbox-payload.override.js' -Force
+
+# Source extractor payload modules -> live module override dir
+Copy-Item `
+  '<repo-root>\ModUiToolbox\payload\ModUiToolbox-payload.modules\*' `
+  'D:\MyDUserver\tmp\ui-dumps\payload-overrides\ModUiToolbox-payload.modules' -Force
 
 # Source payload -> live override
 Copy-Item `
@@ -277,6 +367,11 @@ Copy-Item `
 Copy-Item `
   'D:\MyDUserver\tmp\ui-dumps\payload-overrides\ModUiToolbox-payload.override.js' `
   '<repo-root>\ModUiToolbox\payload\ModUiToolbox-payload.js' -Force
+
+# Live extractor module override -> source modules
+Copy-Item `
+  'D:\MyDUserver\tmp\ui-dumps\payload-overrides\ModUiToolbox-payload.modules\*' `
+  '<repo-root>\ModUiToolbox\payload\ModUiToolbox-payload.modules' -Force
 
 # Live override -> source payload (persist your live tweaks in repo)
 Copy-Item `

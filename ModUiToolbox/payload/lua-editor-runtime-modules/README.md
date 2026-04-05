@@ -14,6 +14,11 @@ Current modules in this folder:
 - `chat-plain-copy`
   - Adds a button to copy the currently selected chat channel as plain text.
   - Uses the active chat view / chat DOM to build a readable transcript.
+- `industry-panel`
+  - Adds the centered `Industry Helper` button when the industry panel is visible.
+  - Opens quick controls for time precision, production mode, and the live `Start` / `Finish & stop` / `Stop` buttons.
+  - Persists the helper toggle plus its `timePrecisionUnits` preference for the extractor-side industry panel probe.
+  - With the current helper UI, `2-unit time display` rewrites the original `Time remaining` label to `min` + `s` while at least `60` seconds remain, then falls back to the game's original label below that threshold.
 - `lua-editor-enhancements`
   - Restores the full Lua editor enhancement layer that used to be built into core.
   - Covers the Lua editor and screen editor QoL features such as:
@@ -30,6 +35,7 @@ Architecture note:
 - The bare probe core should stay as small as possible.
 - Its job is to provide lifecycle, packet/MCP bridge support, runtime module loading, and the kebab menu.
 - Higher-level UX features should live here as runtime modules whenever practical.
+- Runtime-module state can also be consumed by other payloads when a feature spans more than one injected UI surface.
 
 Required files per module:
 

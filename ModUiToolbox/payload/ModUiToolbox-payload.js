@@ -353,7 +353,15 @@
   var packetCount = 0;
   var errors = [];
   var warnings = [];
+  var extensionModeHandlers = [];
+  var payloadApi = null;
   window.__UI_TOOLBOX_LAST_DUMP_ID__ = dumpId;
+
+  function registerModeHandler(handler) {
+    if (typeof handler === "function") {
+      extensionModeHandlers.push(handler);
+    }
+  }
 
   function pushError(section, err) {
     errors.push({
@@ -479,6 +487,33 @@
       pushError(section, err);
       return fallback;
     }
+  }
+
+  function installPayloadApi() {
+    var api = window.__UI_TOOLBOX_PAYLOAD_API__;
+    if (!api || typeof api !== "object") {
+      api = {};
+    }
+
+    api.version = VERSION;
+    api.dumpId = dumpId;
+    api.getConfig = function () {
+      return config;
+    };
+    api.copyObject = copyObject;
+    api.safeStringify = safeStringify;
+    api.withSectionGuard = withSectionGuard;
+    api.sendSection = sendSection;
+    api.pushWarning = pushWarning;
+    api.pushError = pushError;
+    api.finalize = finalize;
+    api.registerModeHandler = registerModeHandler;
+    api.isMode = function (name) {
+      return String(config.mode || "").toLowerCase() === String(name || "").toLowerCase();
+    };
+
+    window.__UI_TOOLBOX_PAYLOAD_API__ = api;
+    return api;
   }
 
   function collectRuntime() {
@@ -1654,59 +1689,75 @@
     step(0);
   }
 
-  try {
-    sendRawPacket({
-      type: "ui_dump_start",
-      extractor: "ModUiToolbox",
-      version: VERSION,
-      dumpId: dumpId,
-      timestamp: nowIso(),
-      config: {
-        modName: config.modName,
-        actionId: config.actionId,
-        mode: config.mode,
-        targetStylesheetHref: config.targetStylesheetHref,
-        targetStylesheetMaxChars: config.targetStylesheetMaxChars,
-        allStylesheetOnlyCssHref: config.allStylesheetOnlyCssHref,
-        allStylesheetMaxSheets: config.allStylesheetMaxSheets,
-        allStylesheetMaxSheetChars: config.allStylesheetMaxSheetChars,
-        allStylesheetPacketDelayMs: config.allStylesheetPacketDelayMs,
-        allScriptsOnlyJsSrc: config.allScriptsOnlyJsSrc,
-        allScriptsMaxScripts: config.allScriptsMaxScripts,
-        allScriptsMaxScriptChars: config.allScriptsMaxScriptChars,
-        allScriptsPacketDelayMs: config.allScriptsPacketDelayMs,
-        chunkSize: config.chunkSize,
-        phaseDelayMs: config.phaseDelayMs,
-        maxPayloadChars: config.maxPayloadChars,
-        maxHtmlChars: config.maxHtmlChars,
-        maxScripts: config.maxScripts,
-        maxStyleSheets: config.maxStyleSheets,
-        maxCssRulesPerSheet: config.maxCssRulesPerSheet,
-        maxTotalCssChars: config.maxTotalCssChars,
-        maxElementsPerSelector: config.maxElementsPerSelector,
-        htmlSelector: config.htmlSelector,
-        initialDelayMs: config.initialDelayMs
-      }
-    });
+  function bootstrap() {
+    try {
+      sendRawPacket({
+        type: "ui_dump_start",
+        extractor: "ModUiToolbox",
+        version: VERSION,
+        dumpId: dumpId,
+        timestamp: nowIso(),
+        config: {
+          modName: config.modName,
+          actionId: config.actionId,
+          mode: config.mode,
+          targetStylesheetHref: config.targetStylesheetHref,
+          targetStylesheetMaxChars: config.targetStylesheetMaxChars,
+          allStylesheetOnlyCssHref: config.allStylesheetOnlyCssHref,
+          allStylesheetMaxSheets: config.allStylesheetMaxSheets,
+          allStylesheetMaxSheetChars: config.allStylesheetMaxSheetChars,
+          allStylesheetPacketDelayMs: config.allStylesheetPacketDelayMs,
+          allScriptsOnlyJsSrc: config.allScriptsOnlyJsSrc,
+          allScriptsMaxScripts: config.allScriptsMaxScripts,
+          allScriptsMaxScriptChars: config.allScriptsMaxScriptChars,
+          allScriptsPacketDelayMs: config.allScriptsPacketDelayMs,
+          chunkSize: config.chunkSize,
+          phaseDelayMs: config.phaseDelayMs,
+          maxPayloadChars: config.maxPayloadChars,
+          maxHtmlChars: config.maxHtmlChars,
+          maxScripts: config.maxScripts,
+          maxStyleSheets: config.maxStyleSheets,
+          maxCssRulesPerSheet: config.maxCssRulesPerSheet,
+          maxTotalCssChars: config.maxTotalCssChars,
+          maxElementsPerSelector: config.maxElementsPerSelector,
+          htmlSelector: config.htmlSelector,
+          initialDelayMs: config.initialDelayMs
+        }
+      });
 
-    function startDispatch() {
-      if (config.mode === "single_stylesheet") {
-        runSingleStylesheetExtraction();
-      } else if (config.mode === "all_stylesheets") {
-        runAllStylesheetsExtraction();
-      } else if (config.mode === "all_scripts") {
-        runAllScriptsExtraction();
+      function startDispatch() {
+        var handlerIndex = 0;
+        for (handlerIndex = 0; handlerIndex < extensionModeHandlers.length; handlerIndex += 1) {
+          try {
+            if (extensionModeHandlers[handlerIndex](config, payloadApi) === true) {
+              return;
+            }
+          } catch (handlerErr) {
+            pushError("mode_handler:" + handlerIndex, handlerErr);
+          }
+        }
+
+        if (config.mode === "single_stylesheet") {
+          runSingleStylesheetExtraction();
+        } else if (config.mode === "all_stylesheets") {
+          runAllStylesheetsExtraction();
+        } else if (config.mode === "all_scripts") {
+          runAllScriptsExtraction();
+        } else {
+          runPhases();
+        }
+      }
+
+      if (config.initialDelayMs > 0) {
+        setTimeout(startDispatch, config.initialDelayMs);
       } else {
-        runPhases();
+        startDispatch();
       }
+    } catch (errTop) {
+      fatal("bootstrap", errTop);
     }
-
-    if (config.initialDelayMs > 0) {
-      setTimeout(startDispatch, config.initialDelayMs);
-    } else {
-      startDispatch();
-    }
-  } catch (errTop) {
-    fatal("bootstrap", errTop);
   }
+
+  payloadApi = installPayloadApi();
+  setTimeout(bootstrap, 0);
 })();

@@ -330,6 +330,93 @@ const uiKindSchema = z
   .enum(["lua_editor", "screen_editor"])
   .describe("Target UI. `lua_editor` supports the public Lua probe API including `close_runtime_ui`; `screen_editor` currently supports `describe`, `apply`, `cancel`, `outer_html`, `raw_eval`.");
 
+const industryPanelMethodSchema = z.enum([
+  "describe",
+  "set_time_precision",
+  "click_button",
+  "select_mode",
+  "set_make_amount",
+  "set_maintain_amount",
+  "apply_css",
+  "apply_html",
+  "apply_assets",
+  "set_kebab"
+]);
+
+const industryPanelOutputSchema = {
+  found: z.boolean(),
+  commandId: z.string(),
+  createdAtUtc: z.string().nullable(),
+  payloadJson: z.string().nullable(),
+  parseError: z.string().nullable()
+};
+
+function buildIndustryPanelProbeArgs(input: {
+  method: z.infer<typeof industryPanelMethodSchema>;
+  units?: number;
+  buttonAction?: string;
+  modeAction?: string;
+  amount?: number;
+  enabled?: boolean;
+  cssText?: string;
+  cssStyleId?: string;
+  html?: string;
+  htmlTargetSelector?: string;
+  htmlApplyMode?: string;
+}): unknown[] {
+  switch (input.method) {
+    case "describe":
+      return [];
+    case "set_time_precision":
+      return [input.units ?? 2];
+    case "click_button":
+      return [input.buttonAction ?? ""];
+    case "select_mode":
+      return [input.modeAction ?? ""];
+    case "set_make_amount":
+    case "set_maintain_amount":
+      return [input.amount ?? 0];
+    case "apply_css":
+      return [input.cssText ?? "", input.cssStyleId ?? ""];
+    case "apply_html":
+      return [input.html ?? "", input.htmlTargetSelector ?? "", input.htmlApplyMode ?? ""];
+    case "apply_assets":
+      return [input.cssText ?? "", input.html ?? "", input.htmlTargetSelector ?? "", input.htmlApplyMode ?? ""];
+    case "set_kebab":
+      return [input.enabled === true];
+    default: {
+      const _exhaustive: never = input.method;
+      void _exhaustive;
+      return [];
+    }
+  }
+}
+
+function parseIndustryPanelEventPayload(payloadJson: string | null): {
+  payloadJson: string | null;
+  parseError: string | null;
+} {
+  if (typeof payloadJson !== "string" || payloadJson.trim().length === 0) {
+    return {
+      payloadJson: null,
+      parseError: null
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(payloadJson);
+    return {
+      payloadJson: JSON.stringify(parsed, null, 2),
+      parseError: null
+    };
+  } catch (error) {
+    return {
+      payloadJson,
+      parseError: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
 function assertUiProbeMethodSupported(uiKind: EditorUiKind, method: UiProbeMethod): void {
   if (uiKind === "screen_editor" && !screenEditorProbeMethods.has(method)) {
     throw new Error(`ui_method_not_supported_for_${uiKind}:${method}`);
@@ -420,7 +507,7 @@ async function enqueueAndWaitCommandEvent(
   playerId: number,
   targetKind: z.infer<typeof targetKindSchema>,
   method: string,
-  probeArgs: string[],
+  probeArgs: unknown[],
   eventType: string,
   timeoutMs: number
 ): Promise<CommandEventSnapshot> {
@@ -2056,6 +2143,136 @@ export function registerEditorTools(
         );
       }
       return formatProbeToolResult(probeResult, effectiveTimeout, method);
+    }
+  );
+
+  server.registerTool(
+    "du_industry_panel_describe",
+    {
+      title: "Describe Industry Panel",
+      description:
+        "Reads the currently open industry panel through the bridge without leaving the panel UI.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Target player ID"),
+        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the industry panel probe result")
+      },
+      outputSchema: industryPanelOutputSchema
+    },
+    async ({ playerId, timeoutMs }) => {
+      const eventResult = await enqueueAndWaitCommandEvent(
+        commandQueue,
+        eventStore,
+        playerId,
+        "industry_panel",
+        "describe",
+        [],
+        "industry_panel_probe_result",
+        timeoutMs
+      );
+      const parsed = parseIndustryPanelEventPayload(eventResult.payloadJson);
+      const structuredContent = {
+        found: eventResult.found,
+        commandId: eventResult.commandId,
+        createdAtUtc: eventResult.createdAtUtc,
+        payloadJson: parsed.payloadJson,
+        parseError: parsed.parseError
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: eventResult.found
+              ? (parsed.payloadJson ?? eventResult.payloadJson ?? "")
+              : `No industry_panel_probe_result event received within ${timeoutMs}ms.`
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
+  server.registerTool(
+    "du_industry_panel_invoke",
+    {
+      title: "Invoke Industry Panel Probe",
+      description:
+        "Controls the currently open industry panel through the bridge. Supports describe, time precision, mode changes, button presses, CSS/HTML apply, and optional kebab toggle.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Target player ID"),
+        method: industryPanelMethodSchema.describe("Industry panel probe method"),
+        units: z.number().int().min(1).max(4).optional().describe("Precision units for `set_time_precision`"),
+        buttonAction: z.enum(["start", "finish_stop", "stop"]).optional().describe("Button action for `click_button`"),
+        modeAction: z.enum(["run", "make", "maintain"]).optional().describe("Mode action for `select_mode`"),
+        amount: z.number().int().min(0).optional().describe("Amount for `set_make_amount` or `set_maintain_amount`"),
+        enabled: z.boolean().optional().describe("Enabled state for `set_kebab`"),
+        cssText: z.string().optional().describe("CSS text for `apply_css` or `apply_assets`"),
+        cssStyleId: z.string().optional().describe("Optional style tag id for `apply_css`"),
+        html: z.string().optional().describe("HTML text for `apply_html` or `apply_assets`"),
+        htmlTargetSelector: z.string().optional().describe("Target selector for `apply_html` or `apply_assets`"),
+        htmlApplyMode: z.enum(["replace_inner", "replace_outer"]).optional().describe("Apply mode for `apply_html` or `apply_assets`"),
+        timeoutMs: z.number().int().min(250).max(20000).default(5000).describe("How long to wait for the industry panel probe result")
+      },
+      outputSchema: industryPanelOutputSchema
+    },
+    async ({
+      playerId,
+      method,
+      units,
+      buttonAction,
+      modeAction,
+      amount,
+      enabled,
+      cssText,
+      cssStyleId,
+      html,
+      htmlTargetSelector,
+      htmlApplyMode,
+      timeoutMs
+    }) => {
+      const probeArgs = buildIndustryPanelProbeArgs({
+        method,
+        units,
+        buttonAction,
+        modeAction,
+        amount,
+        enabled,
+        cssText,
+        cssStyleId,
+        html,
+        htmlTargetSelector,
+        htmlApplyMode
+      });
+      const eventResult = await enqueueAndWaitCommandEvent(
+        commandQueue,
+        eventStore,
+        playerId,
+        "industry_panel",
+        method,
+        probeArgs,
+        "industry_panel_probe_result",
+        timeoutMs
+      );
+      const parsed = parseIndustryPanelEventPayload(eventResult.payloadJson);
+      const structuredContent = {
+        found: eventResult.found,
+        commandId: eventResult.commandId,
+        createdAtUtc: eventResult.createdAtUtc,
+        payloadJson: parsed.payloadJson,
+        parseError: parsed.parseError
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: eventResult.found
+              ? (parsed.payloadJson ?? eventResult.payloadJson ?? "")
+              : `No industry_panel_probe_result event received within ${timeoutMs}ms.`
+          }
+        ],
+        structuredContent
+      };
     }
   );
 

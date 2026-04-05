@@ -73,12 +73,24 @@ public sealed class MyDuMod : IMod
     private const ulong ActionExtractFromTargetFile = 4;
     private const ulong ActionInjectLuaProbe = 5;
     private const ulong ActionExtractAllScripts = 6;
+    private const ulong ActionInspectIndustryPanel = 7;
+    private const ulong ActionIndustryPanelTwoUnitTime = 8;
+    private const ulong ActionIndustryPanelStart = 9;
+    private const ulong ActionIndustryPanelFinishStop = 10;
+    private const ulong ActionIndustryPanelStop = 11;
+    private const ulong ActionIndustryPanelSelectRun = 12;
+    private const ulong ActionIndustryPanelSelectMake = 13;
+    private const ulong ActionIndustryPanelSelectMaintain = 14;
+    private const ulong ActionIndustryPanelSetMake1 = 15;
+    private const ulong ActionIndustryPanelSetMaintain100 = 16;
     private const ulong ActionIngestPacket = 900001;
     private const ulong PrivateChatChannelId = 2;
     private const string EmbeddedPayloadResourceName = "ModUiToolbox-payload.js";
     private const string EmbeddedLuaProbeResourceName = "lua-editor-probe.js";
     private const string PayloadOverridesDirectoryName = "payload-overrides";
     private const string RuntimeExtractorPayloadFileName = "ModUiToolbox-payload.override.js";
+    private const string RuntimeExtractorModulesDirectoryName = "ModUiToolbox-payload.modules";
+    private const string RuntimeExtractorModulesManifestFileName = "manifest.txt";
     private const string RuntimeLuaProbePayloadFileName = "lua-editor-probe.override.js";
     private const string RuntimeLuaProbeModulesDirectoryName = "lua-editor-probe.modules";
     private const string RuntimeLuaProbeModulesManifestFileName = "manifest.txt";
@@ -89,12 +101,12 @@ public sealed class MyDuMod : IMod
     private const string IdeImportFilePattern = "ide_import.player-*.json";
 
     /// <summary>
-    /// Outer IIFE for lua-editor-probe module concat. Must match <c>tools/build-lua-probe.ps1</c>
-    /// (<c>LuaProbeIifePreamble</c> / <c>LuaProbeIifePostamble</c>); module files omit this wrapper so they parse in the IDE.
+    /// Outer IIFE for wrapped payload module concat. Must match <c>tools/build-lua-probe.ps1</c>
+    /// (<c>LuaProbeIifePreamble</c> / <c>LuaProbeIifePostamble</c>); wrapped module files omit this wrapper so they parse in the IDE.
     /// </summary>
-    private const string LuaProbeModulesPreamble = "(function () {\r\n  \"use strict\";\r\n\r\n";
+    private const string WrappedModuleScriptPreamble = "(function () {\r\n  \"use strict\";\r\n\r\n";
 
-    private const string LuaProbeModulesPostamble = "\r\n})();";
+    private const string WrappedModuleScriptPostamble = "\r\n})();";
     private const string DefaultTargetStylesheetHref = "coui://data/gui/hud/dpu_editor/css/dpu_editor.css";
     private const string TargetStylesheetFileName = "target-stylesheet-url.txt";
     private const string McpBridgeDirectoryName = "mcp-bridge";
@@ -116,6 +128,8 @@ public sealed class MyDuMod : IMod
     private string payloadOverridesDirectory = "";
     private string targetStylesheetFilePath = "";
     private string runtimeExtractorPayloadPath = "";
+    private string runtimeExtractorModulesDirectoryPath = "";
+    private string runtimeExtractorModulesManifestPath = "";
     private string runtimeLuaProbePayloadPath = "";
     private string runtimeLuaProbeModulesDirectoryPath = "";
     private string runtimeLuaProbeModulesManifestPath = "";
@@ -166,6 +180,8 @@ public sealed class MyDuMod : IMod
 
         targetStylesheetFilePath = Path.Combine(outputDirectory, TargetStylesheetFileName);
         runtimeExtractorPayloadPath = Path.Combine(payloadOverridesDirectory, RuntimeExtractorPayloadFileName);
+        runtimeExtractorModulesDirectoryPath = Path.Combine(payloadOverridesDirectory, RuntimeExtractorModulesDirectoryName);
+        runtimeExtractorModulesManifestPath = Path.Combine(runtimeExtractorModulesDirectoryPath, RuntimeExtractorModulesManifestFileName);
         runtimeLuaProbePayloadPath = Path.Combine(payloadOverridesDirectory, RuntimeLuaProbePayloadFileName);
         runtimeLuaProbeModulesDirectoryPath = Path.Combine(payloadOverridesDirectory, RuntimeLuaProbeModulesDirectoryName);
         runtimeLuaProbeModulesManifestPath = Path.Combine(runtimeLuaProbeModulesDirectoryPath, RuntimeLuaProbeModulesManifestFileName);
@@ -178,6 +194,7 @@ public sealed class MyDuMod : IMod
         mcpBridgeEventsDirectory = Path.Combine(mcpBridgeRootDirectory, McpBridgeEventsDirectoryName);
         mcpBridgeStateDirectory = Path.Combine(mcpBridgeRootDirectory, McpBridgeStateDirectoryName);
         mcpBridgeProcessedCommandsDirectory = Path.Combine(mcpBridgeStateDirectory, McpBridgeProcessedCommandsDirectoryName);
+        Directory.CreateDirectory(runtimeExtractorModulesDirectoryPath);
         Directory.CreateDirectory(runtimeLuaProbeModulesDirectoryPath);
         Directory.CreateDirectory(runtimeLuaProbeRuntimeModulesDirectoryPath);
         Directory.CreateDirectory(runtimeThemeImportsDirectoryPath);
@@ -208,12 +225,14 @@ public sealed class MyDuMod : IMod
         }
 
         logger.LogInformation(
-            "UIToolbox initialized. Payload bytes={PayloadSize}, LuaProbe bytes={LuaProbeSize}, output={OutputDirectory}, overrides={OverridesDir}, extractorOverride={ExtractorOverridePath}, luaProbeOverride={LuaProbeOverridePath}, luaProbeModulesDir={LuaProbeModulesDir}, luaProbeModulesManifest={LuaProbeModulesManifest}, luaProbeRuntimeModulesDir={LuaProbeRuntimeModulesDir}, luaProbeRuntimeModulesState={LuaProbeRuntimeModulesState}, targetStylesheetFile={TargetStylesheetFile}, mcpBridgeRoot={McpBridgeRoot}, mcpBridgeCommands={McpBridgeCommands}, mcpBridgeEvents={McpBridgeEvents}",
+            "UIToolbox initialized. Payload bytes={PayloadSize}, LuaProbe bytes={LuaProbeSize}, output={OutputDirectory}, overrides={OverridesDir}, extractorOverride={ExtractorOverridePath}, extractorModulesDir={ExtractorModulesDir}, extractorModulesManifest={ExtractorModulesManifest}, luaProbeOverride={LuaProbeOverridePath}, luaProbeModulesDir={LuaProbeModulesDir}, luaProbeModulesManifest={LuaProbeModulesManifest}, luaProbeRuntimeModulesDir={LuaProbeRuntimeModulesDir}, luaProbeRuntimeModulesState={LuaProbeRuntimeModulesState}, targetStylesheetFile={TargetStylesheetFile}, mcpBridgeRoot={McpBridgeRoot}, mcpBridgeCommands={McpBridgeCommands}, mcpBridgeEvents={McpBridgeEvents}",
             payloadJs.Length,
             luaProbeJs.Length,
             outputDirectory,
             payloadOverridesDirectory,
             runtimeExtractorPayloadPath,
+            runtimeExtractorModulesDirectoryPath,
+            runtimeExtractorModulesManifestPath,
             runtimeLuaProbePayloadPath,
             runtimeLuaProbeModulesDirectoryPath,
             runtimeLuaProbeModulesManifestPath,
@@ -1351,6 +1370,14 @@ ORDER BY table_schema, table_name, ordinal_position";
             }
         }
 
+        if (string.Equals(targetKind, "industry_panel", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.Equals(action, "probe_call", StringComparison.OrdinalIgnoreCase))
+            {
+                return TryBuildIndustryPanelBridgeInjectCode(commandId, payload, out injectCode, out summary, out status, out details);
+            }
+        }
+
         details = "unsupported_target_or_action";
         return false;
     }
@@ -1425,6 +1452,36 @@ ORDER BY table_schema, table_name, ordinal_position";
                 return;
             case ActionExtractAllScripts:
                 await InjectAllScriptsPayload(playerId);
+                return;
+            case ActionInspectIndustryPanel:
+                await InjectIndustryPanelPayload(playerId, "Industry panel probe requested.");
+                return;
+            case ActionIndustryPanelTwoUnitTime:
+                await InjectIndustryPanelPayload(playerId, "Industry panel 2-unit time display requested.", installTimeOverride: true, timePrecisionUnits: 2);
+                return;
+            case ActionIndustryPanelStart:
+                await InjectIndustryPanelPayload(playerId, "Industry panel start requested.", buttonAction: "start");
+                return;
+            case ActionIndustryPanelFinishStop:
+                await InjectIndustryPanelPayload(playerId, "Industry panel finish-stop requested.", buttonAction: "finish_stop");
+                return;
+            case ActionIndustryPanelStop:
+                await InjectIndustryPanelPayload(playerId, "Industry panel stop requested.", buttonAction: "stop");
+                return;
+            case ActionIndustryPanelSelectRun:
+                await InjectIndustryPanelPayload(playerId, "Industry panel run mode requested.", modeAction: "run");
+                return;
+            case ActionIndustryPanelSelectMake:
+                await InjectIndustryPanelPayload(playerId, "Industry panel make mode requested.", modeAction: "make");
+                return;
+            case ActionIndustryPanelSelectMaintain:
+                await InjectIndustryPanelPayload(playerId, "Industry panel maintain mode requested.", modeAction: "maintain");
+                return;
+            case ActionIndustryPanelSetMake1:
+                await InjectIndustryPanelPayload(playerId, "Industry panel make amount requested.", modeAction: "make", makeAmount: 1);
+                return;
+            case ActionIndustryPanelSetMaintain100:
+                await InjectIndustryPanelPayload(playerId, "Industry panel maintain amount requested.", modeAction: "maintain", maintainAmount: 100);
                 return;
             case ActionIngestPacket:
                 await IngestPacket(playerId, action.payload);
@@ -1533,6 +1590,235 @@ ORDER BY table_schema, table_name, ordinal_position";
         await InjectSingleStylesheetPayload(playerId, href, "target-file");
     }
 
+    private async Task InjectIndustryPanelPayload(
+        ulong playerId,
+        string notifyMessage,
+        string? buttonAction = null,
+        string? modeAction = null,
+        bool installTimeOverride = false,
+        int timePrecisionUnits = 2,
+        int? makeAmount = null,
+        int? maintainAmount = null)
+    {
+        var config = new JObject
+        {
+            ["mode"] = "industry_panel_probe"
+        };
+
+        if (!string.IsNullOrWhiteSpace(buttonAction))
+        {
+            config["industryPanelButtonAction"] = buttonAction;
+        }
+
+        if (!string.IsNullOrWhiteSpace(modeAction))
+        {
+            config["industryPanelModeAction"] = modeAction;
+        }
+
+        if (installTimeOverride)
+        {
+            config["industryPanelInstallTimeOverride"] = true;
+            config["industryPanelTimePrecisionUnits"] = Math.Max(1, timePrecisionUnits);
+        }
+
+        if (makeAmount.HasValue)
+        {
+            config["industryPanelMakeAmount"] = Math.Max(0, makeAmount.Value);
+        }
+
+        if (maintainAmount.HasValue)
+        {
+            config["industryPanelMaintainAmount"] = Math.Max(0, maintainAmount.Value);
+        }
+
+        ApplyIndustryPanelRuntimeModuleConfig(config);
+
+        await InjectPayload(playerId, config, notifyMessage, "industry-panel-probe");
+    }
+
+    private bool TryBuildIndustryPanelBridgeInjectCode(
+        string commandId,
+        JObject payload,
+        out string injectCode,
+        out string summary,
+        out string status,
+        out string? details)
+    {
+        injectCode = "";
+        summary = "";
+        status = "unsupported_command";
+        details = null;
+
+        var extractorScript = ResolveExtractorPayloadScript(out _, out _);
+        if (string.IsNullOrWhiteSpace(extractorScript))
+        {
+            status = "rejected";
+            details = "extractor_payload_unavailable";
+            return false;
+        }
+
+        if (!RuntimeScriptLikelySupportsMode(extractorScript, "industry_panel_probe"))
+        {
+            status = "rejected";
+            details = "industry_panel_probe_unavailable";
+            return false;
+        }
+
+        var probeMethod = payload["probeMethod"]?.Value<string>()?.Trim() ?? "";
+        var probeArgs = payload["probeArgs"] as JArray ?? new JArray();
+        if (string.IsNullOrWhiteSpace(probeMethod))
+        {
+            status = "rejected";
+            details = "missing_probe_method";
+            return false;
+        }
+
+        var config = new JObject
+        {
+            ["modName"] = GetName(),
+            ["actionId"] = (long)ActionIngestPacket,
+            ["mode"] = "industry_panel_probe",
+            ["commandId"] = commandId
+        };
+
+        ApplyIndustryPanelRuntimeModuleConfig(config);
+
+        switch (probeMethod.ToLowerInvariant())
+        {
+            case "describe":
+                break;
+            case "set_time_precision":
+            {
+                var units = Math.Max(1, probeArgs.FirstOrDefault()?.Value<int?>() ?? 2);
+                config["industryPanelInstallTimeOverride"] = true;
+                config["industryPanelTimePrecisionUnits"] = units;
+                break;
+            }
+            case "click_button":
+            {
+                var actionName = probeArgs.FirstOrDefault()?.Value<string>()?.Trim() ?? "";
+                if (!new[] { "start", "finish_stop", "stop" }.Contains(actionName, StringComparer.OrdinalIgnoreCase))
+                {
+                    status = "rejected";
+                    details = "invalid_button_action";
+                    return false;
+                }
+                config["industryPanelButtonAction"] = actionName.ToLowerInvariant();
+                break;
+            }
+            case "select_mode":
+            {
+                var modeName = probeArgs.FirstOrDefault()?.Value<string>()?.Trim() ?? "";
+                if (!new[] { "run", "make", "maintain" }.Contains(modeName, StringComparer.OrdinalIgnoreCase))
+                {
+                    status = "rejected";
+                    details = "invalid_mode_action";
+                    return false;
+                }
+                config["industryPanelModeAction"] = modeName.ToLowerInvariant();
+                break;
+            }
+            case "set_make_amount":
+            {
+                var amount = Math.Max(0, probeArgs.FirstOrDefault()?.Value<int?>() ?? 0);
+                config["industryPanelModeAction"] = "make";
+                config["industryPanelMakeAmount"] = amount;
+                break;
+            }
+            case "set_maintain_amount":
+            {
+                var amount = Math.Max(0, probeArgs.FirstOrDefault()?.Value<int?>() ?? 0);
+                config["industryPanelModeAction"] = "maintain";
+                config["industryPanelMaintainAmount"] = amount;
+                break;
+            }
+            case "apply_css":
+            {
+                var cssText = probeArgs.FirstOrDefault()?.Value<string>() ?? "";
+                if (string.IsNullOrWhiteSpace(cssText))
+                {
+                    status = "rejected";
+                    details = "missing_css_text";
+                    return false;
+                }
+                config["industryPanelCssText"] = cssText;
+                var styleId = probeArgs.Count > 1 ? probeArgs[1]?.Value<string>()?.Trim() : null;
+                if (!string.IsNullOrWhiteSpace(styleId))
+                {
+                    config["industryPanelCssStyleId"] = styleId;
+                }
+                break;
+            }
+            case "apply_html":
+            {
+                var html = probeArgs.FirstOrDefault()?.Value<string>() ?? "";
+                if (string.IsNullOrWhiteSpace(html))
+                {
+                    status = "rejected";
+                    details = "missing_html";
+                    return false;
+                }
+                config["industryPanelHtml"] = html;
+                var selector = probeArgs.Count > 1 ? probeArgs[1]?.Value<string>()?.Trim() : null;
+                if (!string.IsNullOrWhiteSpace(selector))
+                {
+                    config["industryPanelHtmlTargetSelector"] = selector;
+                }
+                var applyMode = probeArgs.Count > 2 ? probeArgs[2]?.Value<string>()?.Trim() : null;
+                if (!string.IsNullOrWhiteSpace(applyMode))
+                {
+                    config["industryPanelHtmlApplyMode"] = applyMode;
+                }
+                break;
+            }
+            case "apply_assets":
+            {
+                var cssText = probeArgs.FirstOrDefault()?.Value<string>() ?? "";
+                var html = probeArgs.Count > 1 ? probeArgs[1]?.Value<string>() ?? "" : "";
+                if (string.IsNullOrWhiteSpace(cssText) && string.IsNullOrWhiteSpace(html))
+                {
+                    status = "rejected";
+                    details = "missing_assets";
+                    return false;
+                }
+                if (!string.IsNullOrWhiteSpace(cssText))
+                {
+                    config["industryPanelCssText"] = cssText;
+                }
+                if (!string.IsNullOrWhiteSpace(html))
+                {
+                    config["industryPanelHtml"] = html;
+                }
+                var selector = probeArgs.Count > 2 ? probeArgs[2]?.Value<string>()?.Trim() : null;
+                if (!string.IsNullOrWhiteSpace(selector))
+                {
+                    config["industryPanelHtmlTargetSelector"] = selector;
+                }
+                var applyMode = probeArgs.Count > 3 ? probeArgs[3]?.Value<string>()?.Trim() : null;
+                if (!string.IsNullOrWhiteSpace(applyMode))
+                {
+                    config["industryPanelHtmlApplyMode"] = applyMode;
+                }
+                break;
+            }
+            case "set_kebab":
+            {
+                var enabled = probeArgs.FirstOrDefault()?.Value<bool?>() ?? false;
+                config["industryPanelKebabEnabled"] = enabled;
+                break;
+            }
+            default:
+                status = "rejected";
+                details = "unsupported_probe_method";
+                return false;
+        }
+
+        injectCode = $"window.__UI_TOOLBOX_CONFIG={config.ToString(Newtonsoft.Json.Formatting.None)};\n{extractorScript}";
+        summary = $"industry_panel probe_call {probeMethod}";
+        status = "ok";
+        return true;
+    }
+
     private async Task InjectLuaProbePayload(ulong playerId, ModAction action)
     {
         var luaProbeScript = ResolveLuaProbeScript(out var usingRuntimeOverride, out var usingRuntimeModules);
@@ -1577,7 +1863,7 @@ ORDER BY table_schema, table_name, ordinal_position";
 
     private async Task InjectPayload(ulong playerId, JObject config, string notifyMessage, string modeTag)
     {
-        var extractorScript = ResolveRuntimeScript(runtimeExtractorPayloadPath, payloadJs, "extractor payload", out var usingRuntimeOverride);
+        var extractorScript = ResolveExtractorPayloadScript(out var usingRuntimeOverride, out var usingRuntimeModules);
         if (string.IsNullOrWhiteSpace(extractorScript))
         {
             await Notify(playerId, "UI extractor payload is unavailable on server.");
@@ -1602,9 +1888,15 @@ ORDER BY table_schema, table_name, ordinal_position";
         config["modName"] = GetName();
         config["actionId"] = (long)ActionIngestPacket;
 
-        var effectiveNotifyMessage = usingRuntimeOverride
-            ? $"{notifyMessage} (runtime override script active)"
-            : notifyMessage;
+        var effectiveNotifyMessage = notifyMessage;
+        if (usingRuntimeModules)
+        {
+            effectiveNotifyMessage += " (runtime override modules active)";
+        }
+        else if (usingRuntimeOverride)
+        {
+            effectiveNotifyMessage += " (runtime override script active)";
+        }
 
         var injectCode = $"window.__UI_TOOLBOX_CONFIG={config.ToString(Newtonsoft.Json.Formatting.None)};\n{extractorScript}";
         await InjectJavaScript(playerId, injectCode, modeTag, effectiveNotifyMessage);
@@ -1996,6 +2288,25 @@ ORDER BY table_schema, table_name, ordinal_position";
                 await ProcessHudEditorIdeExport(playerId, packetData);
                 await AppendMcpBridgeEvent("lua_editor", "hud_editor_ide_export", playerId, packetData);
             }
+            else if (string.Equals(packetType, "ui_dump", StringComparison.OrdinalIgnoreCase))
+            {
+                var section = parsedPacket["section"]?.Value<string>()?.Trim() ?? "";
+                var total = parsedPacket["total"]?.Value<int?>() ?? 0;
+                var part = parsedPacket["part"]?.Value<int?>() ?? 0;
+                var packetData = parsedPacket["data"]?.Value<string>() ?? "";
+                if (string.Equals(section, "industry_panel_probe", StringComparison.OrdinalIgnoreCase) && total == 1 && part == 1 && !string.IsNullOrWhiteSpace(packetData))
+                {
+                    try
+                    {
+                        var eventPayload = JObject.Parse(packetData);
+                        await AppendMcpBridgeEvent("industry_panel", "industry_panel_probe_result", playerId, eventPayload);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogDebug(ex, "UIToolbox failed to parse industry_panel_probe ui_dump payload");
+                    }
+                }
+            }
         }
 
         if (envelope?.type == "ui_dump_complete")
@@ -2326,6 +2637,36 @@ ORDER BY table_schema, table_name, ordinal_position";
         return moduleToken.Value<bool?>() ?? defaultEnabled;
     }
 
+    private bool GetLuaProbeRuntimeModuleEnabled(string moduleId, bool defaultEnabled = false)
+    {
+        var normalizedModuleId = SanitizeLuaProbeRuntimeModuleId(moduleId, moduleId);
+        var container = LoadLuaProbeRuntimeModuleStateContainer();
+        var modules = container["modules"] as JObject;
+        return GetLuaProbeRuntimeModuleEnabledValue(modules?[normalizedModuleId], defaultEnabled);
+    }
+
+    private void ApplyIndustryPanelRuntimeModuleConfig(JObject config)
+    {
+        if (config["industryPanelKebabEnabled"] is not null)
+        {
+            // keep explicit caller choice
+        }
+        else
+        {
+            config["industryPanelKebabEnabled"] = GetLuaProbeRuntimeModuleEnabled("industry-panel");
+        }
+
+        if (config["industryPanelTimePrecisionUnits"] is null)
+        {
+            var container = LoadLuaProbeRuntimeModuleStateContainer();
+            var modules = container["modules"] as JObject;
+            var normalizedModuleId = SanitizeLuaProbeRuntimeModuleId("industry-panel", "industry-panel");
+            var moduleState = GetLuaProbeRuntimeModuleStateValue(modules?[normalizedModuleId]);
+            var timePrecisionUnits = Math.Max(1, moduleState["timePrecisionUnits"]?.Value<int?>() ?? 1);
+            config["industryPanelTimePrecisionUnits"] = timePrecisionUnits;
+        }
+    }
+
     private static JObject GetLuaProbeRuntimeModuleStateValue(JToken? moduleToken)
     {
         if (moduleToken is JObject moduleObject && moduleObject["state"] is JObject stateObject)
@@ -2515,6 +2856,32 @@ ORDER BY table_schema, table_name, ordinal_position";
             .ThenBy(m => m["name"]?.Value<string>() ?? "", StringComparer.OrdinalIgnoreCase));
     }
 
+    private string ResolveExtractorPayloadScript(out bool usingRuntimeOverride, out bool usingRuntimeModules)
+    {
+        var baseScript = ResolveRuntimeScript(runtimeExtractorPayloadPath, payloadJs, "extractor payload", out usingRuntimeOverride);
+        usingRuntimeModules = false;
+
+        var moduleScript = ResolveRuntimeModuleScript(
+            runtimeExtractorModulesDirectoryPath,
+            runtimeExtractorModulesManifestPath,
+            "extractor payload",
+            out var moduleCount,
+            wrapWithIife: false);
+
+        if (string.IsNullOrWhiteSpace(moduleScript))
+        {
+            return baseScript;
+        }
+
+        usingRuntimeOverride = true;
+        usingRuntimeModules = true;
+        logger.LogInformation(
+            "UIToolbox using runtime extractor payload modules from {ModulesDir} ({ModuleCount} files)",
+            runtimeExtractorModulesDirectoryPath,
+            moduleCount);
+        return baseScript + Environment.NewLine + moduleScript;
+    }
+
     private string ResolveLuaProbeScript(out bool usingRuntimeOverride, out bool usingRuntimeModules)
     {
         usingRuntimeOverride = false;
@@ -2524,7 +2891,8 @@ ORDER BY table_schema, table_name, ordinal_position";
             runtimeLuaProbeModulesDirectoryPath,
             runtimeLuaProbeModulesManifestPath,
             "lua probe",
-            out var moduleCount);
+            out var moduleCount,
+            wrapWithIife: true);
 
         if (!string.IsNullOrWhiteSpace(moduleScript))
         {
@@ -2566,7 +2934,12 @@ ORDER BY table_schema, table_name, ordinal_position";
         }
     }
 
-    private string ResolveRuntimeModuleScript(string moduleDirectoryPath, string manifestPath, string scriptLabel, out int moduleCount)
+    private string ResolveRuntimeModuleScript(
+        string moduleDirectoryPath,
+        string manifestPath,
+        string scriptLabel,
+        out int moduleCount,
+        bool wrapWithIife)
     {
         moduleCount = 0;
 
@@ -2642,7 +3015,12 @@ ORDER BY table_schema, table_name, ordinal_position";
                 moduleCount += 1;
             }
 
-            return LuaProbeModulesPreamble + scriptBuilder.ToString() + LuaProbeModulesPostamble;
+            if (!wrapWithIife)
+            {
+                return scriptBuilder.ToString();
+            }
+
+            return WrappedModuleScriptPreamble + scriptBuilder.ToString() + WrappedModuleScriptPostamble;
         }
         catch (Exception ex)
         {
