@@ -29,11 +29,11 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 
 public class DtoItem {
-    public DtoBox box;
+    public DtoBox box = new();
 }
 public class DtoBox {
-    public List<float> min;
-    public List<float> max;
+    public List<float> min = new();
+    public List<float> max = new();
 }
 
 public class App {
@@ -95,7 +95,8 @@ public class App {
 
     public static void Main() {
         var boxs = File.ReadAllText("items-boxes.json");
-        var boxes = JsonConvert.DeserializeObject<Dictionary<string, DtoItem>>(boxs);
+        var boxes = JsonConvert.DeserializeObject<Dictionary<string, DtoItem>>(boxs)
+            ?? throw new InvalidOperationException("Failed to deserialize items-boxes.json.");
         var targetIds = new HashSet<ulong> { 2738359893, 2702446443, 2022563937, 1215026169, 584577125, 584577124, 4139262245, 2556123438, 409410678, 3857150880, 983225818, 983225808, 983225811 };
         var referenceNames = new HashSet<string>(StringComparer.Ordinal) {
             "InvalidItem"

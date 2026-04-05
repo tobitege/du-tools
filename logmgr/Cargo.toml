@@ -7,5 +7,5 @@ edition = "2024"
 anyhow = "1.0"
 chrono = { version = "0.4", default-features = true }
 crossterm = "0.28"
-ratatui = "0.29"
+ratatui = "0.30"
 walkdir = "2.5"
