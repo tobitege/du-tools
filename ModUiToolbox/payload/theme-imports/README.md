@@ -20,13 +20,14 @@ Why this exists:
 How the values are translated:
 
 - The compact JSON provides base palette tokens such as:
+  - `il` for whether the imported theme is light
   - `p` / `pf` / `pc` for primary colors
   - `nu` / `nc` for neutral colors
   - `b1` / `b2` / `b3` / `bc` for base surfaces and text
   - `i`, `w`, `e` for info, warning, and error accents
 - In `..\lua-editor-probe.modules\030-caret-theme-ide-sync.js`, the probe turns those raw values into a richer editor theme object.
 - That translation layer does things like:
-  - detect whether the theme is effectively light or dark
+  - preserve the imported light-theme flag as `isLight` on the runtime theme object
   - mix and shade colors to build readable row backgrounds and elevated surfaces
   - choose readable foreground colors against accent and surface backgrounds
   - derive button gradients, hover colors, active colors, disabled colors, and border strengths

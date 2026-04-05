@@ -316,6 +316,7 @@ Probe override resolution order on each inject:
 - The visible `screen_editor` now reuses the same theme token set and the same shortcut dots / catalog / `Off` controls, so both editor UIs stay visually aligned without moving any UI logic into the MCP server.
 - The `screen_editor` content header panel (`sub_title`, wrap/font controls, mode switch block) is now themed as well, so the whole top control area matches the active probe theme instead of keeping the vanilla DU look.
 - The industry panel uses the same shared switcher and theme state when the `industry-panel` runtime module is enabled, so all three UI surfaces stay consistent.
+- Shared runtime theme objects now expose `isLight`, and imported Daisy palettes carry compact `il` metadata, so light-theme contrast fixes can stay in the shared theme layer instead of relying on one-off selector guesses.
 - The visible `screen_editor` now also gets its own `IDE Sync` button in the top control row; it uses the same chunked packet family as the Lua editor, but exports with `targetKind = screen_editor`.
 
 After each edit:

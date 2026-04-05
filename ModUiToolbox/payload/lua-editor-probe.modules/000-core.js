@@ -230,6 +230,7 @@
     {
       name: "monokai",
       label: "Monokai",
+      isLight: false,
       dot: "#a6e22e",
       accent: "rgba(166,226,46,0.92)",
       header: "rgba(39,40,34,0.97)",
@@ -278,6 +279,7 @@
     {
       name: "github-dark",
       label: "GitHub Dark",
+      isLight: false,
       dot: "#58a6ff",
       accent: "rgba(88,166,255,0.92)",
       header: "rgba(13,17,23,0.97)",
@@ -326,6 +328,7 @@
     {
       name: "gruvbox-dark",
       label: "Gruvbox Dark",
+      isLight: false,
       dot: "#fe8019",
       accent: "rgba(254,128,25,0.92)",
       header: "rgba(40,40,40,0.97)",

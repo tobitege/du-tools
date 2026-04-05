@@ -233,6 +233,7 @@
     {
       name: "monokai",
       label: "Monokai",
+      isLight: false,
       dot: "#a6e22e",
       accent: "rgba(166,226,46,0.92)",
       header: "rgba(39,40,34,0.97)",
@@ -281,6 +282,7 @@
     {
       name: "github-dark",
       label: "GitHub Dark",
+      isLight: false,
       dot: "#58a6ff",
       accent: "rgba(88,166,255,0.92)",
       header: "rgba(13,17,23,0.97)",
@@ -329,6 +331,7 @@
     {
       name: "gruvbox-dark",
       label: "Gruvbox Dark",
+      isLight: false,
       dot: "#fe8019",
       accent: "rgba(254,128,25,0.92)",
       header: "rgba(40,40,40,0.97)",
@@ -1953,6 +1956,18 @@
       + "background:var(--lua-probe-surface-elevated) !important;background-image:none !important;}"
       + "#industry_panel[data-lua-probe-active=\"1\"] .layout_background_logo{"
       + "opacity:0.12 !important;filter:grayscale(1) saturate(0.45) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .menu_fixed .image .industry_panel_title{"
+      + "color:var(--lua-probe-cm-text) !important;"
+      + "text-shadow:none !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .menu_fixed .image::before{"
+      + "opacity:0.28 !important;"
+      + "filter:brightness(0.42) contrast(1.26) saturate(0.55) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .menu_fixed .image .panel_image{"
+      + "opacity:1 !important;"
+      + "filter:brightness(0.34) contrast(1.28) saturate(0.82) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .layout_background_logo{"
+      + "opacity:0.22 !important;"
+      + "filter:brightness(0.54) contrast(1.12) saturate(0.55) !important;}"
       + "#industry_panel[data-lua-probe-active=\"1\"] .subPanel_area,"
       + "#industry_panel[data-lua-probe-active=\"1\"] .sub_panel_content,"
       + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_wrapper{"
@@ -2090,6 +2105,83 @@
       + "#industry_panel[data-lua-probe-active=\"1\"] .item_node:hover,"
       + "#industry_panel[data-lua-probe-active=\"1\"] .a_container:hover{"
       + "background:var(--lua-probe-surface-row-alt) !important;border-color:var(--lua-probe-border-hover) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_productionArea .input_container_area{"
+      + "padding:1.11111111vh !important;min-height:0 !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_productionArea .input_container_area .title_line{"
+      + "margin-bottom:0.55555556vh !important;align-items:center !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_productionArea .input_container_area .title,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_productionArea .input_container_area .item_count{"
+      + "margin-bottom:0 !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_productionArea_inputContainerList{"
+      + "display:flex !important;flex-direction:column !important;gap:0.27777778vh !important;flex:1 1 auto !important;"
+      + "min-height:0 !important;overflow-x:hidden !important;overflow-y:auto !important;padding:0.18518519vh !important;"
+      + "box-sizing:border-box !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_productionArea_inputContainerList .a_container{"
+      + "margin:0 !important;padding:0.27777778vh 0.46296296vh !important;min-height:3.33333333vh !important;"
+      + "box-sizing:border-box !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_productionArea_inputContainerList .a_container .icon_area{"
+      + "width:2.59259259vh !important;min-width:2.59259259vh !important;max-width:2.59259259vh !important;"
+      + "margin-right:0.74074074vh !important;display:flex !important;align-items:center !important;justify-content:center !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_productionArea_inputContainerList .a_container .icon_area .icon{"
+      + "width:2.59259259vh !important;min-width:2.59259259vh !important;max-width:2.59259259vh !important;"
+      + "height:2.59259259vh !important;min-height:2.59259259vh !important;max-height:2.59259259vh !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_productionArea_inputContainerList .a_container .data{"
+      + "gap:0.55555556vh !important;align-items:center !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_productionArea_inputContainerList .a_container .data .container_name,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_productionArea_inputContainerList .a_container .data .name{"
+      + "font-size:1.01851852vh !important;line-height:1.15 !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_productionArea_inputContainerList .a_container .data .capacity{"
+      + "width:auto !important;min-width:0 !important;max-width:none !important;font-size:1.01851852vh !important;"
+      + "line-height:1.1 !important;white-space:nowrap !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_productionArea_inputContainerList .a_container .data .progress_bar{"
+      + "width:4.62962963vh !important;min-width:4.62962963vh !important;max-width:4.62962963vh !important;"
+      + "height:1.48148148vh !important;min-height:1.48148148vh !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .input_container_list .a_container.empty_slot .icon_area .icon,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .input_container_list .a_container.empty_slot .icon_area .icon use{"
+      + "fill:var(--lua-probe-accent-solid) !important;stroke:var(--lua-probe-accent-solid) !important;color:var(--lua-probe-accent-solid) !important;opacity:0.92 !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .input_container_list .a_container.empty_slot .container_name,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .input_container_list .a_container.empty_slot .name{"
+      + "color:var(--lua-probe-text-muted) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeSubPanel_drilldownArea .item_tree_component .item_line:not(.root_item),"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeSubPanel_drilldownArea .item_tree_component .item_line:not(.root_item) .label{"
+      + "color:var(--lua-probe-cm-text) !important;text-shadow:none !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeSubPanel_wrapper .only_available_line .label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeSubPanel_wrapper .only_available_line .label label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeSubPanel_wrapper .only_doable_line .label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeSubPanel_wrapper .only_doable_line .label label{"
+      + "color:var(--lua-probe-cm-string) !important;text-shadow:none !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeSubPanel_drilldownArea .item_tree_component .item_line.root_item,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeSubPanel_drilldownArea .item_tree_component .item_line.root_item .label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeSubPanel_drilldownArea .item_tree_component .item_line.root_item .icon_toggle_open,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeSubPanel_drilldownArea .item_tree_component .item_line.root_item .icon_toggle_open use{"
+      + "color:var(--lua-probe-cm-string) !important;fill:var(--lua-probe-cm-string) !important;stroke:none !important;text-shadow:none !important;opacity:1 !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_containersSubPanel_wrapper .checkbox_area .display_out_container .label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_containersSubPanel_wrapper .checkbox_area .display_all_item .label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_containersSubPanel_wrapper .checkbox_area .display_all_item_help,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_containersSubPanel_wrapper .checkbox_area .display_all_item_help use,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_containersSubPanel_wrapper .ingredients_header,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_containersSubPanel_wrapper .containers_header .container_name,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_containersSubPanel_wrapper .containers_sum_header,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_containersSubPanel_wrapper .ingredient_name,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_containersSubPanel_wrapper .ingredient_quantity,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_containersSubPanel_wrapper .container_cell .value,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_containersSubPanel_wrapper .containers_sum_line{"
+      + "color:var(--lua-probe-cm-text) !important;fill:var(--lua-probe-cm-text) !important;text-shadow:none !important;opacity:1 !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_containersSubPanel_wrapper .ingredients_header,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_containersSubPanel_wrapper .containers_header,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_containersSubPanel_wrapper .containers_sum_header{"
+      + "background:var(--lua-probe-surface-elevated) !important;border-color:var(--lua-probe-border-strong) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeBankSubPanel_wrapper .wrapper_right_container_header,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeBankSubPanel_wrapper .container_schematic_title{"
+      + "color:var(--lua-probe-cm-text) !important;text-shadow:none !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeBankSubPanel_wrapper .itemset_title,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeBankSubPanel_wrapper .itemset_title.selected{"
+      + "color:var(--lua-probe-cm-text) !important;text-shadow:none !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeBankSubPanel_wrapper .container_schematic_subtitle,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeBankSubPanel_wrapper .container_schematic_subtitle_name,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeBankSubPanel_wrapper .container_schematic_subtitle_destination,"
+      + "#industry_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] #industryPanel_recipeBankSubPanel_wrapper .container_schematic_subtitle_destination use{"
+      + "color:var(--lua-probe-text-muted) !important;fill:var(--lua-probe-text-muted) !important;text-shadow:none !important;opacity:1 !important;}"
       + "#industry_panel[data-lua-probe-active=\"1\"] .menu_entry,"
       + "#industry_panel[data-lua-probe-active=\"1\"] .menu_fixed .menu_entry{"
       + "background:var(--lua-probe-surface-row) !important;border-color:var(--lua-probe-border-strong) !important;"
@@ -2138,6 +2230,21 @@
       + "#industry_panel[data-lua-probe-active=\"1\"] .basic_properties_area .item_data .value,"
       + "#industry_panel[data-lua-probe-active=\"1\"] .custom_properties_area .item_data .value{"
       + "background:var(--lua-probe-surface-main) !important;color:var(--lua-probe-text-muted) !important;border:none !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .active_recipe_area .middle_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .active_recipe_area .right_area{"
+      + "display:flex !important;flex-direction:column !important;min-height:0 !important;overflow:hidden !important;"
+      + "background:var(--lua-probe-surface-elevated) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .active_recipe_area .basic_properties_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .active_recipe_area .custom_properties_area{"
+      + "display:flex !important;flex-direction:column !important;flex:1 1 auto !important;min-height:0 !important;"
+      + "background:transparent !important;border:none !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .active_recipe_area .basic_properties_area .inner_title,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .active_recipe_area .custom_properties_area .inner_title{"
+      + "font-size:1.22vh !important;line-height:1.15 !important;margin:0 0 4px !important;padding:0 2px !important;"
+      + "min-height:auto !important;max-height:none !important;background:transparent !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .active_recipe_area .basic_properties_area .inner_list,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .active_recipe_area .custom_properties_area .custom_properties_list{"
+      + "flex:1 1 auto !important;min-height:0 !important;overflow:auto !important;background:transparent !important;padding:0 !important;}"
       + "#industry_panel[data-lua-probe-active=\"1\"] .recipe_description,"
       + "#industry_panel[data-lua-probe-active=\"1\"] .description_mode,"
       + "#industry_panel[data-lua-probe-active=\"1\"] .type_selection_line .label,"
@@ -3788,16 +3895,16 @@
   function getThemeByName(themeName) {
     var wanted = normalizeLegacyThemeName(themeName);
     if (!wanted) {
-      return colorThemes[0];
+      return normalizeThemeDefinition(colorThemes[0]);
     }
     for (var i = 0; i < colorThemes.length; i += 1) {
       if (colorThemes[i].name === wanted) {
-        return colorThemes[i];
+        return normalizeThemeDefinition(colorThemes[i]);
       }
     }
     var compactTheme = findCompactThemeByName(wanted);
     if (compactTheme) {
-      return buildThemeFromCompact(compactTheme);
+      return normalizeThemeDefinition(buildThemeFromCompact(compactTheme));
     }
     return null;
   }
@@ -3950,6 +4057,27 @@
     return luminance >= 160;
   }
 
+  function resolveThemeLightFlag(theme, fallbackHex) {
+    if (theme && typeof theme === "object") {
+      if (typeof theme.isLight === "boolean") {
+        return theme.isLight;
+      }
+      if (typeof theme.il === "boolean") {
+        return theme.il;
+      }
+    }
+    return isLightHexColor(fallbackHex || (theme && (theme.surfaceMain || theme.surfaceElevated || theme.dot)) || "#000000");
+  }
+
+  function normalizeThemeDefinition(theme, fallbackHex) {
+    if (!theme || typeof theme !== "object") {
+      return theme;
+    }
+    var isLight = resolveThemeLightFlag(theme, fallbackHex);
+    theme.isLight = isLight;
+    return theme;
+  }
+
   function getRelativeLuminance(hex) {
     var rgb = parseHexColor(hex);
     function toLinear(value) {
@@ -4068,7 +4196,7 @@
     var base100 = String(compact.b1 || "#0d1117");
     var base200 = String(compact.b2 || shadeHexColor(base100, isLightHexColor(base100) ? -0.06 : 0.08));
     var base300 = String(compact.b3 || shadeHexColor(base200, isLightHexColor(base200) ? -0.12 : 0.12));
-    var isLightBase = isLightHexColor(base100);
+    var isLightBase = resolveThemeLightFlag(compact, base100);
     var baseContent = pickReadableTextColor(base100, compact.bc || (isLightHexColor(base100) ? "#111111" : "#d8dee4"), "#111111", "#f8f8f2", 5.5);
     var neutralContent = pickReadableTextColor(neutral, compact.nc || baseContent, "#111111", "#f8f8f2", 4.5);
     var info = String(compact.i || primary);
@@ -4116,6 +4244,7 @@
     return {
       name: themeName,
       label: normalizeThemeCatalogLabel(compact.l || compact.n || "Catalog Theme"),
+      isLight: isLightBase,
       dot: String(compact.d || primary),
       accent: withAlpha(primary, 0.92),
       header: withAlpha(base100, 0.97),
@@ -5180,6 +5309,11 @@
     if (!root || !root.style || typeof root.style.setProperty !== "function") {
       return;
     }
+    var isLight = !!(theme && theme.isLight);
+    try {
+      root.setAttribute("data-lua-probe-theme-light", isLight ? "1" : "0");
+    } catch (_ignoreThemeLightAttr) {}
+    root.style.setProperty("--lua-probe-theme-is-light", isLight ? "1" : "0");
     root.style.setProperty("--lua-probe-accent", theme.accent);
     root.style.setProperty("--lua-probe-header-bg", theme.header);
     root.style.setProperty("--lua-probe-caret-line-bg", theme.caretBg);
@@ -5261,6 +5395,7 @@
       sendPacket("lua_theme_changed", {
         theme: theme.name,
         label: theme.label,
+        isLight: !!theme.isLight,
         accent: theme.accent,
         header: theme.header,
         caretBg: theme.caretBg,
@@ -11232,8 +11367,15 @@
     applyTheme: applyTheme,
     setThemeEnabled: setThemeEnabled,
     isThemeEnabled: isThemeEnabled,
+    getActiveTheme: function () {
+      return getThemeByName(state.activeTheme || getDefaultThemeName());
+    },
     getActiveThemeName: function () {
       return state.activeTheme || getDefaultThemeName();
+    },
+    isActiveThemeLight: function () {
+      var theme = getThemeByName(state.activeTheme || getDefaultThemeName());
+      return !!(theme && theme.isLight);
     }
   };
   try {

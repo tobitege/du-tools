@@ -72,16 +72,16 @@
   function getThemeByName(themeName) {
     var wanted = normalizeLegacyThemeName(themeName);
     if (!wanted) {
-      return colorThemes[0];
+      return normalizeThemeDefinition(colorThemes[0]);
     }
     for (var i = 0; i < colorThemes.length; i += 1) {
       if (colorThemes[i].name === wanted) {
-        return colorThemes[i];
+        return normalizeThemeDefinition(colorThemes[i]);
       }
     }
     var compactTheme = findCompactThemeByName(wanted);
     if (compactTheme) {
-      return buildThemeFromCompact(compactTheme);
+      return normalizeThemeDefinition(buildThemeFromCompact(compactTheme));
     }
     return null;
   }
@@ -234,6 +234,27 @@
     return luminance >= 160;
   }
 
+  function resolveThemeLightFlag(theme, fallbackHex) {
+    if (theme && typeof theme === "object") {
+      if (typeof theme.isLight === "boolean") {
+        return theme.isLight;
+      }
+      if (typeof theme.il === "boolean") {
+        return theme.il;
+      }
+    }
+    return isLightHexColor(fallbackHex || (theme && (theme.surfaceMain || theme.surfaceElevated || theme.dot)) || "#000000");
+  }
+
+  function normalizeThemeDefinition(theme, fallbackHex) {
+    if (!theme || typeof theme !== "object") {
+      return theme;
+    }
+    var isLight = resolveThemeLightFlag(theme, fallbackHex);
+    theme.isLight = isLight;
+    return theme;
+  }
+
   function getRelativeLuminance(hex) {
     var rgb = parseHexColor(hex);
     function toLinear(value) {
@@ -352,7 +373,7 @@
     var base100 = String(compact.b1 || "#0d1117");
     var base200 = String(compact.b2 || shadeHexColor(base100, isLightHexColor(base100) ? -0.06 : 0.08));
     var base300 = String(compact.b3 || shadeHexColor(base200, isLightHexColor(base200) ? -0.12 : 0.12));
-    var isLightBase = isLightHexColor(base100);
+    var isLightBase = resolveThemeLightFlag(compact, base100);
     var baseContent = pickReadableTextColor(base100, compact.bc || (isLightHexColor(base100) ? "#111111" : "#d8dee4"), "#111111", "#f8f8f2", 5.5);
     var neutralContent = pickReadableTextColor(neutral, compact.nc || baseContent, "#111111", "#f8f8f2", 4.5);
     var info = String(compact.i || primary);
@@ -400,6 +421,7 @@
     return {
       name: themeName,
       label: normalizeThemeCatalogLabel(compact.l || compact.n || "Catalog Theme"),
+      isLight: isLightBase,
       dot: String(compact.d || primary),
       accent: withAlpha(primary, 0.92),
       header: withAlpha(base100, 0.97),
@@ -1464,6 +1486,11 @@
     if (!root || !root.style || typeof root.style.setProperty !== "function") {
       return;
     }
+    var isLight = !!(theme && theme.isLight);
+    try {
+      root.setAttribute("data-lua-probe-theme-light", isLight ? "1" : "0");
+    } catch (_ignoreThemeLightAttr) {}
+    root.style.setProperty("--lua-probe-theme-is-light", isLight ? "1" : "0");
     root.style.setProperty("--lua-probe-accent", theme.accent);
     root.style.setProperty("--lua-probe-header-bg", theme.header);
     root.style.setProperty("--lua-probe-caret-line-bg", theme.caretBg);
@@ -1545,6 +1572,7 @@
       sendPacket("lua_theme_changed", {
         theme: theme.name,
         label: theme.label,
+        isLight: !!theme.isLight,
         accent: theme.accent,
         header: theme.header,
         caretBg: theme.caretBg,

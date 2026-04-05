@@ -305,8 +305,15 @@
     applyTheme: applyTheme,
     setThemeEnabled: setThemeEnabled,
     isThemeEnabled: isThemeEnabled,
+    getActiveTheme: function () {
+      return getThemeByName(state.activeTheme || getDefaultThemeName());
+    },
     getActiveThemeName: function () {
       return state.activeTheme || getDefaultThemeName();
+    },
+    isActiveThemeLight: function () {
+      var theme = getThemeByName(state.activeTheme || getDefaultThemeName());
+      return !!(theme && theme.isLight);
     }
   };
   try {

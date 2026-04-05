@@ -1,9 +1,10 @@
 {
-  "generatedUtc": "2026-03-27T13:06:27.8082395Z",
+  "generatedUtc": "2026-04-05T15:57:05.8724696Z",
   "sourceDir": "D:\\github\\Flowery.NET\\Flowery.NET\\Themes\\Palettes",
   "compactSchema": {
     "n": "theme slug",
     "l": "label",
+    "il": "is light theme",
     "d": "dot color",
     "p": "primary",
     "pf": "primary focus",
@@ -40,6 +41,7 @@
     {
       "n": "daisy-abyss",
       "l": "Daisy Abyss",
+      "il": false,
       "d": "#BDFF00",
       "p": "#BDFF00",
       "pf": "#97CC00",
@@ -60,6 +62,7 @@
     {
       "n": "daisy-acid",
       "l": "Daisy Acid",
+      "il": true,
       "d": "#FF00FF",
       "p": "#FF00FF",
       "pf": "#CC00CC",
@@ -80,6 +83,7 @@
     {
       "n": "daisy-aqua",
       "l": "Daisy Aqua",
+      "il": false,
       "d": "#13ECF3",
       "p": "#13ECF3",
       "pf": "#0FBCC2",
@@ -100,6 +104,7 @@
     {
       "n": "daisy-autumn",
       "l": "Daisy Autumn",
+      "il": true,
       "d": "#8C0327",
       "p": "#8C0327",
       "pf": "#70021F",
@@ -120,6 +125,7 @@
     {
       "n": "daisy-black",
       "l": "Daisy Black",
+      "il": false,
       "d": "#3A3A3A",
       "p": "#3A3A3A",
       "pf": "#2E2E2E",
@@ -140,6 +146,7 @@
     {
       "n": "daisy-bumblebee",
       "l": "Daisy Bumblebee",
+      "il": true,
       "d": "#FDC700",
       "p": "#FDC700",
       "pf": "#CA9F00",
@@ -160,6 +167,7 @@
     {
       "n": "daisy-business",
       "l": "Daisy Business",
+      "il": false,
       "d": "#1C4E80",
       "p": "#1C4E80",
       "pf": "#163E66",
@@ -180,6 +188,7 @@
     {
       "n": "daisy-cmyk",
       "l": "Daisy Cmyk",
+      "il": true,
       "d": "#45AEEE",
       "p": "#45AEEE",
       "pf": "#378BBE",
@@ -200,6 +209,7 @@
     {
       "n": "daisy-coffee",
       "l": "Daisy Coffee",
+      "il": false,
       "d": "#DB924C",
       "p": "#DB924C",
       "pf": "#AF743C",
@@ -220,6 +230,7 @@
     {
       "n": "daisy-corporate",
       "l": "Daisy Corporate",
+      "il": true,
       "d": "#0082CE",
       "p": "#0082CE",
       "pf": "#0068A4",
@@ -240,6 +251,7 @@
     {
       "n": "daisy-cupcake",
       "l": "Daisy Cupcake",
+      "il": true,
       "d": "#44EBD3",
       "p": "#44EBD3",
       "pf": "#36BCA8",
@@ -260,6 +272,7 @@
     {
       "n": "daisy-cyberpunk",
       "l": "Daisy Cyberpunk",
+      "il": true,
       "d": "#FF6596",
       "p": "#FF6596",
       "pf": "#CC5078",
@@ -280,6 +293,7 @@
     {
       "n": "daisy-dark",
       "l": "Daisy Dark",
+      "il": false,
       "d": "#605DFF",
       "p": "#605DFF",
       "pf": "#4C4ACC",
@@ -300,6 +314,7 @@
     {
       "n": "daisy-dim",
       "l": "Daisy Dim",
+      "il": false,
       "d": "#9FE88D",
       "p": "#9FE88D",
       "pf": "#7FB970",
@@ -320,6 +335,7 @@
     {
       "n": "daisy-dracula",
       "l": "Daisy Dracula",
+      "il": false,
       "d": "#FF79C6",
       "p": "#FF79C6",
       "pf": "#CC609E",
@@ -340,6 +356,7 @@
     {
       "n": "daisy-emerald",
       "l": "Daisy Emerald",
+      "il": true,
       "d": "#66CC8A",
       "p": "#66CC8A",
       "pf": "#51A36E",
@@ -360,6 +377,7 @@
     {
       "n": "daisy-fantasy",
       "l": "Daisy Fantasy",
+      "il": true,
       "d": "#6D0076",
       "p": "#6D0076",
       "pf": "#57005E",
@@ -380,6 +398,7 @@
     {
       "n": "daisy-forest",
       "l": "Daisy Forest",
+      "il": false,
       "d": "#1FB854",
       "p": "#1FB854",
       "pf": "#189343",
@@ -400,6 +419,7 @@
     {
       "n": "daisy-garden",
       "l": "Daisy Garden",
+      "il": true,
       "d": "#FE0075",
       "p": "#FE0075",
       "pf": "#CB005D",
@@ -420,6 +440,7 @@
     {
       "n": "daisy-halloween",
       "l": "Daisy Halloween",
+      "il": false,
       "d": "#FF8F00",
       "p": "#FF8F00",
       "pf": "#CC7200",
@@ -440,6 +461,7 @@
     {
       "n": "daisy-lemonade",
       "l": "Daisy Lemonade",
+      "il": true,
       "d": "#419400",
       "p": "#419400",
       "pf": "#347600",
@@ -460,6 +482,7 @@
     {
       "n": "daisy-light",
       "l": "Daisy Light",
+      "il": true,
       "d": "#422AD5",
       "p": "#422AD5",
       "pf": "#3421AA",
@@ -480,6 +503,7 @@
     {
       "n": "daisy-lofi",
       "l": "Daisy Lofi",
+      "il": true,
       "d": "#0D0D0D",
       "p": "#0D0D0D",
       "pf": "#0A0A0A",
@@ -500,6 +524,7 @@
     {
       "n": "daisy-luxury",
       "l": "Daisy Luxury",
+      "il": false,
       "d": "#FFFFFF",
       "p": "#FFFFFF",
       "pf": "#CCCCCC",
@@ -520,6 +545,7 @@
     {
       "n": "daisy-night",
       "l": "Daisy Night",
+      "il": false,
       "d": "#3ABDF7",
       "p": "#3ABDF7",
       "pf": "#2E97C5",
@@ -540,6 +566,7 @@
     {
       "n": "daisy-nord",
       "l": "Daisy Nord",
+      "il": true,
       "d": "#5E81AC",
       "p": "#5E81AC",
       "pf": "#4B6789",
@@ -560,6 +587,7 @@
     {
       "n": "daisy-pastel",
       "l": "Daisy Pastel",
+      "il": true,
       "d": "#E9D4FF",
       "p": "#E9D4FF",
       "pf": "#BAA9CC",
@@ -580,6 +608,7 @@
     {
       "n": "daisy-retro",
       "l": "Daisy Retro",
+      "il": true,
       "d": "#FF9FA0",
       "p": "#FF9FA0",
       "pf": "#CC7F80",
@@ -600,6 +629,7 @@
     {
       "n": "daisy-silk",
       "l": "Daisy Silk",
+      "il": true,
       "d": "#1C1C29",
       "p": "#1C1C29",
       "pf": "#161620",
@@ -620,6 +650,7 @@
     {
       "n": "daisy-smooth",
       "l": "Daisy Smooth",
+      "il": false,
       "d": "#FB216F",
       "p": "#FB216F",
       "pf": "#D71152",
@@ -640,6 +671,7 @@
     {
       "n": "daisy-sunset",
       "l": "Daisy Sunset",
+      "il": false,
       "d": "#FF865B",
       "p": "#FF865B",
       "pf": "#CC6B48",
@@ -660,6 +692,7 @@
     {
       "n": "daisy-synthwave",
       "l": "Daisy Synthwave",
+      "il": false,
       "d": "#F861B4",
       "p": "#F861B4",
       "pf": "#C64D90",
@@ -680,6 +713,7 @@
     {
       "n": "daisy-valentine",
       "l": "Daisy Valentine",
+      "il": true,
       "d": "#F43098",
       "p": "#F43098",
       "pf": "#C32679",
@@ -700,6 +734,7 @@
     {
       "n": "daisy-winter",
       "l": "Daisy Winter",
+      "il": true,
       "d": "#0069FF",
       "p": "#0069FF",
       "pf": "#0054CC",
@@ -720,6 +755,7 @@
     {
       "n": "daisy-wireframe",
       "l": "Daisy Wireframe",
+      "il": true,
       "d": "#D4D4D4",
       "p": "#D4D4D4",
       "pf": "#A9A9A9",

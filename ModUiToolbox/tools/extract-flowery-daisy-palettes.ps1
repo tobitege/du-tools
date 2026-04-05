@@ -54,6 +54,37 @@ function Get-ThemeSlug {
     return ("daisy-" + $tail).ToLowerInvariant()
 }
 
+function Get-RgbFromHex {
+    param([string]$Hex)
+
+    $value = [string]$Hex
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        return @{ r = 0; g = 0; b = 0 }
+    }
+
+    $value = ($value -replace '[^0-9A-Fa-f]', '')
+    if ($value.Length -eq 3) {
+        $value = ([string]$value[0] * 2) + ([string]$value[1] * 2) + ([string]$value[2] * 2)
+    }
+    if ($value.Length -ne 6) {
+        return @{ r = 0; g = 0; b = 0 }
+    }
+
+    return @{
+        r = [Convert]::ToInt32($value.Substring(0, 2), 16)
+        g = [Convert]::ToInt32($value.Substring(2, 2), 16)
+        b = [Convert]::ToInt32($value.Substring(4, 2), 16)
+    }
+}
+
+function Test-IsLightHexColor {
+    param([string]$Hex)
+
+    $rgb = Get-RgbFromHex -Hex $Hex
+    $luminance = ($rgb.r * 0.299) + ($rgb.g * 0.587) + ($rgb.b * 0.114)
+    return $luminance -ge 160
+}
+
 function New-CompactTheme {
     param(
         [string]$Path,
@@ -64,6 +95,7 @@ function New-CompactTheme {
     return [ordered]@{
         n = Get-ThemeSlug $baseName
         l = Get-ThemeLabel $baseName
+        il = Test-IsLightHexColor $Colors["DaisyBase100Color"]
         d = $Colors["DaisyPrimaryColor"]
         p = $Colors["DaisyPrimaryColor"]
         pf = $Colors["DaisyPrimaryFocusColor"]
@@ -127,6 +159,7 @@ $payload = [ordered]@{
     compactSchema = [ordered]@{
         n = "theme slug"
         l = "label"
+        il = "is light theme"
         d = "dot color"
         p = "primary"
         pf = "primary focus"
