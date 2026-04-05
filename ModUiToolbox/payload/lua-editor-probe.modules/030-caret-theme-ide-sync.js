@@ -3,7 +3,10 @@
     var map = {
       green: "monokai",
       yellow: "github-dark",
-      red: "gruvbox-dark"
+      red: "gruvbox-dark",
+      black: "daisy-black",
+      forest: "daisy-forest",
+      smooth: "daisy-smooth"
     };
     var key = String(themeName || "").toLowerCase();
     return map[key] || themeName;
@@ -106,6 +109,60 @@
       item.setAttribute("data-active", isActive ? "1" : "0");
       item.setAttribute("tabindex", isActive ? "0" : "-1");
     }
+  }
+
+  function updateThemeOffButtonSelection() {
+    var buttons = document.querySelectorAll(".lua-theme-off-button");
+    if (!buttons || !buttons.length) {
+      return;
+    }
+    var isOff = !state.themeEnabled;
+    for (var i = 0; i < buttons.length; i += 1) {
+      var button = buttons[i];
+      button.setAttribute("data-active", isOff ? "1" : "0");
+      button.setAttribute("aria-pressed", isOff ? "true" : "false");
+      button.setAttribute("title", isOff ? "Theme is off" : "Turn theme off");
+    }
+  }
+
+  function setThemeRootActive(root, enabled) {
+    if (!root) {
+      return;
+    }
+    try {
+      if (enabled) {
+        root.setAttribute("data-lua-probe-active", "1");
+      } else {
+        root.removeAttribute("data-lua-probe-active");
+      }
+    } catch (_ignoreThemeRootActive) {}
+  }
+
+  function syncEditorThemeActivation() {
+    var luaRoot = document.getElementById("dpu_editor");
+    var screenRoot = getScreenEditorRoot();
+    var extraRoots = document.querySelectorAll("[data-modui-theme-target=\"1\"]");
+    setThemeRootActive(luaRoot, !!state.themeEnabled);
+    setThemeRootActive(screenRoot, !!state.themeEnabled && !!screenRoot && isElementVisible(screenRoot));
+    if (extraRoots && typeof extraRoots.length === "number") {
+      for (var i = 0; i < extraRoots.length; i += 1) {
+        setThemeRootActive(extraRoots[i], !!state.themeEnabled);
+      }
+    }
+    updateThemeOffButtonSelection();
+  }
+
+  function setThemeEnabled(enabled, persist) {
+    state.themeEnabled = !!enabled;
+    if (persist !== false) {
+      saveThemeEnabledPreference(state.themeEnabled);
+    }
+    syncEditorThemeActivation();
+    return state.themeEnabled;
+  }
+
+  function isThemeEnabled() {
+    return !!state.themeEnabled;
   }
 
   function parseHexColor(hex) {
@@ -287,6 +344,7 @@
   }
 
   function buildThemeFromCompact(compact) {
+    var themeName = String(compact.n || "catalog-theme");
     var primary = String(compact.p || compact.d || "#58a6ff");
     var primaryFocus = String(compact.pf || primary);
     var primaryContent = pickReadableTextColor(primary, compact.pc || (isLightHexColor(primary) ? "#101418" : "#f8f8f2"), "#101418", "#f8f8f2", 4.5);
@@ -308,6 +366,7 @@
     var deep = isLightBase
       ? mixHexColor(base200, base300, 0.58)
       : mixHexColor(base100, neutral, 0.55);
+    var surfaceBackdrop = mixHexColor(base200, deep, isLightBase ? 0.52 : 0.42);
     var textMuted = pickReadableTextColor(base200, baseContent, "#111111", "#f8f8f2", 4.5);
     var textDim = pickReadableTextColor(base200, mixHexColor(baseContent, base300, 0.55), shadeHexColor(textMuted, isLightHexColor(base200) ? -0.3 : 0.3), textMuted, 3.2);
     var comment = pickReadableTextColor(deep, mixHexColor(baseContent, base300, 0.68), "#4f5964", "#9ea8b3", 3.2);
@@ -323,11 +382,23 @@
     var cmOperator = pickReadableTextColor(deep, mixHexColor(cmText, base300, 0.18), "#2b3137", "#d8dee4", 3.2);
     var cmProperty = ensureReadableAccentColor(deep, mixHexColor(primary, info, 0.25), 3.6);
     var borderStrong = isLightBase ? mixHexColor(base300, baseContent, 0.1) : mixHexColor(base300, neutral, 0.15);
+    var borderHover = info;
+    var selectionBorder = withAlpha(primary, 0.92);
+    var modeSelectedBg = buildLinearGradient(shadeHexColor(primary, 0.16), shadeHexColor(primary, 0.05), shadeHexColor(primaryFocus, -0.08));
+    var modeSelectedBorder = withAlpha(primary, 0.78);
+    var modeSelectedColor = primaryContent;
+    if (themeName === "daisy-black") {
+      borderHover = "#6fbfff";
+      selectionBorder = "rgba(111,191,255,0.92)";
+      modeSelectedBg = buildLinearGradient("#7fd0ff", "#58a9ff", "#2f76d9");
+      modeSelectedBorder = "rgba(111,191,255,0.92)";
+      modeSelectedColor = "#f6fbff";
+    }
     var btnDisabledBg = buildLinearGradient(shadeHexColor(base200, isLightBase ? -0.03 : 0.04), rowAlt, shadeHexColor(deep, isLightBase ? -0.08 : -0.02));
     var btnDisabledBorder = withAlpha(borderStrong, isLightBase ? 0.6 : 0.5);
     var btnDisabledColor = withAlpha(textDim, isLightBase ? 0.92 : 0.72);
     return {
-      name: String(compact.n || "catalog-theme"),
+      name: themeName,
       label: normalizeThemeCatalogLabel(compact.l || compact.n || "Catalog Theme"),
       dot: String(compact.d || primary),
       accent: withAlpha(primary, 0.92),
@@ -337,11 +408,13 @@
       onAccent: primaryContent,
       surfaceMain: base100,
       surfaceElevated: base200,
+      surfaceBackdrop: surfaceBackdrop,
       surfaceRow: row,
       surfaceDeep: deep,
       surfaceRowAlt: rowAlt,
       borderStrong: borderStrong,
-      borderHover: info,
+      borderHover: borderHover,
+      selectionBorder: selectionBorder,
       shadow: isLightHexColor(base100) ? "rgba(0,0,0,0.18)" : "rgba(0,0,0,0.5)",
       textMuted: textMuted,
       textDim: textDim,
@@ -364,6 +437,9 @@
       btnApplyColor: primaryContent,
       btnApplyHoverBg: buildLinearGradient(shadeHexColor(primary, 0.16), shadeHexColor(primary, 0.05), shadeHexColor(primaryFocus, -0.08)),
       btnApplyActiveBg: buildLinearGradient(shadeHexColor(primaryFocus, -0.02), shadeHexColor(primaryFocus, -0.12), shadeHexColor(primaryFocus, -0.24)),
+      modeSelectedBg: modeSelectedBg,
+      modeSelectedBorder: modeSelectedBorder,
+      modeSelectedColor: modeSelectedColor,
       btnCancelBg: buildLinearGradient(shadeHexColor(neutral, 0.1), neutral, shadeHexColor(neutral, -0.12)),
       btnCancelBorder: withAlpha(base300, 0.55),
       btnCancelColor: neutralContent,
@@ -405,6 +481,7 @@
     if (!themeName) {
       return;
     }
+    setThemeEnabled(true, persist !== false);
     applyTheme(themeName, persist !== false);
     updateThemeCatalogSelection(state.activeTheme);
     setThemeCatalogFocus(panel, item, shouldFocus === true);
@@ -580,7 +657,9 @@
 
     var triggerId = baseId + "-catalog-trigger";
     var panelId = baseId + "-catalog-panel";
+    var offButtonId = baseId + "-off";
     var trigger = document.getElementById(triggerId);
+    var offButton = document.getElementById(offButtonId);
     if (!trigger) {
       trigger = document.createElement("button");
       trigger.type = "button";
@@ -602,6 +681,29 @@
 
     if (trigger.parentNode !== switcher) {
       switcher.appendChild(trigger);
+    }
+
+    if (!offButton) {
+      offButton = document.createElement("button");
+      offButton.type = "button";
+      offButton.id = offButtonId;
+      offButton.className = "lua-theme-off-button";
+      offButton.textContent = "Off";
+      offButton.setAttribute("aria-label", "Theme off");
+      offButton.addEventListener("click", function (event) {
+        if (event && typeof event.preventDefault === "function") {
+          event.preventDefault();
+        }
+        if (event && typeof event.stopPropagation === "function") {
+          event.stopPropagation();
+        }
+        hideThemeCatalogPanels();
+        setThemeEnabled(false, true);
+      }, true);
+    }
+
+    if (offButton.parentNode !== switcher) {
+      switcher.appendChild(offButton);
     }
 
     var panel = document.getElementById(panelId);
@@ -1264,7 +1366,15 @@
   }
 
   function getDefaultThemeName() {
-    return "daisy-night";
+    return "daisy-black";
+  }
+
+  function getThemeDotShortcuts() {
+    return [
+      { name: "daisy-black", label: "Black", dot: "#a6e22e" },
+      { name: "daisy-emerald", label: "Emerald", dot: "#6ee7b7" },
+      { name: "daisy-smooth", label: "Smooth", dot: "#ff9f43" }
+    ];
   }
 
   function createThemeDotSwitcher(switcherId) {
@@ -1272,23 +1382,53 @@
     switcher.id = switcherId;
     switcher.className = "modui-theme-switcher";
 
-    for (var i = 0; i < colorThemes.length; i += 1) {
-      (function (theme) {
+    var shortcuts = getThemeDotShortcuts();
+    for (var i = 0; i < shortcuts.length; i += 1) {
+      (function (shortcut) {
+        var theme = getThemeByName(shortcut.name) || shortcut;
         var dot = document.createElement("button");
         dot.type = "button";
         dot.className = "lua-theme-dot";
-        dot.style.background = theme.dot;
-        dot.setAttribute("data-theme", theme.name);
+        dot.style.background = shortcut.dot || theme.dot;
+        dot.setAttribute("data-theme", shortcut.name);
         dot.setAttribute("data-active", "0");
-        dot.setAttribute("title", "Theme: " + (theme.label || theme.name));
-        dot.setAttribute("aria-label", "Theme: " + (theme.label || theme.name));
+        dot.setAttribute("title", "Theme: " + (theme.label || shortcut.label || shortcut.name));
+        dot.setAttribute("aria-label", "Theme: " + (theme.label || shortcut.label || shortcut.name));
         dot.addEventListener("click", function () {
-          applyTheme(theme.name, true);
+          setThemeEnabled(true, true);
+          applyTheme(shortcut.name, true);
         }, true);
         switcher.appendChild(dot);
-      })(colorThemes[i]);
+      })(shortcuts[i]);
     }
 
+    return switcher;
+  }
+
+  function ensureSharedThemeSwitcher(hostNode, switcherId, applyActiveTheme) {
+    var resolvedHost = hostNode || null;
+    var resolvedId = String(switcherId || "").trim();
+    var switcher;
+    if (!resolvedHost || typeof resolvedHost.appendChild !== "function" || !resolvedId) {
+      return null;
+    }
+
+    switcher = document.getElementById(resolvedId);
+    if (!switcher) {
+      switcher = createThemeDotSwitcher(resolvedId);
+    }
+
+    if (switcher.parentNode !== resolvedHost) {
+      resolvedHost.appendChild(switcher);
+    }
+
+    ensureThemeCatalogTrigger(switcher, resolvedId);
+    updateThemeDotSelection(state.activeTheme || getDefaultThemeName());
+    updateThemeCatalogSelection(state.activeTheme || getDefaultThemeName());
+    updateThemeOffButtonSelection();
+    if (applyActiveTheme !== false) {
+      applyTheme(state.activeTheme || getDefaultThemeName(), false);
+    }
     return switcher;
   }
 
@@ -1296,11 +1436,26 @@
     var roots = [];
     var luaRoot = document.getElementById("dpu_editor");
     var screenRoot = getScreenEditorRoot();
+    var extraRoots = document.querySelectorAll("[data-modui-theme-target=\"1\"]");
+    function pushRoot(node) {
+      if (!node || !node.style || typeof node.style.setProperty !== "function") {
+        return;
+      }
+      if (roots.indexOf(node) >= 0) {
+        return;
+      }
+      roots.push(node);
+    }
     if (luaRoot) {
-      roots.push(luaRoot);
+      pushRoot(luaRoot);
     }
     if (screenRoot && screenRoot !== luaRoot) {
-      roots.push(screenRoot);
+      pushRoot(screenRoot);
+    }
+    if (extraRoots && typeof extraRoots.length === "number") {
+      for (var i = 0; i < extraRoots.length; i += 1) {
+        pushRoot(extraRoots[i]);
+      }
     }
     return roots;
   }
@@ -1316,11 +1471,13 @@
     root.style.setProperty("--lua-probe-on-accent", theme.onAccent);
     root.style.setProperty("--lua-probe-surface-main", theme.surfaceMain);
     root.style.setProperty("--lua-probe-surface-elevated", theme.surfaceElevated);
+    root.style.setProperty("--lua-probe-surface-backdrop", theme.surfaceBackdrop || theme.surfaceMain);
     root.style.setProperty("--lua-probe-surface-row", theme.surfaceRow);
     root.style.setProperty("--lua-probe-surface-deep", theme.surfaceDeep);
     root.style.setProperty("--lua-probe-surface-row-alt", theme.surfaceRowAlt);
     root.style.setProperty("--lua-probe-border-strong", theme.borderStrong);
     root.style.setProperty("--lua-probe-border-hover", theme.borderHover);
+    root.style.setProperty("--lua-probe-selection-border", theme.selectionBorder || theme.accent);
     root.style.setProperty("--lua-probe-shadow", theme.shadow);
     root.style.setProperty("--lua-probe-text-muted", theme.textMuted);
     root.style.setProperty("--lua-probe-text-dim", theme.textDim);
@@ -1343,6 +1500,9 @@
     root.style.setProperty("--lua-probe-btn-apply-color", theme.btnApplyColor);
     root.style.setProperty("--lua-probe-btn-apply-hover-bg", theme.btnApplyHoverBg);
     root.style.setProperty("--lua-probe-btn-apply-active-bg", theme.btnApplyActiveBg);
+    root.style.setProperty("--lua-probe-mode-selected-bg", theme.modeSelectedBg || theme.btnApplyBg);
+    root.style.setProperty("--lua-probe-mode-selected-border", theme.modeSelectedBorder || theme.btnApplyBorder);
+    root.style.setProperty("--lua-probe-mode-selected-color", theme.modeSelectedColor || theme.btnApplyColor);
     root.style.setProperty("--lua-probe-btn-cancel-bg", theme.btnCancelBg);
     root.style.setProperty("--lua-probe-btn-cancel-border", theme.btnCancelBorder);
     root.style.setProperty("--lua-probe-btn-cancel-color", theme.btnCancelColor);
@@ -1376,8 +1536,10 @@
       applyThemeToRoot(roots[i], theme);
     }
     state.lastAppliedTheme = theme.name;
+    syncEditorThemeActivation();
     updateThemeDotSelection(theme.name);
     updateThemeCatalogSelection(theme.name);
+    updateThemeOffButtonSelection();
 
     if (emitPacket) {
       sendPacket("lua_theme_changed", {
@@ -1403,16 +1565,7 @@
       return;
     }
 
-    var switcher = document.getElementById("ModUiToolbox-lua-theme-dots");
-    if (!switcher) {
-      switcher = createThemeDotSwitcher("ModUiToolbox-lua-theme-dots");
-    }
-
-    if (switcher.parentNode !== header) {
-      header.appendChild(switcher);
-    }
-    ensureThemeCatalogTrigger(switcher, "ModUiToolbox-lua-theme-dots");
-
+    ensureSharedThemeSwitcher(header, "ModUiToolbox-lua-theme-dots", false);
     ensureLuaBufferSize();
     applyTheme(state.activeTheme || getDefaultThemeName(), false);
   }
@@ -1427,15 +1580,7 @@
       return;
     }
 
-    var switcher = document.getElementById("ModUiToolbox-screen-theme-dots");
-    if (!switcher) {
-      switcher = createThemeDotSwitcher("ModUiToolbox-screen-theme-dots");
-    }
-
-    if (switcher.parentNode !== header) {
-      header.appendChild(switcher);
-    }
-    ensureThemeCatalogTrigger(switcher, "ModUiToolbox-screen-theme-dots");
+    ensureSharedThemeSwitcher(header, "ModUiToolbox-screen-theme-dots", false);
   }
 
   function ensureScreenBufferSize(root) {
@@ -1517,7 +1662,7 @@
       state.screenLastRestoredContextKey = "";
       state.screenPreferenceRestoreContextKey = "";
       try {
-        root.removeAttribute("data-lua-probe-active");
+        setThemeRootActive(root, false);
       } catch (_ignoreScreenProbeInactive) {}
       return;
     }
@@ -1529,7 +1674,7 @@
       state.lastScreenContextKey = contextKey;
     }
 
-    root.setAttribute("data-lua-probe-active", "1");
+    setThemeRootActive(root, !!state.themeEnabled);
     ensureScreenThemeSwitcher(root);
     ensureScreenIdeSyncButton(root);
     ensureScreenBufferSize(root);

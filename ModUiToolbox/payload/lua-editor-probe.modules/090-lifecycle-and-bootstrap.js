@@ -18,7 +18,11 @@
   function onEditorOpened() {
     var root = document.getElementById("dpu_editor");
     if (root) {
-      root.setAttribute("data-lua-probe-active", "1");
+      if (state.themeEnabled) {
+        root.setAttribute("data-lua-probe-active", "1");
+      } else {
+        root.removeAttribute("data-lua-probe-active");
+      }
     }
     state.scrollTopByContext = Object.create(null);
     state.lastContextKey = "";
@@ -296,7 +300,14 @@
   state.luaEditorEnhancements = {
     install: installLuaEditorEnhancements,
     uninstall: uninstallLuaEditorEnhancements,
-    runMaintenance: runLuaEditorEnhancementMaintenance
+    runMaintenance: runLuaEditorEnhancementMaintenance,
+    ensureThemeSwitcherHost: ensureSharedThemeSwitcher,
+    applyTheme: applyTheme,
+    setThemeEnabled: setThemeEnabled,
+    isThemeEnabled: isThemeEnabled,
+    getActiveThemeName: function () {
+      return state.activeTheme || getDefaultThemeName();
+    }
   };
   try {
     var enhancementRecord = typeof getRuntimeModuleRecord === "function"

@@ -64,6 +64,14 @@
     return def.state;
   }
 
+  function hasRuntimeModuleStateValue(moduleId, key) {
+    var stateObject = getRuntimeModuleStateObject(moduleId);
+    if (!stateObject || typeof key === "undefined" || key === null || key === "") {
+      return false;
+    }
+    return Object.prototype.hasOwnProperty.call(stateObject, key);
+  }
+
   function getRuntimeModuleStateValue(moduleId, key, fallbackValue) {
     var stateObject = getRuntimeModuleStateObject(moduleId);
     if (!stateObject) {
@@ -133,6 +141,17 @@
     return persistRuntimeModuleStateValue(luaEditorEnhancementModuleId, "theme", String(themeName || ""));
   }
 
+  function loadThemeEnabledPreference() {
+    if (!hasRuntimeModuleStateValue(luaEditorEnhancementModuleId, "themeEnabled")) {
+      return true;
+    }
+    return !!getRuntimeModuleStateValue(luaEditorEnhancementModuleId, "themeEnabled", true);
+  }
+
+  function saveThemeEnabledPreference(enabled) {
+    return persistRuntimeModuleStateValue(luaEditorEnhancementModuleId, "themeEnabled", !!enabled);
+  }
+
   function loadThemeCatalogCache() {
     try {
       if (!window.localStorage || typeof window.localStorage.getItem !== "function") {
@@ -164,7 +183,8 @@
     menuHits: 0,
     editorVisible: false,
     managerWrapped: false,
-    activeTheme: loadThemePreference() || "daisy-night",
+    activeTheme: loadThemePreference() || "daisy-black",
+    themeEnabled: loadThemeEnabledPreference(),
     lastAppliedTheme: "",
     scrollTopByContext: Object.create(null),
     screenScrollTopByContext: Object.create(null),
@@ -221,6 +241,7 @@
       onAccent: "#272822",
       surfaceMain: "#272822",
       surfaceElevated: "#3e3d32",
+      surfaceBackdrop: "#2f2f29",
       surfaceRow: "#49483e",
       surfaceDeep: "#1e1f1c",
       surfaceRowAlt: "#423f36",
@@ -268,6 +289,7 @@
       onAccent: "#0d1117",
       surfaceMain: "#0d1117",
       surfaceElevated: "#161b22",
+      surfaceBackdrop: "#12161d",
       surfaceRow: "#21262d",
       surfaceDeep: "#010409",
       surfaceRowAlt: "#30363d",
@@ -315,6 +337,7 @@
       onAccent: "#282828",
       surfaceMain: "#282828",
       surfaceElevated: "#3c3836",
+      surfaceBackdrop: "#322f2e",
       surfaceRow: "#504945",
       surfaceDeep: "#1d2021",
       surfaceRowAlt: "#403c3a",
@@ -1383,6 +1406,9 @@
       + "--lua-probe-btn-apply-color:#f8f8f2;"
       + "--lua-probe-btn-apply-hover-bg:linear-gradient(180deg,#727c60 0%,#586348 45%,#3e4836 100%);"
       + "--lua-probe-btn-apply-active-bg:linear-gradient(180deg,#525a48 0%,#3a4236 45%,#2b3028 100%);"
+      + "--lua-probe-mode-selected-bg:linear-gradient(180deg,#727c60 0%,#586348 45%,#3e4836 100%);"
+      + "--lua-probe-mode-selected-border:rgba(166,226,46,0.78);"
+      + "--lua-probe-mode-selected-color:#f8f8f2;"
       + "--lua-probe-btn-cancel-bg:linear-gradient(180deg,#525046 0%,#403e38 45%,#302e2a 100%);"
       + "--lua-probe-btn-cancel-border:rgba(183,174,140,0.55);"
       + "--lua-probe-btn-cancel-color:#cfcfc2;"
@@ -1415,7 +1441,8 @@
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot:not(.disabled):hover{"
       + "border-color:var(--lua-probe-border-hover) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot.selected{"
-      + "background-color:var(--lua-probe-surface-row) !important;color:var(--lua-probe-text-muted) !important;}"
+      + "background-color:var(--lua-probe-surface-row) !important;color:var(--lua-probe-text-muted) !important;"
+      + "border-color:var(--lua-probe-selection-border) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot.selected::after{"
       + "background-color:var(--lua-probe-accent-solid) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.slots .slots_container .slot.active,"
@@ -1623,50 +1650,90 @@
       + "#dpu_editor #ModUiToolbox-lua-theme-dots .lua-theme-dot{"
       + "width:12px;height:12px;border-radius:999px;border:1px solid rgba(255,255,255,0.6);"
       + "padding:0;cursor:pointer;opacity:0.88;}"
-      + "#dpu_editor #ModUiToolbox-lua-theme-dots .lua-theme-dot[data-active=\"1\"]{"
+      + "#ModUiToolbox-industry-panel-theme-switcher-host{"
+      + "position:fixed;left:0;top:0;z-index:2147482601;display:flex;align-items:center;overflow:visible;pointer-events:auto;}"
+      + "#ModUiToolbox-industry-panel-theme-switcher{"
+      + "display:flex;gap:8px;align-items:center;overflow:visible;}"
+      + "#dpu_editor #ModUiToolbox-lua-theme-dots .lua-theme-dot,"
+      + ".screen_content_editor_panel #ModUiToolbox-screen-theme-dots .lua-theme-dot,"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-dot{"
+      + "width:12px;height:12px;border-radius:999px;border:1px solid rgba(255,255,255,0.6);"
+      + "padding:0;cursor:pointer;opacity:0.88;}"
+      + "#dpu_editor #ModUiToolbox-lua-theme-dots .lua-theme-dot[data-active=\"1\"],"
+      + ".screen_content_editor_panel #ModUiToolbox-screen-theme-dots .lua-theme-dot[data-active=\"1\"],"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-dot[data-active=\"1\"]{"
       + "transform:scale(1.1);opacity:1;box-shadow:0 0 0 1px rgba(0,0,0,0.55),0 0 8px rgba(255,255,255,0.35);}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-trigger,"
-      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-trigger{"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-trigger,"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-trigger{"
       + "width:18px;height:18px;padding:0;border-radius:6px;cursor:pointer;"
       + "display:flex;align-items:center;justify-content:center;"
       + "margin-left:3px;"
       + "border:1px solid rgba(255,255,255,0.22);background:rgba(0,0,0,0.28);"
       + "color:var(--lua-probe-text-muted) !important;font-family:Play,sans-serif;font-size:11px;font-weight:900;line-height:1;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-trigger:hover,"
-      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-trigger:hover{"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-trigger:hover,"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-trigger:hover{"
       + "border-color:var(--lua-probe-border-hover) !important;color:var(--lua-probe-text-muted) !important;background:rgba(0,0,0,0.42);}"
+      + "#dpu_editor .modui-theme-switcher .lua-theme-off-button,"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-off-button,"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-off-button{"
+      + "min-width:26px;height:18px;padding:0 6px;border-radius:6px;cursor:pointer;"
+      + "display:flex;align-items:center;justify-content:center;"
+      + "margin-left:2px;"
+      + "border:1px solid rgba(255,255,255,0.22);background:rgba(0,0,0,0.24);"
+      + "color:var(--lua-probe-text-dim) !important;font-family:Play,sans-serif;font-size:10px;font-weight:900;line-height:1;text-transform:uppercase;}"
+      + "#dpu_editor .modui-theme-switcher .lua-theme-off-button:hover,"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-off-button:hover,"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-off-button:hover{"
+      + "border-color:var(--lua-probe-border-hover) !important;color:var(--lua-probe-text-muted) !important;background:rgba(0,0,0,0.38);}"
+      + "#dpu_editor .modui-theme-switcher .lua-theme-off-button[data-active=\"1\"],"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-off-button[data-active=\"1\"],"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-off-button[data-active=\"1\"]{"
+      + "border-color:rgba(255,185,185,0.92) !important;background:rgba(130,36,36,0.88) !important;color:#fff5f2 !important;"
+      + "box-shadow:0 0 0 1px rgba(0,0,0,0.22),0 0 8px rgba(160,38,38,0.28);}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-panel,"
-      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-panel{"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-panel,"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-panel{"
       + "display:none;position:absolute;left:0;top:calc(100% + 8px);z-index:40;width:420px;max-height:52vh;overflow:auto;"
       + "padding:10px;border-radius:10px;background:var(--lua-probe-surface-elevated) !important;"
       + "border:1px solid var(--lua-probe-accent) !important;box-shadow:0 10px 26px rgba(0,0,0,0.42);}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-panel[data-open=\"1\"],"
-      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-panel[data-open=\"1\"]{display:block;}"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-panel[data-open=\"1\"],"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-panel[data-open=\"1\"]{display:block;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-status,"
-      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-status{"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-status,"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-status{"
       + "color:var(--lua-probe-text-dim) !important;font-family:Play,sans-serif;font-size:12px;font-weight:700;margin-bottom:8px;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-list,"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-right:-6px;margin-bottom:-8px;}"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-right:-6px;margin-bottom:-8px;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-item,"
-      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-item{"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-item,"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-item{"
       + "display:flex;align-items:center;width:calc(100% - 6px);min-height:30px;padding:7px 10px;border-radius:8px;cursor:pointer;"
       + "margin:0 6px 8px 0;"
       + "border:1px solid transparent;background:var(--lua-probe-surface-row) !important;color:var(--lua-probe-text-muted) !important;"
       + "text-align:left;font-family:Play,sans-serif;font-size:13px;font-weight:700;outline:none;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-item:hover,"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-item:focus,"
-      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-item:hover{"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-item:hover,"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-item:hover,"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-item:focus{"
       + "border-color:var(--lua-probe-border-hover) !important;background:var(--lua-probe-surface-row-alt) !important;color:var(--lua-probe-text-muted) !important;}"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-item:focus{"
       + "border-color:var(--lua-probe-border-hover) !important;background:var(--lua-probe-surface-row-alt) !important;color:var(--lua-probe-text-muted) !important;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-item[data-active=\"1\"],"
-      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-item[data-active=\"1\"]{"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-item[data-active=\"1\"],"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-item[data-active=\"1\"]{"
       + "border-color:var(--lua-probe-accent) !important;box-shadow:0 0 0 1px rgba(0,0,0,0.25) inset;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-swatch,"
-      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-swatch{"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-swatch,"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-swatch{"
       + "width:12px;height:12px;border-radius:999px;flex:0 0 12px;border:1px solid rgba(255,255,255,0.55);margin-right:8px;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-label,"
-      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-label{"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-label,"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-label{"
       + "display:block;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:uppercase;}"
       + "#dpu_editor #ModUiToolbox-lua-caret-toggle,#dpu_editor #ModUiToolbox-lua-ide-sync{"
       + "font-family:Play,sans-serif;font-size:1.11111111vh;font-weight:900;text-transform:uppercase;"
@@ -1866,6 +1933,243 @@
       + "background:var(--lua-probe-btn-disabled-bg) !important;"
       + "background-image:none !important;text-shadow:none !important;"
       + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.04),inset 0 -1px 0 rgba(0,0,0,0.5) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"]{"
+      + "background:var(--lua-probe-surface-backdrop) !important;background-image:none !important;"
+      + "color:var(--lua-probe-text-muted) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .header_block{"
+      + "background:var(--lua-probe-header-bg) !important;border-bottom:1px solid var(--lua-probe-accent) !important;"
+      + "box-shadow:0 8px 20px rgba(0,0,0,0.24) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .header_block .context_tips,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_tips{"
+      + "background:transparent !important;background-image:none !important;color:var(--lua-probe-text-muted) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .header_block .industry_panel_title,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .header_block .title,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .header_block .tips_text,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .header_block .close_button{"
+      + "color:var(--lua-probe-text-muted) !important;fill:var(--lua-probe-text-muted) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .menu_fixed,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .menu_fixed .image,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .menu_fixed .menu_stack{"
+      + "background:var(--lua-probe-surface-elevated) !important;background-image:none !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .layout_background_logo{"
+      + "opacity:0.12 !important;filter:grayscale(1) saturate(0.45) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .subPanel_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .sub_panel_content,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_wrapper{"
+      + "background:var(--lua-probe-surface-backdrop) !important;background-image:none !important;color:var(--lua-probe-text-muted) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .active_recipe_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .production_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .left_column,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .middle_column,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .right_column{"
+      + "background:var(--lua-probe-surface-backdrop) !important;background-image:none !important;color:var(--lua-probe-text-muted) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .middle_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .basic_properties_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .custom_properties_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .inner_list,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .custom_properties_list,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .ingredients_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .input_container_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .header_industry_type,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .explanation_industry_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .production_type_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .claim_product_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .production_action_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .stats_line_1,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .stats_line_2,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .products_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .output_container_area{"
+      + "background:var(--lua-probe-surface-elevated) !important;border-color:var(--lua-probe-border-strong) !important;"
+      + "color:var(--lua-probe-text-muted) !important;box-shadow:none !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .ingredients_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .input_container_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .products_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .output_container_area{"
+      + "border:1px solid var(--lua-probe-accent) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .middle_column .header_industry_type,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .middle_column .explanation_industry_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .middle_column .production_type_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .middle_column .claim_product_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .middle_column .production_action_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .middle_column .current_progression_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .middle_column .stats_line_1,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .middle_column .stats_line_2{"
+      + "padding:4px !important;box-sizing:border-box !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .left_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .middle_area .title_line,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .right_area .title_line,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .ingredients_area .title_line,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .input_container_area .title_line,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .products_area .title_line,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .output_container_area .title_line{"
+      + "background:transparent !important;color:var(--lua-probe-text-muted) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .right_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .content_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .description,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .display_line,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .item_line,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .checkbox_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .input_area{"
+      + "background:var(--lua-probe-surface-elevated) !important;border-color:var(--lua-probe-border-strong) !important;"
+      + "color:var(--lua-probe-text-muted) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .item_data,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .item_node,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .a_container,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .a_container .data,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .progress_bar,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .input_amount{"
+      + "background:var(--lua-probe-surface-row) !important;border-color:var(--lua-probe-border-strong) !important;"
+      + "color:var(--lua-probe-text-muted) !important;box-shadow:none !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .item_node:hover,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .a_container:hover{"
+      + "background:var(--lua-probe-surface-row-alt) !important;border-color:var(--lua-probe-border-hover) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .menu_entry,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .menu_fixed .menu_entry{"
+      + "background:var(--lua-probe-surface-row) !important;border-color:var(--lua-probe-border-strong) !important;"
+      + "color:var(--lua-probe-text-muted) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .menu_entry:hover,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .menu_fixed .menu_entry:hover{"
+      + "background:var(--lua-probe-surface-row-alt) !important;border-color:var(--lua-probe-border-hover) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .menu_entry.selected,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .menu_fixed .menu_entry.selected{"
+      + "background:var(--lua-probe-btn-apply-bg) !important;border-color:var(--lua-probe-btn-apply-border) !important;"
+      + "color:var(--lua-probe-btn-apply-color) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .category_title,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .info_label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .tips_text{"
+      + "color:var(--lua-probe-text-dim) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .industry_name,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .recipe_name,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .recipe_sub_title,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .container_name,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .name,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .quantity,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .capacity,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .value,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .title,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .inner_title{"
+      + "color:var(--lua-probe-text-muted) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .basic_properties_area .item_data .label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .custom_properties_area .item_data .label{"
+      + "background:var(--lua-probe-surface-row) !important;color:var(--lua-probe-text-muted) !important;border:none !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .basic_properties_area .item_data .value,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .custom_properties_area .item_data .value{"
+      + "background:var(--lua-probe-surface-main) !important;color:var(--lua-probe-text-muted) !important;border:none !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .recipe_description,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .description_mode,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .type_selection_line .label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .claim_product_area .label{"
+      + "color:var(--lua-probe-text-muted) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .item_count{"
+      + "color:var(--lua-probe-text-dim) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .right_arrow .arrow,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .icon_close,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .icon_error,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .custom_inner_spin_button,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .custom_outer_spin_button{"
+      + "fill:var(--lua-probe-text-muted) !important;color:var(--lua-probe-text-muted) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .right_arrow .arrow,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .right_arrow .arrow use,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .icon_infinity,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .icon_infinity use{"
+      + "fill:var(--lua-probe-accent-solid) !important;color:var(--lua-probe-accent-solid) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .number_input_component_wrapper,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .number_input_component,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .custom_spinner_wrapper{"
+      + "background:var(--lua-probe-surface-row) !important;border-color:var(--lua-probe-border-strong) !important;"
+      + "color:var(--lua-probe-text-muted) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .number_input_component input{"
+      + "color:var(--lua-probe-text-muted) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .run_infinity_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .make_amount_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .maintain_amount_area,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .apply_button,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .start_button,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .finish_stop_button,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .stop_button{"
+      + "border-color:var(--lua-probe-btn-cancel-border) !important;background:var(--lua-probe-btn-cancel-bg) !important;"
+      + "color:var(--lua-probe-btn-cancel-color) !important;box-shadow:none !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .run_infinity_area:hover,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .make_amount_area:hover,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .maintain_amount_area:hover,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .apply_button:hover,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .start_button:hover,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .finish_stop_button:hover,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .stop_button:hover{"
+      + "border-color:var(--lua-probe-border-hover) !important;background:var(--lua-probe-btn-cancel-hover-bg) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .run_infinity_area .label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .make_amount_area .label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .maintain_amount_area .label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .run_infinity_area .icon_infinity,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .run_infinity_area .icon_infinity use{"
+      + "color:#f4efe7 !important;fill:#f4efe7 !important;opacity:1 !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .make_amount_area.selected,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .maintain_amount_area.selected,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .run_infinity_area.selected{"
+      + "border-color:var(--lua-probe-mode-selected-border) !important;background:var(--lua-probe-mode-selected-bg) !important;"
+      + "box-shadow:inset 0 0 0 1px var(--lua-probe-selection-border) !important;"
+      + "color:var(--lua-probe-mode-selected-color) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .make_amount_area.selected .label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .maintain_amount_area.selected .label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .run_infinity_area.selected .label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .run_infinity_area.selected .icon_infinity,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .run_infinity_area.selected .icon_infinity use{"
+      + "color:#f4efe7 !important;fill:#f4efe7 !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .apply_button.disabled,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .start_button.disabled,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .finish_stop_button.disabled,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .stop_button.disabled{"
+      + "border-color:var(--lua-probe-btn-disabled-border) !important;background:var(--lua-probe-btn-disabled-bg) !important;"
+      + "color:var(--lua-probe-btn-disabled-color) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .run_infinity_area.disabled,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .make_amount_area.disabled,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .maintain_amount_area.disabled{"
+      + "opacity:1 !important;filter:none !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .run_infinity_area.disabled .label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .make_amount_area.disabled .label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .maintain_amount_area.disabled .label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .run_infinity_area.disabled .icon_infinity,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .run_infinity_area.disabled .input_amount,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .make_amount_area.disabled .input_amount,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .maintain_amount_area.disabled .input_amount,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .run_infinity_area.disabled .number_input_component input,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .make_amount_area.disabled .number_input_component input,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .maintain_amount_area.disabled .number_input_component input,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .run_infinity_area.disabled .icon_infinity use{"
+      + "color:#f4efe7 !important;fill:#f4efe7 !important;opacity:1 !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .description_mode,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_descriptionMode{"
+      + "color:var(--lua-probe-text-muted) !important;opacity:1 !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] .description_mode .type_label,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_descriptionMode .type_label{"
+      + "color:#f4c65d !important;font-weight:700 !important;opacity:1 !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_modeRunInfinity,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_modeMake,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_modeMaintain,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_startButton,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_finishButton,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_stopButton,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_claimProductsApplyButton{"
+      + "border-color:var(--lua-probe-btn-cancel-border) !important;background:var(--lua-probe-btn-cancel-bg) !important;"
+      + "color:var(--lua-probe-btn-cancel-color) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_modeRunInfinity:hover,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_modeMake:hover,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_modeMaintain:hover,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_startButton:hover,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_finishButton:hover,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_stopButton:hover,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_claimProductsApplyButton:hover{"
+      + "border-color:var(--lua-probe-border-hover) !important;background:var(--lua-probe-btn-cancel-hover-bg) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_modeRunInfinity.selected,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_modeMake.selected,"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_modeMaintain.selected{"
+      + "border-color:var(--lua-probe-mode-selected-border) !important;background:var(--lua-probe-mode-selected-bg) !important;"
+      + "box-shadow:inset 0 0 0 1px var(--lua-probe-selection-border) !important;"
+      + "color:var(--lua-probe-mode-selected-color) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_progressionBar{"
+      + "background:var(--lua-probe-surface-row) !important;border-color:var(--lua-probe-border-strong) !important;}"
+      + "#industry_panel[data-lua-probe-active=\"1\"] #industryPanel_productionSubPanel_innerProgressionBar{"
+      + "background:var(--lua-probe-accent-solid) !important;}"
       + ".main_chat #ModUiToolbox-chat-copy-plain{"
       + "position:absolute;top:2.87037037vh;right:2.59259259vh;z-index:30;"
       + "font-family:Play,sans-serif;font-size:0.92592593vh;font-weight:900;text-transform:uppercase;"
@@ -1958,11 +2262,11 @@
       + "#dpu_editor .CodeMirror .lua-probe-caret-line{"
       + "background:var(--lua-probe-caret-line-bg) !important;}"
       + "#dpu_editor #filters_container .filter[data-lua-probe-active-filter=\"1\"]{"
-      + "border-color:var(--lua-probe-accent) !important;"
+      + "border-color:var(--lua-probe-selection-border) !important;"
       + "box-shadow:inset 0 0 0 1px rgba(0,0,0,0.38);}"
       + "#dpu_editor #filters_container .filter[data-lua-probe-active-filter=\"1\"]::after{"
       + "content:\"\";position:absolute;top:0;left:-7px;width:4px;height:100%;"
-      + "background-color:var(--lua-probe-accent);box-shadow:0 1px 2px 1px rgba(0,0,0,0.72);}"
+      + "background-color:var(--lua-probe-selection-border);box-shadow:0 1px 2px 1px rgba(0,0,0,0.72);}"
       + "#dpu_editor #filters_container .filter[data-lua-probe-active-filter=\"1\"] .actionName{"
       + "color:var(--lua-probe-text-muted) !important;}"
       + "#main_context_menu [data-lua-probe-hit=\"1\"]{"
@@ -3281,7 +3585,10 @@
     var map = {
       green: "monokai",
       yellow: "github-dark",
-      red: "gruvbox-dark"
+      red: "gruvbox-dark",
+      black: "daisy-black",
+      forest: "daisy-forest",
+      smooth: "daisy-smooth"
     };
     var key = String(themeName || "").toLowerCase();
     return map[key] || themeName;
@@ -3384,6 +3691,60 @@
       item.setAttribute("data-active", isActive ? "1" : "0");
       item.setAttribute("tabindex", isActive ? "0" : "-1");
     }
+  }
+
+  function updateThemeOffButtonSelection() {
+    var buttons = document.querySelectorAll(".lua-theme-off-button");
+    if (!buttons || !buttons.length) {
+      return;
+    }
+    var isOff = !state.themeEnabled;
+    for (var i = 0; i < buttons.length; i += 1) {
+      var button = buttons[i];
+      button.setAttribute("data-active", isOff ? "1" : "0");
+      button.setAttribute("aria-pressed", isOff ? "true" : "false");
+      button.setAttribute("title", isOff ? "Theme is off" : "Turn theme off");
+    }
+  }
+
+  function setThemeRootActive(root, enabled) {
+    if (!root) {
+      return;
+    }
+    try {
+      if (enabled) {
+        root.setAttribute("data-lua-probe-active", "1");
+      } else {
+        root.removeAttribute("data-lua-probe-active");
+      }
+    } catch (_ignoreThemeRootActive) {}
+  }
+
+  function syncEditorThemeActivation() {
+    var luaRoot = document.getElementById("dpu_editor");
+    var screenRoot = getScreenEditorRoot();
+    var extraRoots = document.querySelectorAll("[data-modui-theme-target=\"1\"]");
+    setThemeRootActive(luaRoot, !!state.themeEnabled);
+    setThemeRootActive(screenRoot, !!state.themeEnabled && !!screenRoot && isElementVisible(screenRoot));
+    if (extraRoots && typeof extraRoots.length === "number") {
+      for (var i = 0; i < extraRoots.length; i += 1) {
+        setThemeRootActive(extraRoots[i], !!state.themeEnabled);
+      }
+    }
+    updateThemeOffButtonSelection();
+  }
+
+  function setThemeEnabled(enabled, persist) {
+    state.themeEnabled = !!enabled;
+    if (persist !== false) {
+      saveThemeEnabledPreference(state.themeEnabled);
+    }
+    syncEditorThemeActivation();
+    return state.themeEnabled;
+  }
+
+  function isThemeEnabled() {
+    return !!state.themeEnabled;
   }
 
   function parseHexColor(hex) {
@@ -3565,6 +3926,7 @@
   }
 
   function buildThemeFromCompact(compact) {
+    var themeName = String(compact.n || "catalog-theme");
     var primary = String(compact.p || compact.d || "#58a6ff");
     var primaryFocus = String(compact.pf || primary);
     var primaryContent = pickReadableTextColor(primary, compact.pc || (isLightHexColor(primary) ? "#101418" : "#f8f8f2"), "#101418", "#f8f8f2", 4.5);
@@ -3586,6 +3948,7 @@
     var deep = isLightBase
       ? mixHexColor(base200, base300, 0.58)
       : mixHexColor(base100, neutral, 0.55);
+    var surfaceBackdrop = mixHexColor(base200, deep, isLightBase ? 0.52 : 0.42);
     var textMuted = pickReadableTextColor(base200, baseContent, "#111111", "#f8f8f2", 4.5);
     var textDim = pickReadableTextColor(base200, mixHexColor(baseContent, base300, 0.55), shadeHexColor(textMuted, isLightHexColor(base200) ? -0.3 : 0.3), textMuted, 3.2);
     var comment = pickReadableTextColor(deep, mixHexColor(baseContent, base300, 0.68), "#4f5964", "#9ea8b3", 3.2);
@@ -3601,11 +3964,23 @@
     var cmOperator = pickReadableTextColor(deep, mixHexColor(cmText, base300, 0.18), "#2b3137", "#d8dee4", 3.2);
     var cmProperty = ensureReadableAccentColor(deep, mixHexColor(primary, info, 0.25), 3.6);
     var borderStrong = isLightBase ? mixHexColor(base300, baseContent, 0.1) : mixHexColor(base300, neutral, 0.15);
+    var borderHover = info;
+    var selectionBorder = withAlpha(primary, 0.92);
+    var modeSelectedBg = buildLinearGradient(shadeHexColor(primary, 0.16), shadeHexColor(primary, 0.05), shadeHexColor(primaryFocus, -0.08));
+    var modeSelectedBorder = withAlpha(primary, 0.78);
+    var modeSelectedColor = primaryContent;
+    if (themeName === "daisy-black") {
+      borderHover = "#6fbfff";
+      selectionBorder = "rgba(111,191,255,0.92)";
+      modeSelectedBg = buildLinearGradient("#7fd0ff", "#58a9ff", "#2f76d9");
+      modeSelectedBorder = "rgba(111,191,255,0.92)";
+      modeSelectedColor = "#f6fbff";
+    }
     var btnDisabledBg = buildLinearGradient(shadeHexColor(base200, isLightBase ? -0.03 : 0.04), rowAlt, shadeHexColor(deep, isLightBase ? -0.08 : -0.02));
     var btnDisabledBorder = withAlpha(borderStrong, isLightBase ? 0.6 : 0.5);
     var btnDisabledColor = withAlpha(textDim, isLightBase ? 0.92 : 0.72);
     return {
-      name: String(compact.n || "catalog-theme"),
+      name: themeName,
       label: normalizeThemeCatalogLabel(compact.l || compact.n || "Catalog Theme"),
       dot: String(compact.d || primary),
       accent: withAlpha(primary, 0.92),
@@ -3615,11 +3990,13 @@
       onAccent: primaryContent,
       surfaceMain: base100,
       surfaceElevated: base200,
+      surfaceBackdrop: surfaceBackdrop,
       surfaceRow: row,
       surfaceDeep: deep,
       surfaceRowAlt: rowAlt,
       borderStrong: borderStrong,
-      borderHover: info,
+      borderHover: borderHover,
+      selectionBorder: selectionBorder,
       shadow: isLightHexColor(base100) ? "rgba(0,0,0,0.18)" : "rgba(0,0,0,0.5)",
       textMuted: textMuted,
       textDim: textDim,
@@ -3642,6 +4019,9 @@
       btnApplyColor: primaryContent,
       btnApplyHoverBg: buildLinearGradient(shadeHexColor(primary, 0.16), shadeHexColor(primary, 0.05), shadeHexColor(primaryFocus, -0.08)),
       btnApplyActiveBg: buildLinearGradient(shadeHexColor(primaryFocus, -0.02), shadeHexColor(primaryFocus, -0.12), shadeHexColor(primaryFocus, -0.24)),
+      modeSelectedBg: modeSelectedBg,
+      modeSelectedBorder: modeSelectedBorder,
+      modeSelectedColor: modeSelectedColor,
       btnCancelBg: buildLinearGradient(shadeHexColor(neutral, 0.1), neutral, shadeHexColor(neutral, -0.12)),
       btnCancelBorder: withAlpha(base300, 0.55),
       btnCancelColor: neutralContent,
@@ -3683,6 +4063,7 @@
     if (!themeName) {
       return;
     }
+    setThemeEnabled(true, persist !== false);
     applyTheme(themeName, persist !== false);
     updateThemeCatalogSelection(state.activeTheme);
     setThemeCatalogFocus(panel, item, shouldFocus === true);
@@ -3858,7 +4239,9 @@
 
     var triggerId = baseId + "-catalog-trigger";
     var panelId = baseId + "-catalog-panel";
+    var offButtonId = baseId + "-off";
     var trigger = document.getElementById(triggerId);
+    var offButton = document.getElementById(offButtonId);
     if (!trigger) {
       trigger = document.createElement("button");
       trigger.type = "button";
@@ -3880,6 +4263,29 @@
 
     if (trigger.parentNode !== switcher) {
       switcher.appendChild(trigger);
+    }
+
+    if (!offButton) {
+      offButton = document.createElement("button");
+      offButton.type = "button";
+      offButton.id = offButtonId;
+      offButton.className = "lua-theme-off-button";
+      offButton.textContent = "Off";
+      offButton.setAttribute("aria-label", "Theme off");
+      offButton.addEventListener("click", function (event) {
+        if (event && typeof event.preventDefault === "function") {
+          event.preventDefault();
+        }
+        if (event && typeof event.stopPropagation === "function") {
+          event.stopPropagation();
+        }
+        hideThemeCatalogPanels();
+        setThemeEnabled(false, true);
+      }, true);
+    }
+
+    if (offButton.parentNode !== switcher) {
+      switcher.appendChild(offButton);
     }
 
     var panel = document.getElementById(panelId);
@@ -4542,7 +4948,15 @@
   }
 
   function getDefaultThemeName() {
-    return "daisy-night";
+    return "daisy-black";
+  }
+
+  function getThemeDotShortcuts() {
+    return [
+      { name: "daisy-black", label: "Black", dot: "#a6e22e" },
+      { name: "daisy-emerald", label: "Emerald", dot: "#6ee7b7" },
+      { name: "daisy-smooth", label: "Smooth", dot: "#ff9f43" }
+    ];
   }
 
   function createThemeDotSwitcher(switcherId) {
@@ -4550,23 +4964,53 @@
     switcher.id = switcherId;
     switcher.className = "modui-theme-switcher";
 
-    for (var i = 0; i < colorThemes.length; i += 1) {
-      (function (theme) {
+    var shortcuts = getThemeDotShortcuts();
+    for (var i = 0; i < shortcuts.length; i += 1) {
+      (function (shortcut) {
+        var theme = getThemeByName(shortcut.name) || shortcut;
         var dot = document.createElement("button");
         dot.type = "button";
         dot.className = "lua-theme-dot";
-        dot.style.background = theme.dot;
-        dot.setAttribute("data-theme", theme.name);
+        dot.style.background = shortcut.dot || theme.dot;
+        dot.setAttribute("data-theme", shortcut.name);
         dot.setAttribute("data-active", "0");
-        dot.setAttribute("title", "Theme: " + (theme.label || theme.name));
-        dot.setAttribute("aria-label", "Theme: " + (theme.label || theme.name));
+        dot.setAttribute("title", "Theme: " + (theme.label || shortcut.label || shortcut.name));
+        dot.setAttribute("aria-label", "Theme: " + (theme.label || shortcut.label || shortcut.name));
         dot.addEventListener("click", function () {
-          applyTheme(theme.name, true);
+          setThemeEnabled(true, true);
+          applyTheme(shortcut.name, true);
         }, true);
         switcher.appendChild(dot);
-      })(colorThemes[i]);
+      })(shortcuts[i]);
     }
 
+    return switcher;
+  }
+
+  function ensureSharedThemeSwitcher(hostNode, switcherId, applyActiveTheme) {
+    var resolvedHost = hostNode || null;
+    var resolvedId = String(switcherId || "").trim();
+    var switcher;
+    if (!resolvedHost || typeof resolvedHost.appendChild !== "function" || !resolvedId) {
+      return null;
+    }
+
+    switcher = document.getElementById(resolvedId);
+    if (!switcher) {
+      switcher = createThemeDotSwitcher(resolvedId);
+    }
+
+    if (switcher.parentNode !== resolvedHost) {
+      resolvedHost.appendChild(switcher);
+    }
+
+    ensureThemeCatalogTrigger(switcher, resolvedId);
+    updateThemeDotSelection(state.activeTheme || getDefaultThemeName());
+    updateThemeCatalogSelection(state.activeTheme || getDefaultThemeName());
+    updateThemeOffButtonSelection();
+    if (applyActiveTheme !== false) {
+      applyTheme(state.activeTheme || getDefaultThemeName(), false);
+    }
     return switcher;
   }
 
@@ -4574,11 +5018,26 @@
     var roots = [];
     var luaRoot = document.getElementById("dpu_editor");
     var screenRoot = getScreenEditorRoot();
+    var extraRoots = document.querySelectorAll("[data-modui-theme-target=\"1\"]");
+    function pushRoot(node) {
+      if (!node || !node.style || typeof node.style.setProperty !== "function") {
+        return;
+      }
+      if (roots.indexOf(node) >= 0) {
+        return;
+      }
+      roots.push(node);
+    }
     if (luaRoot) {
-      roots.push(luaRoot);
+      pushRoot(luaRoot);
     }
     if (screenRoot && screenRoot !== luaRoot) {
-      roots.push(screenRoot);
+      pushRoot(screenRoot);
+    }
+    if (extraRoots && typeof extraRoots.length === "number") {
+      for (var i = 0; i < extraRoots.length; i += 1) {
+        pushRoot(extraRoots[i]);
+      }
     }
     return roots;
   }
@@ -4594,11 +5053,13 @@
     root.style.setProperty("--lua-probe-on-accent", theme.onAccent);
     root.style.setProperty("--lua-probe-surface-main", theme.surfaceMain);
     root.style.setProperty("--lua-probe-surface-elevated", theme.surfaceElevated);
+    root.style.setProperty("--lua-probe-surface-backdrop", theme.surfaceBackdrop || theme.surfaceMain);
     root.style.setProperty("--lua-probe-surface-row", theme.surfaceRow);
     root.style.setProperty("--lua-probe-surface-deep", theme.surfaceDeep);
     root.style.setProperty("--lua-probe-surface-row-alt", theme.surfaceRowAlt);
     root.style.setProperty("--lua-probe-border-strong", theme.borderStrong);
     root.style.setProperty("--lua-probe-border-hover", theme.borderHover);
+    root.style.setProperty("--lua-probe-selection-border", theme.selectionBorder || theme.accent);
     root.style.setProperty("--lua-probe-shadow", theme.shadow);
     root.style.setProperty("--lua-probe-text-muted", theme.textMuted);
     root.style.setProperty("--lua-probe-text-dim", theme.textDim);
@@ -4621,6 +5082,9 @@
     root.style.setProperty("--lua-probe-btn-apply-color", theme.btnApplyColor);
     root.style.setProperty("--lua-probe-btn-apply-hover-bg", theme.btnApplyHoverBg);
     root.style.setProperty("--lua-probe-btn-apply-active-bg", theme.btnApplyActiveBg);
+    root.style.setProperty("--lua-probe-mode-selected-bg", theme.modeSelectedBg || theme.btnApplyBg);
+    root.style.setProperty("--lua-probe-mode-selected-border", theme.modeSelectedBorder || theme.btnApplyBorder);
+    root.style.setProperty("--lua-probe-mode-selected-color", theme.modeSelectedColor || theme.btnApplyColor);
     root.style.setProperty("--lua-probe-btn-cancel-bg", theme.btnCancelBg);
     root.style.setProperty("--lua-probe-btn-cancel-border", theme.btnCancelBorder);
     root.style.setProperty("--lua-probe-btn-cancel-color", theme.btnCancelColor);
@@ -4654,8 +5118,10 @@
       applyThemeToRoot(roots[i], theme);
     }
     state.lastAppliedTheme = theme.name;
+    syncEditorThemeActivation();
     updateThemeDotSelection(theme.name);
     updateThemeCatalogSelection(theme.name);
+    updateThemeOffButtonSelection();
 
     if (emitPacket) {
       sendPacket("lua_theme_changed", {
@@ -4681,16 +5147,7 @@
       return;
     }
 
-    var switcher = document.getElementById("ModUiToolbox-lua-theme-dots");
-    if (!switcher) {
-      switcher = createThemeDotSwitcher("ModUiToolbox-lua-theme-dots");
-    }
-
-    if (switcher.parentNode !== header) {
-      header.appendChild(switcher);
-    }
-    ensureThemeCatalogTrigger(switcher, "ModUiToolbox-lua-theme-dots");
-
+    ensureSharedThemeSwitcher(header, "ModUiToolbox-lua-theme-dots", false);
     ensureLuaBufferSize();
     applyTheme(state.activeTheme || getDefaultThemeName(), false);
   }
@@ -4705,15 +5162,7 @@
       return;
     }
 
-    var switcher = document.getElementById("ModUiToolbox-screen-theme-dots");
-    if (!switcher) {
-      switcher = createThemeDotSwitcher("ModUiToolbox-screen-theme-dots");
-    }
-
-    if (switcher.parentNode !== header) {
-      header.appendChild(switcher);
-    }
-    ensureThemeCatalogTrigger(switcher, "ModUiToolbox-screen-theme-dots");
+    ensureSharedThemeSwitcher(header, "ModUiToolbox-screen-theme-dots", false);
   }
 
   function ensureScreenBufferSize(root) {
@@ -4795,7 +5244,7 @@
       state.screenLastRestoredContextKey = "";
       state.screenPreferenceRestoreContextKey = "";
       try {
-        root.removeAttribute("data-lua-probe-active");
+        setThemeRootActive(root, false);
       } catch (_ignoreScreenProbeInactive) {}
       return;
     }
@@ -4807,7 +5256,7 @@
       state.lastScreenContextKey = contextKey;
     }
 
-    root.setAttribute("data-lua-probe-active", "1");
+    setThemeRootActive(root, !!state.themeEnabled);
     ensureScreenThemeSwitcher(root);
     ensureScreenIdeSyncButton(root);
     ensureScreenBufferSize(root);
@@ -10362,7 +10811,11 @@
   function onEditorOpened() {
     var root = document.getElementById("dpu_editor");
     if (root) {
-      root.setAttribute("data-lua-probe-active", "1");
+      if (state.themeEnabled) {
+        root.setAttribute("data-lua-probe-active", "1");
+      } else {
+        root.removeAttribute("data-lua-probe-active");
+      }
     }
     state.scrollTopByContext = Object.create(null);
     state.lastContextKey = "";
@@ -10640,7 +11093,14 @@
   state.luaEditorEnhancements = {
     install: installLuaEditorEnhancements,
     uninstall: uninstallLuaEditorEnhancements,
-    runMaintenance: runLuaEditorEnhancementMaintenance
+    runMaintenance: runLuaEditorEnhancementMaintenance,
+    ensureThemeSwitcherHost: ensureSharedThemeSwitcher,
+    applyTheme: applyTheme,
+    setThemeEnabled: setThemeEnabled,
+    isThemeEnabled: isThemeEnabled,
+    getActiveThemeName: function () {
+      return state.activeTheme || getDefaultThemeName();
+    }
   };
   try {
     var enhancementRecord = typeof getRuntimeModuleRecord === "function"

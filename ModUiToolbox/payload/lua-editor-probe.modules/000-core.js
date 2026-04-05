@@ -61,6 +61,14 @@
     return def.state;
   }
 
+  function hasRuntimeModuleStateValue(moduleId, key) {
+    var stateObject = getRuntimeModuleStateObject(moduleId);
+    if (!stateObject || typeof key === "undefined" || key === null || key === "") {
+      return false;
+    }
+    return Object.prototype.hasOwnProperty.call(stateObject, key);
+  }
+
   function getRuntimeModuleStateValue(moduleId, key, fallbackValue) {
     var stateObject = getRuntimeModuleStateObject(moduleId);
     if (!stateObject) {
@@ -130,6 +138,17 @@
     return persistRuntimeModuleStateValue(luaEditorEnhancementModuleId, "theme", String(themeName || ""));
   }
 
+  function loadThemeEnabledPreference() {
+    if (!hasRuntimeModuleStateValue(luaEditorEnhancementModuleId, "themeEnabled")) {
+      return true;
+    }
+    return !!getRuntimeModuleStateValue(luaEditorEnhancementModuleId, "themeEnabled", true);
+  }
+
+  function saveThemeEnabledPreference(enabled) {
+    return persistRuntimeModuleStateValue(luaEditorEnhancementModuleId, "themeEnabled", !!enabled);
+  }
+
   function loadThemeCatalogCache() {
     try {
       if (!window.localStorage || typeof window.localStorage.getItem !== "function") {
@@ -161,7 +180,8 @@
     menuHits: 0,
     editorVisible: false,
     managerWrapped: false,
-    activeTheme: loadThemePreference() || "daisy-night",
+    activeTheme: loadThemePreference() || "daisy-black",
+    themeEnabled: loadThemeEnabledPreference(),
     lastAppliedTheme: "",
     scrollTopByContext: Object.create(null),
     screenScrollTopByContext: Object.create(null),
@@ -218,6 +238,7 @@
       onAccent: "#272822",
       surfaceMain: "#272822",
       surfaceElevated: "#3e3d32",
+      surfaceBackdrop: "#2f2f29",
       surfaceRow: "#49483e",
       surfaceDeep: "#1e1f1c",
       surfaceRowAlt: "#423f36",
@@ -265,6 +286,7 @@
       onAccent: "#0d1117",
       surfaceMain: "#0d1117",
       surfaceElevated: "#161b22",
+      surfaceBackdrop: "#12161d",
       surfaceRow: "#21262d",
       surfaceDeep: "#010409",
       surfaceRowAlt: "#30363d",
@@ -312,6 +334,7 @@
       onAccent: "#282828",
       surfaceMain: "#282828",
       surfaceElevated: "#3c3836",
+      surfaceBackdrop: "#322f2e",
       surfaceRow: "#504945",
       surfaceDeep: "#1d2021",
       surfaceRowAlt: "#403c3a",

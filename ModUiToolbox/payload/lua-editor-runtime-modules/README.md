@@ -16,13 +16,16 @@ Current modules in this folder:
   - Uses the active chat view / chat DOM to build a readable transcript.
 - `industry-panel`
   - Adds the centered `Industry Helper` button when the industry panel is visible.
-  - Opens quick controls for time precision, production mode, and the live `Start` / `Finish & stop` / `Stop` buttons.
+  - The helper opens quick controls for time precision, production mode, and the live `Start` / `Finish & stop` / `Stop` buttons.
+  - While the helper is enabled, the shared theme switcher also appears near the top-left of the industry page.
+  - That shared switcher uses shortcut dots for `daisy-black`, `daisy-emerald`, and `daisy-smooth`, plus `...` for the full catalog and `Off` to disable theming without clearing the selected theme.
   - Persists the helper toggle plus its `timePrecisionUnits` preference for the extractor-side industry panel probe.
+  - Reuses the shared `lua-editor-enhancements` theme selection and theme on/off state instead of storing separate industry-only theme preferences.
   - With the current helper UI, `2-unit time display` rewrites the original `Time remaining` label to `min` + `s` while at least `60` seconds remain, then falls back to the game's original label below that threshold.
 - `lua-editor-enhancements`
   - Restores the full Lua editor enhancement layer that used to be built into core.
   - Covers the Lua editor and screen editor QoL features such as:
-    - theme switcher
+    - shared theme switcher with three shortcut dots, a full catalog button, and an `Off` button
     - quick menu helpers/actions
     - caret highlight toggle
     - IDE sync button

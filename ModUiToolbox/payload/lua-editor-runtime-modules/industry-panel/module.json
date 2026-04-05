@@ -1,7 +1,7 @@
 {
   "id": "industry-panel",
   "name": "Industry Panel",
-  "description": "Shows the Industry Helper while the panel is visible and remembers its time-display setting.",
+  "description": "Shows the Industry Helper while the panel is visible and remembers its theme/time-display settings.",
   "version": "0.1.0",
   "order": 160,
   "defaultEnabled": false,

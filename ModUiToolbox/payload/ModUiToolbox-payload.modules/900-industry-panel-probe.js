@@ -48,6 +48,8 @@
   var KEBAB_STYLE_ID = "ModUiToolbox-industry-panel-kebab-style";
   var KEBAB_BUTTON_ID = "ModUiToolbox-industry-panel-kebab-button";
   var KEBAB_PANEL_ID = "ModUiToolbox-industry-panel-kebab-panel";
+  var THEME_SWITCHER_HOST_ID = "ModUiToolbox-industry-panel-theme-switcher-host";
+  var THEME_SWITCHER_ID = "ModUiToolbox-industry-panel-theme-switcher";
   var TIME_LABEL_NODE_ID = "industryPanel_productionSubPanel_remainingTime";
   var LEGACY_TIME_LABEL_HELPER_NODE_ID = "ModUiToolbox-industry-panel-remaining-time-helper";
   var SHARED_TIME_PRECISION_KEY = "__uiToolboxIndustryPanelTimePrecisionUnits";
@@ -80,6 +82,11 @@
       return null;
     }
     return window.industryPanel;
+  }
+
+  function getEnhancementApi() {
+    var state = window.__UI_TOOLBOX_LUA_PROBE_STATE__;
+    return state && state.luaEditorEnhancements ? state.luaEditorEnhancements : null;
   }
 
   function getProductionEnum(name, fallback) {
@@ -375,10 +382,23 @@
     }
   }
 
+  function clearIndustryThemeRootFlags() {
+    var rootNode = document.getElementById("industry_panel");
+    if (!rootNode) {
+      return;
+    }
+    try {
+      rootNode.removeAttribute("data-modui-theme-target");
+      rootNode.removeAttribute("data-lua-probe-active");
+    } catch (_ignoreThemeRootFlags) {}
+  }
+
   function destroyIndustryKebab() {
     removeManagedNode(KEBAB_BUTTON_ID);
     removeManagedNode(KEBAB_PANEL_ID);
     removeManagedNode(KEBAB_STYLE_ID);
+    removeManagedNode(THEME_SWITCHER_HOST_ID);
+    clearIndustryThemeRootFlags();
   }
 
   function getTimeLabelNode(panel) {
@@ -416,6 +436,58 @@
       (htmlNodes && htmlNodes.productionArea) ||
       (htmlNodes && htmlNodes.statusDisplay) ||
       null;
+  }
+
+  function getIndustryThemeAnchorRoot(panel) {
+    return document.getElementById("industry_panel") || getIndustryPanelRootNode(panel);
+  }
+
+  function syncIndustryThemeUi(panel) {
+    var api = getEnhancementApi();
+    var rootNode = getIndustryThemeAnchorRoot(panel);
+    var hostNode = document.getElementById(THEME_SWITCHER_HOST_ID);
+    var activeThemeName;
+    var rect;
+    var themeEnabled = !api || typeof api.isThemeEnabled !== "function" ? true : api.isThemeEnabled();
+    if (!rootNode) {
+      removeManagedNode(THEME_SWITCHER_HOST_ID);
+      clearIndustryThemeRootFlags();
+      return false;
+    }
+
+    rootNode.setAttribute("data-modui-theme-target", "1");
+    if (themeEnabled) {
+      rootNode.setAttribute("data-lua-probe-active", "1");
+    } else {
+      rootNode.removeAttribute("data-lua-probe-active");
+    }
+
+    if (!hostNode) {
+      hostNode = document.createElement("div");
+      hostNode.id = THEME_SWITCHER_HOST_ID;
+      (document.body || document.documentElement).appendChild(hostNode);
+    }
+
+    hostNode.setAttribute("data-modui-theme-target", "1");
+
+    try {
+      rect = typeof rootNode.getBoundingClientRect === "function" ? rootNode.getBoundingClientRect() : null;
+      if (rect && hostNode.style) {
+        hostNode.style.left = Math.max(0, Math.round(rect.left + 52)) + "px";
+        hostNode.style.top = Math.max(4, Math.round(rect.top + 10)) + "px";
+      }
+    } catch (_ignoreThemeHostPosition) {}
+
+    if (!api || typeof api.ensureThemeSwitcherHost !== "function") {
+      return false;
+    }
+
+    api.ensureThemeSwitcherHost(hostNode, THEME_SWITCHER_ID, false);
+    activeThemeName = typeof api.getActiveThemeName === "function" ? api.getActiveThemeName() : null;
+    if (typeof api.applyTheme === "function") {
+      api.applyTheme(activeThemeName || "daisy-black", false);
+    }
+    return true;
   }
 
   function isIndustryPanelVisible(panel) {
@@ -510,7 +582,6 @@
         '</div>' +
         '<div id="ModUiToolbox-industry-kebab-state" class="ModUiToolbox-industry-kebab-state"></div>';
       (document.body || document.documentElement).appendChild(panelNode);
-
       bindChange(document.getElementById("ModUiToolbox-industry-kebab-time-toggle"), function () {
         var livePanel = getPanel();
         var checked = !!this.checked;
@@ -564,6 +635,7 @@
       });
     }
 
+    syncIndustryThemeUi(panel);
     updateIndustryKebabState(panel);
     return {
       ok: true,
