@@ -8,6 +8,11 @@ It is highly recommended to use this repo in combination with an AI assistant to
 Most sub-folders have their own respective README.md for further details.
 Some utility scripts may need paths adapted to either your own myDuServer installation.
 
+## License
+
+This repository is licensed under the GNU General Public License v3.0.
+See [LICENSE](LICENSE) for the full text.
+
 ## Projects
 
 ### Live automation and in-game authoring
