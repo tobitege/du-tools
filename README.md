@@ -20,7 +20,8 @@ See [LICENSE](LICENSE) for the full text.
 | Tool | Description |
 | ---- | ----------- |
 | [DuMcpBridge](DuMcpBridge/) | Local MCP server that turns the existing ModUiToolbox + Lua probe pipeline into a transport layer for live Dual Universe automation. Exposes tools for reading and writing open Lua or screen editors, chat interaction, native editor open steps, and related live UI actions. |
-| [live_lua_coding](live_lua_coding/) | Operator manual and tracked artifact area for live bridge-driven Lua work. Contains the shared safety rules, editor targeting workflow, tracked live snapshots, and concrete examples such as `LuaPainter/` (**Lua Painter**) for in-game layout painting and generated Lua/RenderScript export. |
+| [live_lua_coding](live_lua_coding/) | Operator manual and tracked artifact area for live bridge-driven Lua work. Contains the shared safety rules, editor targeting workflow, and tracked live snapshots for bridge-driven authoring. |
+| [LuaPainter](LuaPainter/) | In-game layout painter for Dual Universe. Provides a visual editor for painting screen layouts, saving them on a programming board, and exporting generated Lua / RenderScript-style code for linked screens and signs. |
 
 Note: parts of this live workflow can rely on separately installed helper tools such as `ScreenShotNet` and `AutoHotkey v2`.
 
@@ -32,6 +33,23 @@ It also covers the in-game Lua and screen editor enhancement layer delivered thr
 | ---- | ----------- |
 | [ModFlightLogger](ModFlightLogger/) | Embedded server mod that records construct telemetry from Lua into NDJSON files. Computes derived metrics (acceleration, g-load, jerk, vertical speed, brake force estimates) and sends periodic chat summaries. Triggered via `system.modAction` from in-game Lua scripts. |
 | [ModUiToolbox](ModUiToolbox/) | Embedded server mod that injects JavaScript payloads into the DU client UI. Captures full HTML, CSS, and JS dumps from the running game client via chunked NDJSON. Includes a Lua editor probe with per-filter position restore, IDE sync, and a local editor rig for development without a running game client. |
+
+<p align="center">
+  <img src="screens/mod-payload-modules.png" alt="ModUiToolbox payload modules screenshot"><br>
+  <br>
+  Lua editor theming (35 light and dark themes):
+  <br>
+  <img src="screens\mod-lua-editor-theming.png" alt="Lua editor theming">
+  <br>
+  <img src="screens\mod-lua-editor-theming-dark.png" alt="Lua editor dark theming">
+  <br>
+  Industry UI theming:
+  <br>
+  <img src="screens\mod-industry-ui-theming.png" alt="Lua editor theming">
+  <br>
+</p>
+
+---
 
 ### Data export
 
