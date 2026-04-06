@@ -45,6 +45,141 @@ function Add-SectionPacket {
     [void]$DumpEntry.sections[$Section].Add($Packet)
 }
 
+function Get-PropertyValue {
+    param(
+        $Object,
+        [string]$Name,
+        $Default = $null
+    )
+
+    if ($null -eq $Object) {
+        return $Default
+    }
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -ne $property) {
+        return $property.Value
+    }
+    return $Default
+}
+
+function Get-LatestPacket {
+    param(
+        [System.Collections.IEnumerable]$Packets
+    )
+
+    $items = @($Packets)
+    if ($items.Count -eq 0) {
+        return $null
+    }
+    return ($items | Sort-Object @{ Expression = { [string](Get-PropertyValue -Object $_ -Name "timestamp" -Default "") } } | Select-Object -Last 1)
+}
+
+function Test-HtmlDocumentClosed {
+    param(
+        [string]$HtmlText
+    )
+
+    if ([string]::IsNullOrWhiteSpace($HtmlText)) {
+        return $false
+    }
+
+    return [bool]([regex]::IsMatch($HtmlText.TrimEnd(), '</body>\s*</html>\s*$', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase))
+}
+
+function Get-SectionDiagnostics {
+    param(
+        [string]$SectionName,
+        [array]$Packets,
+        [string]$Joined,
+        $StartPacket
+    )
+
+    $firstPacket = $null
+    if ($Packets.Count -gt 0) {
+        $firstPacket = $Packets[0]
+    }
+    $meta = Get-PropertyValue -Object $firstPacket -Name "meta" -Default $null
+    $startConfig = Get-PropertyValue -Object $StartPacket -Name "config" -Default $null
+    $startHtmlSelector = [string](Get-PropertyValue -Object $startConfig -Name "htmlSelector" -Default "")
+
+    $sourceKind = [string](Get-PropertyValue -Object $meta -Name "sourceKind" -Default "")
+    $selector = [string](Get-PropertyValue -Object $meta -Name "selector" -Default "")
+    $requestedSelector = [string](Get-PropertyValue -Object $meta -Name "requestedSelector" -Default "")
+    if ([string]::IsNullOrWhiteSpace($requestedSelector)) {
+        $requestedSelector = $selector
+    }
+    if ($SectionName -eq "html" -and [string]::IsNullOrWhiteSpace($requestedSelector)) {
+        $requestedSelector = $startHtmlSelector
+    }
+    if ($SectionName -eq "html" -and [string]::IsNullOrWhiteSpace($sourceKind)) {
+        if ([string]::IsNullOrWhiteSpace($requestedSelector)) {
+            $sourceKind = "document"
+        } else {
+            $sourceKind = "fragment"
+        }
+    }
+    if ($SectionName -ne "html" -and [string]::IsNullOrWhiteSpace($sourceKind)) {
+        $sourceKind = "section"
+    }
+    if ($SectionName -eq "html" -and [string]::IsNullOrWhiteSpace($selector) -and $sourceKind -eq "fragment") {
+        $selector = $requestedSelector
+    }
+
+    $collectionTruncated = [bool](Get-PropertyValue -Object $meta -Name "collectionTruncated" -Default $false)
+    if (-not $collectionTruncated) {
+        $collectionTruncated = [bool](Get-PropertyValue -Object $meta -Name "truncated" -Default $false)
+    }
+    $transportTruncated = [bool](Get-PropertyValue -Object $meta -Name "transportTruncated" -Default $false)
+    if (-not $transportTruncated) {
+        $transportTruncated = [bool](Get-PropertyValue -Object $meta -Name "payloadTruncated" -Default $false)
+    }
+
+    $originalLength = Get-PropertyValue -Object $meta -Name "originalLength" -Default $null
+    if ($null -eq $originalLength -or -not ($originalLength -is [ValueType])) {
+        $originalLength = Get-PropertyValue -Object $meta -Name "originalPayloadLength" -Default $null
+    }
+    if ($null -eq $originalLength -or -not ($originalLength -is [ValueType])) {
+        $originalLength = $Joined.Length
+    }
+    $originalLength = [int]$originalLength
+
+    $sentLength = Get-PropertyValue -Object $meta -Name "sentLength" -Default $null
+    if ($null -eq $sentLength -or -not ($sentLength -is [ValueType])) {
+        $sentLength = $Joined.Length
+    }
+    $sentLength = [int]$sentLength
+
+    $reportedComplete = Get-PropertyValue -Object $meta -Name "complete" -Default $null
+    $hasDocumentClosingTags = $null
+    if ($SectionName -eq "html" -and $sourceKind -eq "document") {
+        $hasDocumentClosingTags = Test-HtmlDocumentClosed -HtmlText $Joined
+    }
+
+    $lengthMatches = ($Joined.Length -eq $sentLength)
+    $complete = ($collectionTruncated -eq $false) -and ($transportTruncated -eq $false) -and $lengthMatches
+    if ($reportedComplete -is [bool]) {
+        $complete = $complete -and [bool]$reportedComplete
+    }
+    if ($hasDocumentClosingTags -is [bool]) {
+        $complete = $complete -and $hasDocumentClosingTags
+    }
+
+    return [ordered]@{
+        sourceKind = $sourceKind
+        selector = $selector
+        requestedSelector = $requestedSelector
+        originalLength = $originalLength
+        sentLength = $sentLength
+        reassembledLength = $Joined.Length
+        collectionTruncated = $collectionTruncated
+        transportTruncated = $transportTruncated
+        reportedComplete = $reportedComplete
+        complete = $complete
+        hasDocumentClosingTags = $hasDocumentClosingTags
+        fallbackToDocument = [bool](Get-PropertyValue -Object $meta -Name "fallbackToDocument" -Default $false)
+    }
+}
+
 function Invoke-HtmlSplitIfAvailable {
     param(
         [Parameter(Mandatory = $true)]
@@ -188,12 +323,19 @@ foreach ($dumpId in $dumps.Keys) {
     New-Item -ItemType Directory -Path $dumpDir -Force | Out-Null
     $scriptsDir = Join-Path $dumpDir "scripts"
     $htmlSectionPath = $null
+    $latestStart = Get-LatestPacket -Packets $entry.starts
+    $latestComplete = Get-LatestPacket -Packets $entry.completes
+    $manifestWarnings = New-Object System.Collections.ArrayList
 
     $manifest = [ordered]@{
         dumpId = $dumpId
         starts = $entry.starts.Count
         completes = $entry.completes.Count
         fatals = $entry.fatals.Count
+        htmlSelector = [string](Get-PropertyValue -Object (Get-PropertyValue -Object $latestStart -Name "config" -Default $null) -Name "htmlSelector" -Default "")
+        completionReportedComplete = Get-PropertyValue -Object $latestComplete -Name "complete" -Default $null
+        complete = $true
+        warnings = @()
         sections = @()
     }
 
@@ -221,6 +363,7 @@ foreach ($dumpId in $dumps.Keys) {
         }
 
         $joined = ($packets | ForEach-Object { [string]$_.data }) -join ""
+        $diagnostics = Get-SectionDiagnostics -SectionName $sectionName -Packets $packets -Joined $joined -StartPacket $latestStart
 
         $sectionExt = ".txt"
         $sectionPath = ""
@@ -265,6 +408,26 @@ foreach ($dumpId in $dumps.Keys) {
             $manifestFile = "scripts/" + [System.IO.Path]::GetFileName($sectionPath)
         }
 
+        $sectionWarnings = New-Object System.Collections.ArrayList
+        if ($missing.Count -gt 0) {
+            [void]$sectionWarnings.Add("missing packet parts")
+        }
+        if ($diagnostics.collectionTruncated) {
+            [void]$sectionWarnings.Add("collection truncated before chunking")
+        }
+        if ($diagnostics.transportTruncated) {
+            [void]$sectionWarnings.Add("transport truncated before reassembly")
+        }
+        if ($sectionName -eq "html" -and $diagnostics.sourceKind -eq "document" -and $diagnostics.hasDocumentClosingTags -eq $false) {
+            [void]$sectionWarnings.Add("full-document html is missing closing body/html tags")
+        }
+
+        $sectionComplete = ($missing.Count -eq 0) -and $diagnostics.complete
+        if (-not $sectionComplete) {
+            $manifest.complete = $false
+            [void]$manifestWarnings.Add(("{0}: incomplete" -f $sectionName))
+        }
+
         $manifest.sections += [ordered]@{
             name = $sectionName
             file = $manifestFile
@@ -272,8 +435,30 @@ foreach ($dumpId in $dumps.Keys) {
             expected = $totalExpected
             missingParts = $missing
             bytes = $joined.Length
+            sourceKind = $diagnostics.sourceKind
+            selector = $diagnostics.selector
+            requestedSelector = $diagnostics.requestedSelector
+            originalLength = $diagnostics.originalLength
+            sentLength = $diagnostics.sentLength
+            reassembledLength = $diagnostics.reassembledLength
+            collectionTruncated = $diagnostics.collectionTruncated
+            transportTruncated = $diagnostics.transportTruncated
+            complete = $sectionComplete
+            fallbackToDocument = $diagnostics.fallbackToDocument
+            hasDocumentClosingTags = $diagnostics.hasDocumentClosingTags
+            warnings = @($sectionWarnings)
         }
     }
+
+    if ($entry.fatals.Count -gt 0) {
+        $manifest.complete = $false
+        [void]$manifestWarnings.Add("fatal event present")
+    }
+    if ($manifest.completionReportedComplete -is [bool] -and -not [bool]$manifest.completionReportedComplete) {
+        $manifest.complete = $false
+        [void]$manifestWarnings.Add("ui_dump_complete reported complete=false")
+    }
+    $manifest.warnings = @($manifestWarnings)
 
     if ($null -ne $htmlSectionPath) {
         Invoke-HtmlSplitIfAvailable -HtmlPath $htmlSectionPath -DumpDir $dumpDir

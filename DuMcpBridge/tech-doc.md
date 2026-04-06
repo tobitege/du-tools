@@ -543,7 +543,7 @@ The live MCP surface is intentionally centered on a small set of tool families:
 - `du_editor_push_code`, `du_editor_pull_code`, `du_editor_save`
   File-based IDE import, last-known snapshot reads, and explicit save/apply.
 - `du_ui_dump`
-  Full UI dump via ModUiToolbox (chunked NDJSON). Supports `htmlSelector` to target specific DOM elements.
+  Full UI dump via ModUiToolbox (chunked NDJSON). Supports full-document dumps and `htmlSelector` fragment dumps with explicit completeness metadata.
 - `du_chat_*`
   Dedicated chat read/write helpers that add structured semantics beyond a raw probe result.
 - `du_camera_move`
@@ -681,11 +681,13 @@ Behavior:
 
 1. `DuMcpBridge` queues `action = ui_dump` with config
 2. `ModUiToolbox` injects the extractor payload with `htmlSelector` support
-3. the payload collects HTML, stylesheets, scripts, and metadata in chunks
+3. the payload collects HTML, stylesheets, scripts, and metadata in chunks without silently clipping the HTML section first
 4. results are written to `tmp/ui-dumps/ui-<id>.ndjson`
 5. use `reassemble-ui-dump.ps1` to reassemble into `reassembled/<id>/`
 
 After reassembly, the HTML is split by `body` root elements into `html/*.html` files.
+`manifest.json` now records per-section completeness, truncation flags, source kind (`document` vs `fragment`), selector info, and length comparisons.
+`check-ui-dump.ps1` is the fast sanity-check helper for one reassembled dump.
 
 Return fields:
 
@@ -698,7 +700,7 @@ Return fields:
 Known limitations:
 
 - deep mode can stall on heavy HUD sessions; use `deep = false` for faster safe dumps
-- full `body` dumps exceed bridge serialization limits and stall; always use `htmlSelector` for targeted extraction
+- very large full-document dumps can still be slow, but they must now report incomplete state explicitly instead of looking successful after silent clipping
 - `htmlSelector` targets the HUD document root, not the Lua editor probe context
 - F1/Help codex topics use `section#bm_<topic>` IDs (e.g. `section#bm_renderscript`, `section#bm_scripting_element_API`); use `raw_eval` to discover the correct ID: `document.querySelectorAll('section[id^="bm_"]')` to list all available topics
 

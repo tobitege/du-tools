@@ -27,6 +27,9 @@
     allScriptsMaxScripts: 512,
     allScriptsMaxScriptChars: 12000000,
     allScriptsPacketDelayMs: 2,
+    dumpSectionPacketDelayMs: 1,
+    dumpSectionBurstPacketCount: 100,
+    dumpSectionBurstPauseMs: 250,
     chunkSize: 12000,
     phaseDelayMs: 10,
     initialDelayMs: 0,
@@ -325,6 +328,9 @@
   config.allScriptsMaxScripts = numberOrDefault(config.allScriptsMaxScripts, DEFAULT_CONFIG.allScriptsMaxScripts);
   config.allScriptsMaxScriptChars = numberOrDefault(config.allScriptsMaxScriptChars, DEFAULT_CONFIG.allScriptsMaxScriptChars);
   config.allScriptsPacketDelayMs = numberOrDefault(config.allScriptsPacketDelayMs, DEFAULT_CONFIG.allScriptsPacketDelayMs);
+  config.dumpSectionPacketDelayMs = numberOrDefault(config.dumpSectionPacketDelayMs, DEFAULT_CONFIG.dumpSectionPacketDelayMs);
+  config.dumpSectionBurstPacketCount = numberOrDefault(config.dumpSectionBurstPacketCount, DEFAULT_CONFIG.dumpSectionBurstPacketCount);
+  config.dumpSectionBurstPauseMs = numberOrDefault(config.dumpSectionBurstPauseMs, DEFAULT_CONFIG.dumpSectionBurstPauseMs);
   config.chunkSize = numberOrDefault(config.chunkSize, DEFAULT_CONFIG.chunkSize);
   config.phaseDelayMs = numberOrDefault(config.phaseDelayMs, DEFAULT_CONFIG.phaseDelayMs);
   config.initialDelayMs = numberOrDefault(config.initialDelayMs, DEFAULT_CONFIG.initialDelayMs);
@@ -353,6 +359,7 @@
   var packetCount = 0;
   var errors = [];
   var warnings = [];
+  var sectionReports = [];
   var extensionModeHandlers = [];
   var payloadApi = null;
   window.__UI_TOOLBOX_LAST_DUMP_ID__ = dumpId;
@@ -398,19 +405,68 @@
     return false;
   }
 
+  function normalizeSectionReportMeta(section, meta, originalPayloadLength, sentLength, chunkCount) {
+    var sectionMeta = copyObject(meta || {});
+    var originalLength = sectionMeta.originalLength;
+    var sourceKind = sectionMeta.sourceKind || "";
+    var selector = sectionMeta.selector;
+    var requestedSelector = sectionMeta.requestedSelector;
+    var collectionTruncated = !!sectionMeta.collectionTruncated;
+    var transportTruncated = !!sectionMeta.transportTruncated;
+
+    if (typeof originalLength !== "number" || !isFinite(originalLength) || originalLength < 0) {
+      originalLength = originalPayloadLength;
+    }
+    if (typeof selector !== "string") {
+      selector = "";
+    }
+    if (typeof requestedSelector !== "string") {
+      requestedSelector = selector;
+    }
+    if (typeof sectionMeta.sentLength !== "number" || !isFinite(sectionMeta.sentLength) || sectionMeta.sentLength < 0) {
+      sectionMeta.sentLength = sentLength;
+    }
+    sectionMeta.originalLength = originalLength;
+    sectionMeta.sourceKind = sourceKind;
+    sectionMeta.selector = selector;
+    sectionMeta.requestedSelector = requestedSelector;
+    sectionMeta.collectionTruncated = collectionTruncated;
+    sectionMeta.transportTruncated = transportTruncated;
+    sectionMeta.complete = !collectionTruncated && !transportTruncated;
+    if (meta && meta.complete === false) {
+      sectionMeta.complete = false;
+    }
+    sectionMeta.packetCount = chunkCount;
+    return sectionMeta;
+  }
+
+  function recordSectionReport(section, meta) {
+    var report = copyObject(meta || {});
+    report.section = section;
+    sectionReports.push(report);
+  }
+
   function sendSection(section, data, meta, options) {
     var payload = typeof data === "string" ? data : safeStringify(data);
-    var sectionMeta = copyObject(meta || {});
     var sendOptions = options || {};
     var originalPayloadLength = payload.length;
+    var transportTruncated = false;
 
     if (!sendOptions.noPayloadClip && payload.length > config.maxPayloadChars) {
       payload = payload.slice(0, config.maxPayloadChars);
-      sectionMeta.payloadTruncated = true;
-      sectionMeta.originalPayloadLength = originalPayloadLength;
+      transportTruncated = true;
     }
 
     var chunks = splitIntoChunks(payload, config.chunkSize);
+    var sectionMeta = normalizeSectionReportMeta(section, meta, originalPayloadLength, payload.length, chunks.length);
+    if (transportTruncated) {
+      sectionMeta.transportTruncated = true;
+      sectionMeta.payloadTruncated = true;
+      sectionMeta.originalPayloadLength = originalPayloadLength;
+      sectionMeta.complete = false;
+      pushWarning(section, "section payload clipped before transport: sent " + payload.length + " of " + originalPayloadLength + " chars");
+    }
+    recordSectionReport(section, sectionMeta);
     for (var i = 0; i < chunks.length; i += 1) {
       sendRawPacket({
         type: "ui_dump",
@@ -429,23 +485,43 @@
 
   function sendSectionPaced(section, data, meta, options, done) {
     var payload = typeof data === "string" ? data : safeStringify(data);
-    var sectionMeta = copyObject(meta || {});
     var sendOptions = options || {};
     var originalPayloadLength = payload.length;
     var packetDelay = Number(sendOptions.packetDelayMs);
+    var burstPacketCount = Number(sendOptions.burstPacketCount);
+    var burstPauseMs = Number(sendOptions.burstPauseMs);
+    var transportTruncated = false;
     if (!isFinite(packetDelay) || packetDelay < 0) {
       packetDelay = 0;
     } else {
       packetDelay = Math.floor(packetDelay);
     }
+    if (!isFinite(burstPacketCount) || burstPacketCount < 1) {
+      burstPacketCount = 0;
+    } else {
+      burstPacketCount = Math.floor(burstPacketCount);
+    }
+    if (!isFinite(burstPauseMs) || burstPauseMs < 0) {
+      burstPauseMs = 0;
+    } else {
+      burstPauseMs = Math.floor(burstPauseMs);
+    }
 
     if (!sendOptions.noPayloadClip && payload.length > config.maxPayloadChars) {
       payload = payload.slice(0, config.maxPayloadChars);
-      sectionMeta.payloadTruncated = true;
-      sectionMeta.originalPayloadLength = originalPayloadLength;
+      transportTruncated = true;
     }
 
     var chunks = splitIntoChunks(payload, config.chunkSize);
+    var sectionMeta = normalizeSectionReportMeta(section, meta, originalPayloadLength, payload.length, chunks.length);
+    if (transportTruncated) {
+      sectionMeta.transportTruncated = true;
+      sectionMeta.payloadTruncated = true;
+      sectionMeta.originalPayloadLength = originalPayloadLength;
+      sectionMeta.complete = false;
+      pushWarning(section, "section payload clipped before paced transport: sent " + payload.length + " of " + originalPayloadLength + " chars");
+    }
+    recordSectionReport(section, sectionMeta);
     var idx = 0;
 
     function sendNext() {
@@ -470,7 +546,9 @@
       });
       idx += 1;
 
-      if (packetDelay > 0) {
+      if (burstPacketCount > 0 && burstPauseMs > 0 && idx < chunks.length && (idx % burstPacketCount) === 0) {
+        setTimeout(sendNext, burstPauseMs);
+      } else if (packetDelay > 0) {
         setTimeout(sendNext, packetDelay);
       } else {
         sendNext();
@@ -611,6 +689,10 @@
   function collectHtml() {
     return withSectionGuard("html", function () {
       var html = "";
+      var requestedSelector = String(config.htmlSelector || "");
+      var selector = requestedSelector;
+      var sourceKind = requestedSelector ? "fragment" : "document";
+      var fallbackToDocument = false;
       if (config.htmlSelector) {
         try {
           var el = document.querySelector(config.htmlSelector);
@@ -618,25 +700,40 @@
             html = el.outerHTML;
           } else {
             pushWarning("html", "selector " + config.htmlSelector + " found no element or outerHTML, falling back to documentElement");
+            selector = "";
+            sourceKind = "document";
+            fallbackToDocument = true;
           }
         } catch (_badSel) {
           pushWarning("html", "selector " + config.htmlSelector + " threw: " + String(_badSel));
+          selector = "";
+          sourceKind = "document";
+          fallbackToDocument = true;
         }
       } else if (document.documentElement && typeof document.documentElement.outerHTML === "string") {
         html = document.documentElement.outerHTML;
       }
       var originalLength = html.length;
-      var truncated = false;
-      if (html.length > config.maxHtmlChars) {
-        html = html.slice(0, config.maxHtmlChars);
-        truncated = true;
-      }
       return {
         html: html,
         originalLength: originalLength,
-        truncated: truncated
+        sourceKind: sourceKind,
+        selector: selector,
+        requestedSelector: requestedSelector,
+        fallbackToDocument: fallbackToDocument,
+        collectionTruncated: false,
+        complete: true
       };
-    }, { html: "", originalLength: 0, truncated: false });
+    }, {
+      html: "",
+      originalLength: 0,
+      sourceKind: "document",
+      selector: "",
+      requestedSelector: String(config.htmlSelector || ""),
+      fallbackToDocument: false,
+      collectionTruncated: false,
+      complete: true
+    });
   }
 
   function collectScripts() {
@@ -1538,6 +1635,12 @@
   }
 
   function finalize() {
+    var incompleteSections = [];
+    for (var i = 0; i < sectionReports.length; i += 1) {
+      if (sectionReports[i] && sectionReports[i].complete === false) {
+        incompleteSections.push(copyObject(sectionReports[i]));
+      }
+    }
     sendSection("errors", {
       count: errors.length,
       items: errors
@@ -1556,7 +1659,11 @@
       elapsedMs: Date.now() - startedAt,
       sentPackets: packetCount,
       errorCount: errors.length,
-      warningCount: warnings.length
+      warningCount: warnings.length,
+      complete: incompleteSections.length === 0,
+      sectionCount: sectionReports.length,
+      incompleteSectionCount: incompleteSections.length,
+      incompleteSections: incompleteSections
     });
 
     window.__UI_TOOLBOX_RUNNING__ = false;
@@ -1608,63 +1715,84 @@
   }
 
   function runPhases() {
+    function sendPhaseSection(section, data, meta, options, done) {
+      var sendOptions = copyObject(options || {});
+      if (typeof sendOptions.packetDelayMs !== "number" || !isFinite(sendOptions.packetDelayMs)) {
+        sendOptions.packetDelayMs = config.dumpSectionPacketDelayMs;
+      }
+      if (typeof sendOptions.burstPacketCount !== "number" || !isFinite(sendOptions.burstPacketCount)) {
+        sendOptions.burstPacketCount = config.dumpSectionBurstPacketCount;
+      }
+      if (typeof sendOptions.burstPauseMs !== "number" || !isFinite(sendOptions.burstPauseMs)) {
+        sendOptions.burstPauseMs = config.dumpSectionBurstPauseMs;
+      }
+      sendSectionPaced(section, data, meta, sendOptions, done);
+    }
+
     var phases = [
       {
         name: "runtime",
-        fn: function () {
-          sendSection("runtime", collectRuntime());
+        fn: function (done) {
+          sendPhaseSection("runtime", collectRuntime(), null, null, done);
         }
       },
       {
         name: "dom_summary",
-        fn: function () {
-          sendSection("dom_summary", collectDomSummary());
+        fn: function (done) {
+          sendPhaseSection("dom_summary", collectDomSummary(), null, null, done);
         }
       },
       {
         name: "html",
-        fn: function () {
+        fn: function (done) {
           var htmlData = collectHtml();
-          sendSection("html", htmlData.html, {
+          sendPhaseSection("html", htmlData.html, {
             originalLength: htmlData.originalLength,
-            truncated: htmlData.truncated
-          });
+            sourceKind: htmlData.sourceKind,
+            selector: htmlData.selector,
+            requestedSelector: htmlData.requestedSelector,
+            fallbackToDocument: !!htmlData.fallbackToDocument,
+            collectionTruncated: !!htmlData.collectionTruncated,
+            complete: !!htmlData.complete
+          }, {
+            noPayloadClip: true
+          }, done);
         }
       },
       {
         name: "scripts",
-        fn: function () {
-          sendSection("scripts", collectScripts());
+        fn: function (done) {
+          sendPhaseSection("scripts", collectScripts(), null, null, done);
         }
       },
       {
         name: "style_and_link_nodes",
-        fn: function () {
-          sendSection("style_and_link_nodes", collectLinkAndStyleNodes());
+        fn: function (done) {
+          sendPhaseSection("style_and_link_nodes", collectLinkAndStyleNodes(), null, null, done);
         }
       },
       {
         name: "stylesheets",
-        fn: function () {
-          sendSection("stylesheets", collectStyleSheets());
+        fn: function (done) {
+          sendPhaseSection("stylesheets", collectStyleSheets(), null, null, done);
         }
       },
       {
         name: "computed_styles",
-        fn: function () {
-          sendSection("computed_styles", collectComputedStyles());
+        fn: function (done) {
+          sendPhaseSection("computed_styles", collectComputedStyles(), null, null, done);
         }
       },
       {
         name: "storage",
-        fn: function () {
-          sendSection("storage", collectStorage());
+        fn: function (done) {
+          sendPhaseSection("storage", collectStorage(), null, null, done);
         }
       },
       {
         name: "globals",
-        fn: function () {
-          sendSection("globals", collectGlobals());
+        fn: function (done) {
+          sendPhaseSection("globals", collectGlobals(), null, null, done);
         }
       }
     ];
@@ -1678,11 +1806,13 @@
       var phase = phases[index];
       setTimeout(function () {
         try {
-          phase.fn();
+          phase.fn(function () {
+            step(index + 1);
+          });
         } catch (err) {
           pushError("phase:" + phase.name, err);
+          step(index + 1);
         }
-        step(index + 1);
       }, config.phaseDelayMs);
     }
 
@@ -1711,6 +1841,9 @@
           allScriptsMaxScripts: config.allScriptsMaxScripts,
           allScriptsMaxScriptChars: config.allScriptsMaxScriptChars,
           allScriptsPacketDelayMs: config.allScriptsPacketDelayMs,
+          dumpSectionPacketDelayMs: config.dumpSectionPacketDelayMs,
+          dumpSectionBurstPacketCount: config.dumpSectionBurstPacketCount,
+          dumpSectionBurstPauseMs: config.dumpSectionBurstPauseMs,
           chunkSize: config.chunkSize,
           phaseDelayMs: config.phaseDelayMs,
           maxPayloadChars: config.maxPayloadChars,
