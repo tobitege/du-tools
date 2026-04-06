@@ -408,12 +408,16 @@
     var modeSelectedBg = buildLinearGradient(shadeHexColor(primary, 0.16), shadeHexColor(primary, 0.05), shadeHexColor(primaryFocus, -0.08));
     var modeSelectedBorder = withAlpha(primary, 0.78);
     var modeSelectedColor = primaryContent;
+    var btnApplyColor = primaryContent;
     if (themeName === "daisy-black") {
       borderHover = "#6fbfff";
       selectionBorder = "rgba(111,191,255,0.92)";
       modeSelectedBg = buildLinearGradient("#7fd0ff", "#58a9ff", "#2f76d9");
       modeSelectedBorder = "rgba(111,191,255,0.92)";
       modeSelectedColor = "#f6fbff";
+    }
+    if (isLightBase) {
+      btnApplyColor = "#ffffff";
     }
     var btnDisabledBg = buildLinearGradient(shadeHexColor(base200, isLightBase ? -0.03 : 0.04), rowAlt, shadeHexColor(deep, isLightBase ? -0.08 : -0.02));
     var btnDisabledBorder = withAlpha(borderStrong, isLightBase ? 0.6 : 0.5);
@@ -456,7 +460,7 @@
       gutterBorder: mixHexColor(base200, base300, 0.5),
       btnApplyBg: buildLinearGradient(shadeHexColor(primary, 0.08), mixHexColor(primary, primaryFocus, 0.55), shadeHexColor(primaryFocus, -0.18)),
       btnApplyBorder: withAlpha(primary, 0.78),
-      btnApplyColor: primaryContent,
+      btnApplyColor: btnApplyColor,
       btnApplyHoverBg: buildLinearGradient(shadeHexColor(primary, 0.16), shadeHexColor(primary, 0.05), shadeHexColor(primaryFocus, -0.08)),
       btnApplyActiveBg: buildLinearGradient(shadeHexColor(primaryFocus, -0.02), shadeHexColor(primaryFocus, -0.12), shadeHexColor(primaryFocus, -0.24)),
       modeSelectedBg: modeSelectedBg,

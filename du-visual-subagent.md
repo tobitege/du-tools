@@ -57,6 +57,11 @@ This avoids races in the live DU UI.
    - visible result wins over chat
    - board runtime validation requires a real off/on cycle
    - session-sensitive live calls for the same `playerId` must stay sequential
+   - if no real code change was made, do not assume `Apply` is enabled
+   - for `lua_editor` with no real code change, close with `Cancel` or `Escape`
+   - with unchanged code visible in `lua_editor`, `Escape` typically requires two taps
+   - special case: if no Lua filter is selected at all, one `Escape` tap closes the editor
+   - for `screen_editor` with no real code change, close with `Escape`, and expect two taps
 1. Read the latest structured state first:
    - `du_list_active_sessions`
    - `du_ui_describe(uiKind = lua_editor)` or `du_ui_wait(uiKind = lua_editor)`
@@ -210,6 +215,14 @@ Good moments to use this workflow:
 - when a user says the visible client behavior does not match the tool result
 - when the main agent suspects wrong UI focus, stuck overlays, or accidental `Escape`
 - when the task is explicitly about context menus, submenu ordering, or visual-only UI labels
+
+## Editor Exit Rule
+
+- Do not assume a visible `Apply` button means a real edit happened.
+- If no real code change was made in `lua_editor`, close with `Cancel` or `Escape`.
+- With unchanged code visible in `lua_editor`, `Escape` typically requires two taps.
+- Special case: if no Lua filter is selected at all, one `Escape` tap closes the editor.
+- If no real code change was made in `screen_editor`, close with `Escape`, and expect two taps.
 
 ## Non-Goals
 

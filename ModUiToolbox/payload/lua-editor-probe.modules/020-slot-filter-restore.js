@@ -193,9 +193,24 @@
 
     var hasFilters = getVisibleFilterNodes().length > 0;
     var activeFilterNode = getResolvedActiveFilterNode();
-    var shouldDisable = !hasFilters || !activeFilterNode;
-    button.setAttribute("data-lua-probe-force-disabled", shouldDisable ? "1" : "0");
-    button.setAttribute("aria-disabled", shouldDisable ? "true" : "false");
+    var nativeDisabled = false;
+    try {
+      nativeDisabled = !!(
+        button.disabled ||
+        (button.classList && button.classList.contains("disabled")) ||
+        button.getAttribute("disabled") !== null ||
+        button.getAttribute("aria-disabled") === "true"
+      );
+    } catch (_ignoreNativeDisabled) {}
+
+    var shouldForceDisable = !hasFilters || !activeFilterNode || nativeDisabled;
+    if (shouldForceDisable) {
+      button.setAttribute("data-lua-probe-force-disabled", "1");
+      button.setAttribute("aria-disabled", "true");
+    } else {
+      button.removeAttribute("data-lua-probe-force-disabled");
+      button.setAttribute("aria-disabled", "false");
+    }
   }
 
   function setActiveFilterMarker(filterNode) {

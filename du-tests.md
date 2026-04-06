@@ -23,6 +23,11 @@ For Programming Board / lua_editor work:
 - du_editor_push_code does not open an editor
 - du_editor_save does not choose a buffer for you
 - du_editor_pull_code is not automatic proof of the visible live buffer
+- if no real code change was made, do not assume `Apply` is enabled
+- if no real code change was made in `lua_editor`, close with `Cancel` or `Escape`
+- if unchanged code is present in `lua_editor`, closing by `Escape` typically requires two taps
+- special case: in `lua_editor`, if no filter is selected at all, a single `Escape` tap closes it
+- if unchanged code is present in `screen_editor`, closing by `Escape` requires two taps
 - unit timer callbacks only arrive through a real `unit.onTimer(...)` filter; a Lua helper method alone is not enough unless the active unit filter forwards to it
 
 Important truth:
@@ -83,6 +88,11 @@ These rules come from real live-debugging failures and take priority over conven
 - `du_editor_push_code` does not open an editor.
 - `du_editor_save` does not choose a target buffer.
 - `du_editor_pull_code` is not automatically the visible live buffer.
+- If no real code change was made, do not assume `Apply` is enabled just because slot or filter selection changed.
+- For `lua_editor` with no real code change, use `Cancel` or `Escape`.
+- With unchanged code visible in `lua_editor`, `Escape` typically requires two taps.
+- Special case: if no Lua filter is selected at all, one `Escape` tap closes the editor.
+- For `screen_editor` with no real code change, close with `Escape`, and expect two taps.
 - `unit.setTimer(...)` requires a real active `unit.onTimer(...)` filter in the running board script path. A library helper such as `HudEditorBoard.onTimer(...)` does nothing by itself unless the active `unit` filter forwards to it.
 - Before any mutation, confirm the current live state with the documented bridge or UI tools.
 - Before native inputs like `Ctrl+L` or `du_open_editor_native`, confirm the visible target state instead of guessing.
@@ -333,6 +343,11 @@ Minimal generic test:
 - Note: in practice this often follows the same save/apply path and may close the whole Lua editor
 - Very important: for `lua_editor`, save/apply is not proof of board restart or new running runtime
 - Optional visual check: a targeted screenshot after apply can help distinguish "editor saved" from "screen actually changed"
+- If nothing was actually edited, do not use save/apply as an exit path just because a different slot or filter was selected.
+- For `lua_editor` with no real code change, exit with `Cancel` or `Escape`.
+- With unchanged code visible in `lua_editor`, expect two `Escape` taps to close.
+- Special case: if no Lua filter is selected at all, one `Escape` tap closes the editor.
+- For `screen_editor` with no real code change, exit with `Escape`, and expect two taps.
 
 ### 8A. Valid Board Runtime Test
 

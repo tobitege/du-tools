@@ -317,7 +317,52 @@ Probe override resolution order on each inject:
 - The `screen_editor` content header panel (`sub_title`, wrap/font controls, mode switch block) is now themed as well, so the whole top control area matches the active probe theme instead of keeping the vanilla DU look.
 - The industry panel uses the same shared switcher and theme state when the `industry-panel` runtime module is enabled, so all three UI surfaces stay consistent.
 - Shared runtime theme objects now expose `isLight`, and imported Daisy palettes carry compact `il` metadata, so light-theme contrast fixes can stay in the shared theme layer instead of relying on one-off selector guesses.
+- For visible spacing between the shortcut dots, `...`, and `Off`, prefer explicit margins on the controls instead of relying on flex `gap`; the embedded DU browser may not render `gap` changes reliably on that switcher row.
 - The visible `screen_editor` now also gets its own `IDE Sync` button in the top control row; it uses the same chunked packet family as the Lua editor, but exports with `targetKind = screen_editor`.
+
+#### Repeatable workflow for theme contrast fixes
+
+Use this order when a themed UI surface looks washed out, low-contrast, or otherwise hard to read.
+
+1. Check whether the problem is in the shared theme layer or only in one surface.
+2. If multiple surfaces are wrong in the same theme, start in the shared theme layer before touching per-surface CSS.
+3. If only one surface is wrong, verify first that the shared theme tokens are already reasonable, then add a scoped override for that surface.
+
+Files to inspect first:
+
+- `payload/lua-editor-probe.modules/000-core.js`
+  Holds the built-in fallback themes in `colorThemes`. Use this when the issue only affects the hardcoded built-in themes such as `monokai`, `github-dark`, or `gruvbox-dark`.
+- `payload/theme-imports/flowery-daisy-palettes.compact.json`
+  Holds imported Daisy palette values plus compact `il` metadata for whether a theme is light.
+- `tools/extract-flowery-daisy-palettes.ps1`
+  Regenerates the compact Daisy palette import and computes `il` from `DaisyBase100Color`. If imported palettes are misclassified as light/dark, fix the extraction path or source metadata here.
+- `payload/lua-editor-probe.modules/030-caret-theme-ide-sync.js`
+  This is the main shared theme translation layer. Inspect `resolveThemeLightFlag`, `normalizeThemeDefinition`, `buildThemeFromCompact`, `pickReadableTextColor`, `ensureReadableAccentColor`, and `applyTheme`.
+- `payload/lua-editor-probe.modules/010-context-and-viewport.js`
+  This is where surface-specific CSS consumes the shared `--lua-probe-*` tokens. Only use this after confirming the runtime theme object is already producing sensible colors.
+
+Methodology:
+
+- First verify the light/dark classification.
+  If the wrong surfaces become unreadable only on light Daisy themes, inspect `isLight` / `il` first. A wrong light/dark flag causes many downstream contrast mistakes.
+- Then verify the shared token derivation.
+  In `030-caret-theme-ide-sync.js`, prefer fixing `textMuted`, `textDim`, `cmText`, `cmString`, accent readability, or derived surface colors so the correction benefits every UI that shares the theme object.
+- Prefer shared readable tokens over hardcoded colors.
+  When possible, use existing variables such as `var(--lua-probe-cm-text)`, `var(--lua-probe-cm-string)`, `var(--lua-probe-text-muted)`, `var(--lua-probe-text-dim)`, and `var(--lua-probe-accent-solid)` rather than new literal hex values.
+- Use surface-local overrides only for proven one-off readability problems.
+  If a specific control, icon, or decorative asset still looks wrong after the shared token layer is correct, add a scoped selector in `010-context-and-viewport.js` for that surface only.
+- For light-theme-only fixes, branch on `data-lua-probe-theme-light="1"` rather than duplicating entire theme blocks.
+  That keeps the fix small and avoids changing dark themes unnecessarily.
+- Do not guess selectors when a live UI dump is available.
+  Use the local extracted HTML and stylesheet dumps as the source of truth for wrapper hierarchy and actual class names before writing overrides.
+- For switcher spacing in DU’s embedded browser, prefer explicit margins over flex `gap`.
+  The browser may not render `gap` changes reliably on the shared theme-switcher row.
+
+Success criteria:
+
+- The fix should improve readability without changing unrelated themes.
+- Shared-theme fixes should help Lua editor, screen editor, and industry panel together when they use the same tokens.
+- Surface-local fixes should stay scoped and should not replace the shared theme system with a parallel one.
 
 After each edit:
 

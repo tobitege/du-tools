@@ -326,6 +326,9 @@
     }
 
     var topContainer = findTopLevelMenuContainer(menuRoot);
+    if (topContainer) {
+      moveModMenuEntryToBottom(topContainer);
+    }
     var editLuaEntry = findNativeMenuEntryByText(menuRoot, "edit lua script");
     if (!topContainer || !editLuaEntry) {
       removeQuickLuaMenuEntries(menuRoot);
@@ -380,8 +383,6 @@
     if (quickInject && quickInject.parentNode) {
       quickInject.parentNode.removeChild(quickInject);
     }
-
-    moveModMenuEntryToBottom(topContainer);
   }
 
   function waitForLuaEditorOpen(timeoutMs, pollIntervalMs) {

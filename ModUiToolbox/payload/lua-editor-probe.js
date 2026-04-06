@@ -1641,6 +1641,9 @@
       + "display:flex;flex:1 1 auto;justify-content:center;align-items:center;text-align:center;"
       + "margin-left:16px;color:#ffffff !important;white-space:nowrap;"
       + "font-family:Play,sans-serif;font-size:13.59814835px;font-weight:600;line-height:16px;text-transform:uppercase;}"
+      + "#dpu_editor[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn .header .lua_error_header_wrapper .lua_error_title,"
+      + "#dpu_editor[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn .header .lua_error_header_wrapper .lua-probe-buffer-size{"
+      + "color:var(--lua-probe-cm-text) !important;text-shadow:none !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .main_wrapper .wrapper .editor_wrapper .col.scripts .error_ctn .header .reduce_size{"
       + "fill:var(--lua-probe-accent-solid) !important;}"
       + "#dpu_editor[data-lua-probe-active=\"1\"] .editor_header .header_container{"
@@ -1649,19 +1652,19 @@
       + "border-bottom:1px solid var(--lua-probe-accent) !important;}"
       + "#dpu_editor #ModUiToolbox-lua-theme-dots{"
       + "position:absolute;left:12px;top:50%;transform:translateY(-50%);"
-      + "display:flex;gap:8px;align-items:center;z-index:11;overflow:visible;}"
+      + "display:flex;gap:0;align-items:center;z-index:11;overflow:visible;}"
       + "#dpu_editor #ModUiToolbox-lua-theme-dots .lua-theme-dot{"
       + "width:12px;height:12px;border-radius:999px;border:1px solid rgba(255,255,255,0.6);"
       + "padding:0;cursor:pointer;opacity:0.88;}"
       + "#ModUiToolbox-industry-panel-theme-switcher-host{"
       + "position:fixed;left:0;top:0;z-index:2147482601;display:flex;align-items:center;overflow:visible;pointer-events:auto;}"
       + "#ModUiToolbox-industry-panel-theme-switcher{"
-      + "display:flex;gap:8px;align-items:center;overflow:visible;}"
+      + "display:flex;gap:0;align-items:center;overflow:visible;}"
       + "#dpu_editor #ModUiToolbox-lua-theme-dots .lua-theme-dot,"
       + ".screen_content_editor_panel #ModUiToolbox-screen-theme-dots .lua-theme-dot,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-dot{"
       + "width:12px;height:12px;border-radius:999px;border:1px solid rgba(255,255,255,0.6);"
-      + "padding:0;cursor:pointer;opacity:0.88;}"
+      + "padding:0;margin-right:4px;cursor:pointer;opacity:0.88;}"
       + "#dpu_editor #ModUiToolbox-lua-theme-dots .lua-theme-dot[data-active=\"1\"],"
       + ".screen_content_editor_panel #ModUiToolbox-screen-theme-dots .lua-theme-dot[data-active=\"1\"],"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-dot[data-active=\"1\"]{"
@@ -1671,25 +1674,25 @@
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-trigger{"
       + "width:18px;height:18px;padding:0;border-radius:6px;cursor:pointer;"
       + "display:flex;align-items:center;justify-content:center;"
-      + "margin-left:3px;"
+      + "margin-left:0;margin-right:4px;"
       + "border:1px solid rgba(255,255,255,0.22);background:rgba(0,0,0,0.28);"
-      + "color:var(--lua-probe-text-muted) !important;font-family:Play,sans-serif;font-size:11px;font-weight:900;line-height:1;}"
+      + "color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;font-family:Play,sans-serif;font-size:11px;font-weight:900;line-height:1;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-trigger:hover,"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-trigger:hover,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-trigger:hover{"
-      + "border-color:var(--lua-probe-border-hover) !important;color:var(--lua-probe-text-muted) !important;background:rgba(0,0,0,0.42);}"
+      + "border-color:var(--lua-probe-border-hover) !important;color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;background:rgba(0,0,0,0.42);}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-off-button,"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-off-button,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-off-button{"
       + "min-width:26px;height:18px;padding:0 6px;border-radius:6px;cursor:pointer;"
       + "display:flex;align-items:center;justify-content:center;"
-      + "margin-left:2px;"
+      + "margin-left:0;"
       + "border:1px solid rgba(255,255,255,0.22);background:rgba(0,0,0,0.24);"
-      + "color:var(--lua-probe-text-dim) !important;font-family:Play,sans-serif;font-size:10px;font-weight:900;line-height:1;text-transform:uppercase;}"
+      + "color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;font-family:Play,sans-serif;font-size:10px;font-weight:900;line-height:1;text-transform:uppercase;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-off-button:hover,"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-off-button:hover,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-off-button:hover{"
-      + "border-color:var(--lua-probe-border-hover) !important;color:var(--lua-probe-text-muted) !important;background:rgba(0,0,0,0.38);}"
+      + "border-color:var(--lua-probe-border-hover) !important;color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;background:rgba(0,0,0,0.38);}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-off-button[data-active=\"1\"],"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-off-button[data-active=\"1\"],"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-off-button[data-active=\"1\"]{"
@@ -1709,8 +1712,8 @@
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-status{"
       + "color:var(--lua-probe-text-dim) !important;font-family:Play,sans-serif;font-size:12px;font-weight:700;margin-bottom:8px;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-list,"
-      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-right:-6px;margin-bottom:-8px;}"
-      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-right:-6px;margin-bottom:-8px;}"
+      + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-list,"
+      + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-right:-6px;margin-bottom:-8px;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-item,"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-item,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-item{"
@@ -1753,11 +1756,12 @@
       + "#dpu_editor #ModUiToolbox-lua-caret-toggle{"
       + "min-width:9.25925926vh;}"
       + "#dpu_editor #ModUiToolbox-lua-ide-sync{"
-      + "min-width:8.7962963vh;color:var(--lua-probe-btn-apply-color);border-color:var(--lua-probe-btn-apply-border);"
-      + "background:var(--lua-probe-btn-apply-bg);}"
+      + "min-width:8.7962963vh;color:var(--lua-probe-btn-apply-color) !important;border-color:var(--lua-probe-btn-apply-border);"
+      + "background:var(--lua-probe-btn-apply-bg);text-shadow:0 1px 0 rgba(0,0,0,0.42),0 0 1px rgba(0,0,0,0.35) !important;}"
       + "#dpu_editor #ModUiToolbox-lua-caret-toggle[data-on=\"1\"]{"
-      + "border-color:var(--lua-probe-btn-apply-border);color:var(--lua-probe-btn-apply-color);"
+      + "border-color:var(--lua-probe-btn-apply-border);color:var(--lua-probe-btn-apply-color) !important;"
       + "background:var(--lua-probe-btn-apply-bg);"
+      + "text-shadow:0 1px 0 rgba(0,0,0,0.42),0 0 1px rgba(0,0,0,0.35) !important;"
       + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.16),inset 0 -2px 0 rgba(0,0,0,0.4),0 1px 0 rgba(0,0,0,0.22),0 3px 10px rgba(0,0,0,0.3);}"
       + "#dpu_editor #ModUiToolbox-lua-caret-toggle:hover,#dpu_editor #ModUiToolbox-lua-ide-sync:hover{"
       + "border-color:var(--lua-probe-border-hover);color:var(--lua-probe-btn-cancel-color);"
@@ -1765,6 +1769,14 @@
       + "#dpu_editor #ModUiToolbox-lua-caret-toggle:active,#dpu_editor #ModUiToolbox-lua-ide-sync:active{"
       + "transform:translateY(1px);"
       + "background:var(--lua-probe-btn-cancel-active-bg);}"
+      + "#dpu_editor #ModUiToolbox-lua-ide-sync:hover,"
+      + "#dpu_editor #ModUiToolbox-lua-caret-toggle[data-on=\"1\"]:hover{"
+      + "color:var(--lua-probe-btn-apply-color) !important;background:var(--lua-probe-btn-apply-hover-bg);"
+      + "text-shadow:0 1px 0 rgba(0,0,0,0.42),0 0 1px rgba(0,0,0,0.35) !important;}"
+      + "#dpu_editor #ModUiToolbox-lua-ide-sync:active,"
+      + "#dpu_editor #ModUiToolbox-lua-caret-toggle[data-on=\"1\"]:active{"
+      + "color:var(--lua-probe-btn-apply-color) !important;background:var(--lua-probe-btn-apply-active-bg);"
+      + "text-shadow:0 1px 0 rgba(0,0,0,0.42),0 0 1px rgba(0,0,0,0.35) !important;}"
       + "#dpu_editor #ModUiToolbox-lua-caret-toggle:focus,#dpu_editor #ModUiToolbox-lua-ide-sync:focus{"
       + "outline:none;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"]{"
@@ -1776,7 +1788,7 @@
       + "position:relative;background:var(--lua-probe-header-bg) !important;"
       + "border-bottom:1px solid var(--lua-probe-accent) !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .header_block .panel_title{"
-      + "color:var(--lua-probe-text-muted) !important;"
+      + "color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;"
       + "text-shadow:0 1px 0 rgba(0,0,0,0.42) !important;"
       + "padding-left:4.25925926vh !important;"
       + "padding-right:4.25925926vh !important;"
@@ -1823,7 +1835,7 @@
       + "background:var(--lua-probe-surface-deep) !important;}"
       + ".screen_content_editor_panel #ModUiToolbox-screen-theme-dots{"
       + "position:absolute;left:12px;top:50%;transform:translateY(-50%);"
-      + "display:flex;gap:8px;align-items:center;z-index:11;overflow:visible;}"
+      + "display:flex;gap:0;align-items:center;z-index:11;overflow:visible;}"
       + ".screen_content_editor_panel #ModUiToolbox-screen-theme-dots .lua-theme-dot{"
       + "width:12px;height:12px;border-radius:999px;border:1px solid rgba(255,255,255,0.6);"
       + "padding:0;cursor:pointer;opacity:0.88;}"
@@ -1866,10 +1878,14 @@
       + "border-top:1px solid var(--lua-probe-gutter-border) !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .error_block .error_header .left_wrapper{"
       + "display:flex;align-items:center;gap:10px;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .footer_line .error_block .error_header .left_wrapper,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .footer_line .error_block .error_header .left_wrapper *,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .footer_line .error_block .error_header .left_wrapper .lua-probe-screen-buffer-size{"
+      + "color:var(--lua-probe-cm-text) !important;-webkit-text-fill-color:var(--lua-probe-cm-text) !important;text-shadow:none !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .error_block .error_header .left_wrapper .lua-probe-screen-buffer-size{"
       + "display:flex;flex:1 1 auto;justify-content:center;align-items:center;text-align:center;"
       + "margin-left:16px;color:var(--lua-probe-text-dim) !important;white-space:nowrap;"
-      + "font-family:Play,sans-serif;font-size:19.56111145px;font-weight:600;line-height:23px;}"
+      + "font-family:Play,sans-serif;font-size:17.18888855px;font-weight:600;line-height:20px;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .editor_error_ctn{"
       + "background:var(--lua-probe-surface-elevated) !important;"
       + "box-shadow:var(--lua-probe-shadow) 3px 3px 5px !important;}"
@@ -1891,12 +1907,17 @@
       + "border-color:var(--lua-probe-btn-apply-border) !important;"
       + "box-shadow:inset 0 1px 0 rgba(255,255,255,0.12),0 1px 4px rgba(0,0,0,0.28) !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .mode_switch_wrapper .checkbox_switch .switch_label{"
-      + "color:var(--lua-probe-text-dim) !important;text-shadow:none !important;}"
+      + "color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;text-shadow:none !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .mode_switch_wrapper .checkbox_switch .unchecked_option{"
-      + "color:var(--lua-probe-text-muted) !important;}"
+      + "color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .mode_switch_wrapper .checkbox_switch input:checked ~ .checked_option,"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .mode_switch_wrapper .checkbox_switch input:not(:checked) ~ .unchecked_option{"
-      + "color:var(--lua-probe-on-accent) !important;font-weight:700 !important;}"
+      + "color:#111111 !important;-webkit-text-fill-color:#111111 !important;font-weight:700 !important;}"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .mode_switch_wrapper .checkbox_switch .switch_label,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .mode_switch_wrapper .checkbox_switch .unchecked_option,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .mode_switch_wrapper .checkbox_switch input:checked ~ .checked_option,"
+      + ".screen_content_editor_panel[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"] .mode_switch_wrapper .checkbox_switch input:not(:checked) ~ .unchecked_option{"
+      + "color:#111111 !important;-webkit-text-fill-color:#111111 !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .character_count{"
       + "color:var(--lua-probe-text-dim) !important;}"
       + ".screen_content_editor_panel[data-lua-probe-active=\"1\"] .footer_line .save_button::before,"
@@ -2887,9 +2908,24 @@
 
     var hasFilters = getVisibleFilterNodes().length > 0;
     var activeFilterNode = getResolvedActiveFilterNode();
-    var shouldDisable = !hasFilters || !activeFilterNode;
-    button.setAttribute("data-lua-probe-force-disabled", shouldDisable ? "1" : "0");
-    button.setAttribute("aria-disabled", shouldDisable ? "true" : "false");
+    var nativeDisabled = false;
+    try {
+      nativeDisabled = !!(
+        button.disabled ||
+        (button.classList && button.classList.contains("disabled")) ||
+        button.getAttribute("disabled") !== null ||
+        button.getAttribute("aria-disabled") === "true"
+      );
+    } catch (_ignoreNativeDisabled) {}
+
+    var shouldForceDisable = !hasFilters || !activeFilterNode || nativeDisabled;
+    if (shouldForceDisable) {
+      button.setAttribute("data-lua-probe-force-disabled", "1");
+      button.setAttribute("aria-disabled", "true");
+    } else {
+      button.removeAttribute("data-lua-probe-force-disabled");
+      button.setAttribute("aria-disabled", "false");
+    }
   }
 
   function setActiveFilterMarker(filterNode) {
@@ -4231,12 +4267,16 @@
     var modeSelectedBg = buildLinearGradient(shadeHexColor(primary, 0.16), shadeHexColor(primary, 0.05), shadeHexColor(primaryFocus, -0.08));
     var modeSelectedBorder = withAlpha(primary, 0.78);
     var modeSelectedColor = primaryContent;
+    var btnApplyColor = primaryContent;
     if (themeName === "daisy-black") {
       borderHover = "#6fbfff";
       selectionBorder = "rgba(111,191,255,0.92)";
       modeSelectedBg = buildLinearGradient("#7fd0ff", "#58a9ff", "#2f76d9");
       modeSelectedBorder = "rgba(111,191,255,0.92)";
       modeSelectedColor = "#f6fbff";
+    }
+    if (isLightBase) {
+      btnApplyColor = "#ffffff";
     }
     var btnDisabledBg = buildLinearGradient(shadeHexColor(base200, isLightBase ? -0.03 : 0.04), rowAlt, shadeHexColor(deep, isLightBase ? -0.08 : -0.02));
     var btnDisabledBorder = withAlpha(borderStrong, isLightBase ? 0.6 : 0.5);
@@ -4279,7 +4319,7 @@
       gutterBorder: mixHexColor(base200, base300, 0.5),
       btnApplyBg: buildLinearGradient(shadeHexColor(primary, 0.08), mixHexColor(primary, primaryFocus, 0.55), shadeHexColor(primaryFocus, -0.18)),
       btnApplyBorder: withAlpha(primary, 0.78),
-      btnApplyColor: primaryContent,
+      btnApplyColor: btnApplyColor,
       btnApplyHoverBg: buildLinearGradient(shadeHexColor(primary, 0.16), shadeHexColor(primary, 0.05), shadeHexColor(primaryFocus, -0.08)),
       btnApplyActiveBg: buildLinearGradient(shadeHexColor(primaryFocus, -0.02), shadeHexColor(primaryFocus, -0.12), shadeHexColor(primaryFocus, -0.24)),
       modeSelectedBg: modeSelectedBg,
@@ -9281,6 +9321,9 @@
     }
 
     var topContainer = findTopLevelMenuContainer(menuRoot);
+    if (topContainer) {
+      moveModMenuEntryToBottom(topContainer);
+    }
     var editLuaEntry = findNativeMenuEntryByText(menuRoot, "edit lua script");
     if (!topContainer || !editLuaEntry) {
       removeQuickLuaMenuEntries(menuRoot);
@@ -9335,8 +9378,6 @@
     if (quickInject && quickInject.parentNode) {
       quickInject.parentNode.removeChild(quickInject);
     }
-
-    moveModMenuEntryToBottom(topContainer);
   }
 
   function waitForLuaEditorOpen(timeoutMs, pollIntervalMs) {
