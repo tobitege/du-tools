@@ -351,6 +351,111 @@ const industryPanelOutputSchema = {
   parseError: z.string().nullable()
 };
 
+const hudPageMethodSchema = z.enum(["describe", "apply_css", "remove_css", "raw_eval"]);
+
+const hudDescribeNodeSchema = z.object({
+  tagName: z.string(),
+  id: z.string().nullable(),
+  classes: z.array(z.string()),
+  connected: z.boolean(),
+  visible: z.boolean(),
+  childElementCount: z.number().int().nonnegative(),
+  textSample: z.string().nullable(),
+  inlineStyle: z.string().nullable(),
+  rect: z.object({
+    x: z.number(),
+    y: z.number(),
+    width: z.number(),
+    height: z.number()
+  }),
+  computedStyle: z.record(z.string(), z.string())
+});
+
+const hudDescribeOutputSchema = {
+  found: z.boolean(),
+  commandId: z.string(),
+  method: z.string().nullable(),
+  success: z.boolean().nullable(),
+  createdAtUtc: z.string().nullable(),
+  selector: z.string().nullable(),
+  totalMatches: z.number().int().nonnegative().nullable(),
+  returnedMatches: z.number().int().nonnegative().nullable(),
+  managedStyleIds: z.array(z.string()),
+  runtime: z.object({
+    title: z.string().nullable(),
+    readyState: z.string().nullable(),
+    locationHref: z.string().nullable(),
+    viewport: z.object({
+      innerWidth: z.number().nullable(),
+      innerHeight: z.number().nullable()
+    })
+  }),
+  nodes: z.array(hudDescribeNodeSchema),
+  resultJson: z.string().nullable(),
+  error: z.string().nullable(),
+  parseError: z.string().nullable()
+};
+
+const hudCssMutationOutputSchema = {
+  found: z.boolean(),
+  commandId: z.string(),
+  method: z.string().nullable(),
+  success: z.boolean().nullable(),
+  createdAtUtc: z.string().nullable(),
+  applied: z.boolean().nullable(),
+  removed: z.boolean().nullable(),
+  styleId: z.string().nullable(),
+  cssLength: z.number().int().nonnegative().nullable(),
+  sourceCssLength: z.number().int().nonnegative().nullable(),
+  rootSelector: z.string().nullable(),
+  rootMatchedNodeCount: z.number().int().nonnegative().nullable(),
+  scopeMode: z.string().nullable(),
+  managedStyleIds: z.array(z.string()),
+  resultJson: z.string().nullable(),
+  error: z.string().nullable(),
+  parseError: z.string().nullable()
+};
+
+const hudRawEvalOutputSchema = {
+  found: z.boolean(),
+  commandId: z.string(),
+  method: z.string().nullable(),
+  success: z.boolean().nullable(),
+  createdAtUtc: z.string().nullable(),
+  selector: z.string().nullable(),
+  matchedNodeCount: z.number().int().nonnegative().nullable(),
+  valueJson: z.string().nullable(),
+  resultJson: z.string().nullable(),
+  error: z.string().nullable(),
+  parseError: z.string().nullable()
+};
+
+function buildHudPageProbeArgs(input: {
+  method: z.infer<typeof hudPageMethodSchema>;
+  selector?: string;
+  maxMatches?: number;
+  cssText?: string;
+  styleId?: string;
+  rootSelector?: string;
+  functionBody?: string;
+}): unknown[] {
+  switch (input.method) {
+    case "describe":
+      return [input.selector ?? "", input.maxMatches ?? 8];
+    case "apply_css":
+      return [input.cssText ?? "", input.styleId ?? "", input.rootSelector ?? ""];
+    case "remove_css":
+      return [input.styleId ?? ""];
+    case "raw_eval":
+      return [input.selector ?? "", input.functionBody ?? ""];
+    default: {
+      const _exhaustive: never = input.method;
+      void _exhaustive;
+      return [];
+    }
+  }
+}
+
 function buildIndustryPanelProbeArgs(input: {
   method: z.infer<typeof industryPanelMethodSchema>;
   units?: number;
@@ -417,6 +522,193 @@ function parseIndustryPanelEventPayload(payloadJson: string | null): {
   }
 }
 
+function parseJsonRecord(payloadJson: string | null): {
+  parsed: Record<string, unknown> | null;
+  parseError: string | null;
+} {
+  if (typeof payloadJson !== "string" || payloadJson.trim().length === 0) {
+    return {
+      parsed: null,
+      parseError: null
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(payloadJson);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return {
+        parsed: parsed as Record<string, unknown>,
+        parseError: null
+      };
+    }
+    return {
+      parsed: null,
+      parseError: "result_not_object"
+    };
+  } catch (error) {
+    return {
+      parsed: null,
+      parseError: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+function asStringOrNull(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function asNumberOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function asBooleanOrNull(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function stringifyValue(value: unknown): string | null {
+  if (value === undefined) {
+    return null;
+  }
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function parseHudDescribeResult(resultJson: string | null): {
+  selector: string | null;
+  totalMatches: number | null;
+  returnedMatches: number | null;
+  managedStyleIds: string[];
+  runtime: {
+    title: string | null;
+    readyState: string | null;
+    locationHref: string | null;
+    viewport: {
+      innerWidth: number | null;
+      innerHeight: number | null;
+    };
+  };
+  nodes: Array<z.infer<typeof hudDescribeNodeSchema>>;
+  parseError: string | null;
+} {
+  const parsedResult = parseJsonRecord(resultJson);
+  const parsed = parsedResult.parsed;
+  const runtime = parsed && parsed.runtime && typeof parsed.runtime === "object" && !Array.isArray(parsed.runtime)
+    ? parsed.runtime as Record<string, unknown>
+    : null;
+  const viewport = runtime && runtime.viewport && typeof runtime.viewport === "object" && !Array.isArray(runtime.viewport)
+    ? runtime.viewport as Record<string, unknown>
+    : null;
+  const rawNodes = Array.isArray(parsed?.nodes) ? parsed.nodes : [];
+
+  return {
+    selector: parsed ? asStringOrNull(parsed.selector) : null,
+    totalMatches: parsed ? asNumberOrNull(parsed.totalMatches) : null,
+    returnedMatches: parsed ? asNumberOrNull(parsed.returnedMatches) : null,
+    managedStyleIds: parsed ? asStringArray(parsed.managedStyleIds) : [],
+    runtime: {
+      title: runtime ? asStringOrNull(runtime.title) : null,
+      readyState: runtime ? asStringOrNull(runtime.readyState) : null,
+      locationHref: runtime ? asStringOrNull(runtime.locationHref) : null,
+      viewport: {
+        innerWidth: viewport ? asNumberOrNull(viewport.innerWidth) : null,
+        innerHeight: viewport ? asNumberOrNull(viewport.innerHeight) : null
+      }
+    },
+    nodes: rawNodes
+      .filter((item): item is Record<string, unknown> => !!item && typeof item === "object" && !Array.isArray(item))
+      .map((item) => ({
+        tagName: asStringOrNull(item.tagName) ?? "",
+        id: asStringOrNull(item.id),
+        classes: asStringArray(item.classes),
+        connected: item.connected === true,
+        visible: item.visible === true,
+        childElementCount: Math.max(0, Math.trunc(asNumberOrNull(item.childElementCount) ?? 0)),
+        textSample: asStringOrNull(item.textSample),
+        inlineStyle: asStringOrNull(item.inlineStyle),
+        rect: (() => {
+          const rect = item.rect && typeof item.rect === "object" && !Array.isArray(item.rect)
+            ? item.rect as Record<string, unknown>
+            : null;
+          return {
+            x: asNumberOrNull(rect?.x) ?? 0,
+            y: asNumberOrNull(rect?.y) ?? 0,
+            width: asNumberOrNull(rect?.width) ?? 0,
+            height: asNumberOrNull(rect?.height) ?? 0
+          };
+        })(),
+        computedStyle: (() => {
+          const computedStyle = item.computedStyle && typeof item.computedStyle === "object" && !Array.isArray(item.computedStyle)
+            ? item.computedStyle as Record<string, unknown>
+            : null;
+          const output: Record<string, string> = {};
+          if (!computedStyle) {
+            return output;
+          }
+          for (const [key, value] of Object.entries(computedStyle)) {
+            if (typeof value === "string") {
+              output[key] = value;
+            }
+          }
+          return output;
+        })()
+      })),
+    parseError: parsedResult.parseError
+  };
+}
+
+function parseHudCssMutationResult(resultJson: string | null): {
+  applied: boolean | null;
+  removed: boolean | null;
+  styleId: string | null;
+  cssLength: number | null;
+  sourceCssLength: number | null;
+  rootSelector: string | null;
+  rootMatchedNodeCount: number | null;
+  scopeMode: string | null;
+  managedStyleIds: string[];
+  parseError: string | null;
+} {
+  const parsedResult = parseJsonRecord(resultJson);
+  const parsed = parsedResult.parsed;
+  return {
+    applied: parsed ? asBooleanOrNull(parsed.applied) : null,
+    removed: parsed ? asBooleanOrNull(parsed.removed) : null,
+    styleId: parsed ? asStringOrNull(parsed.styleId) : null,
+    cssLength: parsed ? asNumberOrNull(parsed.cssLength) : null,
+    sourceCssLength: parsed ? asNumberOrNull(parsed.sourceCssLength) : null,
+    rootSelector: parsed ? asStringOrNull(parsed.rootSelector) : null,
+    rootMatchedNodeCount: parsed ? asNumberOrNull(parsed.rootMatchedNodeCount) : null,
+    scopeMode: parsed ? asStringOrNull(parsed.scopeMode) : null,
+    managedStyleIds: parsed ? asStringArray(parsed.managedStyleIds) : [],
+    parseError: parsedResult.parseError
+  };
+}
+
+function parseHudRawEvalResult(resultJson: string | null): {
+  selector: string | null;
+  matchedNodeCount: number | null;
+  valueJson: string | null;
+  parseError: string | null;
+} {
+  const parsedResult = parseJsonRecord(resultJson);
+  const parsed = parsedResult.parsed;
+  return {
+    selector: parsed ? asStringOrNull(parsed.selector) : null,
+    matchedNodeCount: parsed ? asNumberOrNull(parsed.matchedNodeCount) : null,
+    valueJson: parsed ? stringifyValue(parsed.value) : null,
+    parseError: parsedResult.parseError
+  };
+}
+
 function assertUiProbeMethodSupported(uiKind: EditorUiKind, method: UiProbeMethod): void {
   if (uiKind === "screen_editor" && !screenEditorProbeMethods.has(method)) {
     throw new Error(`ui_method_not_supported_for_${uiKind}:${method}`);
@@ -449,6 +741,42 @@ async function enqueueAndWaitUiProbe(
     playerId,
     source: {
       kind: targetKind,
+      boardId: null
+    },
+    type: "command_enqueued",
+    payload: {
+      commandId: result.command.commandId,
+      action: "probe_call",
+      probeMethod: method,
+      queuePath: result.path
+    }
+  });
+
+  return eventStore.waitForProbeResult(result.command.commandId, timeoutMs);
+}
+
+async function enqueueAndWaitHudPageProbe(
+  commandQueue: BridgeCommandQueue,
+  eventStore: BridgeEventStore,
+  playerId: number,
+  method: z.infer<typeof hudPageMethodSchema>,
+  probeArgs: unknown[],
+  timeoutMs: number
+): Promise<ProbeResultSnapshot> {
+  const result = await commandQueue.enqueue({
+    playerId,
+    targetKind: "hud_page",
+    action: "probe_call",
+    probeMethod: method,
+    probeArgs
+  });
+
+  await eventStore.appendSystemEvent({
+    eventId: `evt-${result.command.commandId}`,
+    createdAtUtc: new Date().toISOString(),
+    playerId,
+    source: {
+      kind: "hud_page",
       boardId: null
     },
     type: "command_enqueued",
@@ -2143,6 +2471,245 @@ export function registerEditorTools(
         );
       }
       return formatProbeToolResult(probeResult, effectiveTimeout, method);
+    }
+  );
+
+  server.registerTool(
+    "du_hud_describe",
+    {
+      title: "Describe HUD DOM",
+      description:
+        "Describes matched nodes in the currently visible HUD page, including visibility, inline style, rects, and a small computed-style sample.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Target player ID"),
+        selector: z.string().min(1).describe("CSS selector to inspect in the active HUD page"),
+        maxMatches: z.number().int().min(1).max(25).default(8).describe("Maximum matched nodes to return"),
+        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the HUD probe result")
+      },
+      outputSchema: hudDescribeOutputSchema
+    },
+    async ({ playerId, selector, maxMatches, timeoutMs }) => {
+      const probeResult = await enqueueAndWaitHudPageProbe(
+        commandQueue,
+        eventStore,
+        playerId,
+        "describe",
+        buildHudPageProbeArgs({
+          method: "describe",
+          selector,
+          maxMatches
+        }),
+        timeoutMs
+      );
+      const parsed = parseHudDescribeResult(probeResult.resultJson);
+      const structuredContent = {
+        found: probeResult.found,
+        commandId: probeResult.commandId,
+        method: probeResult.method,
+        success: probeResult.success,
+        createdAtUtc: probeResult.createdAtUtc,
+        selector: parsed.selector,
+        totalMatches: parsed.totalMatches,
+        returnedMatches: parsed.returnedMatches,
+        managedStyleIds: parsed.managedStyleIds,
+        runtime: parsed.runtime,
+        nodes: parsed.nodes,
+        resultJson: probeResult.resultJson,
+        error: probeResult.error,
+        parseError: parsed.parseError
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: probeResult.found
+              ? (probeResult.resultJson ?? probeResult.error ?? "")
+              : `No HUD probe result received for describe within ${timeoutMs}ms.`
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
+  server.registerTool(
+    "du_hud_apply_css",
+    {
+      title: "Apply HUD CSS",
+      description:
+        "Injects or replaces a managed style tag in the currently visible HUD page. Use `rootSelector` with declaration-only CSS for scoped temporary styling.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Target player ID"),
+        styleId: z.string().min(1).describe("Managed style tag id used for later replacement or removal"),
+        cssText: z.string().min(1).describe("CSS text to inject. If `rootSelector` is set and this contains declarations only, the bridge wraps them in that selector."),
+        rootSelector: z.string().optional().describe("Optional selector to scope declaration-only CSS or to report matched root count"),
+        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the HUD probe result")
+      },
+      outputSchema: hudCssMutationOutputSchema
+    },
+    async ({ playerId, styleId, cssText, rootSelector, timeoutMs }) => {
+      const probeResult = await enqueueAndWaitHudPageProbe(
+        commandQueue,
+        eventStore,
+        playerId,
+        "apply_css",
+        buildHudPageProbeArgs({
+          method: "apply_css",
+          cssText,
+          styleId,
+          rootSelector
+        }),
+        timeoutMs
+      );
+      const parsed = parseHudCssMutationResult(probeResult.resultJson);
+      const structuredContent = {
+        found: probeResult.found,
+        commandId: probeResult.commandId,
+        method: probeResult.method,
+        success: probeResult.success,
+        createdAtUtc: probeResult.createdAtUtc,
+        applied: parsed.applied,
+        removed: parsed.removed,
+        styleId: parsed.styleId,
+        cssLength: parsed.cssLength,
+        sourceCssLength: parsed.sourceCssLength,
+        rootSelector: parsed.rootSelector,
+        rootMatchedNodeCount: parsed.rootMatchedNodeCount,
+        scopeMode: parsed.scopeMode,
+        managedStyleIds: parsed.managedStyleIds,
+        resultJson: probeResult.resultJson,
+        error: probeResult.error,
+        parseError: parsed.parseError
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: probeResult.found
+              ? (probeResult.resultJson ?? probeResult.error ?? "")
+              : `No HUD probe result received for apply_css within ${timeoutMs}ms.`
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
+  server.registerTool(
+    "du_hud_remove_css",
+    {
+      title: "Remove HUD CSS",
+      description:
+        "Removes a managed style tag from the currently visible HUD page by style id.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Target player ID"),
+        styleId: z.string().min(1).describe("Managed style tag id to remove"),
+        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the HUD probe result")
+      },
+      outputSchema: hudCssMutationOutputSchema
+    },
+    async ({ playerId, styleId, timeoutMs }) => {
+      const probeResult = await enqueueAndWaitHudPageProbe(
+        commandQueue,
+        eventStore,
+        playerId,
+        "remove_css",
+        buildHudPageProbeArgs({
+          method: "remove_css",
+          styleId
+        }),
+        timeoutMs
+      );
+      const parsed = parseHudCssMutationResult(probeResult.resultJson);
+      const structuredContent = {
+        found: probeResult.found,
+        commandId: probeResult.commandId,
+        method: probeResult.method,
+        success: probeResult.success,
+        createdAtUtc: probeResult.createdAtUtc,
+        applied: parsed.applied,
+        removed: parsed.removed,
+        styleId: parsed.styleId,
+        cssLength: parsed.cssLength,
+        sourceCssLength: parsed.sourceCssLength,
+        rootSelector: parsed.rootSelector,
+        rootMatchedNodeCount: parsed.rootMatchedNodeCount,
+        scopeMode: parsed.scopeMode,
+        managedStyleIds: parsed.managedStyleIds,
+        resultJson: probeResult.resultJson,
+        error: probeResult.error,
+        parseError: parsed.parseError
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: probeResult.found
+              ? (probeResult.resultJson ?? probeResult.error ?? "")
+              : `No HUD probe result received for remove_css within ${timeoutMs}ms.`
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
+  server.registerTool(
+    "du_hud_raw_eval",
+    {
+      title: "Run HUD Raw Eval",
+      description:
+        "Runs trusted debug JavaScript in the active HUD page. The function body receives `scope` with `selector`, `nodes`, `first`, `queryOne`, `queryAll`, `describeNode`, `ensureStyleTag`, `removeStyleTag`, `document`, and `window`.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Target player ID"),
+        selector: z.string().optional().describe("Optional selector used to pre-bind `scope.nodes` and `scope.first`"),
+        functionBody: z.string().min(1).describe("Trusted function body executed as `new Function('scope', ...)`"),
+        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the HUD probe result")
+      },
+      outputSchema: hudRawEvalOutputSchema
+    },
+    async ({ playerId, selector, functionBody, timeoutMs }) => {
+      const probeResult = await enqueueAndWaitHudPageProbe(
+        commandQueue,
+        eventStore,
+        playerId,
+        "raw_eval",
+        buildHudPageProbeArgs({
+          method: "raw_eval",
+          selector,
+          functionBody
+        }),
+        timeoutMs
+      );
+      const parsed = parseHudRawEvalResult(probeResult.resultJson);
+      const structuredContent = {
+        found: probeResult.found,
+        commandId: probeResult.commandId,
+        method: probeResult.method,
+        success: probeResult.success,
+        createdAtUtc: probeResult.createdAtUtc,
+        selector: parsed.selector,
+        matchedNodeCount: parsed.matchedNodeCount,
+        valueJson: parsed.valueJson,
+        resultJson: probeResult.resultJson,
+        error: probeResult.error,
+        parseError: parsed.parseError
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: probeResult.found
+              ? (probeResult.resultJson ?? probeResult.error ?? "")
+              : `No HUD probe result received for raw_eval within ${timeoutMs}ms.`
+          }
+        ],
+        structuredContent
+      };
     }
   );
 

@@ -121,6 +121,13 @@ If you only remember one thing, remember this: `ModUiToolbox` is the in-game tra
 - Build this mod only with `Release`. Do not use `Debug` builds for deployment, live testing, or handoff.
 - The optional server-side chat read path is a hard compile opt-in: only builds that pass `-p:EnableDuChatServerRead=true` include the `server_chat` bridge target.
 
+Authoritative workflow note:
+
+- For `ModUiToolbox`, this README is the source of truth for build + deploy + live-test workflow.
+- Treat the root [`README.md`](../README.md) only as a reminder that points back here.
+- If this file says `Release`, then `Debug` is wrong. No exceptions for live testing or handoff.
+- If the live DLL may be locked by the running server, stop and ask the user to handle the restart/unlock step. Do not improvise with alternate filenames, side-by-side deploys, temp folders, or swap tricks unless the user explicitly asks for that exact workflow.
+
 ## Build
 
 Mandatory: every `ModUiToolbox` build must use `Release`. If the build output came from `Debug`, do not deploy it, do not use it for live testing, and rebuild immediately in `Release`.
@@ -148,27 +155,19 @@ Target mod path:
 
 - `C:\MyDUserver\wincs\all\Mods\ModUIToolbox.dll`
 
-If the server is stopped, copy normally (one line!):
+Deployment rule:
+
+- Only deploy the `Release` DLL from `bin\Release\net6.0\win-x64\ModUIToolbox.dll`.
+- If the server is stopped, copy normally.
+- If the server is running or the DLL may be locked, do not try to work around that with `.new`, `.bak`, renamed copies, alternate folders, or any other side path unless the user explicitly asks for that exact approach.
+- Default behavior when the live DLL may be in use: ask the user to stop/restart the server, then copy the normal target file.
+
+Normal copy command:
 
 ```powershell
 Copy-Item `
   '<repo-root>\ModUiToolbox\bin\Release\net6.0\win-x64\ModUIToolbox.dll' `
   'C:\MyDUserver\wincs\all\Mods\ModUIToolbox.dll' -Force
-```
-
-If the server is running, the DLL is usually locked:
-
-1. Copy new build to `ModUIToolbox.dll.new`
-2. Restart/stop server
-3. Swap files
-
-```powershell
-Copy-Item `
-  '<repo-root>\ModUiToolbox\bin\Release\net6.0\win-x64\ModUIToolbox.dll' `
-  'C:\MyDUserver\wincs\all\Mods\ModUIToolbox.dll.new' -Force
-
-Move-Item 'C:\MyDUserver\wincs\all\Mods\ModUIToolbox.dll' 'C:\MyDUserver\wincs\all\Mods\ModUIToolbox.dll.bak' -Force
-Move-Item 'C:\MyDUserver\wincs\all\Mods\ModUIToolbox.dll.new' 'C:\MyDUserver\wincs\all\Mods\ModUIToolbox.dll' -Force
 ```
 
 For the optional `server_chat` read path, the same deploy/restart rule applies: a successful local build alone is not enough; the running server must load the newly built DLL before the new bridge target is available.
@@ -316,6 +315,7 @@ Probe override resolution order on each inject:
 - The visible `screen_editor` now reuses the same theme token set and the same shortcut dots / catalog / `Off` controls, so both editor UIs stay visually aligned without moving any UI logic into the MCP server.
 - The `screen_editor` content header panel (`sub_title`, wrap/font controls, mode switch block) is now themed as well, so the whole top control area matches the active probe theme instead of keeping the vanilla DU look.
 - The industry panel uses the same shared switcher and theme state when the `industry-panel` runtime module is enabled, so all three UI surfaces stay consistent.
+- The recipe-bank inventory view inside the industry panel now consumes the same shared tokens for its shell, header, toolbars, item grid, footer, and filter flyout instead of keeping the vanilla DU chrome in those sections.
 - Shared runtime theme objects now expose `isLight`, and imported Daisy palettes carry compact `il` metadata, so light-theme contrast fixes can stay in the shared theme layer instead of relying on one-off selector guesses.
 - For visible spacing between the shortcut dots, `...`, and `Off`, prefer explicit margins on the controls instead of relying on flex `gap`; the embedded DU browser may not render `gap` changes reliably on that switcher row.
 - The visible `screen_editor` now also gets its own `IDE Sync` button in the top control row; it uses the same chunked packet family as the Lua editor, but exports with `targetKind = screen_editor`.

@@ -1,2 +1,3 @@
 # Additive extractor payload modules loaded after the base payload script.
 900-industry-panel-probe.js
+910-hud-probe.js

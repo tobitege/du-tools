@@ -97,6 +97,8 @@ For the main live-work mod, `ModUiToolbox`, the compiled `ModUIToolbox.dll` must
 
 Mandatory for `ModUiToolbox`: always build with `Release`. `Debug` builds are not a supported workflow for deployment, live testing, or handoff.
 
+For `ModUiToolbox`, the authoritative build/deploy/live-test workflow is [`ModUiToolbox/README.md`](./ModUiToolbox/README.md). Follow that file, not memory. In particular: `Release` only, and if the live DLL may be locked by the running server, stop and ask the user to handle the restart/unlock step instead of inventing an alternate deploy path.
+
 ## Live DU Workflow Note
 
 For live Dual Universe work, the repository can also use an optional external Windows screenshot MCP server alongside `DuMcpBridge`.

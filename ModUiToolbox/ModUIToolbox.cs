@@ -1370,6 +1370,14 @@ ORDER BY table_schema, table_name, ordinal_position";
             }
         }
 
+        if (string.Equals(targetKind, "hud_page", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.Equals(action, "probe_call", StringComparison.OrdinalIgnoreCase))
+            {
+                return TryBuildHudProbeBridgeInjectCode(commandId, payload, out injectCode, out summary, out status, out details);
+            }
+        }
+
         if (string.Equals(targetKind, "industry_panel", StringComparison.OrdinalIgnoreCase))
         {
             if (string.Equals(action, "probe_call", StringComparison.OrdinalIgnoreCase))
@@ -1819,6 +1827,143 @@ ORDER BY table_schema, table_name, ordinal_position";
         return true;
     }
 
+    private bool TryBuildHudProbeBridgeInjectCode(
+        string commandId,
+        JObject payload,
+        out string injectCode,
+        out string summary,
+        out string status,
+        out string? details)
+    {
+        injectCode = "";
+        summary = "";
+        status = "unsupported_command";
+        details = null;
+
+        var extractorScript = ResolveExtractorPayloadScript(out _, out _);
+        if (string.IsNullOrWhiteSpace(extractorScript))
+        {
+            status = "rejected";
+            details = "extractor_payload_unavailable";
+            return false;
+        }
+
+        if (!RuntimeScriptLikelySupportsMode(extractorScript, "hud_probe"))
+        {
+            status = "rejected";
+            details = "hud_probe_unavailable";
+            return false;
+        }
+
+        var probeMethod = payload["probeMethod"]?.Value<string>()?.Trim() ?? "";
+        var probeArgs = payload["probeArgs"] as JArray ?? new JArray();
+        if (string.IsNullOrWhiteSpace(probeMethod))
+        {
+            status = "rejected";
+            details = "missing_probe_method";
+            return false;
+        }
+
+        var config = new JObject
+        {
+            ["modName"] = GetName(),
+            ["actionId"] = (long)ActionIngestPacket,
+            ["mode"] = "hud_probe",
+            ["commandId"] = commandId,
+            ["targetKind"] = "hud_page",
+            ["hudProbeMethod"] = probeMethod
+        };
+
+        switch (probeMethod.ToLowerInvariant())
+        {
+            case "describe":
+            {
+                var selector = probeArgs.FirstOrDefault()?.Value<string>()?.Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(selector))
+                {
+                    status = "rejected";
+                    details = "missing_selector";
+                    return false;
+                }
+
+                config["hudProbeSelector"] = selector;
+                var maxMatches = probeArgs.Count > 1 ? probeArgs[1]?.Value<int?>() : null;
+                if (maxMatches.HasValue)
+                {
+                    config["hudProbeMaxMatches"] = Math.Max(1, Math.Min(25, maxMatches.Value));
+                }
+                break;
+            }
+            case "apply_css":
+            {
+                var cssText = probeArgs.FirstOrDefault()?.Value<string>() ?? "";
+                if (string.IsNullOrWhiteSpace(cssText))
+                {
+                    status = "rejected";
+                    details = "missing_css_text";
+                    return false;
+                }
+
+                var styleId = probeArgs.Count > 1 ? probeArgs[1]?.Value<string>()?.Trim() : null;
+                if (string.IsNullOrWhiteSpace(styleId))
+                {
+                    status = "rejected";
+                    details = "missing_style_id";
+                    return false;
+                }
+
+                config["hudProbeCssText"] = cssText;
+                config["hudProbeStyleId"] = styleId;
+                var rootSelector = probeArgs.Count > 2 ? probeArgs[2]?.Value<string>()?.Trim() : null;
+                if (!string.IsNullOrWhiteSpace(rootSelector))
+                {
+                    config["hudProbeRootSelector"] = rootSelector;
+                }
+                break;
+            }
+            case "remove_css":
+            {
+                var styleId = probeArgs.FirstOrDefault()?.Value<string>()?.Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(styleId))
+                {
+                    status = "rejected";
+                    details = "missing_style_id";
+                    return false;
+                }
+
+                config["hudProbeStyleId"] = styleId;
+                break;
+            }
+            case "raw_eval":
+            {
+                var selector = probeArgs.FirstOrDefault()?.Value<string>()?.Trim() ?? "";
+                var functionBody = probeArgs.Count > 1 ? probeArgs[1]?.Value<string>() ?? "" : "";
+                if (string.IsNullOrWhiteSpace(functionBody))
+                {
+                    status = "rejected";
+                    details = "missing_function_body";
+                    return false;
+                }
+
+                if (!string.IsNullOrWhiteSpace(selector))
+                {
+                    config["hudProbeSelector"] = selector;
+                }
+                config["hudProbeFunctionBody"] = functionBody;
+                break;
+            }
+            default:
+                status = "rejected";
+                details = "unsupported_probe_method";
+                return false;
+        }
+
+        injectCode = $"window.__UI_TOOLBOX_CONFIG={config.ToString(Newtonsoft.Json.Formatting.None)};\n{extractorScript}";
+        summary = $"hud_page probe_call {probeMethod}";
+        status = "ok";
+        return true;
+    }
+
     private async Task InjectLuaProbePayload(ulong playerId, ModAction action)
     {
         var luaProbeScript = ResolveLuaProbeScript(out var usingRuntimeOverride, out var usingRuntimeModules);
@@ -2100,6 +2245,10 @@ ORDER BY table_schema, table_name, ordinal_position";
     private static string ResolveProbeTargetKind(JObject payload)
     {
         var raw = payload["targetKind"]?.Value<string>()?.Trim();
+        if (string.Equals(raw, "hud_page", StringComparison.OrdinalIgnoreCase))
+        {
+            return "hud_page";
+        }
         if (string.Equals(raw, "hud_chat", StringComparison.OrdinalIgnoreCase))
         {
             return "hud_chat";
@@ -2304,6 +2453,18 @@ ORDER BY table_schema, table_name, ordinal_position";
                     catch (Exception ex)
                     {
                         logger.LogDebug(ex, "UIToolbox failed to parse industry_panel_probe ui_dump payload");
+                    }
+                }
+                else if (string.Equals(section, "hud_probe", StringComparison.OrdinalIgnoreCase) && total == 1 && part == 1 && !string.IsNullOrWhiteSpace(packetData))
+                {
+                    try
+                    {
+                        var eventPayload = JObject.Parse(packetData);
+                        await AppendMcpBridgeEvent("hud_page", "probe_result", playerId, eventPayload);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogDebug(ex, "UIToolbox failed to parse hud_probe ui_dump payload");
                     }
                 }
             }

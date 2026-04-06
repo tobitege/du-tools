@@ -101,6 +101,7 @@
     tryAttachMenuObserver();
     wrapLuaEditorManager();
     refreshEditorState();
+    ensureInventoryThemeRoot();
     ensureScreenEditorFacelift();
   }
 
@@ -141,6 +142,15 @@
       state.filtersObserver = null;
       state.filtersObserverRoot = null;
     } catch (_ignoreFiltersObserver) {}
+
+    try {
+      if (typeof disconnectInventoryThemeObserver === "function") {
+        disconnectInventoryThemeObserver();
+      }
+      state.inventoryThemeDirty = true;
+      state.inventoryThemeApplying = false;
+      state.inventoryThemeIgnoreMutationsUntil = 0;
+    } catch (_ignoreInventoryThemeObserver) {}
 
     clearPendingSlotAutoOpen();
     clearLuaApplyCloseHoldState();
@@ -233,6 +243,7 @@
     var removableIds = [
       "ModUiToolbox-lua-probe-style",
       "ModUiToolbox-lua-theme-dots",
+      "ModUiToolbox-inventory-theme-dots",
       "ModUiToolbox-lua-caret-toggle",
       "ModUiToolbox-lua-ide-sync",
       "ModUiToolbox-lua-buffer-size",
