@@ -332,7 +332,7 @@
     if (!ctx || typeof ctx.sendPacket !== "function") {
       return { ok: false, error: "runtime_ctx_unavailable" };
     }
-    var requestId = "hud-editor-" + targetKind + "-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
+    var requestId = "lua-painter-" + targetKind + "-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
     ctx.sendPacket("hud_editor_ide_export", {
       requestId: requestId,
       targetKind: targetKind,

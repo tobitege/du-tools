@@ -2845,7 +2845,7 @@ ORDER BY table_schema, table_name, ordinal_position";
             var requestId = packetData["requestId"]?.Value<string>()?.Trim();
             if (string.IsNullOrWhiteSpace(requestId))
             {
-                requestId = $"hud-editor-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}";
+                requestId = $"lua-painter-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}";
             }
 
             var rawTargetKind = packetData["targetKind"]?.Value<string>()?.Trim();
@@ -2862,7 +2862,7 @@ ORDER BY table_schema, table_name, ordinal_position";
                 ["requestId"] = requestId,
                 ["targetKind"] = targetKind,
                 ["code"] = code,
-                ["source"] = "hud-editor"
+                ["source"] = "lua-painter"
             };
 
             File.WriteAllText(importPath, payload.ToString(Newtonsoft.Json.Formatting.Indented), Encoding.UTF8);

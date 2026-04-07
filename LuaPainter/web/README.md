@@ -47,7 +47,7 @@ pwsh -File .\LuaPainter\scripts\publish.ps1
 
 The harness loads:
 
-- `..\build\hud-editor-probe.js`
+- `..\build\lua-painter-probe.js`
 
 ## Run The Harness Manually
 

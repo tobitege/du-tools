@@ -273,6 +273,11 @@
   function appendTextNode(layer, command) {
     var wrapper = el("div", { className: "canvas-text-node" });
     var content = el("div", { className: "canvas-text-content" });
+    var fontConfig = APP.getTextFontCssConfig ? APP.getTextFontCssConfig(command.tf) : {
+      family: '"Play", sans-serif',
+      weight: "400",
+      style: "normal"
+    };
     var lines = Array.isArray(command.l) ? command.l : [];
     var fontSize = Math.max(1, Math.floor((Number(command.ts) || 16) * scale + 0.5));
     var strokeWidth = Math.max(0, (Number(command.sw) || 0) * scale);
@@ -293,7 +298,9 @@
     content.style.boxSizing = "border-box";
     content.style.color = rgbaToCss(command.tc || [1, 1, 1, 1]);
     content.style.fontSize = fontSize + "px";
-    content.style.fontFamily = "Play, Rajdhani, Segoe UI, sans-serif";
+    content.style.fontFamily = fontConfig.family;
+    content.style.fontWeight = fontConfig.weight;
+    content.style.fontStyle = fontConfig.style;
     content.style.lineHeight = "1";
     content.style.textAlign = command.ta || "left";
     content.style.whiteSpace = "pre";

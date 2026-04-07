@@ -20,14 +20,16 @@ Lua Painter gives you a visual editor for building screen layouts out of:
 - lines
 - text
 
-It also supports rotation and glow-style shadow metadata on the editable document model, so the full `renderScript/shapes.lua` demo can be represented as an actual HUD-editor layout instead of only as raw RenderScript.
+It also supports rotation and glow-style shadow metadata on the editable document model, so the full `renderScript/shapes.lua` demo can be represented as an actual editable HUD layout instead of only as raw RenderScript.
+
+Text elements also support font selection in addition to color, size, and alignment. The editor exposes the current in-game font catalog used by this project and exports the selected font through the screen and board runtime paths.
 
 You edit the layout visually in-game, save the document on the programming board, and export generated Lua for runtime use on screens/signs.
 
 ## In-Game Workflow
 
 1. Open Lua Painter in-game (see **Opening Lua Painter via DuMcpBridge** below for an MCP-only path, or use the in-game ModUiToolbox runtime-module UI).
-2. Enable the Lua Painter runtime plugin (runtime module id `hud-editor`, display name **Lua Painter**; see build stamp in `build/hud-editor-runtime-module.ingame.json`).
+2. Enable the Lua Painter runtime plugin (runtime module id `lua-painter`, display name **Lua Painter**; see build stamp in `build/lua-painter-runtime-module.ingame.json`).
 3. Paint and edit shapes on the canvas.
 4. Save/load the current layout through the programming board flow.
 5. Export generated code for board and screen use.
@@ -44,17 +46,17 @@ Use this when you control the client through **DuMcpBridge** MCP tools only (no 
 1. **`du_list_active_sessions`** — pick a `playerId` with an active session.
 2. **`du_ui_describe`** with `uiKind: lua_editor` and that `playerId` — optional baseline; if `visible` is false, the editor is not open yet.
 3. **`du_open_lua_context`** — opens the Programming Board Lua editor and selects a slot/filter in one step. Required arguments include `playerId`, `slotName`, and `filterName` (typical board work: e.g. `unit` and `onStart()`). Use this when the Lua editor is not already visible.
-4. **`du_ui_invoke`** with `uiKind: lua_editor`, `method: raw_eval`, and `functionBody` set to enable the Lua Painter runtime module (module id `hud-editor`):
+4. **`du_ui_invoke`** with `uiKind: lua_editor`, `method: raw_eval`, and `functionBody` set to enable the Lua Painter runtime module (module id `lua-painter`):
 
    ```text
-   return state.runtimeModules.setEnabled("hud-editor", true, "mcp");
+   return state.runtimeModules.setEnabled("lua-painter", true, "mcp");
    ```
 
 5. **`du_ui_invoke`** again with `method: raw_eval` if the overlay is still hidden — toggle the in-HUD control so the root becomes visible:
 
    ```text
-   var root = document.getElementById("hud-editor-root");
-   var btn = document.getElementById("hud-editor-toggle");
+   var root = document.getElementById("lua-painter-root");
+   var btn = document.getElementById("lua-painter-toggle");
    if (btn && root && root.style && root.style.display !== "block") btn.click();
    return root && root.style ? root.style.display : null;
    ```
@@ -107,6 +109,7 @@ LuaPainter/
 - undo and redo
 - property editing
 - rotation and glow/shadow editing
+- text font selection
 - save/load
 - board export
 - screen export
@@ -174,7 +177,7 @@ More harness details are in `web/README.md`.
 | `scripts/build.ps1` | Bundle builder (used by `publish.ps1`) |
 | `scripts/publish.ps1` | Build web + ingame and publish runtime module |
 | `web/harness.js` | Browser harness bootstrap |
-| `web/tests/hud-editor.spec.js` | Playwright coverage |
+| `web/tests/lua-painter.spec.js` | Playwright coverage |
 
 ## Shortcuts
 
@@ -209,3 +212,4 @@ More harness details are in `web/README.md`.
 - Both `default` and `compact` screen code target the shared painter module `lib.painterlib`; place `LuaPainter/lib/painterlib.lua` in the game's `lua/lib/` folder when you want to run those exports directly in Dual Universe.
 - Compact screen code is still available through the exporter API via `buildScreenCode(doc, { mode: "compact" })`.
 - In Dual Universe, most `setNext...` render methods apply to the single next draw command only. If draw code loops over multiple `addText(...)` or similar calls, repeat the relevant `setNext...` call inside that loop.
+- Dual Universe exposes many font names, but only up to 8 concurrent `font name + size` combinations can be loaded at once in a running render context.

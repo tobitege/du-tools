@@ -478,6 +478,7 @@ function HudEditorBoard.newDocument(screenW, screenH)
                 textLines = {"Lua Painter"},
                 textColor = {0.86, 0.88, 0.92, 1.0},
                 textSize = 24,
+                textFont = "Play",
                 textAlign = "center",
             }
         }
@@ -821,7 +822,7 @@ function HudEditorBoard.processCommand(input)
 
     -- Route command
     if action == CMD.PING then
-        return { status = "ok", type = "pong", version = "hud-editor-v1" }
+        return { status = "ok", type = "pong", version = "LuaPainter-v1.0.0" }
 
     elseif action == CMD.SYNC then
         return HudEditorBoard.cmdSync()
@@ -1150,6 +1151,8 @@ local function serializeScreenTextCommand(element)
     append(parts, luaNumber(0, 0))
     append(parts, ",ts=")
     append(parts, luaNumber(element.textSize, 16))
+    append(parts, ",tf=")
+    append(parts, luaString(element.textFont or "Play"))
     append(parts, ",ta=")
     append(parts, luaString(element.textAlign or "left"))
     append(parts, ",tv=")
@@ -1590,12 +1593,31 @@ function HudEditorBoard.buildRenderScript(document)
         "    end",
         "    return n",
         "end",
-        "local function GF(s)",
+        "local function FN(name)",
+        "    if type(name)~=\"string\" or name==\"\" then",
+        "        return \"Play\"",
+        "    end",
+        "    return name",
+        "end",
+        "local function GF(name,s)",
+        "    local fontName=FN(name)",
         "    s=math.max(1,math.floor(N(s,16)))",
-        "    local f=F[s]",
-        "    if not f then",
-        "        f=loadFont(\"Play\",s)",
-        "        F[s]=f",
+        "    local key=fontName..\"|\"..tostring(s)",
+        "    local f=F[key]",
+        "    if f==nil then",
+        "        local ok,loaded=pcall(loadFont,fontName,s)",
+        "        if ok and loaded then",
+        "            f=loaded",
+        "        elseif fontName~=\"Play\" then",
+        "            ok,loaded=pcall(loadFont,\"Play\",s)",
+        "            if ok and loaded then",
+        "                f=loaded",
+        "            end",
+        "        end",
+        "        F[key]=f or false",
+        "    end",
+        "    if f==false then",
+        "        return nil",
         "    end",
         "    return f",
         "end",
@@ -1739,7 +1761,7 @@ function HudEditorBoard.buildRenderScript(document)
         "    SC(l,c.s,{0,0,0,0})",
         "    setNextStrokeWidth(l,math.max(0,S(ctx,c.sw)))",
         "    local s=math.max(1,math.floor(S(ctx,c.ts or 16)+0.5))",
-        "    local f=GF(s)",
+        "    local f=GF(c.tf,s)",
         "    if not f then",
         "        return",
         "    end",

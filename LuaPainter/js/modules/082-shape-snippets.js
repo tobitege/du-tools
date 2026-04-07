@@ -390,7 +390,7 @@
       id: "primitive_text_default",
       family: "primitive/default",
       title: "Primitive Text Default",
-      capabilities: ["text", "fill", "stroke", "textSize", "textAlign"],
+      capabilities: ["text", "fill", "stroke", "textSize", "textFont", "textAlign"],
       elements: [
         elem("text_default", "text", 640, 300, 640, 280, {
           radius: 24,
@@ -490,7 +490,7 @@
       id: "overlap_mixed_shapes_basic",
       family: "overlap/mixed-type",
       title: "Overlap Mixed Shapes Basic",
-      capabilities: ["boxRounded", "circle", "line", "text", "fill", "stroke", "alpha", "zOrder"],
+      capabilities: ["boxRounded", "circle", "line", "text", "fill", "stroke", "textFont", "alpha", "zOrder"],
       elements: [
         elem("mixed_backplate", "boxRounded", 610, 260, 380, 340, {
           radius: 46,
@@ -528,7 +528,7 @@
       id: "effect_text_rgb_split",
       family: "effect/text-treatment",
       title: "Effect Text RGB Split",
-      capabilities: ["text", "fill", "stroke", "textSize", "alpha", "zOrder"],
+      capabilities: ["text", "fill", "stroke", "textSize", "textFont", "alpha", "zOrder"],
       elements: [
         elem("rgb_text_r", "text", 760, 300, 320, 320, {
           fill: [0, 0, 0, 0],

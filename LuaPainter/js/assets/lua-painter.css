@@ -1,11 +1,11 @@
-/* hud-editor.css - All Lua Painter styles
+/* lua-painter.css - All Lua Painter styles
    Project: LuaPainter
    Self-contained - does NOT use ModUiToolbox core styles
 */
 
 /* ─── Root container ────────────────────────────────────────────────── */
 
-#hud-editor-root {
+#lua-painter-root {
   position: fixed;
   top: 50%;
   left: 50%;
@@ -26,7 +26,7 @@
   -ms-user-select: none;
 }
 
-#hud-editor-root[style*="block"] {
+#lua-painter-root[style*="block"] {
   pointer-events: auto;
 }
 
@@ -1628,6 +1628,8 @@
   background: linear-gradient(180deg, rgba(28, 30, 43, 0.98), rgba(16, 18, 27, 0.98));
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.36);
   z-index: 8;
+  max-height: 260px;
+  overflow-y: auto;
 }
 
 .prop-dropdown.open .prop-dropdown-menu {
@@ -2503,7 +2505,8 @@ select.prop-input {
 }
 
 #properties-panel [data-prop-row="textColor"] label,
-#properties-panel [data-prop-row="textSize"] label {
+#properties-panel [data-prop-row="textSize"] label,
+#properties-panel [data-prop-row="textFont"] label {
   flex: 0 0 84px;
   min-width: 84px;
 }
@@ -2516,6 +2519,12 @@ select.prop-input {
 #properties-panel [data-prop-row="textSize"] .stepper-ctrl {
   flex: 0 0 auto;
   justify-content: flex-end;
+}
+
+#properties-panel [data-prop-row="textFont"] .prop-dropdown {
+  margin-left: auto;
+  flex: 0 0 170px;
+  width: 170px;
 }
 
 #properties-panel [data-prop-row="textAlign"] label,

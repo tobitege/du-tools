@@ -7,7 +7,7 @@ Current modules in this folder:
 - `example-module`
   - Tiny reference module used to verify runtime discovery, toggling, cleanup, and persistence.
   - It shows a small badge in the HUD when enabled.
-- `hud-editor`
+- `Lua Painter: Off`
   - Lua Painter HUD layout editor.
   - Adds the Lua Painter toggle button and the editor UI for building layouts.
   - This is the main WYSIWYG-style editor experiment moved out of the probe core.

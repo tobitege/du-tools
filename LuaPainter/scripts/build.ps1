@@ -4,7 +4,7 @@
 #   LuaPainter
 #
 # Sources live in js/modules/* and the build produces a single:
-#   build/hud-editor-probe.js
+#   build/lua-painter-probe.js
 #
 # Usage:
 #   .\scripts\build.ps1
@@ -31,12 +31,12 @@ if ([string]::IsNullOrWhiteSpace($ProjectDir)) {
 $moduleDir = Join-Path $ProjectDir "js\modules"
 $manifestName = if ($Target -eq "ingame") { "manifest.ingame.txt" } else { "manifest.txt" }
 $manifestPath = Join-Path $ProjectDir ("js\" + $manifestName)
-$cssPath = Join-Path $ProjectDir "js\assets\hud-editor.css"
+$cssPath = Join-Path $ProjectDir "js\assets\lua-painter.css"
 $outDir = Join-Path $ProjectDir "build"
 $artifactSuffix = if ($Target -eq "ingame") { ".ingame" } else { "" }
-$outFile = Join-Path $outDir ("hud-editor-probe" + $artifactSuffix + ".js")
-$runtimeModuleJsFile = Join-Path $outDir ("hud-editor-runtime-module" + $artifactSuffix + ".js")
-$runtimeModuleJsonFile = Join-Path $outDir ("hud-editor-runtime-module" + $artifactSuffix + ".json")
+$outFile = Join-Path $outDir ("lua-painter-probe" + $artifactSuffix + ".js")
+$runtimeModuleJsFile = Join-Path $outDir ("lua-painter-runtime-module" + $artifactSuffix + ".js")
+$runtimeModuleJsonFile = Join-Path $outDir ("lua-painter-runtime-module" + $artifactSuffix + ".json")
 
 # Validate paths
 if (-not (Test-Path $manifestPath)) {
@@ -81,12 +81,12 @@ $cssEscaped = $cssContent -replace '\\', '\\\\' -replace '"', '\"' -replace "`r"
 $cssJsBlock = @"
 // Inlined CSS
 (function injectCSS() {
-  var existing = document.getElementById('hud-editor-styles');
+  var existing = document.getElementById('lua-painter-styles');
   if (existing && existing.parentNode) {
     existing.parentNode.removeChild(existing);
   }
   var style = document.createElement('style');
-  style.id = 'hud-editor-styles';
+  style.id = 'lua-painter-styles';
   style.textContent = "$cssEscaped";
   document.head.appendChild(style);
 })();
@@ -198,7 +198,7 @@ $runtimeModuleSource = @"
 "@
 
 $runtimeModuleJson = @{
-    id = "hud-editor"
+    id = "lua-painter"
     name = "Lua Painter"
     description = "Lua Painter HUD layout editor"
     version = "0.1.0"
@@ -225,7 +225,7 @@ if (Test-Path $runtimeModuleJsonFile) {
 }
 
 if ($existing -eq $composed -and $existingRuntimeModule -eq $runtimeModuleSource -and $existingRuntimeModuleJson -eq $runtimeModuleJson) {
-    Write-Host "hud-editor-probe ($Target) is up to date."
+    Write-Host "lua-painter-probe ($Target) is up to date."
     exit 0
 }
 
@@ -246,17 +246,17 @@ $hashHex = Get-ContentSha256Hex $composed
 $short = if ($hashHex.Length -ge 8) { $hashHex.Substring(0, 8) } else { $hashHex }
 $buildUtc = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
 $buildMeta = [ordered]@{
-    project        = "hud-editor"
+    project        = "lua-painter"
     buildUtc       = $buildUtc
     contentSha256  = $hashHex
     contentSha256Short = $short
     moduleCount    = $moduleEntries.Count
 }
 $metaJson = ($buildMeta | ConvertTo-Json -Compress)
-$metaFile = Join-Path $outDir ("hud-editor-probe" + $artifactSuffix + ".build.json")
+$metaFile = Join-Path $outDir ("lua-painter-probe" + $artifactSuffix + ".build.json")
 [System.IO.File]::WriteAllText($metaFile, $metaJson, $utf8NoBom)
 
-Write-Host "hud-editor-probe ($Target) built from $($moduleEntries.Count) modules."
+Write-Host "lua-painter-probe ($Target) built from $($moduleEntries.Count) modules."
 Write-Host "  SHA256: $short"
 Write-Host "  Output: $outFile"
 Write-Host "  Module: $runtimeModuleJsFile"

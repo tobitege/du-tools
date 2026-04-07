@@ -81,6 +81,7 @@
       textLines: tool === "text" ? ["Text"] : null,
       textColor: [0.86, 0.88, 0.92, 1.0],
       textSize: 16,
+      textFont: "Play",
       textAlign: "center",
       textVAlign: "center",
       rotation: 0,

@@ -19,6 +19,79 @@
   var cleanupFns = [];
   var activeToasts = {};
   var PREVIEW_IMAGE_ROOT_KEY = "hud_editor_preview_image_root";
+  var DEFAULT_TEXT_FONT = "Play";
+  var TEXT_FONT_CATALOG = [
+    "BankGothic",
+    "BankGothic-Light",
+    "BankGothic-Medium",
+    "DatDot",
+    "DatDot-Bold",
+    "DatDot-Light",
+    "Dosis",
+    "Dosis-Bold",
+    "Dosis-Light",
+    "E1234",
+    "FiraMono",
+    "FiraMono-Bold",
+    "HelpMe",
+    "Indoscreen",
+    "LinuxLibertine",
+    "LinuxLibertine-Bold",
+    "LinuxLibertine-Italic",
+    "Montserrat",
+    "Montserrat-Bold",
+    "Montserrat-BoldItalic",
+    "Montserrat-ExtraLight",
+    "Montserrat-ExtraLightItalic",
+    "Montserrat-Light",
+    "Montserrat-SemiBold",
+    "Montserrat-Thin",
+    "Ontel",
+    "Oxanium",
+    "Oxanium-Bold",
+    "Oxanium-Light",
+    "Oxanium-Medium",
+    "Play",
+    "Play-Bold",
+    "RefrigeratorDeluxe",
+    "RefrigeratorDeluxe-Light",
+    "RobotoCondensed",
+    "RobotoMono",
+    "RobotoMono-Bold",
+    "TurretRoad",
+    "TurretRoad-Bold",
+    "TurretRoad-Light",
+    "TurretRoad-Medium"
+  ];
+  var TEXT_FONT_VARIANTS = [
+    { suffix: "-ExtraLightItalic", weight: "200", style: "italic" },
+    { suffix: "-BoldItalic", weight: "700", style: "italic" },
+    { suffix: "-SemiBold", weight: "600", style: "normal" },
+    { suffix: "-ExtraLight", weight: "200", style: "normal" },
+    { suffix: "-Medium", weight: "500", style: "normal" },
+    { suffix: "-Light", weight: "300", style: "normal" },
+    { suffix: "-Bold", weight: "700", style: "normal" },
+    { suffix: "-Thin", weight: "100", style: "normal" },
+    { suffix: "-Italic", weight: "400", style: "italic" }
+  ];
+  var TEXT_FONT_FAMILY_OVERRIDES = {
+    BankGothic: '"Bank Gothic", "Arial Narrow", sans-serif',
+    DatDot: '"DatDot", "Orbitron", sans-serif',
+    Dosis: '"Dosis", sans-serif',
+    E1234: '"E1234", "Orbitron", sans-serif',
+    FiraMono: '"Fira Mono", monospace',
+    HelpMe: '"HelpMe", "Segoe UI", sans-serif',
+    Indoscreen: '"Indoscreen", "Orbitron", sans-serif',
+    LinuxLibertine: '"Linux Libertine", Georgia, serif',
+    Montserrat: '"Montserrat", sans-serif',
+    Ontel: '"Ontel", "Segoe UI", sans-serif',
+    Oxanium: '"Oxanium", sans-serif',
+    Play: '"Play", sans-serif',
+    RefrigeratorDeluxe: '"refrigerator-deluxe", "Refrigerator Deluxe", sans-serif',
+    RobotoCondensed: '"Roboto Condensed", sans-serif',
+    RobotoMono: '"Roboto Mono", monospace',
+    TurretRoad: '"Turret Road", sans-serif'
+  };
 
   var state = {
     initialized: false,
@@ -60,6 +133,56 @@
 
   function trimString(value) {
     return String(value == null ? "" : value).replace(/^\s+|\s+$/g, "");
+  }
+
+  function normalizeTextFontName(value) {
+    var text = trimString(value);
+    return text || DEFAULT_TEXT_FONT;
+  }
+
+  function getTextFontCatalog() {
+    return TEXT_FONT_CATALOG.slice();
+  }
+
+  function getTextFontCssConfig(value) {
+    var name = normalizeTextFontName(value);
+    var baseName = name;
+    var family;
+    var genericFamily = "sans-serif";
+    var weight = "400";
+    var style = "normal";
+    var variant;
+    var readableBaseName;
+    var i;
+
+    for (i = 0; i < TEXT_FONT_VARIANTS.length; i += 1) {
+      variant = TEXT_FONT_VARIANTS[i];
+      if (baseName.slice(-variant.suffix.length) === variant.suffix) {
+        baseName = baseName.slice(0, -variant.suffix.length);
+        weight = variant.weight;
+        style = variant.style;
+        break;
+      }
+    }
+
+    if (/Mono/i.test(baseName)) {
+      genericFamily = "monospace";
+    } else if (/Libertine/i.test(baseName)) {
+      genericFamily = "serif";
+    }
+
+    family = TEXT_FONT_FAMILY_OVERRIDES[baseName];
+    if (!family) {
+      readableBaseName = baseName.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/-/g, " ");
+      family = '"' + readableBaseName + '", ' + genericFamily;
+    }
+
+    return {
+      name: name,
+      family: family,
+      weight: weight,
+      style: style
+    };
   }
 
   function padBase36(value, size) {
@@ -284,9 +407,9 @@
   }
 
   function getRoot() {
-    var root = DOC.getElementById("hud-editor-root");
+    var root = DOC.getElementById("lua-painter-root");
     if (!root) {
-      root = el("div", { id: "hud-editor-root" });
+      root = el("div", { id: "lua-painter-root" });
       root.style.display = "none";
       (DOC.body || DOC.documentElement).appendChild(root);
     }
@@ -443,7 +566,7 @@
   }
 
   function updateToggleButton() {
-    var button = DOC.getElementById("hud-editor-toggle");
+    var button = DOC.getElementById("lua-painter-toggle");
     if (!button) {
       return;
     }
@@ -459,10 +582,10 @@
   }
 
   function getToastContainer() {
-    var container = DOC.getElementById("hud-editor-toast-container");
+    var container = DOC.getElementById("lua-painter-toast-container");
     if (!container) {
       container = DOC.createElement("div");
-      container.id = "hud-editor-toast-container";
+      container.id = "lua-painter-toast-container";
       container.className = "toast-container";
       (DOC.body || DOC.documentElement).appendChild(container);
     }
@@ -549,13 +672,13 @@
   }
 
   function createToggleButton() {
-    var existing = DOC.getElementById("hud-editor-toggle");
+    var existing = DOC.getElementById("lua-painter-toggle");
     if (existing && existing.parentNode) {
       existing.parentNode.removeChild(existing);
     }
 
     var button = DOC.createElement("button");
-    button.id = "hud-editor-toggle";
+    button.id = "lua-painter-toggle";
     button.type = "button";
     button.textContent = "Lua Painter: OFF";
     button.style.cssText = "position:fixed;top:10px;right:16px;display:inline-flex;align-items:center;justify-content:center;min-width:164px;height:40px;background:#333;color:#fff;z-index:2147482400;font:700 14px/1.2 'Segoe UI',Tahoma,sans-serif;padding:8px 16px;border:2px solid #0ee9e7;border-radius:10px;cursor:pointer;white-space:nowrap;box-sizing:border-box;box-shadow:0 8px 24px rgba(0,0,0,0.28);";
@@ -622,7 +745,7 @@
         removeToast(activeToasts[key]);
       });
       activeToasts = {};
-      var container = DOC.getElementById("hud-editor-toast-container");
+      var container = DOC.getElementById("lua-painter-toast-container");
       if (container && container.parentNode) {
         container.parentNode.removeChild(container);
       }
@@ -637,12 +760,12 @@
     exitEditMode();
     runCleanup();
 
-    var root = DOC.getElementById("hud-editor-root");
+    var root = DOC.getElementById("lua-painter-root");
     if (root && root.parentNode) {
       root.parentNode.removeChild(root);
     }
 
-    var style = DOC.getElementById("hud-editor-styles");
+    var style = DOC.getElementById("lua-painter-styles");
     if (style && style.parentNode) {
       style.parentNode.removeChild(style);
     }
@@ -663,6 +786,9 @@
     getRuntimeCtx: getRuntimeCtx,
     getPersistentValue: getPersistentValue,
     setPersistentValue: setPersistentValue,
+    normalizeTextFontName: normalizeTextFontName,
+    getTextFontCatalog: getTextFontCatalog,
+    getTextFontCssConfig: getTextFontCssConfig,
     setSavedDocumentBaseline: setSavedDocumentBaseline,
     refreshDirtyState: refreshDirtyState,
     getPreviewImageRoot: getPreviewImageRoot,

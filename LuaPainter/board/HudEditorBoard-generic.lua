@@ -471,6 +471,7 @@ function HudEditorBoard.newDocument(screenW, screenH)
                 textLines = {"Lua Painter"},
                 textColor = {0.86, 0.88, 0.92, 1.0},
                 textSize = 24,
+                textFont = "Play",
                 textAlign = "center",
             }
         }
@@ -766,7 +767,7 @@ function HudEditorBoard.processCommand(input)
 
     -- Route command
     if action == CMD.PING then
-        return { status = "ok", type = "pong", version = "hud-editor-v1" }
+        return { status = "ok", type = "pong", version = "LuaPainter-v1.0.0" }
 
     elseif action == CMD.SYNC then
         return HudEditorBoard.cmdSync()
@@ -1091,6 +1092,8 @@ local function serializeScreenTextCommand(element)
     append(parts, luaNumber(element.strokeWidth, 0))
     append(parts, ",ts=")
     append(parts, luaNumber(element.textSize, 16))
+    append(parts, ",tf=")
+    append(parts, luaString(element.textFont or "Play"))
     append(parts, ",ta=")
     append(parts, luaString(element.textAlign or "left"))
     if tonumber(element.rotation) and tonumber(element.rotation) ~= 0 then
@@ -1465,12 +1468,31 @@ local DE=""
 local DW=0
 local F={}
 local I={}
-local function G(s)
+local function FN(name)
+    if type(name)~="string" or name=="" then
+        return "Play"
+    end
+    return name
+end
+local function G(name,s)
+    local fontName=FN(name)
     s=math.max(1,math.floor(tonumber(s) or 16))
-    local f=F[s]
-    if not f then
-        f=loadFont("Play",s)
-        F[s]=f
+    local key=fontName.."|"..tostring(s)
+    local f=F[key]
+    if f==nil then
+        local ok,loaded=pcall(loadFont,fontName,s)
+        if ok and loaded then
+            f=loaded
+        elseif fontName~="Play" then
+            ok,loaded=pcall(loadFont,"Play",s)
+            if ok and loaded then
+                f=loaded
+            end
+        end
+        F[key]=f or false
+    end
+    if f==false then
+        return nil
     end
     return f
 end
@@ -1555,7 +1577,7 @@ local function TX(l,c,sc,sx,sy)
     SC(l,c.s,{0,0,0,0})
     setNextStrokeWidth(l,math.max(0,(tonumber(c.sw) or 0)*sc))
     local s=math.max(1,math.floor((tonumber(c.ts) or 16)*sc+0.5))
-    local f=G(s)
+    local f=G(c.tf,s)
     if not f then return end
     local a=c.ta or "left"
     local x=SX(c.x,sx)+12*sc

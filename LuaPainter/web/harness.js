@@ -78,7 +78,7 @@ function updateState() {
 function loadPayload() {
   return new Promise((resolve, reject) => {
     const script = document.createElement("script")
-    script.src = "/build/hud-editor-probe.js?t=" + Date.now()
+    script.src = "/build/lua-painter-probe.js?t=" + Date.now()
     script.onload = () => resolve()
     script.onerror = (event) => reject(new Error(`Failed to load payload: ${event?.message || "unknown error"}`))
     document.head.appendChild(script)
@@ -110,7 +110,7 @@ function ensureClosed() {
 }
 
 function clickNewScript() {
-  const button = document.querySelector('#hud-editor-root [data-screen="start"] [data-action="new"]')
+  const button = document.querySelector('#lua-painter-root [data-screen="start"] [data-action="new"]')
   if (button) {
     button.click()
   }

@@ -1,7 +1,7 @@
 # Publish Lua Painter as a runtime lua-probe module.
 #
 # Workflow:
-# 1. Build the web bundle (hud-editor-probe.js) and the ingame payload/runtime-module wrapper.
+# 1. Build the web bundle (lua-painter-probe.js) and the ingame payload/runtime-module wrapper.
 # 2. Copy the generated runtime-module files into ModUiToolbox source.
 # 3. Publish the lua probe via ModUiToolbox's canonical publish script.
 param(
@@ -16,9 +16,9 @@ $projectDir = [System.IO.Path]::GetFullPath((Join-Path $scriptDir ".."))
 
 $buildScript = Join-Path $scriptDir "build.ps1"
 $buildOutDir = Join-Path $projectDir "build"
-$runtimeModuleSrc = Join-Path $buildOutDir "hud-editor-runtime-module.ingame.js"
-$runtimeModuleMeta = Join-Path $buildOutDir "hud-editor-runtime-module.ingame.json"
-$debugPayload = Join-Path $buildOutDir "hud-editor-probe.ingame.js"
+$runtimeModuleSrc = Join-Path $buildOutDir "lua-painter-runtime-module.ingame.js"
+$runtimeModuleMeta = Join-Path $buildOutDir "lua-painter-runtime-module.ingame.json"
+$debugPayload = Join-Path $buildOutDir "lua-painter-probe.ingame.js"
 
 function Invoke-CheckedPowerShellScript {
     param(
@@ -40,7 +40,7 @@ function Invoke-CheckedPowerShellScript {
     }
 }
 
-Write-Host "Building web bundle (harness / hud-editor-probe.js)..."
+Write-Host "Building web bundle (harness / lua-painter-probe.js)..."
 Invoke-CheckedPowerShellScript -ScriptPath $buildScript -FailureMessage "Web build failed" -Parameters @{
     ProjectDir = $projectDir
     Target = "web"
@@ -59,20 +59,20 @@ if (-not (Test-Path $runtimeModuleMeta)) {
     throw "Runtime module metadata not found: $runtimeModuleMeta"
 }
 
-$moduleTargetDir = Join-Path $ModUiToolboxDir "payload\lua-editor-runtime-modules\hud-editor"
+$moduleTargetDir = Join-Path $ModUiToolboxDir "payload\lua-editor-runtime-modules\lua-painter"
 New-Item -ItemType Directory -Path $moduleTargetDir -Force | Out-Null
 
 Copy-Item -Path $runtimeModuleSrc -Destination (Join-Path $moduleTargetDir "module.js") -Force
 Copy-Item -Path $runtimeModuleMeta -Destination (Join-Path $moduleTargetDir "module.json") -Force
 
 if (Test-Path $debugPayload) {
-    Copy-Item -Path $debugPayload -Destination (Join-Path $moduleTargetDir "hud-editor-probe.js") -Force
+    Copy-Item -Path $debugPayload -Destination (Join-Path $moduleTargetDir "lua-painter-probe.js") -Force
 }
 
 # Clean legacy direct-injection artifacts from earlier experiments.
 $overrideRoot = Join-Path $DumpDir "payload-overrides"
 $legacyFiles = @(
-    (Join-Path $overrideRoot "hud-editor-probe.js"),
+    (Join-Path $overrideRoot "lua-painter-probe.js"),
     (Join-Path $overrideRoot "combined-probe.js"),
     (Join-Path $overrideRoot "combined-probe.build.json")
 )
@@ -96,4 +96,4 @@ Write-Host ""
 Write-Host "Lua Painter runtime module published:"
 Write-Host "  $(Join-Path $moduleTargetDir 'module.json')"
 Write-Host "  $(Join-Path $moduleTargetDir 'module.js')"
-Write-Host "  $(Join-Path $moduleTargetDir 'hud-editor-probe.js')"
+Write-Host "  $(Join-Path $moduleTargetDir 'lua-painter-probe.js')"

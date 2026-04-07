@@ -527,6 +527,7 @@
       textLines: normalizeTextLines(raw.textLines),
       textColor: normalizeColor(raw.textColor, [1, 1, 1, 1]),
       textSize: toFiniteNumber(raw.textSize, 16),
+      textFont: APP.normalizeTextFontName ? APP.normalizeTextFontName(raw.textFont) : (raw.textFont ? String(raw.textFont) : "Play"),
       textAlign: raw.textAlign ? String(raw.textAlign) : "left",
       textVAlign: raw.textVAlign ? String(raw.textVAlign) : "center",
       rotation: toFiniteNumber(raw.rotation, 0),

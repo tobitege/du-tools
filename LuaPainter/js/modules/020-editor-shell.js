@@ -33,6 +33,9 @@
   var RADIUS_PRESETS = [0, 2, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 50, 75, 100];
   var GLOW_PRESETS = [0, 2, 4, 6, 8, 10, 12, 16, 20, 24, 32, 40, 50, 64, 80, 100];
   var TEXT_SIZE_PRESETS = [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 40, 44, 48, 56, 64, 80, 96, 128, 160, 200];
+  var TEXT_FONT_OPTIONS = (APP.getTextFontCatalog ? APP.getTextFontCatalog() : ["Play"]).map(function (fontName) {
+    return { value: fontName, label: fontName };
+  });
   var SHAPE_TOOL_OPTIONS = [
     { tool: "box", title: "Box", shortcut: "B", glyph: "\u25A1", iconClass: "tb-icon-box tb-icon-glyph tb-icon-glyph-box" },
     { tool: "rounded", title: "Rounded Box", shortcut: "R", glyph: "\u25A2", iconClass: "tb-icon-rounded tb-icon-glyph tb-icon-glyph-rounded" },
@@ -373,6 +376,10 @@
               el("div", { className: "prop-row", dataset: { propRow: "textSize" } }, [
               el("label", { textContent: "Text Size" }),
               buildStepper("textSize", TEXT_SIZE_PRESETS),
+              ]),
+              el("div", { className: "prop-row", dataset: { propRow: "textFont" } }, [
+              el("label", { textContent: "Font" }),
+              buildPropDropdown("textFont", TEXT_FONT_OPTIONS),
               ]),
               el("div", { className: "prop-row prop-row-dual" }, [
               el("div", { className: "prop-inline-field", dataset: { propRow: "textAlign" } }, [

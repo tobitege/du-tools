@@ -78,6 +78,7 @@
       s: CLEAR_TEXT_STROKE.slice(),
       sw: 0,
       ts: toFiniteNumber(raw.textSize, 16),
+      tf: APP.normalizeTextFontName ? APP.normalizeTextFontName(raw.textFont) : String(raw.textFont || "Play"),
       ta: String(raw.textAlign || "left"),
       tv: String(raw.textVAlign || "center")
     };

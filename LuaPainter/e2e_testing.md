@@ -34,10 +34,10 @@ pwsh -File .\LuaPainter\scripts\publish.ps1
 
 Expected (under `build/`):
 
-- `hud-editor-probe.js`
-- `hud-editor-probe.ingame.js`
-- `hud-editor-runtime-module.ingame.js`
-- `hud-editor-runtime-module.ingame.json`
+- `lua-painter-probe.js`
+- `lua-painter-probe.ingame.js`
+- `lua-painter-runtime-module.ingame.js`
+- `lua-painter-runtime-module.ingame.json`
 
 ### 2. Run browser regression tests
 
@@ -58,7 +58,7 @@ pwsh -File .\LuaPainter\scripts\publish.ps1
 
 Expected:
 
-- the HUD editor runtime module is copied into `ModUiToolbox\payload\lua-editor-runtime-modules\hud-editor`
+- the HUD editor runtime module is copied into `ModUiToolbox\payload\lua-editor-runtime-modules\lua-painter`
 - ModUiToolbox publish completes
 
 ## Live Validation
@@ -124,7 +124,7 @@ Expected after reopen:
 Use `du_ui_invoke` with `method = raw_eval` to check:
 
 - `window.HudEditor`
-- `document.getElementById("hud-editor-root")`
+- `document.getElementById("lua-painter-root")`
 - runtime-module checkbox state
 - `window.HudEditor.shapeSnippets`
 - `window.HudEditor.screenCommands`

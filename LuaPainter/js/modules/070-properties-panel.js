@@ -156,7 +156,7 @@
     var radiusRow = qs('[data-prop-row="radius"]', panel);
     var showRadius = (element.type === "box" || element.type === "boxRounded");
     if (radiusRow) radiusRow.style.display = showRadius ? "" : "none";
-    var textRows = ["textLines", "textColor", "textSize", "textAlign"];
+    var textRows = ["textLines", "textColor", "textSize", "textFont", "textAlign"];
     var showText = supportsTextEditing(element);
     var textVAlignRow = qs('[data-prop-row="textVAlign"]', panel);
     textRows.forEach(function (rowName) {
@@ -174,6 +174,7 @@
     if (radiusInput && showRadius) setStepperValue(radiusInput, element.radius || 0);
     if (strokeWidthInput) setStepperValue(strokeWidthInput, element.strokeWidth || 0);
     if (textSizeInput) setStepperValue(textSizeInput, Number(element.textSize) || 16);
+    syncPropDropdown("textFont", APP.normalizeTextFontName ? APP.normalizeTextFontName(element.textFont) : String(element.textFont || "Play"));
     syncPropDropdown("textAlign", String(element.textAlign || "left"));
     syncPropDropdown("textVAlign", String(element.textVAlign || "center"));
     if (imageSrcInput) imageSrcInput.value = String(element.imageSrc || "");
@@ -215,6 +216,7 @@
     strokeWidth: 1,
     textColor: 1,
     textSize: 1,
+    textFont: 1,
     textAlign: 1,
     textVAlign: 1,
     rotation: 1,
@@ -298,6 +300,10 @@
           break;
         case "textSize":
           element.textSize = Math.max(1, parseFloat(value) || 1);
+          changed = true;
+          break;
+        case "textFont":
+          element.textFont = APP.normalizeTextFontName ? APP.normalizeTextFontName(value) : String(value || "Play");
           changed = true;
           break;
         case "textAlign":

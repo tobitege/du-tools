@@ -1,16 +1,16 @@
 // Lua Painter Probe
 // Project: D:\github\du-tobi\LuaPainter
-// Built: 2026-04-07T13:03:05Z
+// Built: 2026-04-07T16:07:26Z
 
 // Inlined CSS
 (function injectCSS() {
-  var existing = document.getElementById('hud-editor-styles');
+  var existing = document.getElementById('lua-painter-styles');
   if (existing && existing.parentNode) {
     existing.parentNode.removeChild(existing);
   }
   var style = document.createElement('style');
-  style.id = 'hud-editor-styles';
-  style.textContent = "/* hud-editor.css - All Lua Painter styles\n   Project: LuaPainter\n   Self-contained - does NOT use ModUiToolbox core styles\n*/\n\n/* ─── Root container ────────────────────────────────────────────────── */\n\n#hud-editor-root {\n  position: fixed;\n  top: 50%;\n  left: 50%;\n  transform: translate(-50%, -50%);\n  width: 95vw;\n  height: 95vh;\n  z-index: 99999;\n  pointer-events: none;\n  font-family: 'Rajdhani', 'Segoe UI', Tahoma, sans-serif;\n  font-size: 14px;\n  color: #ccc;\n  background: rgba(0, 0, 0, 0.70);\n  display: none;\n  overflow: hidden;\n  user-select: none;\n  -webkit-user-select: none;\n  -moz-user-select: none;\n  -ms-user-select: none;\n}\n\n#hud-editor-root[style*=\"block\"] {\n  pointer-events: auto;\n}\n\n/* ─── Screens ────────────────────────────────────────────────────────── */\n\n.hud-screen {\n  display: none;\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n}\n\n.hud-screen.active {\n  display: flex;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           START SCREEN                                */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"start\"] {\n  position: relative;\n  width: 100%;\n  height: 100%;\n  top: 0;\n  left: 0;\n  align-items: center;\n  justify-content: center;\n  background:\n    linear-gradient(#0a0a0f, #1a1a2e) padding-box,\n    linear-gradient(135deg, #0ee9e7 0%, #a855f7 50%, #22c55e 100%) border-box;\n  border: 3px solid transparent;\n  border-radius: 18px;\n  box-shadow:\n    0 0 20px rgba(14, 233, 231, 0.3),\n    0 0 40px rgba(168, 85, 247, 0.15),\n    0 0 20px rgba(34, 197, 94, 0.3),\n    0 24px 80px rgba(0, 0, 0, 0.45);\n  overflow: hidden;\n}\n\n.start-container {\n  text-align: center;\n  width: min(980px, calc(100vw - 160px));\n  max-width: 980px;\n  padding: 48px;\n}\n\n/* ─── Header with glow shapes ────────────────────────────────────────── */\n\n.start-header {\n  text-align: center;\n  margin-bottom: 48px;\n}\n\n.start-header h1 {\n  font-size: 52px;\n  font-weight: 700;\n  color: #fff;\n  margin: 0 0 8px 0;\n  text-shadow: 0 0 30px rgba(14, 233, 231, 0.4);\n  letter-spacing: 1px;\n}\n\n.start-header .subtitle {\n  color: #777;\n  font-size: 18px;\n  margin: 0;\n}\n\n/* Glow shape containers — absolutely positioned inside the start screen */\n.start-glow-shapes {\n  position: absolute;\n  display: flex;\n  flex-direction: column;\n  gap: 40px;\n  top: 50%;\n  transform: translateY(-50%);\n  pointer-events: none;\n  z-index: 0;\n}\n\n.start-glow-left {\n  left: 24px;\n  padding-left: 16px;\n  align-items: flex-end;\n}\n\n.start-glow-right {\n  right: 24px;\n  padding-right: 16px;\n  align-items: flex-start;\n}\n\n/* Base glow shape */\n.glow-shape {\n  border-radius: 4px;\n  animation: glowPulse 3s ease-in-out infinite;\n}\n\n/* Shape types */\n.glow-shape-circle {\n  border-radius: 50%;\n}\n\n.glow-shape-box {\n  border-radius: 4px;\n}\n\n.glow-shape-triangle {\n  width: 0 !important;\n  height: 0 !important;\n  background: transparent !important;\n  border-left: 30px solid transparent;\n  border-right: 30px solid transparent;\n  border-bottom: 52px solid;\n  border-top: none;\n  animation: glowPulse 3s ease-in-out infinite;\n}\n\n/* Color variants */\n.glow-shape-cyan {\n  background: rgba(14, 233, 231, 0.18);\n  border: 1px solid rgba(14, 233, 231, 0.45);\n  box-shadow: 0 0 16px rgba(14, 233, 231, 0.25), 0 0 32px rgba(14, 233, 231, 0.10);\n}\n\n.glow-shape-purple {\n  background: rgba(160, 100, 255, 0.18);\n  border: 1px solid rgba(160, 100, 255, 0.45);\n  box-shadow: 0 0 16px rgba(160, 100, 255, 0.25), 0 0 32px rgba(160, 100, 255, 0.10);\n}\n\n.glow-shape-amber {\n  background: rgba(255, 196, 92, 0.18);\n  border: 1px solid rgba(255, 196, 92, 0.45);\n  box-shadow: 0 0 16px rgba(255, 196, 92, 0.25), 0 0 32px rgba(255, 196, 92, 0.10);\n}\n\n.glow-shape-green {\n  background: rgba(80, 220, 120, 0.18);\n  border: 1px solid rgba(80, 220, 120, 0.45);\n  box-shadow: 0 0 16px rgba(80, 220, 120, 0.25), 0 0 32px rgba(80, 220, 120, 0.10);\n}\n\n/* Triangle color overrides (uses border-bottom for color) */\n.glow-shape-triangle.glow-shape-cyan {\n  border-bottom-color: rgba(14, 233, 231, 0.45);\n  filter: drop-shadow(0 0 8px rgba(14, 233, 231, 0.35));\n}\n\n.glow-shape-triangle.glow-shape-purple {\n  border-bottom-color: rgba(160, 100, 255, 0.45);\n  filter: drop-shadow(0 0 8px rgba(160, 100, 255, 0.35));\n}\n\n.glow-shape-triangle.glow-shape-amber {\n  border-bottom-color: rgba(255, 196, 92, 0.45);\n  filter: drop-shadow(0 0 8px rgba(255, 196, 92, 0.35));\n}\n\n/* Sizes — left side */\n.start-glow-left .glow-shape:nth-child(1) {\n  width: 144px;\n  height: 144px;\n  animation-delay: 0s;\n}\n\n.start-glow-left .glow-shape:nth-child(2) {\n  width: 112px;\n  height: 112px;\n  animation-delay: 1s;\n}\n\n.start-glow-left .glow-shape:nth-child(3) {\n  animation-delay: 2s;\n}\n\n/* Sizes — right side */\n.start-glow-right .glow-shape:nth-child(1) {\n  width: 128px;\n  height: 128px;\n  animation-delay: 0.5s;\n}\n\n.start-glow-right .glow-shape:nth-child(2) {\n  width: 152px;\n  height: 152px;\n  animation-delay: 1.5s;\n}\n\n.start-glow-right .glow-shape:nth-child(3) {\n  width: 96px;\n  height: 96px;\n  animation-delay: 2.5s;\n}\n\n@keyframes glowPulse {\n  0%, 100% { opacity: 0.7; transform: scale(1); }\n  50% { opacity: 1; transform: scale(1.08); }\n}\n\n.start-menu {\n  display: flex;\n  flex-direction: column;\n}\n\n.start-menu .menu-btn:first-child {\n  margin-bottom: 20px;\n}\n\n.start-menu .menu-btn {\n  margin: 0;\n  flex-shrink: 0;\n}\n\n.start-main {\n  display: grid;\n  grid-template-columns: repeat(2, minmax(0, 388px));\n  align-items: start;\n  column-gap: 36px;\n  row-gap: 28px;\n  width: 100%;\n  justify-content: center;\n}\n\n.start-column {\n  min-width: 0;\n  width: 100%;\n}\n\n.start-context-card {\n  display: flex;\n  flex-direction: column;\n  gap: 10px;\n  margin-bottom: 18px;\n  padding: 14px 16px;\n  background: rgba(255, 255, 255, 0.035);\n  border: 1px solid rgba(255, 255, 255, 0.07);\n  border-radius: 12px;\n}\n\n.start-context-title {\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.12em;\n  text-transform: uppercase;\n  color: #8a91a4;\n}\n\n.start-context-pill,\n.editor-context-pill {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 28px;\n  padding: 0 12px;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 999px;\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n}\n\n.start-context-pill.is-online,\n.editor-context-pill.is-online {\n  background: rgba(14, 233, 231, 0.14);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #94fffd;\n}\n\n.start-context-pill.is-offline,\n.editor-context-pill.is-offline {\n  background: rgba(255, 196, 92, 0.12);\n  border-color: rgba(255, 196, 92, 0.28);\n  color: #ffcf7c;\n}\n\n.start-context-copy {\n  margin: 0;\n  font-size: 13px;\n  line-height: 1.45;\n  color: #8e96ab;\n}\n\n.start-preview-card {\n  margin-bottom: 28px;\n  text-align: left;\n}\n\n.start-preview-input {\n  width: 100%;\n  height: 38px;\n  padding: 0 12px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  color: #dce4f3;\n  font-size: 14px;\n  font-family: inherit;\n  box-sizing: border-box;\n}\n\n.start-preview-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.start-preview-example {\n  color: #7f8aa0;\n  font-size: 12px;\n  line-height: 1.45;\n  word-break: break-all;\n}\n\n.menu-btn {\n  display: flex;\n  align-items: center;\n  height: 72px;\n  width: calc(100% - 24px);\n  padding: 14px 24px;\n  background: rgba(255, 255, 255, 0.04);\n  border: 1px solid rgba(255, 255, 255, 0.22);\n  border-radius: 12px;\n  cursor: pointer;\n  transition: all 0.2s ease;\n  text-align: left;\n  color: inherit;\n  font-family: inherit;\n  font-size: 16px;\n}\n\n.menu-btn:hover {\n  background: rgba(14, 233, 231, 0.08);\n  border-color: rgba(14, 233, 231, 0.5);\n  transform: translateX(6px);\n}\n\n.menu-btn.primary {\n  background: rgba(255, 255, 255, 0.04);\n  border-color: rgba(255, 255, 255, 0.22);\n}\n\n.menu-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.08);\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.menu-btn.exit-btn {\n  justify-content: center;\n  text-align: center;\n}\n\n.menu-btn.exit-btn .icon {\n  margin-right: 12px;\n}\n\n\n.status-btn:disabled,\n.btn:disabled {\n  cursor: not-allowed;\n  opacity: 0.48;\n  transform: none;\n  box-shadow: none;\n}\n\n.menu-btn:disabled:hover,\n.status-btn:disabled:hover,\n.btn:disabled:hover {\n  background: inherit;\n  border-color: inherit;\n  color: inherit;\n  transform: none;\n}\n\n.menu-btn .icon {\n  font-size: 26px;\n  margin-right: 18px;\n  width: 32px;\n  text-align: center;\n  flex-shrink: 0;\n}\n\n.menu-btn .label-group {\n  display: flex;\n  flex-direction: column;\n}\n\n.menu-btn .label {\n  color: #fff;\n  font-size: 20px;\n  font-weight: 600;\n}\n\n.menu-btn .desc {\n  color: #666;\n  font-size: 13px;\n  margin-top: 3px;\n}\n\n.start-footer {\n  margin-top: 10px;\n  width: min(420px, 100%);\n  margin-left: auto;\n  margin-right: auto;\n}\n\n.start-script-card {\n  display: flex;\n  flex-direction: column;\n  gap: 12px;\n  margin-top: 20px;\n  padding: 16px;\n  background: rgba(255, 255, 255, 0.035);\n  border: 1px solid rgba(255, 255, 255, 0.07);\n  border-radius: 12px;\n  text-align: left;\n  width: calc(100% - 24px);\n}\n\n.start-script-card-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n}\n\n.start-script-title {\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.12em;\n  text-transform: uppercase;\n  color: #8a91a4;\n}\n\n.start-script-action-btn {\n  min-width: 0;\n  min-height: 34px;\n  padding: 7px 14px;\n  font-size: 12px;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n}\n\n.start-script-list {\n  min-height: 280px;\n  max-height: 380px;\n}\n\n.start-script-list-empty {\n  padding: 22px 16px;\n  border: 1px dashed rgba(255, 255, 255, 0.08);\n  border-radius: 10px;\n  color: #7d879b;\n  text-align: center;\n}\n\n.start-script-list .script-item {\n  width: 100%;\n  border: 1px solid #2a2a3a;\n  color: inherit;\n  font: inherit;\n  text-align: left;\n}\n\n.start-script-list .script-item.selected {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.38);\n  box-shadow: inset 0 0 0 1px rgba(14, 233, 231, 0.14);\n}\n\n@media (max-width: 1100px) {\n  .start-container {\n    width: min(640px, calc(100vw - 64px));\n    padding: 36px 28px;\n  }\n\n  .start-main {\n    grid-template-columns: 1fr;\n  }\n\n  .start-column-actions,\n  .start-column-library,\n  .start-footer {\n    width: 100%;\n  }\n}\n\n.hint {\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EDITOR SCREEN                               */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"editor\"] {\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  flex-direction: column;\n  background: #12121a;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* ─── Toolbar ────────────────────────────────────────────────────────── */\n\n#editor-toolbar {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  padding: 5px 10px;\n  background: linear-gradient(180deg, #1c1c28 0%, #16161e 100%);\n  border-bottom: 1px solid #0e0e14;\n  flex-shrink: 0;\n  height: 50px;\n}\n\n.toolbar-group {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n}\n\n.toolbar-divider {\n  width: 1px;\n  height: 26px;\n  background: linear-gradient(180deg, transparent 0%, #2a2a3a 30%, #2a2a3a 70%, transparent 100%);\n  margin: 0 8px;\n}\n\n.toolbar-spacer {\n  flex: 1;\n}\n\n.toolbar-dropdown {\n  position: relative;\n}\n\n/* Tool & action buttons — bordered, recessed panel look */\n.tool-btn,\n.action-btn {\n  position: relative;\n  display: inline-flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  width: 46px;\n  height: 44px;\n  padding: 0;\n  border: 1px solid #2a2a36;\n  border-radius: 5px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  color: #8f98ac;\n  cursor: pointer;\n  transition: all 0.12s ease;\n  font-family: inherit;\n}\n\n.tool-btn:hover,\n.action-btn:hover {\n  background: linear-gradient(180deg, #2a2a38 0%, #22222e 100%);\n  border-color: #3a3a4a;\n  color: #b0b8c8;\n}\n\n.tool-btn:active,\n.action-btn:active {\n  background: linear-gradient(180deg, #181822 0%, #1e1e28 100%);\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);\n}\n\n.tool-btn.active {\n  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);\n}\n\n/* Custom CSS tooltips for toolbar buttons */\n.tool-btn[title]:hover::after,\n.action-btn[title]:hover::after {\n  content: attr(title);\n  position: absolute;\n  top: calc(100% + 6px);\n  left: 50%;\n  transform: translateX(-50%);\n  white-space: nowrap;\n  padding: 4px 10px;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #c0c8d8;\n  font-size: 11px;\n  font-weight: 600;\n  letter-spacing: 0.03em;\n  pointer-events: none;\n  z-index: 1000;\n  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);\n  line-height: 1.3;\n}\n\n.tool-btn[title]:hover::before,\n.action-btn[title]:hover::before {\n  content: \"\";\n  position: absolute;\n  top: calc(100% + 2px);\n  left: 50%;\n  transform: translateX(-50%);\n  border: 4px solid transparent;\n  border-bottom-color: #3a3a4a;\n  pointer-events: none;\n  z-index: 1000;\n}\n\n.toolbar-dropdown-trigger.active,\n.toolbar-dropdown.open .toolbar-dropdown-trigger {\n  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);\n}\n\n.toolbar-dropdown-caret {\n  position: absolute;\n  right: 4px;\n  bottom: 2px;\n  font-size: 10px;\n  line-height: 1;\n  color: currentColor;\n  opacity: 0.9;\n}\n\n.toolbar-dropdown-menu {\n  position: absolute;\n  top: calc(100% + 8px);\n  left: 0;\n  min-width: 188px;\n  padding: 6px;\n  border: 1px solid #2a2a3a;\n  border-radius: 10px;\n  background: linear-gradient(180deg, rgba(28, 30, 43, 0.98), rgba(16, 18, 27, 0.98));\n  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);\n  display: none;\n  flex-direction: column;\n  gap: 4px;\n  z-index: 320;\n}\n\n.toolbar-dropdown.open .toolbar-dropdown-menu {\n  display: flex;\n}\n\n.dropdown-tool-btn {\n  width: 100%;\n  min-height: 40px;\n  height: auto;\n  padding: 8px 10px;\n  flex-direction: row;\n  justify-content: flex-start;\n  gap: 10px;\n}\n\n.dropdown-tool-btn .tb-icon {\n  width: 22px;\n  height: 22px;\n  flex-shrink: 0;\n}\n\n.dropdown-tool-copy {\n  display: flex;\n  min-width: 0;\n  flex: 1;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n}\n\n.dropdown-tool-title {\n  font-size: 13px;\n  font-weight: 600;\n  color: #dce4f3;\n  white-space: nowrap;\n}\n\n.dropdown-tool-key {\n  font-size: 11px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  color: #70809b;\n  text-transform: uppercase;\n}\n\n.dropdown-tool-btn.active .dropdown-tool-title,\n.dropdown-tool-btn.active .dropdown-tool-key {\n  color: inherit;\n}\n\n/* Icon shape — rendered via CSS */\n.tb-icon {\n  display: block;\n  width: 26px;\n  height: 26px;\n  position: relative;\n}\n\n/* Select tool — mouse pointer arrow */\n.tb-icon-select::before,\n.tb-icon-box::before,\n.tb-icon-rounded::before,\n.tb-icon-circle::before,\n.tb-icon-line::before,\n.tb-icon-text::before {\n  content: none;\n}\n\n.tb-icon-select::after {\n  content: none;\n}\n\n.tb-icon-glyph {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-weight: 700;\n  line-height: 1;\n  color: currentColor;\n  text-shadow: 0 0 8px rgba(255, 255, 255, 0.04);\n  font-family: \"Segoe UI Symbol\", \"Segoe UI\", Arial, sans-serif;\n}\n\n.tb-icon-glyph-select {\n  font-size: 24px;\n}\n\n.tb-icon-glyph-box,\n.tb-icon-glyph-rounded,\n.tb-icon-glyph-circle {\n  font-size: 23px;\n}\n\n.tb-icon-glyph-line {\n  font-size: 27px;\n  transform: translateY(-1px) scaleX(1.08);\n}\n\n.tb-icon-glyph-text {\n  font-size: 22px;\n  font-family: inherit;\n}\n\n.dropdown-tool-btn .tb-icon-glyph-line {\n  transform: translateY(-1px);\n}\n\n/* Alignment icons — bar + rectangle pattern */\n.tb-icon-align-left::before,\n.tb-icon-align-right::before,\n.tb-icon-align-center-h::before,\n.tb-icon-align-top::before,\n.tb-icon-align-bottom::before,\n.tb-icon-align-center-v::before {\n  content: \"\";\n  position: absolute;\n  background: currentColor;\n}\n\n.tb-icon-align-left::after,\n.tb-icon-align-right::after,\n.tb-icon-align-center-h::after,\n.tb-icon-align-top::after,\n.tb-icon-align-bottom::after,\n.tb-icon-align-center-v::after {\n  content: \"\";\n  position: absolute;\n  border: 2px solid currentColor;\n  border-radius: 1px;\n  box-sizing: border-box;\n}\n\n/* Align icons use a tighter centered draw box */\n.tb-icon-align-left::before  { left: 2px; top: 2px; width: 2px; height: 14px; }\n.tb-icon-align-left::after   { left: 7px; top: 50%; width: 10px; height: 7px; transform: translateY(-50%); }\n\n.tb-icon-align-right::before { right: 2px; top: 2px; width: 2px; height: 14px; }\n.tb-icon-align-right::after  { right: 7px; top: 50%; width: 10px; height: 7px; transform: translateY(-50%); }\n\n.tb-icon-align-center-h::before { left: 50%; top: 2px; width: 2px; height: 14px; transform: translateX(-50%); }\n.tb-icon-align-center-h::after  { left: 50%; top: 50%; width: 10px; height: 7px; transform: translate(-50%, -50%); }\n\n.tb-icon-align-top::before { top: 2px; left: 2px; height: 2px; width: 14px; }\n.tb-icon-align-top::after  { top: 7px; left: 50%; width: 7px; height: 10px; transform: translateX(-50%); }\n\n.tb-icon-align-bottom::before { bottom: 2px; left: 2px; height: 2px; width: 14px; }\n.tb-icon-align-bottom::after  { bottom: 7px; left: 50%; width: 7px; height: 10px; transform: translateX(-50%); }\n\n.tb-icon-align-center-v::before { top: 50%; left: 2px; height: 2px; width: 14px; transform: translateY(-50%); }\n.tb-icon-align-center-v::after  { top: 50%; left: 50%; width: 7px; height: 10px; transform: translate(-50%, -50%); }\n\n/* Size match icons — solid rectangle (source) + dashed rectangle (target) with clear size contrast */\n.tb-icon-size-smallest-w::before,\n.tb-icon-size-biggest-w::before,\n.tb-icon-size-smallest-h::before,\n.tb-icon-size-biggest-h::before {\n  content: \"\";\n  position: absolute;\n  border: 2px solid currentColor;\n  border-radius: 1px;\n}\n\n.tb-icon-size-smallest-w::after,\n.tb-icon-size-biggest-w::after,\n.tb-icon-size-smallest-h::after,\n.tb-icon-size-biggest-h::after {\n  content: \"\";\n  position: absolute;\n  border: 2px dashed currentColor;\n  border-radius: 1px;\n}\n\n/* Smallest width — wide solid on left, narrow dashed on right */\n.tb-icon-size-smallest-w::before { left: 1px; top: 3px; width: 10px; height: 14px; }\n.tb-icon-size-smallest-w::after  { left: 15px; top: 3px; width: 5px; height: 14px; }\n\n/* Biggest width — narrow solid on left, wide dashed on right */\n.tb-icon-size-biggest-w::before { left: 1px; top: 3px; width: 5px; height: 14px; }\n.tb-icon-size-biggest-w::after  { left: 9px; top: 3px; width: 12px; height: 14px; }\n\n/* Smallest height — tall solid on top, short dashed on bottom */\n.tb-icon-size-smallest-h::before { left: 3px; top: 1px; width: 14px; height: 10px; }\n.tb-icon-size-smallest-h::after  { left: 3px; top: 15px; width: 14px; height: 5px; }\n\n/* Biggest height — short solid on top, tall dashed on bottom */\n.tb-icon-size-biggest-h::before { left: 3px; top: 1px; width: 14px; height: 5px; }\n.tb-icon-size-biggest-h::after  { left: 3px; top: 9px; width: 14px; height: 12px; }\n\n/* Clone tool — two overlapping rectangles with plus */\n.tb-icon-clone::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-clone::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  background-image:\n    linear-gradient(currentColor, currentColor),\n    linear-gradient(currentColor, currentColor);\n  background-repeat: no-repeat;\n  background-size: 5px 1.5px, 1.5px 5px;\n  background-position: center center, center center;\n}\n\n/* Group tool — overlapping grouped rectangles */\n.tb-icon-group::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-group::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  opacity: 0.9;\n}\n\n/* Ungroup tool — two separated rectangles */\n.tb-icon-ungroup::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  bottom: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-ungroup::after {\n  content: \"\";\n  position: absolute;\n  right: 0;\n  top: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Keyboard hint */\n.tb-key {\n  display: none;\n}\n\n.tool-btn.active .tb-key {\n  opacity: 0.65;\n}\n\n/* Action buttons (undo/redo) */\n.action-btn {\n  width: 46px;\n  height: 44px;\n}\n\n.action-btn .tb-icon {\n  font-size: 20px;\n  width: 24px;\n  height: 24px;\n}\n\n/* ─── Color swatches ─────────────────────────────────────────────────── */\n\n.toolbar-group.colors {\n  gap: 12px;\n  margin: 0 10px 0 6px;\n  padding: 0 8px;\n}\n\n.swatch-pair {\n  display: flex;\n  align-items: center;\n  gap: 14px;\n  margin-right: 10px;\n  padding: 0 10px;\n}\n\n.swatch-pair:last-child {\n  margin-right: 0;\n}\n\n.swatch-label {\n  min-width: 40px;\n  font-size: 11px;\n  font-weight: 600;\n  color: #7e879c;\n  text-transform: uppercase;\n  letter-spacing: 0.7px;\n  text-align: right;\n  margin-right: 6px;\n}\n\n.color-swatch-btn,\n.prop-color-btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 34px;\n  height: 34px;\n  appearance: none;\n  -webkit-appearance: none;\n  border: 1px solid #2a2a36;\n  border-radius: 6px;\n  cursor: pointer;\n  background-color: #1b1b25;\n  background-image: linear-gradient(180deg, #232332 0%, #171721 100%);\n  padding: 3px;\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  transition: border-color 0.12s ease, transform 0.12s ease;\n  flex-shrink: 0;\n  margin-left: 6px;\n}\n\n.color-swatch-btn:hover,\n.prop-color-btn:hover {\n  border-color: #4a4a5a;\n  transform: translateY(-1px);\n}\n\n.color-swatch-chip,\n.prop-color-chip {\n  width: 24px;\n  height: 24px;\n  display: block;\n  border-radius: 4px;\n  background: var(--swatch-color, #ffffff);\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);\n  flex: 0 0 auto;\n}\n\n.prop-color-btn {\n  width: 36px;\n  height: 30px;\n  margin-left: auto;\n  padding: 2px;\n}\n\n.prop-color-chip {\n  width: 100%;\n  height: 100%;\n}\n\n.size-input {\n  width: 56px;\n  height: 36px;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 6px;\n  text-align: center;\n  font-family: inherit;\n}\n\n.size-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n/* ─── Canvas area ────────────────────────────────────────────────────── */\n\n#canvas-container {\n  flex: 1;\n  overflow: hidden;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 20px;\n  background: #0a0a10;\n  position: relative;\n}\n\n#canvas-preview {\n  position: relative;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* Canvas elements (rendered from document.elements) */\n.canvas-element {\n  position: absolute;\n  box-sizing: border-box;\n  cursor: pointer;\n  transition: opacity 0.1s ease;\n}\n\n.canvas-element:hover {\n  opacity: 0.85;\n}\n\n.canvas-element.selected {\n  outline: 2px solid rgba(14, 233, 231, 0.9);\n  outline-offset: 2px;\n  cursor: move;\n}\n\n/* Selection handles */\n.resize-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #0ee9e7;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.resize-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.resize-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.resize-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.resize-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.resize-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.resize-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n/* Group selection overlay — orange bounding box */\n.group-overlay {\n  position: absolute;\n  pointer-events: none;\n  z-index: 90;\n}\n\n.group-outline {\n  position: absolute;\n  inset: 0;\n  border: 2px solid rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.04);\n}\n\n/* Group resize handles — same as individual but orange */\n.group-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #ff8c00;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.group-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.group-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.group-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.group-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.group-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.group-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n.toolbar-check {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  padding: 0 8px;\n  min-height: 32px;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(35, 39, 56, 0.96), rgba(23, 25, 36, 0.96));\n  color: #9aa4ba;\n  cursor: pointer;\n  user-select: none;\n}\n\n.toolbar-check:hover {\n  border-color: #3b465f;\n  color: #cfd8e8;\n}\n\n.toolbar-check-input {\n  position: absolute;\n  opacity: 0;\n  pointer-events: none;\n}\n\n.toolbar-check-box {\n  width: 13px;\n  height: 13px;\n  border: 1px solid #4a556d;\n  border-radius: 3px;\n  background: rgba(9, 12, 18, 0.85);\n  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);\n  position: relative;\n  flex-shrink: 0;\n}\n\n.toolbar-check-input:checked + .toolbar-check-box {\n  border-color: rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.18);\n}\n\n.toolbar-check-input:checked + .toolbar-check-box::after {\n  content: \"\";\n  position: absolute;\n  left: 3px;\n  top: 1px;\n  width: 4px;\n  height: 7px;\n  border: solid #ffb04d;\n  border-width: 0 2px 2px 0;\n  transform: rotate(45deg);\n}\n\n.toolbar-check-label {\n  font-size: 11px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  white-space: nowrap;\n}\n\n/* ─── Layers / shapes panel ────────────────────────────────────────── */\n\n#shapes-panel {\n  position: absolute;\n  right: 12px;\n  top: 72px;\n  width: 240px;\n  min-width: 180px;\n  min-height: 80px;\n  max-height: 60vh;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow: hidden;\n  resize: both;\n  display: none;\n  flex-direction: column;\n}\n\n#shapes-panel.visible {\n  display: flex;\n}\n\n.shapes-list {\n  flex: 1;\n  overflow-y: auto;\n  overflow-x: hidden;\n  padding: 6px;\n}\n\n.layers-empty {\n  padding: 16px;\n  text-align: center;\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* Layer item row */\n.layer-item {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 5px 8px;\n  margin-bottom: 6px;\n  cursor: pointer;\n  transition: background 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;\n  border: 1px solid #2a2a36;\n  border-left: 3px solid transparent;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);\n}\n\n.layer-item:hover {\n  background: linear-gradient(180deg, #272734 0%, #1d1d28 100%);\n  border-color: #363646;\n}\n\n.layer-item.selected {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.12) 0%, rgba(14, 233, 231, 0.07) 100%);\n  border-color: rgba(14, 233, 231, 0.22);\n  border-left-color: #0ee9e7;\n}\n\n.layer-group-box {\n  margin-bottom: 8px;\n  padding: 6px;\n  border: 1px solid rgba(255, 140, 0, 0.42);\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(255, 140, 0, 0.08) 0%, rgba(72, 44, 17, 0.26) 100%);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.04);\n}\n\n.layer-group-box.selected {\n  border-color: rgba(255, 140, 0, 0.85);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.10);\n}\n\n.layer-item.grouped-member {\n  padding-left: 10px;\n}\n\n.layer-group-sep {\n  height: 1px;\n  margin: 2px 6px 8px;\n  background: linear-gradient(90deg, transparent 0%, #2f3242 18%, #2f3242 82%, transparent 100%);\n}\n\n.layer-icon {\n  width: 18px;\n  text-align: center;\n  font-size: 14px;\n  color: #666;\n  flex-shrink: 0;\n}\n\n.layer-item.selected .layer-icon {\n  color: #0ee9e7;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-icon {\n  color: #ffb04d;\n}\n\n.layer-name {\n  flex: 1;\n  font-size: 12px;\n  color: #aaa;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.layer-item.selected .layer-name {\n  color: #ddd;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-name {\n  color: #e5d0b4;\n}\n\n/* Layer action buttons (visibility, z-order) */\n.layer-btn {\n  width: 22px;\n  height: 22px;\n  border: none;\n  background: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 12px;\n  border-radius: 3px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  flex-shrink: 0;\n  padding: 0;\n  transition: all 0.1s ease;\n}\n\n.layer-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #ccc;\n}\n\n/* Visibility eye toggle */\n.layer-vis {\n  font-size: 11px;\n  width: 20px;\n}\n\n.layer-vis::before {\n  content: \"\";\n  display: block;\n  width: 14px;\n  height: 10px;\n  border: 2px solid #0ee9e7;\n  border-radius: 75% / 100%;\n  position: relative;\n  box-sizing: border-box;\n}\n\n.layer-vis::after {\n  content: \"\";\n  display: block;\n  width: 4px;\n  height: 4px;\n  border-radius: 50%;\n  background: #0ee9e7;\n  position: relative;\n  top: -8px;\n  left: 5px;\n}\n\n.layer-vis.off::before {\n  border-color: #333;\n}\n\n.layer-vis.off::after {\n  background: #333;\n}\n\n/* Z-order arrows */\n.layer-z {\n  font-size: 14px;\n  min-width: 22px;\n  min-height: 22px;\n  color: #555;\n}\n\n.layer-z:hover {\n  color: #0ee9e7;\n  background: rgba(14, 233, 231, 0.08);\n}\n\n/* ─── Properties panel ──────────────────────────────────────────────── */\n\n#properties-panel {\n  position: absolute;\n  left: 12px;\n  top: 72px;\n  width: 352px;\n  min-width: 280px;\n  min-height: 120px;\n  height: 56vh;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow-x: hidden;\n  overflow-y: auto;\n  resize: both;\n  display: none;\n}\n\n#properties-panel.visible {\n  display: block;\n}\n\n.panel-header {\n  display: flex;\n  align-items: center;\n  padding: 10px 14px;\n  background: #1e1e2a;\n  border-bottom: 1px solid #2a2a3a;\n  font-weight: 600;\n  font-size: 13px;\n  color: #aaa;\n  cursor: grab;\n  user-select: none;\n}\n\n.panel-header:active {\n  cursor: grabbing;\n}\n\n/* Collapse / expand toggle */\n.panel-toggle {\n  margin-left: auto;\n  width: 20px;\n  min-width: 20px;\n  height: 20px;\n  background: none;\n  border: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 12px;\n  padding: 0;\n  line-height: 1;\n  border-radius: 3px;\n  transition: color 0.1s ease;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  flex-shrink: 0;\n  text-align: center;\n}\n\n.panel-toggle:hover {\n  color: #ccc;\n}\n\n/* Collapsed state — hide content, disable resize */\n#properties-panel.collapsed .panel-content,\n#shapes-panel.collapsed .shapes-list {\n  display: none !important;\n}\n\n#properties-panel.collapsed.hover-open .panel-content,\n#shapes-panel.collapsed.hover-open .shapes-list {\n  display: block !important;\n}\n\n#properties-panel.collapsed,\n#shapes-panel.collapsed {\n  resize: none;\n  min-height: auto;\n}\n\n#properties-panel.collapsed.hover-open,\n#shapes-panel.collapsed.hover-open {\n  resize: both;\n}\n\n#properties-panel.collapsed .panel-header,\n#shapes-panel.collapsed .panel-header {\n  border-bottom: none;\n}\n\n#properties-panel.collapsed.hover-open .panel-header,\n#shapes-panel.collapsed.hover-open .panel-header {\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.panel-content {\n  padding: 12px;\n}\n\n.panel-empty-state {\n  display: none;\n  padding: 6px 0 10px;\n  color: #8d98ad;\n  font-size: 12px;\n  line-height: 1.45;\n}\n\n#properties-panel.is-empty .panel-empty-state {\n  display: block;\n}\n\n#properties-panel.is-empty .panel-tabs {\n  display: none;\n}\n\n#properties-panel.is-empty .panel-tab-page,\n#properties-panel.is-empty [data-prop-row=\"delete\"] {\n  display: none !important;\n}\n\n.panel-tabs {\n  display: flex;\n  gap: 6px;\n  margin-bottom: 10px;\n}\n\n.panel-tab {\n  flex: 1 1 0;\n  min-width: 0;\n  height: 28px;\n  border: 1px solid #2f3444;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #232634 0%, #181b27 100%);\n  color: #97a4ba;\n  font-size: 11px;\n  font-weight: 700;\n  letter-spacing: 0.04em;\n  text-transform: uppercase;\n  cursor: pointer;\n  transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;\n}\n\n.panel-tab:hover {\n  border-color: #42506a;\n  color: #d9e4f3;\n}\n\n.panel-tab.active {\n  border-color: rgba(14, 233, 231, 0.45);\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.16) 0%, rgba(10, 80, 92, 0.22) 100%);\n  color: #b5ffff;\n}\n\n.panel-tab-page {\n  display: none;\n}\n\n.panel-tab-page.active {\n  display: block;\n}\n\n.prop-dropdown {\n  position: relative;\n  flex: 1 1 auto;\n  min-width: 0;\n}\n\n.prop-dropdown-trigger {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 10px;\n  width: 100%;\n  cursor: pointer;\n  text-align: left;\n}\n\n.prop-dropdown-label {\n  min-width: 0;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.prop-dropdown-caret {\n  flex: 0 0 auto;\n  font-size: 10px;\n  color: #93a2bb;\n}\n\n.prop-dropdown-menu {\n  position: absolute;\n  top: calc(100% + 6px);\n  left: 0;\n  right: 0;\n  display: none;\n  flex-direction: column;\n  gap: 4px;\n  padding: 6px;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(28, 30, 43, 0.98), rgba(16, 18, 27, 0.98));\n  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.36);\n  z-index: 8;\n}\n\n.prop-dropdown.open .prop-dropdown-menu {\n  display: flex;\n}\n\n.prop-dropdown-option {\n  width: 100%;\n  min-height: 30px;\n  padding: 6px 10px;\n  border: 1px solid #2f3444;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #232634 0%, #181b27 100%);\n  color: #d2d9e6;\n  font-size: 12px;\n  text-align: left;\n  cursor: pointer;\n}\n\n.prop-dropdown-option:hover {\n  border-color: #42506a;\n  color: #ffffff;\n}\n\n.prop-dropdown-option.active {\n  border-color: rgba(14, 233, 231, 0.45);\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.16) 0%, rgba(10, 80, 92, 0.22) 100%);\n  color: #b5ffff;\n}\n\n.prop-row {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  margin-bottom: 8px;\n  min-height: 30px;\n}\n\n.prop-row.vertical {\n  flex-direction: column;\n  align-items: stretch;\n  min-height: 0;\n  gap: 6px;\n}\n\n.prop-row-dual {\n  align-items: flex-start;\n  gap: 6px;\n  flex-direction: column;\n}\n\n.prop-inline-field {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  flex: 1 1 0;\n  min-width: 0;\n}\n\n.prop-inline-field label {\n  flex: 0 0 46px;\n  min-width: 46px;\n}\n\n.prop-row label {\n  flex: 0 0 54px;\n  min-width: 54px;\n  font-size: 1.1vw;\n  color: #777;\n  line-height: 1.15;\n  white-space: nowrap;\n}\n\n.prop-input {\n  width: 60px;\n  flex: 0 0 60px;\n  height: 30px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 0.85vw;\n  padding: 0 6px;\n  font-family: inherit;\n  text-align: right;\n}\n\n.prop-row.vertical label {\n  flex: none;\n  min-width: 0;\n}\n\n.prop-input.prop-input-wide {\n  width: 100%;\n  flex: 1 1 auto;\n  text-align: left;\n}\n\nselect.prop-input {\n  text-align: left;\n}\n\n.prop-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-color {\n  width: 32px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  cursor: pointer;\n  background: none;\n  padding: 1px;\n}\n\n.prop-textarea {\n  width: 100%;\n  min-height: 84px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 1vw;\n  padding: 6px;\n  font-family: inherit;\n  resize: vertical;\n  line-height: 1.35;\n  box-sizing: border-box;\n}\n\n#properties-panel [data-prop-row=\"textLines\"] .prop-textarea {\n  min-height: 180px;\n}\n\n.prop-textarea:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-delete {\n  width: 100%;\n  padding: 8px;\n  background: rgba(255, 70, 70, 0.12);\n  border: 1px solid rgba(255, 70, 70, 0.3);\n  border-radius: 6px;\n  color: #ff6666;\n  cursor: pointer;\n  font-size: 13px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.prop-delete:hover {\n  background: rgba(255, 70, 70, 0.22);\n  border-color: rgba(255, 70, 70, 0.5);\n}\n\n/* ─── Status bar ────────────────────────────────────────────────────── */\n\n#editor-statusbar {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 8px 12px;\n  background: #1a1a24;\n  border-top: 1px solid #2a2a3a;\n  flex-shrink: 0;\n  min-height: 60px;\n}\n\n.statusbar-left,\n.statusbar-right {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  flex: 0 0 auto;\n}\n\n.statusbar-center {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  flex: 1 1 auto;\n  flex-wrap: wrap;\n  justify-content: center;\n  min-width: 0;\n  padding: 0 16px;\n}\n\n.status-btn {\n  min-width: 140px;\n  height: 40px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  padding: 0 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 15px;\n  font-weight: 600;\n  line-height: 1;\n  font-family: inherit;\n  transition: all 0.15s ease;\n  white-space: nowrap;\n  text-align: center;\n}\n\n.status-btn.icon-only {\n  min-width: 40px;\n  width: 40px;\n  padding: 0;\n  font-size: 20px;\n  font-weight: 700;\n}\n\n.status-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.status-btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.status-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.status-btn-help {\n  background: linear-gradient(180deg, rgba(255, 196, 92, 0.16) 0%, rgba(112, 74, 18, 0.28) 100%);\n  border-color: rgba(255, 196, 92, 0.34);\n  color: #ffd38a;\n  box-shadow: inset 0 1px 0 rgba(255, 240, 203, 0.04);\n}\n\n.status-btn-help:hover {\n  background: linear-gradient(180deg, rgba(255, 196, 92, 0.24) 0%, rgba(126, 83, 21, 0.34) 100%);\n  color: #ffe6ba;\n}\n\n.status-btn.danger {\n  background: rgba(255, 70, 70, 0.08);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.status-btn.danger:hover {\n  background: rgba(255, 70, 70, 0.18);\n}\n\n.status-hint {\n  font-size: 13px;\n  color: #8a91a4;\n  max-width: 360px;\n  line-height: 1.35;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           DIALOGS                                     */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.dialog-overlay {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  background: rgba(0, 0, 0, 0.7);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 100000;\n}\n\n.dialog {\n  background: #1e1e2a;\n  border: 1px solid #3a3a4a;\n  border-radius: 12px;\n  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);\n  width: 460px;\n  max-width: 90vw;\n  max-height: 80vh;\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n}\n\n.dialog-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 16px 20px;\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.dialog-header h3 {\n  margin: 0;\n  font-size: 18px;\n  color: #fff;\n  font-weight: 600;\n}\n\n.dialog-close {\n  width: 28px;\n  height: 28px;\n  border: none;\n  background: none;\n  color: #777;\n  font-size: 20px;\n  cursor: pointer;\n  border-radius: 4px;\n}\n\n.dialog-close:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.dialog-content {\n  padding: 20px;\n  overflow-y: auto;\n}\n\n.dialog-content.centered {\n  text-align: center;\n  padding-top: 28px;\n  padding-bottom: 24px;\n}\n\n.dialog-content.centered h3 {\n  margin: 0 0 10px;\n  font-size: 24px;\n  color: #f4f7fb;\n}\n\n.dialog-content.centered p {\n  margin: 0;\n  color: #b9c4d6;\n  font-size: 17px;\n  line-height: 1.45;\n}\n\n.help-dialog {\n  width: min(92vw, clamp(560px, 56vw, 1100px));\n}\n\n.help-dialog-content {\n  display: flex;\n  flex-direction: column;\n  gap: clamp(22px, 1.8vw, 28px);\n}\n\n.help-dialog .dialog-header {\n  padding: clamp(18px, 1.8vw, 28px) clamp(24px, 2.3vw, 36px);\n}\n\n.help-dialog .dialog-header h3 {\n  font-size: 24px;\n}\n\n.help-dialog .dialog-close {\n  width: 34px;\n  height: 34px;\n  font-size: 24px;\n}\n\n.help-dialog .dialog-content {\n  padding: clamp(24px, 2.3vw, 36px);\n}\n\n.help-dialog-intro,\n.help-dialog-note {\n  margin: 0;\n  color: #b7c3d8;\n  font-size: 18px;\n  line-height: 1.5;\n}\n\n.help-dialog-note {\n  color: #8e9bb1;\n}\n\n.help-topic-list {\n  display: flex;\n  flex-direction: column;\n  gap: clamp(12px, 1.1vw, 18px);\n}\n\n.help-topic-item {\n  display: flex;\n  align-items: flex-start;\n  padding: 16px 20px;\n  border: 1px solid rgba(255, 255, 255, 0.06);\n  border-radius: 10px;\n  background: rgba(255, 255, 255, 0.02);\n  transition: background 0.15s ease;\n}\n\n.help-topic-item:hover {\n  background: rgba(255, 255, 255, 0.04);\n}\n\n.help-topic-copy {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n\n.help-topic-name {\n  color: #f4f7fb;\n  font-size: 16px;\n  font-weight: 600;\n}\n\n.help-topic-desc {\n  color: #9aa4b8;\n  font-size: 14px;\n  line-height: 1.5;\n}\n\n.dialog-color-preview {\n  width: 100%;\n  height: 54px;\n  margin-bottom: 14px;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  background: #ffffff;\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);\n}\n\n.color-strip-label {\n  display: block;\n  margin-bottom: 8px;\n  color: #d8deea;\n  font-size: 13px;\n}\n\n.color-strip-range {\n  width: 100%;\n  height: 22px;\n  margin: 0 0 16px;\n  appearance: none;\n  -webkit-appearance: none;\n  border: 1px solid #3a3a4a;\n  border-radius: 999px;\n  background: linear-gradient(90deg, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);\n  outline: none;\n}\n\n.color-strip-range::-webkit-slider-thumb {\n  -webkit-appearance: none;\n  width: 14px;\n  height: 28px;\n  border-radius: 999px;\n  border: 1px solid rgba(255, 255, 255, 0.7);\n  background: #f8fbff;\n  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);\n  cursor: pointer;\n}\n\n.color-field-row {\n  display: flex;\n  align-items: flex-start;\n  justify-content: space-between;\n  gap: 10px;\n  margin-bottom: 10px;\n}\n\n.color-field {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-start;\n  gap: 6px;\n  color: #d8deea;\n}\n\n.color-field-label {\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n  color: #8a91a4;\n}\n\n.color-number-input {\n  width: 4ch;\n  min-width: 4ch;\n  height: 34px;\n  padding: 0 6px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #e7ecf5;\n  font-size: 14px;\n  text-align: center;\n  font-family: inherit;\n  outline: none;\n}\n\n.color-number-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.color-number-input::-webkit-outer-spin-button,\n.color-number-input::-webkit-inner-spin-button,\n.color-strip-range::-webkit-outer-spin-button,\n.color-strip-range::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n  margin: 0;\n}\n\n.color-hex-input {\n  text-transform: uppercase;\n  letter-spacing: 0.04em;\n}\n\n.dialog-footer {\n  display: flex;\n  align-items: center;\n  justify-content: flex-end;\n  gap: 10px;\n  padding: 14px 20px;\n  border-top: 1px solid #2a2a3a;\n}\n\n.dialog-footer.centered {\n  justify-content: center;\n  flex-wrap: nowrap;\n}\n\n/* Script list in load dialog */\n.script-list {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  max-height: 300px;\n  overflow-y: auto;\n}\n\n.script-item {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 10px 14px;\n  background: rgba(255, 255, 255, 0.03);\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  cursor: pointer;\n  transition: all 0.15s ease;\n}\n\n.script-item:hover {\n  background: rgba(14, 233, 231, 0.06);\n  border-color: rgba(14, 233, 231, 0.2);\n}\n\n.script-item .script-name {\n  font-size: 14px;\n  color: #ddd;\n}\n\n.script-item .script-meta {\n  font-size: 11px;\n  color: #666;\n}\n\n/* Save As dialog input */\n.saveas-input {\n  width: 100%;\n  height: 36px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 12px;\n  font-family: inherit;\n  margin-top: 8px;\n}\n\n.saveas-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.save-note {\n  font-size: 12px;\n  color: #666;\n  margin-top: 8px;\n}\n\n/* Confirm dialog icon */\n.confirm-icon {\n  position: relative;\n  width: 52px;\n  height: 52px;\n  margin: 0 auto 18px;\n  border-radius: 14px;\n  background: radial-gradient(circle at 50% 35%, rgba(255, 206, 104, 0.16) 0%, rgba(255, 206, 104, 0.06) 55%, rgba(255, 206, 104, 0) 100%);\n}\n\n.confirm-icon::before {\n  content: \"\";\n  position: absolute;\n  left: 50%;\n  top: 50%;\n  width: 28px;\n  height: 28px;\n  transform: translate(-50%, -50%) rotate(45deg);\n  border: 2px solid rgba(255, 199, 93, 0.72);\n  border-radius: 4px;\n  background: rgba(255, 187, 61, 0.08);\n  box-shadow: 0 8px 20px rgba(255, 177, 58, 0.12);\n}\n\n.confirm-icon::after {\n  content: \"!\";\n  position: absolute;\n  left: 50%;\n  top: 50%;\n  transform: translate(-50%, -50%);\n  font-size: 22px;\n  line-height: 1;\n  font-weight: 700;\n  color: #ffc86b;\n}\n\n/* ─── Dialog buttons ─────────────────────────────────────────────────── */\n\n.btn {\n  min-width: 132px;\n  min-height: 42px;\n  padding: 10px 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #262634 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);\n  color: #c6cfdb;\n  cursor: pointer;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  font-size: 14px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  line-height: 1.2;\n  font-family: inherit;\n  text-align: center;\n  white-space: nowrap;\n  transition: all 0.15s ease;\n}\n\n.help-dialog .dialog-footer {\n  gap: clamp(10px, 1vw, 14px);\n  padding: clamp(14px, 1.4vw, 22px) clamp(20px, 2vw, 32px);\n}\n\n.help-dialog .btn {\n  min-height: clamp(42px, 3vw, 52px);\n  padding: clamp(10px, 0.9vw, 14px) clamp(18px, 1.4vw, 24px);\n  font-size: 18px;\n}\n\n.btn:hover {\n  background: linear-gradient(180deg, #2d2d3c 0%, #20202c 100%);\n  border-color: #4a4a5e;\n  color: #fff;\n}\n\n.btn:active {\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.32);\n}\n\n.btn.secondary {\n  color: #d6dfeb;\n}\n\n.btn.primary {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.22) 0%, rgba(6, 120, 135, 0.3) 100%);\n  border-color: rgba(14, 233, 231, 0.45);\n  color: #8ffaf8;\n}\n\n.btn.primary:hover {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.28) 0%, rgba(8, 137, 153, 0.38) 100%);\n}\n\n.btn.danger {\n  background: linear-gradient(180deg, rgba(255, 92, 92, 0.16) 0%, rgba(110, 29, 40, 0.28) 100%);\n  border-color: rgba(255, 92, 92, 0.38);\n  color: #ff8a8a;\n}\n\n.btn.danger:hover {\n  background: linear-gradient(180deg, rgba(255, 92, 92, 0.22) 0%, rgba(130, 34, 47, 0.35) 100%);\n}\n\n.btn.secondary {\n  background: rgba(255, 255, 255, 0.04);\n}\n\n.dialog-footer.centered .btn {\n  flex: 1 1 0;\n  min-width: 0;\n  padding-left: 12px;\n  padding-right: 12px;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EMPTY STATE                                 */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.empty-state {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  color: #444;\n  font-size: 16px;\n  gap: 12px;\n}\n\n.empty-state .icon {\n  font-size: 48px;\n  opacity: 0.3;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           TOAST NOTIFICATIONS                         */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.toast-container {\n  position: fixed;\n  /* Below toolbar: root is vertically centered (5vh offset), toolbar ~50px tall */\n  top: calc(5vh + 64px);\n  left: 50%;\n  transform: translateX(-50%);\n  z-index: 200000;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  align-items: center;\n  pointer-events: none;\n}\n\n.toast {\n  padding: 10px 20px;\n  background: #2a2a3a;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  color: #ccc;\n  font-size: 13px;\n  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);\n  animation: toast-in 0.3s ease;\n  transition: opacity 0.25s ease, transform 0.25s ease;\n  pointer-events: auto;\n}\n\n.toast.success {\n  border-color: rgba(50, 200, 100, 0.4);\n  background: rgba(50, 200, 100, 0.1);\n  color: #6fd898;\n}\n\n.toast.error {\n  border-color: rgba(255, 70, 70, 0.4);\n  background: rgba(255, 70, 70, 0.1);\n  color: #ff8888;\n}\n\n.toast.info {\n  border-color: rgba(14, 233, 231, 0.3);\n  background: rgba(14, 233, 231, 0.08);\n  color: #0ee9e7;\n}\n\n@keyframes toast-in {\n  from { opacity: 0; transform: translateY(10px); }\n  to { opacity: 1; transform: translateY(0); }\n}\n\n/* ─── Stepper controls ───────────────────────────────────────────────── */\n\n.stepper-ctrl {\n  display: flex;\n  align-items: center;\n  gap: 2px;\n  flex: 0 0 50%;\n  min-width: 0;\n}\n\n.stepper-dec,\n.stepper-inc {\n  flex-shrink: 0;\n  width: 1.2vw;\n  height: 2.5vh;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  background: #12121a;\n  color: #ccc;\n  cursor: pointer;\n  font-size: 1vw;\n  line-height: 1;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-family: inherit;\n}\n\n.stepper-dec:hover,\n.stepper-inc:hover {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n}\n\n.stepper-select {\n  flex: 1;\n  min-width: 0;\n  height: 2.5vh;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 0.85vw;\n  padding: 0 4px;\n  font-family: inherit;\n  text-align: center;\n  cursor: pointer;\n}\n\n.stepper-select:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n#properties-panel [data-prop-row=\"strokeWidth\"] .stepper-ctrl,\n#properties-panel [data-prop-row=\"radius\"] .stepper-ctrl,\n#properties-panel [data-prop-row=\"shadowBlur\"] .stepper-ctrl {\n  margin-left: auto;\n  flex: 0 0 auto;\n  justify-content: flex-end;\n}\n\n#properties-panel [data-prop-row=\"strokeWidth\"] label,\n#properties-panel [data-prop-row=\"rotation\"] label {\n  flex: 0 0 84px;\n  min-width: 84px;\n}\n\n#properties-panel [data-prop-row=\"strokeWidth\"] .stepper-select,\n#properties-panel [data-prop-row=\"radius\"] .stepper-select,\n#properties-panel [data-prop-row=\"shadowBlur\"] .stepper-select,\n#properties-panel [data-prop-row=\"textSize\"] .stepper-select {\n  flex: 0 0 74px;\n  width: 74px;\n}\n\n#properties-panel [data-prop-row=\"rotation\"] .prop-input {\n  margin-left: auto;\n  flex: 0 0 74px;\n  width: 74px;\n}\n\n#properties-panel [data-prop-row=\"textColor\"] label,\n#properties-panel [data-prop-row=\"textSize\"] label {\n  flex: 0 0 84px;\n  min-width: 84px;\n}\n\n#properties-panel [data-prop-row=\"textColor\"] .prop-color-btn,\n#properties-panel [data-prop-row=\"textSize\"] .stepper-ctrl {\n  margin-left: auto;\n}\n\n#properties-panel [data-prop-row=\"textSize\"] .stepper-ctrl {\n  flex: 0 0 auto;\n  justify-content: flex-end;\n}\n\n#properties-panel [data-prop-row=\"textAlign\"] label,\n#properties-panel [data-prop-row=\"textVAlign\"] label {\n  flex: 0 0 84px;\n  min-width: 84px;\n}\n\n#properties-panel [data-prop-row=\"textAlign\"],\n#properties-panel [data-prop-row=\"textVAlign\"] {\n  width: 100%;\n  min-height: 30px;\n  justify-content: flex-end;\n}\n\n#properties-panel [data-prop-row=\"textAlign\"] .prop-dropdown,\n#properties-panel [data-prop-row=\"textVAlign\"] .prop-dropdown {\n  margin-left: auto;\n  flex: 0 0 110px;\n  width: 110px;\n}\n\n#properties-panel [data-prop-row=\"textVAlign\"] {\n  margin-top: 10px;\n}\n";
+  style.id = 'lua-painter-styles';
+  style.textContent = "/* lua-painter.css - All Lua Painter styles\n   Project: LuaPainter\n   Self-contained - does NOT use ModUiToolbox core styles\n*/\n\n/* ─── Root container ────────────────────────────────────────────────── */\n\n#lua-painter-root {\n  position: fixed;\n  top: 50%;\n  left: 50%;\n  transform: translate(-50%, -50%);\n  width: 95vw;\n  height: 95vh;\n  z-index: 99999;\n  pointer-events: none;\n  font-family: 'Rajdhani', 'Segoe UI', Tahoma, sans-serif;\n  font-size: 14px;\n  color: #ccc;\n  background: rgba(0, 0, 0, 0.70);\n  display: none;\n  overflow: hidden;\n  user-select: none;\n  -webkit-user-select: none;\n  -moz-user-select: none;\n  -ms-user-select: none;\n}\n\n#lua-painter-root[style*=\"block\"] {\n  pointer-events: auto;\n}\n\n/* ─── Screens ────────────────────────────────────────────────────────── */\n\n.hud-screen {\n  display: none;\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n}\n\n.hud-screen.active {\n  display: flex;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           START SCREEN                                */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"start\"] {\n  position: relative;\n  width: 100%;\n  height: 100%;\n  top: 0;\n  left: 0;\n  align-items: center;\n  justify-content: center;\n  background:\n    linear-gradient(#0a0a0f, #1a1a2e) padding-box,\n    linear-gradient(135deg, #0ee9e7 0%, #a855f7 50%, #22c55e 100%) border-box;\n  border: 3px solid transparent;\n  border-radius: 18px;\n  box-shadow:\n    0 0 20px rgba(14, 233, 231, 0.3),\n    0 0 40px rgba(168, 85, 247, 0.15),\n    0 0 20px rgba(34, 197, 94, 0.3),\n    0 24px 80px rgba(0, 0, 0, 0.45);\n  overflow: hidden;\n}\n\n.start-container {\n  text-align: center;\n  width: min(980px, calc(100vw - 160px));\n  max-width: 980px;\n  padding: 48px;\n}\n\n/* ─── Header with glow shapes ────────────────────────────────────────── */\n\n.start-header {\n  text-align: center;\n  margin-bottom: 48px;\n}\n\n.start-header h1 {\n  font-size: 52px;\n  font-weight: 700;\n  color: #fff;\n  margin: 0 0 8px 0;\n  text-shadow: 0 0 30px rgba(14, 233, 231, 0.4);\n  letter-spacing: 1px;\n}\n\n.start-header .subtitle {\n  color: #777;\n  font-size: 18px;\n  margin: 0;\n}\n\n/* Glow shape containers — absolutely positioned inside the start screen */\n.start-glow-shapes {\n  position: absolute;\n  display: flex;\n  flex-direction: column;\n  gap: 40px;\n  top: 50%;\n  transform: translateY(-50%);\n  pointer-events: none;\n  z-index: 0;\n}\n\n.start-glow-left {\n  left: 24px;\n  padding-left: 16px;\n  align-items: flex-end;\n}\n\n.start-glow-right {\n  right: 24px;\n  padding-right: 16px;\n  align-items: flex-start;\n}\n\n/* Base glow shape */\n.glow-shape {\n  border-radius: 4px;\n  animation: glowPulse 3s ease-in-out infinite;\n}\n\n/* Shape types */\n.glow-shape-circle {\n  border-radius: 50%;\n}\n\n.glow-shape-box {\n  border-radius: 4px;\n}\n\n.glow-shape-triangle {\n  width: 0 !important;\n  height: 0 !important;\n  background: transparent !important;\n  border-left: 30px solid transparent;\n  border-right: 30px solid transparent;\n  border-bottom: 52px solid;\n  border-top: none;\n  animation: glowPulse 3s ease-in-out infinite;\n}\n\n/* Color variants */\n.glow-shape-cyan {\n  background: rgba(14, 233, 231, 0.18);\n  border: 1px solid rgba(14, 233, 231, 0.45);\n  box-shadow: 0 0 16px rgba(14, 233, 231, 0.25), 0 0 32px rgba(14, 233, 231, 0.10);\n}\n\n.glow-shape-purple {\n  background: rgba(160, 100, 255, 0.18);\n  border: 1px solid rgba(160, 100, 255, 0.45);\n  box-shadow: 0 0 16px rgba(160, 100, 255, 0.25), 0 0 32px rgba(160, 100, 255, 0.10);\n}\n\n.glow-shape-amber {\n  background: rgba(255, 196, 92, 0.18);\n  border: 1px solid rgba(255, 196, 92, 0.45);\n  box-shadow: 0 0 16px rgba(255, 196, 92, 0.25), 0 0 32px rgba(255, 196, 92, 0.10);\n}\n\n.glow-shape-green {\n  background: rgba(80, 220, 120, 0.18);\n  border: 1px solid rgba(80, 220, 120, 0.45);\n  box-shadow: 0 0 16px rgba(80, 220, 120, 0.25), 0 0 32px rgba(80, 220, 120, 0.10);\n}\n\n/* Triangle color overrides (uses border-bottom for color) */\n.glow-shape-triangle.glow-shape-cyan {\n  border-bottom-color: rgba(14, 233, 231, 0.45);\n  filter: drop-shadow(0 0 8px rgba(14, 233, 231, 0.35));\n}\n\n.glow-shape-triangle.glow-shape-purple {\n  border-bottom-color: rgba(160, 100, 255, 0.45);\n  filter: drop-shadow(0 0 8px rgba(160, 100, 255, 0.35));\n}\n\n.glow-shape-triangle.glow-shape-amber {\n  border-bottom-color: rgba(255, 196, 92, 0.45);\n  filter: drop-shadow(0 0 8px rgba(255, 196, 92, 0.35));\n}\n\n/* Sizes — left side */\n.start-glow-left .glow-shape:nth-child(1) {\n  width: 144px;\n  height: 144px;\n  animation-delay: 0s;\n}\n\n.start-glow-left .glow-shape:nth-child(2) {\n  width: 112px;\n  height: 112px;\n  animation-delay: 1s;\n}\n\n.start-glow-left .glow-shape:nth-child(3) {\n  animation-delay: 2s;\n}\n\n/* Sizes — right side */\n.start-glow-right .glow-shape:nth-child(1) {\n  width: 128px;\n  height: 128px;\n  animation-delay: 0.5s;\n}\n\n.start-glow-right .glow-shape:nth-child(2) {\n  width: 152px;\n  height: 152px;\n  animation-delay: 1.5s;\n}\n\n.start-glow-right .glow-shape:nth-child(3) {\n  width: 96px;\n  height: 96px;\n  animation-delay: 2.5s;\n}\n\n@keyframes glowPulse {\n  0%, 100% { opacity: 0.7; transform: scale(1); }\n  50% { opacity: 1; transform: scale(1.08); }\n}\n\n.start-menu {\n  display: flex;\n  flex-direction: column;\n}\n\n.start-menu .menu-btn:first-child {\n  margin-bottom: 20px;\n}\n\n.start-menu .menu-btn {\n  margin: 0;\n  flex-shrink: 0;\n}\n\n.start-main {\n  display: grid;\n  grid-template-columns: repeat(2, minmax(0, 388px));\n  align-items: start;\n  column-gap: 36px;\n  row-gap: 28px;\n  width: 100%;\n  justify-content: center;\n}\n\n.start-column {\n  min-width: 0;\n  width: 100%;\n}\n\n.start-context-card {\n  display: flex;\n  flex-direction: column;\n  gap: 10px;\n  margin-bottom: 18px;\n  padding: 14px 16px;\n  background: rgba(255, 255, 255, 0.035);\n  border: 1px solid rgba(255, 255, 255, 0.07);\n  border-radius: 12px;\n}\n\n.start-context-title {\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.12em;\n  text-transform: uppercase;\n  color: #8a91a4;\n}\n\n.start-context-pill,\n.editor-context-pill {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 28px;\n  padding: 0 12px;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 999px;\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n}\n\n.start-context-pill.is-online,\n.editor-context-pill.is-online {\n  background: rgba(14, 233, 231, 0.14);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #94fffd;\n}\n\n.start-context-pill.is-offline,\n.editor-context-pill.is-offline {\n  background: rgba(255, 196, 92, 0.12);\n  border-color: rgba(255, 196, 92, 0.28);\n  color: #ffcf7c;\n}\n\n.start-context-copy {\n  margin: 0;\n  font-size: 13px;\n  line-height: 1.45;\n  color: #8e96ab;\n}\n\n.start-preview-card {\n  margin-bottom: 28px;\n  text-align: left;\n}\n\n.start-preview-input {\n  width: 100%;\n  height: 38px;\n  padding: 0 12px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  color: #dce4f3;\n  font-size: 14px;\n  font-family: inherit;\n  box-sizing: border-box;\n}\n\n.start-preview-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.start-preview-example {\n  color: #7f8aa0;\n  font-size: 12px;\n  line-height: 1.45;\n  word-break: break-all;\n}\n\n.menu-btn {\n  display: flex;\n  align-items: center;\n  height: 72px;\n  width: calc(100% - 24px);\n  padding: 14px 24px;\n  background: rgba(255, 255, 255, 0.04);\n  border: 1px solid rgba(255, 255, 255, 0.22);\n  border-radius: 12px;\n  cursor: pointer;\n  transition: all 0.2s ease;\n  text-align: left;\n  color: inherit;\n  font-family: inherit;\n  font-size: 16px;\n}\n\n.menu-btn:hover {\n  background: rgba(14, 233, 231, 0.08);\n  border-color: rgba(14, 233, 231, 0.5);\n  transform: translateX(6px);\n}\n\n.menu-btn.primary {\n  background: rgba(255, 255, 255, 0.04);\n  border-color: rgba(255, 255, 255, 0.22);\n}\n\n.menu-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.08);\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.menu-btn.exit-btn {\n  justify-content: center;\n  text-align: center;\n}\n\n.menu-btn.exit-btn .icon {\n  margin-right: 12px;\n}\n\n\n.status-btn:disabled,\n.btn:disabled {\n  cursor: not-allowed;\n  opacity: 0.48;\n  transform: none;\n  box-shadow: none;\n}\n\n.menu-btn:disabled:hover,\n.status-btn:disabled:hover,\n.btn:disabled:hover {\n  background: inherit;\n  border-color: inherit;\n  color: inherit;\n  transform: none;\n}\n\n.menu-btn .icon {\n  font-size: 26px;\n  margin-right: 18px;\n  width: 32px;\n  text-align: center;\n  flex-shrink: 0;\n}\n\n.menu-btn .label-group {\n  display: flex;\n  flex-direction: column;\n}\n\n.menu-btn .label {\n  color: #fff;\n  font-size: 20px;\n  font-weight: 600;\n}\n\n.menu-btn .desc {\n  color: #666;\n  font-size: 13px;\n  margin-top: 3px;\n}\n\n.start-footer {\n  margin-top: 10px;\n  width: min(420px, 100%);\n  margin-left: auto;\n  margin-right: auto;\n}\n\n.start-script-card {\n  display: flex;\n  flex-direction: column;\n  gap: 12px;\n  margin-top: 20px;\n  padding: 16px;\n  background: rgba(255, 255, 255, 0.035);\n  border: 1px solid rgba(255, 255, 255, 0.07);\n  border-radius: 12px;\n  text-align: left;\n  width: calc(100% - 24px);\n}\n\n.start-script-card-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n}\n\n.start-script-title {\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.12em;\n  text-transform: uppercase;\n  color: #8a91a4;\n}\n\n.start-script-action-btn {\n  min-width: 0;\n  min-height: 34px;\n  padding: 7px 14px;\n  font-size: 12px;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n}\n\n.start-script-list {\n  min-height: 280px;\n  max-height: 380px;\n}\n\n.start-script-list-empty {\n  padding: 22px 16px;\n  border: 1px dashed rgba(255, 255, 255, 0.08);\n  border-radius: 10px;\n  color: #7d879b;\n  text-align: center;\n}\n\n.start-script-list .script-item {\n  width: 100%;\n  border: 1px solid #2a2a3a;\n  color: inherit;\n  font: inherit;\n  text-align: left;\n}\n\n.start-script-list .script-item.selected {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.38);\n  box-shadow: inset 0 0 0 1px rgba(14, 233, 231, 0.14);\n}\n\n@media (max-width: 1100px) {\n  .start-container {\n    width: min(640px, calc(100vw - 64px));\n    padding: 36px 28px;\n  }\n\n  .start-main {\n    grid-template-columns: 1fr;\n  }\n\n  .start-column-actions,\n  .start-column-library,\n  .start-footer {\n    width: 100%;\n  }\n}\n\n.hint {\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EDITOR SCREEN                               */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n[data-screen=\"editor\"] {\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  flex-direction: column;\n  background: #12121a;\n  border: 1px solid rgba(255, 255, 255, 0.08);\n  border-radius: 18px;\n  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* ─── Toolbar ────────────────────────────────────────────────────────── */\n\n#editor-toolbar {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  padding: 5px 10px;\n  background: linear-gradient(180deg, #1c1c28 0%, #16161e 100%);\n  border-bottom: 1px solid #0e0e14;\n  flex-shrink: 0;\n  height: 50px;\n}\n\n.toolbar-group {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n}\n\n.toolbar-divider {\n  width: 1px;\n  height: 26px;\n  background: linear-gradient(180deg, transparent 0%, #2a2a3a 30%, #2a2a3a 70%, transparent 100%);\n  margin: 0 8px;\n}\n\n.toolbar-spacer {\n  flex: 1;\n}\n\n.toolbar-dropdown {\n  position: relative;\n}\n\n/* Tool & action buttons — bordered, recessed panel look */\n.tool-btn,\n.action-btn {\n  position: relative;\n  display: inline-flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  width: 46px;\n  height: 44px;\n  padding: 0;\n  border: 1px solid #2a2a36;\n  border-radius: 5px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  color: #8f98ac;\n  cursor: pointer;\n  transition: all 0.12s ease;\n  font-family: inherit;\n}\n\n.tool-btn:hover,\n.action-btn:hover {\n  background: linear-gradient(180deg, #2a2a38 0%, #22222e 100%);\n  border-color: #3a3a4a;\n  color: #b0b8c8;\n}\n\n.tool-btn:active,\n.action-btn:active {\n  background: linear-gradient(180deg, #181822 0%, #1e1e28 100%);\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);\n}\n\n.tool-btn.active {\n  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);\n}\n\n/* Custom CSS tooltips for toolbar buttons */\n.tool-btn[title]:hover::after,\n.action-btn[title]:hover::after {\n  content: attr(title);\n  position: absolute;\n  top: calc(100% + 6px);\n  left: 50%;\n  transform: translateX(-50%);\n  white-space: nowrap;\n  padding: 4px 10px;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #c0c8d8;\n  font-size: 11px;\n  font-weight: 600;\n  letter-spacing: 0.03em;\n  pointer-events: none;\n  z-index: 1000;\n  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);\n  line-height: 1.3;\n}\n\n.tool-btn[title]:hover::before,\n.action-btn[title]:hover::before {\n  content: \"\";\n  position: absolute;\n  top: calc(100% + 2px);\n  left: 50%;\n  transform: translateX(-50%);\n  border: 4px solid transparent;\n  border-bottom-color: #3a3a4a;\n  pointer-events: none;\n  z-index: 1000;\n}\n\n.toolbar-dropdown-trigger.active,\n.toolbar-dropdown.open .toolbar-dropdown-trigger {\n  background: linear-gradient(180deg, #162a2a 0%, #0e2222 100%);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n  box-shadow: 0 0 8px rgba(14, 233, 231, 0.10), inset 0 1px 0 rgba(14, 233, 231, 0.08);\n}\n\n.toolbar-dropdown-caret {\n  position: absolute;\n  right: 4px;\n  bottom: 2px;\n  font-size: 10px;\n  line-height: 1;\n  color: currentColor;\n  opacity: 0.9;\n}\n\n.toolbar-dropdown-menu {\n  position: absolute;\n  top: calc(100% + 8px);\n  left: 0;\n  min-width: 188px;\n  padding: 6px;\n  border: 1px solid #2a2a3a;\n  border-radius: 10px;\n  background: linear-gradient(180deg, rgba(28, 30, 43, 0.98), rgba(16, 18, 27, 0.98));\n  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);\n  display: none;\n  flex-direction: column;\n  gap: 4px;\n  z-index: 320;\n}\n\n.toolbar-dropdown.open .toolbar-dropdown-menu {\n  display: flex;\n}\n\n.dropdown-tool-btn {\n  width: 100%;\n  min-height: 40px;\n  height: auto;\n  padding: 8px 10px;\n  flex-direction: row;\n  justify-content: flex-start;\n  gap: 10px;\n}\n\n.dropdown-tool-btn .tb-icon {\n  width: 22px;\n  height: 22px;\n  flex-shrink: 0;\n}\n\n.dropdown-tool-copy {\n  display: flex;\n  min-width: 0;\n  flex: 1;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n}\n\n.dropdown-tool-title {\n  font-size: 13px;\n  font-weight: 600;\n  color: #dce4f3;\n  white-space: nowrap;\n}\n\n.dropdown-tool-key {\n  font-size: 11px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  color: #70809b;\n  text-transform: uppercase;\n}\n\n.dropdown-tool-btn.active .dropdown-tool-title,\n.dropdown-tool-btn.active .dropdown-tool-key {\n  color: inherit;\n}\n\n/* Icon shape — rendered via CSS */\n.tb-icon {\n  display: block;\n  width: 26px;\n  height: 26px;\n  position: relative;\n}\n\n/* Select tool — mouse pointer arrow */\n.tb-icon-select::before,\n.tb-icon-box::before,\n.tb-icon-rounded::before,\n.tb-icon-circle::before,\n.tb-icon-line::before,\n.tb-icon-text::before {\n  content: none;\n}\n\n.tb-icon-select::after {\n  content: none;\n}\n\n.tb-icon-glyph {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-weight: 700;\n  line-height: 1;\n  color: currentColor;\n  text-shadow: 0 0 8px rgba(255, 255, 255, 0.04);\n  font-family: \"Segoe UI Symbol\", \"Segoe UI\", Arial, sans-serif;\n}\n\n.tb-icon-glyph-select {\n  font-size: 24px;\n}\n\n.tb-icon-glyph-box,\n.tb-icon-glyph-rounded,\n.tb-icon-glyph-circle {\n  font-size: 23px;\n}\n\n.tb-icon-glyph-line {\n  font-size: 27px;\n  transform: translateY(-1px) scaleX(1.08);\n}\n\n.tb-icon-glyph-text {\n  font-size: 22px;\n  font-family: inherit;\n}\n\n.dropdown-tool-btn .tb-icon-glyph-line {\n  transform: translateY(-1px);\n}\n\n/* Alignment icons — bar + rectangle pattern */\n.tb-icon-align-left::before,\n.tb-icon-align-right::before,\n.tb-icon-align-center-h::before,\n.tb-icon-align-top::before,\n.tb-icon-align-bottom::before,\n.tb-icon-align-center-v::before {\n  content: \"\";\n  position: absolute;\n  background: currentColor;\n}\n\n.tb-icon-align-left::after,\n.tb-icon-align-right::after,\n.tb-icon-align-center-h::after,\n.tb-icon-align-top::after,\n.tb-icon-align-bottom::after,\n.tb-icon-align-center-v::after {\n  content: \"\";\n  position: absolute;\n  border: 2px solid currentColor;\n  border-radius: 1px;\n  box-sizing: border-box;\n}\n\n/* Align icons use a tighter centered draw box */\n.tb-icon-align-left::before  { left: 2px; top: 2px; width: 2px; height: 14px; }\n.tb-icon-align-left::after   { left: 7px; top: 50%; width: 10px; height: 7px; transform: translateY(-50%); }\n\n.tb-icon-align-right::before { right: 2px; top: 2px; width: 2px; height: 14px; }\n.tb-icon-align-right::after  { right: 7px; top: 50%; width: 10px; height: 7px; transform: translateY(-50%); }\n\n.tb-icon-align-center-h::before { left: 50%; top: 2px; width: 2px; height: 14px; transform: translateX(-50%); }\n.tb-icon-align-center-h::after  { left: 50%; top: 50%; width: 10px; height: 7px; transform: translate(-50%, -50%); }\n\n.tb-icon-align-top::before { top: 2px; left: 2px; height: 2px; width: 14px; }\n.tb-icon-align-top::after  { top: 7px; left: 50%; width: 7px; height: 10px; transform: translateX(-50%); }\n\n.tb-icon-align-bottom::before { bottom: 2px; left: 2px; height: 2px; width: 14px; }\n.tb-icon-align-bottom::after  { bottom: 7px; left: 50%; width: 7px; height: 10px; transform: translateX(-50%); }\n\n.tb-icon-align-center-v::before { top: 50%; left: 2px; height: 2px; width: 14px; transform: translateY(-50%); }\n.tb-icon-align-center-v::after  { top: 50%; left: 50%; width: 7px; height: 10px; transform: translate(-50%, -50%); }\n\n/* Size match icons — solid rectangle (source) + dashed rectangle (target) with clear size contrast */\n.tb-icon-size-smallest-w::before,\n.tb-icon-size-biggest-w::before,\n.tb-icon-size-smallest-h::before,\n.tb-icon-size-biggest-h::before {\n  content: \"\";\n  position: absolute;\n  border: 2px solid currentColor;\n  border-radius: 1px;\n}\n\n.tb-icon-size-smallest-w::after,\n.tb-icon-size-biggest-w::after,\n.tb-icon-size-smallest-h::after,\n.tb-icon-size-biggest-h::after {\n  content: \"\";\n  position: absolute;\n  border: 2px dashed currentColor;\n  border-radius: 1px;\n}\n\n/* Smallest width — wide solid on left, narrow dashed on right */\n.tb-icon-size-smallest-w::before { left: 1px; top: 3px; width: 10px; height: 14px; }\n.tb-icon-size-smallest-w::after  { left: 15px; top: 3px; width: 5px; height: 14px; }\n\n/* Biggest width — narrow solid on left, wide dashed on right */\n.tb-icon-size-biggest-w::before { left: 1px; top: 3px; width: 5px; height: 14px; }\n.tb-icon-size-biggest-w::after  { left: 9px; top: 3px; width: 12px; height: 14px; }\n\n/* Smallest height — tall solid on top, short dashed on bottom */\n.tb-icon-size-smallest-h::before { left: 3px; top: 1px; width: 14px; height: 10px; }\n.tb-icon-size-smallest-h::after  { left: 3px; top: 15px; width: 14px; height: 5px; }\n\n/* Biggest height — short solid on top, tall dashed on bottom */\n.tb-icon-size-biggest-h::before { left: 3px; top: 1px; width: 14px; height: 5px; }\n.tb-icon-size-biggest-h::after  { left: 3px; top: 9px; width: 14px; height: 12px; }\n\n/* Clone tool — two overlapping rectangles with plus */\n.tb-icon-clone::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-clone::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  background-image:\n    linear-gradient(currentColor, currentColor),\n    linear-gradient(currentColor, currentColor);\n  background-repeat: no-repeat;\n  background-size: 5px 1.5px, 1.5px 5px;\n  background-position: center center, center center;\n}\n\n/* Group tool — overlapping grouped rectangles */\n.tb-icon-group::before {\n  content: \"\";\n  position: absolute;\n  left: 2px;\n  top: 5px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-group::after {\n  content: \"\";\n  position: absolute;\n  left: 7px;\n  top: 2px;\n  width: 7px;\n  height: 7px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n  opacity: 0.9;\n}\n\n/* Ungroup tool — two separated rectangles */\n.tb-icon-ungroup::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  bottom: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n.tb-icon-ungroup::after {\n  content: \"\";\n  position: absolute;\n  right: 0;\n  top: 0;\n  width: 5px;\n  height: 5px;\n  border: 1.5px solid currentColor;\n  border-radius: 1px;\n}\n\n/* Keyboard hint */\n.tb-key {\n  display: none;\n}\n\n.tool-btn.active .tb-key {\n  opacity: 0.65;\n}\n\n/* Action buttons (undo/redo) */\n.action-btn {\n  width: 46px;\n  height: 44px;\n}\n\n.action-btn .tb-icon {\n  font-size: 20px;\n  width: 24px;\n  height: 24px;\n}\n\n/* ─── Color swatches ─────────────────────────────────────────────────── */\n\n.toolbar-group.colors {\n  gap: 12px;\n  margin: 0 10px 0 6px;\n  padding: 0 8px;\n}\n\n.swatch-pair {\n  display: flex;\n  align-items: center;\n  gap: 14px;\n  margin-right: 10px;\n  padding: 0 10px;\n}\n\n.swatch-pair:last-child {\n  margin-right: 0;\n}\n\n.swatch-label {\n  min-width: 40px;\n  font-size: 11px;\n  font-weight: 600;\n  color: #7e879c;\n  text-transform: uppercase;\n  letter-spacing: 0.7px;\n  text-align: right;\n  margin-right: 6px;\n}\n\n.color-swatch-btn,\n.prop-color-btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 34px;\n  height: 34px;\n  appearance: none;\n  -webkit-appearance: none;\n  border: 1px solid #2a2a36;\n  border-radius: 6px;\n  cursor: pointer;\n  background-color: #1b1b25;\n  background-image: linear-gradient(180deg, #232332 0%, #171721 100%);\n  padding: 3px;\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);\n  transition: border-color 0.12s ease, transform 0.12s ease;\n  flex-shrink: 0;\n  margin-left: 6px;\n}\n\n.color-swatch-btn:hover,\n.prop-color-btn:hover {\n  border-color: #4a4a5a;\n  transform: translateY(-1px);\n}\n\n.color-swatch-chip,\n.prop-color-chip {\n  width: 24px;\n  height: 24px;\n  display: block;\n  border-radius: 4px;\n  background: var(--swatch-color, #ffffff);\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);\n  flex: 0 0 auto;\n}\n\n.prop-color-btn {\n  width: 36px;\n  height: 30px;\n  margin-left: auto;\n  padding: 2px;\n}\n\n.prop-color-chip {\n  width: 100%;\n  height: 100%;\n}\n\n.size-input {\n  width: 56px;\n  height: 36px;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 6px;\n  text-align: center;\n  font-family: inherit;\n}\n\n.size-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n/* ─── Canvas area ────────────────────────────────────────────────────── */\n\n#canvas-container {\n  flex: 1;\n  overflow: hidden;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 20px;\n  background: #0a0a10;\n  position: relative;\n}\n\n#canvas-preview {\n  position: relative;\n  background: #1a1a24;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);\n  overflow: hidden;\n}\n\n/* Canvas elements (rendered from document.elements) */\n.canvas-element {\n  position: absolute;\n  box-sizing: border-box;\n  cursor: pointer;\n  transition: opacity 0.1s ease;\n}\n\n.canvas-element:hover {\n  opacity: 0.85;\n}\n\n.canvas-element.selected {\n  outline: 2px solid rgba(14, 233, 231, 0.9);\n  outline-offset: 2px;\n  cursor: move;\n}\n\n/* Selection handles */\n.resize-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #0ee9e7;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.resize-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.resize-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.resize-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.resize-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.resize-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.resize-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.resize-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n/* Group selection overlay — orange bounding box */\n.group-overlay {\n  position: absolute;\n  pointer-events: none;\n  z-index: 90;\n}\n\n.group-outline {\n  position: absolute;\n  inset: 0;\n  border: 2px solid rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.04);\n}\n\n/* Group resize handles — same as individual but orange */\n.group-handle {\n  position: absolute;\n  width: 10px;\n  height: 10px;\n  background: #ff8c00;\n  border: 1px solid #fff;\n  border-radius: 2px;\n  z-index: 100;\n  pointer-events: auto;\n}\n\n.group-handle[data-h=\"nw\"] { cursor: nw-resize; top: -5px; left: -5px; }\n.group-handle[data-h=\"n\"]  { cursor: n-resize;  top: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"ne\"] { cursor: ne-resize; top: -5px; right: -5px; }\n.group-handle[data-h=\"e\"]  { cursor: e-resize;  top: calc(50% - 5px); right: -5px; }\n.group-handle[data-h=\"se\"] { cursor: se-resize; bottom: -5px; right: -5px; }\n.group-handle[data-h=\"s\"]  { cursor: s-resize;  bottom: -5px; left: calc(50% - 5px); }\n.group-handle[data-h=\"sw\"] { cursor: sw-resize; bottom: -5px; left: -5px; }\n.group-handle[data-h=\"w\"]  { cursor: w-resize;  top: calc(50% - 5px); left: -5px; }\n\n.toolbar-check {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  padding: 0 8px;\n  min-height: 32px;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(35, 39, 56, 0.96), rgba(23, 25, 36, 0.96));\n  color: #9aa4ba;\n  cursor: pointer;\n  user-select: none;\n}\n\n.toolbar-check:hover {\n  border-color: #3b465f;\n  color: #cfd8e8;\n}\n\n.toolbar-check-input {\n  position: absolute;\n  opacity: 0;\n  pointer-events: none;\n}\n\n.toolbar-check-box {\n  width: 13px;\n  height: 13px;\n  border: 1px solid #4a556d;\n  border-radius: 3px;\n  background: rgba(9, 12, 18, 0.85);\n  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);\n  position: relative;\n  flex-shrink: 0;\n}\n\n.toolbar-check-input:checked + .toolbar-check-box {\n  border-color: rgba(255, 140, 0, 0.9);\n  background: rgba(255, 140, 0, 0.18);\n}\n\n.toolbar-check-input:checked + .toolbar-check-box::after {\n  content: \"\";\n  position: absolute;\n  left: 3px;\n  top: 1px;\n  width: 4px;\n  height: 7px;\n  border: solid #ffb04d;\n  border-width: 0 2px 2px 0;\n  transform: rotate(45deg);\n}\n\n.toolbar-check-label {\n  font-size: 11px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  white-space: nowrap;\n}\n\n/* ─── Layers / shapes panel ────────────────────────────────────────── */\n\n#shapes-panel {\n  position: absolute;\n  right: 12px;\n  top: 72px;\n  width: 240px;\n  min-width: 180px;\n  min-height: 80px;\n  max-height: 60vh;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow: hidden;\n  resize: both;\n  display: none;\n  flex-direction: column;\n}\n\n#shapes-panel.visible {\n  display: flex;\n}\n\n.shapes-list {\n  flex: 1;\n  overflow-y: auto;\n  overflow-x: hidden;\n  padding: 6px;\n}\n\n.layers-empty {\n  padding: 16px;\n  text-align: center;\n  color: #444;\n  font-size: 13px;\n  font-style: italic;\n}\n\n/* Layer item row */\n.layer-item {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 5px 8px;\n  margin-bottom: 6px;\n  cursor: pointer;\n  transition: background 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;\n  border: 1px solid #2a2a36;\n  border-left: 3px solid transparent;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #22222e 0%, #1a1a24 100%);\n  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);\n}\n\n.layer-item:hover {\n  background: linear-gradient(180deg, #272734 0%, #1d1d28 100%);\n  border-color: #363646;\n}\n\n.layer-item.selected {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.12) 0%, rgba(14, 233, 231, 0.07) 100%);\n  border-color: rgba(14, 233, 231, 0.22);\n  border-left-color: #0ee9e7;\n}\n\n.layer-group-box {\n  margin-bottom: 8px;\n  padding: 6px;\n  border: 1px solid rgba(255, 140, 0, 0.42);\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(255, 140, 0, 0.08) 0%, rgba(72, 44, 17, 0.26) 100%);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.04);\n}\n\n.layer-group-box.selected {\n  border-color: rgba(255, 140, 0, 0.85);\n  box-shadow: inset 0 0 0 1px rgba(255, 176, 77, 0.10);\n}\n\n.layer-item.grouped-member {\n  padding-left: 10px;\n}\n\n.layer-group-sep {\n  height: 1px;\n  margin: 2px 6px 8px;\n  background: linear-gradient(90deg, transparent 0%, #2f3242 18%, #2f3242 82%, transparent 100%);\n}\n\n.layer-icon {\n  width: 18px;\n  text-align: center;\n  font-size: 14px;\n  color: #666;\n  flex-shrink: 0;\n}\n\n.layer-item.selected .layer-icon {\n  color: #0ee9e7;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-icon {\n  color: #ffb04d;\n}\n\n.layer-name {\n  flex: 1;\n  font-size: 12px;\n  color: #aaa;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.layer-item.selected .layer-name {\n  color: #ddd;\n}\n\n.layer-group-box .layer-item.grouped-member .layer-name {\n  color: #e5d0b4;\n}\n\n/* Layer action buttons (visibility, z-order) */\n.layer-btn {\n  width: 22px;\n  height: 22px;\n  border: none;\n  background: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 12px;\n  border-radius: 3px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  flex-shrink: 0;\n  padding: 0;\n  transition: all 0.1s ease;\n}\n\n.layer-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #ccc;\n}\n\n/* Visibility eye toggle */\n.layer-vis {\n  font-size: 11px;\n  width: 20px;\n}\n\n.layer-vis::before {\n  content: \"\";\n  display: block;\n  width: 14px;\n  height: 10px;\n  border: 2px solid #0ee9e7;\n  border-radius: 75% / 100%;\n  position: relative;\n  box-sizing: border-box;\n}\n\n.layer-vis::after {\n  content: \"\";\n  display: block;\n  width: 4px;\n  height: 4px;\n  border-radius: 50%;\n  background: #0ee9e7;\n  position: relative;\n  top: -8px;\n  left: 5px;\n}\n\n.layer-vis.off::before {\n  border-color: #333;\n}\n\n.layer-vis.off::after {\n  background: #333;\n}\n\n/* Z-order arrows */\n.layer-z {\n  font-size: 14px;\n  min-width: 22px;\n  min-height: 22px;\n  color: #555;\n}\n\n.layer-z:hover {\n  color: #0ee9e7;\n  background: rgba(14, 233, 231, 0.08);\n}\n\n/* ─── Properties panel ──────────────────────────────────────────────── */\n\n#properties-panel {\n  position: absolute;\n  left: 12px;\n  top: 72px;\n  width: 352px;\n  min-width: 280px;\n  min-height: 120px;\n  height: 56vh;\n  background: #1a1a24;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);\n  z-index: 200;\n  overflow-x: hidden;\n  overflow-y: auto;\n  resize: both;\n  display: none;\n}\n\n#properties-panel.visible {\n  display: block;\n}\n\n.panel-header {\n  display: flex;\n  align-items: center;\n  padding: 10px 14px;\n  background: #1e1e2a;\n  border-bottom: 1px solid #2a2a3a;\n  font-weight: 600;\n  font-size: 13px;\n  color: #aaa;\n  cursor: grab;\n  user-select: none;\n}\n\n.panel-header:active {\n  cursor: grabbing;\n}\n\n/* Collapse / expand toggle */\n.panel-toggle {\n  margin-left: auto;\n  width: 20px;\n  min-width: 20px;\n  height: 20px;\n  background: none;\n  border: none;\n  color: #666;\n  cursor: pointer;\n  font-size: 12px;\n  padding: 0;\n  line-height: 1;\n  border-radius: 3px;\n  transition: color 0.1s ease;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  flex-shrink: 0;\n  text-align: center;\n}\n\n.panel-toggle:hover {\n  color: #ccc;\n}\n\n/* Collapsed state — hide content, disable resize */\n#properties-panel.collapsed .panel-content,\n#shapes-panel.collapsed .shapes-list {\n  display: none !important;\n}\n\n#properties-panel.collapsed.hover-open .panel-content,\n#shapes-panel.collapsed.hover-open .shapes-list {\n  display: block !important;\n}\n\n#properties-panel.collapsed,\n#shapes-panel.collapsed {\n  resize: none;\n  min-height: auto;\n}\n\n#properties-panel.collapsed.hover-open,\n#shapes-panel.collapsed.hover-open {\n  resize: both;\n}\n\n#properties-panel.collapsed .panel-header,\n#shapes-panel.collapsed .panel-header {\n  border-bottom: none;\n}\n\n#properties-panel.collapsed.hover-open .panel-header,\n#shapes-panel.collapsed.hover-open .panel-header {\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.panel-content {\n  padding: 12px;\n}\n\n.panel-empty-state {\n  display: none;\n  padding: 6px 0 10px;\n  color: #8d98ad;\n  font-size: 12px;\n  line-height: 1.45;\n}\n\n#properties-panel.is-empty .panel-empty-state {\n  display: block;\n}\n\n#properties-panel.is-empty .panel-tabs {\n  display: none;\n}\n\n#properties-panel.is-empty .panel-tab-page,\n#properties-panel.is-empty [data-prop-row=\"delete\"] {\n  display: none !important;\n}\n\n.panel-tabs {\n  display: flex;\n  gap: 6px;\n  margin-bottom: 10px;\n}\n\n.panel-tab {\n  flex: 1 1 0;\n  min-width: 0;\n  height: 28px;\n  border: 1px solid #2f3444;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #232634 0%, #181b27 100%);\n  color: #97a4ba;\n  font-size: 11px;\n  font-weight: 700;\n  letter-spacing: 0.04em;\n  text-transform: uppercase;\n  cursor: pointer;\n  transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;\n}\n\n.panel-tab:hover {\n  border-color: #42506a;\n  color: #d9e4f3;\n}\n\n.panel-tab.active {\n  border-color: rgba(14, 233, 231, 0.45);\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.16) 0%, rgba(10, 80, 92, 0.22) 100%);\n  color: #b5ffff;\n}\n\n.panel-tab-page {\n  display: none;\n}\n\n.panel-tab-page.active {\n  display: block;\n}\n\n.prop-dropdown {\n  position: relative;\n  flex: 1 1 auto;\n  min-width: 0;\n}\n\n.prop-dropdown-trigger {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 10px;\n  width: 100%;\n  cursor: pointer;\n  text-align: left;\n}\n\n.prop-dropdown-label {\n  min-width: 0;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.prop-dropdown-caret {\n  flex: 0 0 auto;\n  font-size: 10px;\n  color: #93a2bb;\n}\n\n.prop-dropdown-menu {\n  position: absolute;\n  top: calc(100% + 6px);\n  left: 0;\n  right: 0;\n  display: none;\n  flex-direction: column;\n  gap: 4px;\n  padding: 6px;\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  background: linear-gradient(180deg, rgba(28, 30, 43, 0.98), rgba(16, 18, 27, 0.98));\n  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.36);\n  z-index: 8;\n  max-height: 260px;\n  overflow-y: auto;\n}\n\n.prop-dropdown.open .prop-dropdown-menu {\n  display: flex;\n}\n\n.prop-dropdown-option {\n  width: 100%;\n  min-height: 30px;\n  padding: 6px 10px;\n  border: 1px solid #2f3444;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #232634 0%, #181b27 100%);\n  color: #d2d9e6;\n  font-size: 12px;\n  text-align: left;\n  cursor: pointer;\n}\n\n.prop-dropdown-option:hover {\n  border-color: #42506a;\n  color: #ffffff;\n}\n\n.prop-dropdown-option.active {\n  border-color: rgba(14, 233, 231, 0.45);\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.16) 0%, rgba(10, 80, 92, 0.22) 100%);\n  color: #b5ffff;\n}\n\n.prop-row {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  margin-bottom: 8px;\n  min-height: 30px;\n}\n\n.prop-row.vertical {\n  flex-direction: column;\n  align-items: stretch;\n  min-height: 0;\n  gap: 6px;\n}\n\n.prop-row-dual {\n  align-items: flex-start;\n  gap: 6px;\n  flex-direction: column;\n}\n\n.prop-inline-field {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  flex: 1 1 0;\n  min-width: 0;\n}\n\n.prop-inline-field label {\n  flex: 0 0 46px;\n  min-width: 46px;\n}\n\n.prop-row label {\n  flex: 0 0 54px;\n  min-width: 54px;\n  font-size: 1.1vw;\n  color: #777;\n  line-height: 1.15;\n  white-space: nowrap;\n}\n\n.prop-input {\n  width: 60px;\n  flex: 0 0 60px;\n  height: 30px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 0.85vw;\n  padding: 0 6px;\n  font-family: inherit;\n  text-align: right;\n}\n\n.prop-row.vertical label {\n  flex: none;\n  min-width: 0;\n}\n\n.prop-input.prop-input-wide {\n  width: 100%;\n  flex: 1 1 auto;\n  text-align: left;\n}\n\nselect.prop-input {\n  text-align: left;\n}\n\n.prop-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-color {\n  width: 32px;\n  height: 28px;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  cursor: pointer;\n  background: none;\n  padding: 1px;\n}\n\n.prop-textarea {\n  width: 100%;\n  min-height: 84px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 1vw;\n  padding: 6px;\n  font-family: inherit;\n  resize: vertical;\n  line-height: 1.35;\n  box-sizing: border-box;\n}\n\n#properties-panel [data-prop-row=\"textLines\"] .prop-textarea {\n  min-height: 180px;\n}\n\n.prop-textarea:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.prop-delete {\n  width: 100%;\n  padding: 8px;\n  background: rgba(255, 70, 70, 0.12);\n  border: 1px solid rgba(255, 70, 70, 0.3);\n  border-radius: 6px;\n  color: #ff6666;\n  cursor: pointer;\n  font-size: 13px;\n  font-family: inherit;\n  transition: all 0.15s ease;\n}\n\n.prop-delete:hover {\n  background: rgba(255, 70, 70, 0.22);\n  border-color: rgba(255, 70, 70, 0.5);\n}\n\n/* ─── Status bar ────────────────────────────────────────────────────── */\n\n#editor-statusbar {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 8px 12px;\n  background: #1a1a24;\n  border-top: 1px solid #2a2a3a;\n  flex-shrink: 0;\n  min-height: 60px;\n}\n\n.statusbar-left,\n.statusbar-right {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  flex: 0 0 auto;\n}\n\n.statusbar-center {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  flex: 1 1 auto;\n  flex-wrap: wrap;\n  justify-content: center;\n  min-width: 0;\n  padding: 0 16px;\n}\n\n.status-btn {\n  min-width: 140px;\n  height: 40px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  padding: 0 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: rgba(255, 255, 255, 0.04);\n  color: #aaa;\n  cursor: pointer;\n  font-size: 15px;\n  font-weight: 600;\n  line-height: 1;\n  font-family: inherit;\n  transition: all 0.15s ease;\n  white-space: nowrap;\n  text-align: center;\n}\n\n.status-btn.icon-only {\n  min-width: 40px;\n  width: 40px;\n  padding: 0;\n  font-size: 20px;\n  font-weight: 700;\n}\n\n.status-btn:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.status-btn.primary {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.3);\n  color: #0ee9e7;\n}\n\n.status-btn.primary:hover {\n  background: rgba(14, 233, 231, 0.22);\n}\n\n.status-btn-help {\n  background: linear-gradient(180deg, rgba(255, 196, 92, 0.16) 0%, rgba(112, 74, 18, 0.28) 100%);\n  border-color: rgba(255, 196, 92, 0.34);\n  color: #ffd38a;\n  box-shadow: inset 0 1px 0 rgba(255, 240, 203, 0.04);\n}\n\n.status-btn-help:hover {\n  background: linear-gradient(180deg, rgba(255, 196, 92, 0.24) 0%, rgba(126, 83, 21, 0.34) 100%);\n  color: #ffe6ba;\n}\n\n.status-btn.danger {\n  background: rgba(255, 70, 70, 0.08);\n  border-color: rgba(255, 70, 70, 0.3);\n  color: #ff6666;\n}\n\n.status-btn.danger:hover {\n  background: rgba(255, 70, 70, 0.18);\n}\n\n.status-hint {\n  font-size: 13px;\n  color: #8a91a4;\n  max-width: 360px;\n  line-height: 1.35;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           DIALOGS                                     */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.dialog-overlay {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  background: rgba(0, 0, 0, 0.7);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 100000;\n}\n\n.dialog {\n  background: #1e1e2a;\n  border: 1px solid #3a3a4a;\n  border-radius: 12px;\n  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);\n  width: 460px;\n  max-width: 90vw;\n  max-height: 80vh;\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n}\n\n.dialog-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 16px 20px;\n  border-bottom: 1px solid #2a2a3a;\n}\n\n.dialog-header h3 {\n  margin: 0;\n  font-size: 18px;\n  color: #fff;\n  font-weight: 600;\n}\n\n.dialog-close {\n  width: 28px;\n  height: 28px;\n  border: none;\n  background: none;\n  color: #777;\n  font-size: 20px;\n  cursor: pointer;\n  border-radius: 4px;\n}\n\n.dialog-close:hover {\n  background: rgba(255, 255, 255, 0.08);\n  color: #fff;\n}\n\n.dialog-content {\n  padding: 20px;\n  overflow-y: auto;\n}\n\n.dialog-content.centered {\n  text-align: center;\n  padding-top: 28px;\n  padding-bottom: 24px;\n}\n\n.dialog-content.centered h3 {\n  margin: 0 0 10px;\n  font-size: 24px;\n  color: #f4f7fb;\n}\n\n.dialog-content.centered p {\n  margin: 0;\n  color: #b9c4d6;\n  font-size: 17px;\n  line-height: 1.45;\n}\n\n.help-dialog {\n  width: min(92vw, clamp(560px, 56vw, 1100px));\n}\n\n.help-dialog-content {\n  display: flex;\n  flex-direction: column;\n  gap: clamp(22px, 1.8vw, 28px);\n}\n\n.help-dialog .dialog-header {\n  padding: clamp(18px, 1.8vw, 28px) clamp(24px, 2.3vw, 36px);\n}\n\n.help-dialog .dialog-header h3 {\n  font-size: 24px;\n}\n\n.help-dialog .dialog-close {\n  width: 34px;\n  height: 34px;\n  font-size: 24px;\n}\n\n.help-dialog .dialog-content {\n  padding: clamp(24px, 2.3vw, 36px);\n}\n\n.help-dialog-intro,\n.help-dialog-note {\n  margin: 0;\n  color: #b7c3d8;\n  font-size: 18px;\n  line-height: 1.5;\n}\n\n.help-dialog-note {\n  color: #8e9bb1;\n}\n\n.help-topic-list {\n  display: flex;\n  flex-direction: column;\n  gap: clamp(12px, 1.1vw, 18px);\n}\n\n.help-topic-item {\n  display: flex;\n  align-items: flex-start;\n  padding: 16px 20px;\n  border: 1px solid rgba(255, 255, 255, 0.06);\n  border-radius: 10px;\n  background: rgba(255, 255, 255, 0.02);\n  transition: background 0.15s ease;\n}\n\n.help-topic-item:hover {\n  background: rgba(255, 255, 255, 0.04);\n}\n\n.help-topic-copy {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n\n.help-topic-name {\n  color: #f4f7fb;\n  font-size: 16px;\n  font-weight: 600;\n}\n\n.help-topic-desc {\n  color: #9aa4b8;\n  font-size: 14px;\n  line-height: 1.5;\n}\n\n.dialog-color-preview {\n  width: 100%;\n  height: 54px;\n  margin-bottom: 14px;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  background: #ffffff;\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);\n}\n\n.color-strip-label {\n  display: block;\n  margin-bottom: 8px;\n  color: #d8deea;\n  font-size: 13px;\n}\n\n.color-strip-range {\n  width: 100%;\n  height: 22px;\n  margin: 0 0 16px;\n  appearance: none;\n  -webkit-appearance: none;\n  border: 1px solid #3a3a4a;\n  border-radius: 999px;\n  background: linear-gradient(90deg, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);\n  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);\n  outline: none;\n}\n\n.color-strip-range::-webkit-slider-thumb {\n  -webkit-appearance: none;\n  width: 14px;\n  height: 28px;\n  border-radius: 999px;\n  border: 1px solid rgba(255, 255, 255, 0.7);\n  background: #f8fbff;\n  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);\n  cursor: pointer;\n}\n\n.color-field-row {\n  display: flex;\n  align-items: flex-start;\n  justify-content: space-between;\n  gap: 10px;\n  margin-bottom: 10px;\n}\n\n.color-field {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-start;\n  gap: 6px;\n  color: #d8deea;\n}\n\n.color-field-label {\n  font-size: 12px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n  color: #8a91a4;\n}\n\n.color-number-input {\n  width: 4ch;\n  min-width: 4ch;\n  height: 34px;\n  padding: 0 6px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #e7ecf5;\n  font-size: 14px;\n  text-align: center;\n  font-family: inherit;\n  outline: none;\n}\n\n.color-number-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n}\n\n.color-number-input::-webkit-outer-spin-button,\n.color-number-input::-webkit-inner-spin-button,\n.color-strip-range::-webkit-outer-spin-button,\n.color-strip-range::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n  margin: 0;\n}\n\n.color-hex-input {\n  text-transform: uppercase;\n  letter-spacing: 0.04em;\n}\n\n.dialog-footer {\n  display: flex;\n  align-items: center;\n  justify-content: flex-end;\n  gap: 10px;\n  padding: 14px 20px;\n  border-top: 1px solid #2a2a3a;\n}\n\n.dialog-footer.centered {\n  justify-content: center;\n  flex-wrap: nowrap;\n}\n\n/* Script list in load dialog */\n.script-list {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  max-height: 300px;\n  overflow-y: auto;\n}\n\n.script-item {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 10px 14px;\n  background: rgba(255, 255, 255, 0.03);\n  border: 1px solid #2a2a3a;\n  border-radius: 8px;\n  cursor: pointer;\n  transition: all 0.15s ease;\n}\n\n.script-item:hover {\n  background: rgba(14, 233, 231, 0.06);\n  border-color: rgba(14, 233, 231, 0.2);\n}\n\n.script-item .script-name {\n  font-size: 14px;\n  color: #ddd;\n}\n\n.script-item .script-meta {\n  font-size: 11px;\n  color: #666;\n}\n\n/* Save As dialog input */\n.saveas-input {\n  width: 100%;\n  height: 36px;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  color: #ccc;\n  font-size: 14px;\n  padding: 0 12px;\n  font-family: inherit;\n  margin-top: 8px;\n}\n\n.saveas-input:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n.save-note {\n  font-size: 12px;\n  color: #666;\n  margin-top: 8px;\n}\n\n/* Confirm dialog icon */\n.confirm-icon {\n  position: relative;\n  width: 52px;\n  height: 52px;\n  margin: 0 auto 18px;\n  border-radius: 14px;\n  background: radial-gradient(circle at 50% 35%, rgba(255, 206, 104, 0.16) 0%, rgba(255, 206, 104, 0.06) 55%, rgba(255, 206, 104, 0) 100%);\n}\n\n.confirm-icon::before {\n  content: \"\";\n  position: absolute;\n  left: 50%;\n  top: 50%;\n  width: 28px;\n  height: 28px;\n  transform: translate(-50%, -50%) rotate(45deg);\n  border: 2px solid rgba(255, 199, 93, 0.72);\n  border-radius: 4px;\n  background: rgba(255, 187, 61, 0.08);\n  box-shadow: 0 8px 20px rgba(255, 177, 58, 0.12);\n}\n\n.confirm-icon::after {\n  content: \"!\";\n  position: absolute;\n  left: 50%;\n  top: 50%;\n  transform: translate(-50%, -50%);\n  font-size: 22px;\n  line-height: 1;\n  font-weight: 700;\n  color: #ffc86b;\n}\n\n/* ─── Dialog buttons ─────────────────────────────────────────────────── */\n\n.btn {\n  min-width: 132px;\n  min-height: 42px;\n  padding: 10px 18px;\n  border: 1px solid #3a3a4a;\n  border-radius: 6px;\n  background: linear-gradient(180deg, #262634 0%, #1a1a24 100%);\n  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);\n  color: #c6cfdb;\n  cursor: pointer;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  font-size: 14px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  line-height: 1.2;\n  font-family: inherit;\n  text-align: center;\n  white-space: nowrap;\n  transition: all 0.15s ease;\n}\n\n.help-dialog .dialog-footer {\n  gap: clamp(10px, 1vw, 14px);\n  padding: clamp(14px, 1.4vw, 22px) clamp(20px, 2vw, 32px);\n}\n\n.help-dialog .btn {\n  min-height: clamp(42px, 3vw, 52px);\n  padding: clamp(10px, 0.9vw, 14px) clamp(18px, 1.4vw, 24px);\n  font-size: 18px;\n}\n\n.btn:hover {\n  background: linear-gradient(180deg, #2d2d3c 0%, #20202c 100%);\n  border-color: #4a4a5e;\n  color: #fff;\n}\n\n.btn:active {\n  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.32);\n}\n\n.btn.secondary {\n  color: #d6dfeb;\n}\n\n.btn.primary {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.22) 0%, rgba(6, 120, 135, 0.3) 100%);\n  border-color: rgba(14, 233, 231, 0.45);\n  color: #8ffaf8;\n}\n\n.btn.primary:hover {\n  background: linear-gradient(180deg, rgba(14, 233, 231, 0.28) 0%, rgba(8, 137, 153, 0.38) 100%);\n}\n\n.btn.danger {\n  background: linear-gradient(180deg, rgba(255, 92, 92, 0.16) 0%, rgba(110, 29, 40, 0.28) 100%);\n  border-color: rgba(255, 92, 92, 0.38);\n  color: #ff8a8a;\n}\n\n.btn.danger:hover {\n  background: linear-gradient(180deg, rgba(255, 92, 92, 0.22) 0%, rgba(130, 34, 47, 0.35) 100%);\n}\n\n.btn.secondary {\n  background: rgba(255, 255, 255, 0.04);\n}\n\n.dialog-footer.centered .btn {\n  flex: 1 1 0;\n  min-width: 0;\n  padding-left: 12px;\n  padding-right: 12px;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           EMPTY STATE                                 */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.empty-state {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  color: #444;\n  font-size: 16px;\n  gap: 12px;\n}\n\n.empty-state .icon {\n  font-size: 48px;\n  opacity: 0.3;\n}\n\n/* ══════════════════════════════════════════════════════════════════════ */\n/*                           TOAST NOTIFICATIONS                         */\n/* ══════════════════════════════════════════════════════════════════════ */\n\n.toast-container {\n  position: fixed;\n  /* Below toolbar: root is vertically centered (5vh offset), toolbar ~50px tall */\n  top: calc(5vh + 64px);\n  left: 50%;\n  transform: translateX(-50%);\n  z-index: 200000;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  align-items: center;\n  pointer-events: none;\n}\n\n.toast {\n  padding: 10px 20px;\n  background: #2a2a3a;\n  border: 1px solid #3a3a4a;\n  border-radius: 8px;\n  color: #ccc;\n  font-size: 13px;\n  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);\n  animation: toast-in 0.3s ease;\n  transition: opacity 0.25s ease, transform 0.25s ease;\n  pointer-events: auto;\n}\n\n.toast.success {\n  border-color: rgba(50, 200, 100, 0.4);\n  background: rgba(50, 200, 100, 0.1);\n  color: #6fd898;\n}\n\n.toast.error {\n  border-color: rgba(255, 70, 70, 0.4);\n  background: rgba(255, 70, 70, 0.1);\n  color: #ff8888;\n}\n\n.toast.info {\n  border-color: rgba(14, 233, 231, 0.3);\n  background: rgba(14, 233, 231, 0.08);\n  color: #0ee9e7;\n}\n\n@keyframes toast-in {\n  from { opacity: 0; transform: translateY(10px); }\n  to { opacity: 1; transform: translateY(0); }\n}\n\n/* ─── Stepper controls ───────────────────────────────────────────────── */\n\n.stepper-ctrl {\n  display: flex;\n  align-items: center;\n  gap: 2px;\n  flex: 0 0 50%;\n  min-width: 0;\n}\n\n.stepper-dec,\n.stepper-inc {\n  flex-shrink: 0;\n  width: 1.2vw;\n  height: 2.5vh;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  background: #12121a;\n  color: #ccc;\n  cursor: pointer;\n  font-size: 1vw;\n  line-height: 1;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-family: inherit;\n}\n\n.stepper-dec:hover,\n.stepper-inc:hover {\n  background: rgba(14, 233, 231, 0.12);\n  border-color: rgba(14, 233, 231, 0.4);\n  color: #0ee9e7;\n}\n\n.stepper-select {\n  flex: 1;\n  min-width: 0;\n  height: 2.5vh;\n  background: #12121a;\n  border: 1px solid #3a3a4a;\n  border-radius: 4px;\n  color: #ccc;\n  font-size: 0.85vw;\n  padding: 0 4px;\n  font-family: inherit;\n  text-align: center;\n  cursor: pointer;\n}\n\n.stepper-select:focus {\n  border-color: rgba(14, 233, 231, 0.5);\n  outline: none;\n}\n\n#properties-panel [data-prop-row=\"strokeWidth\"] .stepper-ctrl,\n#properties-panel [data-prop-row=\"radius\"] .stepper-ctrl,\n#properties-panel [data-prop-row=\"shadowBlur\"] .stepper-ctrl {\n  margin-left: auto;\n  flex: 0 0 auto;\n  justify-content: flex-end;\n}\n\n#properties-panel [data-prop-row=\"strokeWidth\"] label,\n#properties-panel [data-prop-row=\"rotation\"] label {\n  flex: 0 0 84px;\n  min-width: 84px;\n}\n\n#properties-panel [data-prop-row=\"strokeWidth\"] .stepper-select,\n#properties-panel [data-prop-row=\"radius\"] .stepper-select,\n#properties-panel [data-prop-row=\"shadowBlur\"] .stepper-select,\n#properties-panel [data-prop-row=\"textSize\"] .stepper-select {\n  flex: 0 0 74px;\n  width: 74px;\n}\n\n#properties-panel [data-prop-row=\"rotation\"] .prop-input {\n  margin-left: auto;\n  flex: 0 0 74px;\n  width: 74px;\n}\n\n#properties-panel [data-prop-row=\"textColor\"] label,\n#properties-panel [data-prop-row=\"textSize\"] label,\n#properties-panel [data-prop-row=\"textFont\"] label {\n  flex: 0 0 84px;\n  min-width: 84px;\n}\n\n#properties-panel [data-prop-row=\"textColor\"] .prop-color-btn,\n#properties-panel [data-prop-row=\"textSize\"] .stepper-ctrl {\n  margin-left: auto;\n}\n\n#properties-panel [data-prop-row=\"textSize\"] .stepper-ctrl {\n  flex: 0 0 auto;\n  justify-content: flex-end;\n}\n\n#properties-panel [data-prop-row=\"textFont\"] .prop-dropdown {\n  margin-left: auto;\n  flex: 0 0 170px;\n  width: 170px;\n}\n\n#properties-panel [data-prop-row=\"textAlign\"] label,\n#properties-panel [data-prop-row=\"textVAlign\"] label {\n  flex: 0 0 84px;\n  min-width: 84px;\n}\n\n#properties-panel [data-prop-row=\"textAlign\"],\n#properties-panel [data-prop-row=\"textVAlign\"] {\n  width: 100%;\n  min-height: 30px;\n  justify-content: flex-end;\n}\n\n#properties-panel [data-prop-row=\"textAlign\"] .prop-dropdown,\n#properties-panel [data-prop-row=\"textVAlign\"] .prop-dropdown {\n  margin-left: auto;\n  flex: 0 0 110px;\n  width: 110px;\n}\n\n#properties-panel [data-prop-row=\"textVAlign\"] {\n  margin-top: 10px;\n}\n";
   document.head.appendChild(style);
 })();
 // --- 000-core.js ---
@@ -35,6 +35,79 @@
   var cleanupFns = [];
   var activeToasts = {};
   var PREVIEW_IMAGE_ROOT_KEY = "hud_editor_preview_image_root";
+  var DEFAULT_TEXT_FONT = "Play";
+  var TEXT_FONT_CATALOG = [
+    "BankGothic",
+    "BankGothic-Light",
+    "BankGothic-Medium",
+    "DatDot",
+    "DatDot-Bold",
+    "DatDot-Light",
+    "Dosis",
+    "Dosis-Bold",
+    "Dosis-Light",
+    "E1234",
+    "FiraMono",
+    "FiraMono-Bold",
+    "HelpMe",
+    "Indoscreen",
+    "LinuxLibertine",
+    "LinuxLibertine-Bold",
+    "LinuxLibertine-Italic",
+    "Montserrat",
+    "Montserrat-Bold",
+    "Montserrat-BoldItalic",
+    "Montserrat-ExtraLight",
+    "Montserrat-ExtraLightItalic",
+    "Montserrat-Light",
+    "Montserrat-SemiBold",
+    "Montserrat-Thin",
+    "Ontel",
+    "Oxanium",
+    "Oxanium-Bold",
+    "Oxanium-Light",
+    "Oxanium-Medium",
+    "Play",
+    "Play-Bold",
+    "RefrigeratorDeluxe",
+    "RefrigeratorDeluxe-Light",
+    "RobotoCondensed",
+    "RobotoMono",
+    "RobotoMono-Bold",
+    "TurretRoad",
+    "TurretRoad-Bold",
+    "TurretRoad-Light",
+    "TurretRoad-Medium"
+  ];
+  var TEXT_FONT_VARIANTS = [
+    { suffix: "-ExtraLightItalic", weight: "200", style: "italic" },
+    { suffix: "-BoldItalic", weight: "700", style: "italic" },
+    { suffix: "-SemiBold", weight: "600", style: "normal" },
+    { suffix: "-ExtraLight", weight: "200", style: "normal" },
+    { suffix: "-Medium", weight: "500", style: "normal" },
+    { suffix: "-Light", weight: "300", style: "normal" },
+    { suffix: "-Bold", weight: "700", style: "normal" },
+    { suffix: "-Thin", weight: "100", style: "normal" },
+    { suffix: "-Italic", weight: "400", style: "italic" }
+  ];
+  var TEXT_FONT_FAMILY_OVERRIDES = {
+    BankGothic: '"Bank Gothic", "Arial Narrow", sans-serif',
+    DatDot: '"DatDot", "Orbitron", sans-serif',
+    Dosis: '"Dosis", sans-serif',
+    E1234: '"E1234", "Orbitron", sans-serif',
+    FiraMono: '"Fira Mono", monospace',
+    HelpMe: '"HelpMe", "Segoe UI", sans-serif',
+    Indoscreen: '"Indoscreen", "Orbitron", sans-serif',
+    LinuxLibertine: '"Linux Libertine", Georgia, serif',
+    Montserrat: '"Montserrat", sans-serif',
+    Ontel: '"Ontel", "Segoe UI", sans-serif',
+    Oxanium: '"Oxanium", sans-serif',
+    Play: '"Play", sans-serif',
+    RefrigeratorDeluxe: '"refrigerator-deluxe", "Refrigerator Deluxe", sans-serif',
+    RobotoCondensed: '"Roboto Condensed", sans-serif',
+    RobotoMono: '"Roboto Mono", monospace',
+    TurretRoad: '"Turret Road", sans-serif'
+  };
 
   var state = {
     initialized: false,
@@ -76,6 +149,56 @@
 
   function trimString(value) {
     return String(value == null ? "" : value).replace(/^\s+|\s+$/g, "");
+  }
+
+  function normalizeTextFontName(value) {
+    var text = trimString(value);
+    return text || DEFAULT_TEXT_FONT;
+  }
+
+  function getTextFontCatalog() {
+    return TEXT_FONT_CATALOG.slice();
+  }
+
+  function getTextFontCssConfig(value) {
+    var name = normalizeTextFontName(value);
+    var baseName = name;
+    var family;
+    var genericFamily = "sans-serif";
+    var weight = "400";
+    var style = "normal";
+    var variant;
+    var readableBaseName;
+    var i;
+
+    for (i = 0; i < TEXT_FONT_VARIANTS.length; i += 1) {
+      variant = TEXT_FONT_VARIANTS[i];
+      if (baseName.slice(-variant.suffix.length) === variant.suffix) {
+        baseName = baseName.slice(0, -variant.suffix.length);
+        weight = variant.weight;
+        style = variant.style;
+        break;
+      }
+    }
+
+    if (/Mono/i.test(baseName)) {
+      genericFamily = "monospace";
+    } else if (/Libertine/i.test(baseName)) {
+      genericFamily = "serif";
+    }
+
+    family = TEXT_FONT_FAMILY_OVERRIDES[baseName];
+    if (!family) {
+      readableBaseName = baseName.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/-/g, " ");
+      family = '"' + readableBaseName + '", ' + genericFamily;
+    }
+
+    return {
+      name: name,
+      family: family,
+      weight: weight,
+      style: style
+    };
   }
 
   function padBase36(value, size) {
@@ -300,9 +423,9 @@
   }
 
   function getRoot() {
-    var root = DOC.getElementById("hud-editor-root");
+    var root = DOC.getElementById("lua-painter-root");
     if (!root) {
-      root = el("div", { id: "hud-editor-root" });
+      root = el("div", { id: "lua-painter-root" });
       root.style.display = "none";
       (DOC.body || DOC.documentElement).appendChild(root);
     }
@@ -459,7 +582,7 @@
   }
 
   function updateToggleButton() {
-    var button = DOC.getElementById("hud-editor-toggle");
+    var button = DOC.getElementById("lua-painter-toggle");
     if (!button) {
       return;
     }
@@ -475,10 +598,10 @@
   }
 
   function getToastContainer() {
-    var container = DOC.getElementById("hud-editor-toast-container");
+    var container = DOC.getElementById("lua-painter-toast-container");
     if (!container) {
       container = DOC.createElement("div");
-      container.id = "hud-editor-toast-container";
+      container.id = "lua-painter-toast-container";
       container.className = "toast-container";
       (DOC.body || DOC.documentElement).appendChild(container);
     }
@@ -565,13 +688,13 @@
   }
 
   function createToggleButton() {
-    var existing = DOC.getElementById("hud-editor-toggle");
+    var existing = DOC.getElementById("lua-painter-toggle");
     if (existing && existing.parentNode) {
       existing.parentNode.removeChild(existing);
     }
 
     var button = DOC.createElement("button");
-    button.id = "hud-editor-toggle";
+    button.id = "lua-painter-toggle";
     button.type = "button";
     button.textContent = "Lua Painter: OFF";
     button.style.cssText = "position:fixed;top:10px;right:16px;display:inline-flex;align-items:center;justify-content:center;min-width:164px;height:40px;background:#333;color:#fff;z-index:2147482400;font:700 14px/1.2 'Segoe UI',Tahoma,sans-serif;padding:8px 16px;border:2px solid #0ee9e7;border-radius:10px;cursor:pointer;white-space:nowrap;box-sizing:border-box;box-shadow:0 8px 24px rgba(0,0,0,0.28);";
@@ -638,7 +761,7 @@
         removeToast(activeToasts[key]);
       });
       activeToasts = {};
-      var container = DOC.getElementById("hud-editor-toast-container");
+      var container = DOC.getElementById("lua-painter-toast-container");
       if (container && container.parentNode) {
         container.parentNode.removeChild(container);
       }
@@ -653,12 +776,12 @@
     exitEditMode();
     runCleanup();
 
-    var root = DOC.getElementById("hud-editor-root");
+    var root = DOC.getElementById("lua-painter-root");
     if (root && root.parentNode) {
       root.parentNode.removeChild(root);
     }
 
-    var style = DOC.getElementById("hud-editor-styles");
+    var style = DOC.getElementById("lua-painter-styles");
     if (style && style.parentNode) {
       style.parentNode.removeChild(style);
     }
@@ -679,6 +802,9 @@
     getRuntimeCtx: getRuntimeCtx,
     getPersistentValue: getPersistentValue,
     setPersistentValue: setPersistentValue,
+    normalizeTextFontName: normalizeTextFontName,
+    getTextFontCatalog: getTextFontCatalog,
+    getTextFontCssConfig: getTextFontCssConfig,
     setSavedDocumentBaseline: setSavedDocumentBaseline,
     refreshDirtyState: refreshDirtyState,
     getPreviewImageRoot: getPreviewImageRoot,
@@ -1158,6 +1284,9 @@
   var RADIUS_PRESETS = [0, 2, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 50, 75, 100];
   var GLOW_PRESETS = [0, 2, 4, 6, 8, 10, 12, 16, 20, 24, 32, 40, 50, 64, 80, 100];
   var TEXT_SIZE_PRESETS = [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 40, 44, 48, 56, 64, 80, 96, 128, 160, 200];
+  var TEXT_FONT_OPTIONS = (APP.getTextFontCatalog ? APP.getTextFontCatalog() : ["Play"]).map(function (fontName) {
+    return { value: fontName, label: fontName };
+  });
   var SHAPE_TOOL_OPTIONS = [
     { tool: "box", title: "Box", shortcut: "B", glyph: "\u25A1", iconClass: "tb-icon-box tb-icon-glyph tb-icon-glyph-box" },
     { tool: "rounded", title: "Rounded Box", shortcut: "R", glyph: "\u25A2", iconClass: "tb-icon-rounded tb-icon-glyph tb-icon-glyph-rounded" },
@@ -1498,6 +1627,10 @@
               el("div", { className: "prop-row", dataset: { propRow: "textSize" } }, [
               el("label", { textContent: "Text Size" }),
               buildStepper("textSize", TEXT_SIZE_PRESETS),
+              ]),
+              el("div", { className: "prop-row", dataset: { propRow: "textFont" } }, [
+              el("label", { textContent: "Font" }),
+              buildPropDropdown("textFont", TEXT_FONT_OPTIONS),
               ]),
               el("div", { className: "prop-row prop-row-dual" }, [
               el("div", { className: "prop-inline-field", dataset: { propRow: "textAlign" } }, [
@@ -2116,6 +2249,11 @@
   function appendTextNode(layer, command) {
     var wrapper = el("div", { className: "canvas-text-node" });
     var content = el("div", { className: "canvas-text-content" });
+    var fontConfig = APP.getTextFontCssConfig ? APP.getTextFontCssConfig(command.tf) : {
+      family: '"Play", sans-serif',
+      weight: "400",
+      style: "normal"
+    };
     var lines = Array.isArray(command.l) ? command.l : [];
     var fontSize = Math.max(1, Math.floor((Number(command.ts) || 16) * scale + 0.5));
     var strokeWidth = Math.max(0, (Number(command.sw) || 0) * scale);
@@ -2136,7 +2274,9 @@
     content.style.boxSizing = "border-box";
     content.style.color = rgbaToCss(command.tc || [1, 1, 1, 1]);
     content.style.fontSize = fontSize + "px";
-    content.style.fontFamily = "Play, Rajdhani, Segoe UI, sans-serif";
+    content.style.fontFamily = fontConfig.family;
+    content.style.fontWeight = fontConfig.weight;
+    content.style.fontStyle = fontConfig.style;
     content.style.lineHeight = "1";
     content.style.textAlign = command.ta || "left";
     content.style.whiteSpace = "pre";
@@ -2807,6 +2947,7 @@
       textLines: tool === "text" ? ["Text"] : null,
       textColor: [0.86, 0.88, 0.92, 1.0],
       textSize: 16,
+      textFont: "Play",
       textAlign: "center",
       textVAlign: "center",
       rotation: 0,
@@ -4603,7 +4744,7 @@
     var radiusRow = qs('[data-prop-row="radius"]', panel);
     var showRadius = (element.type === "box" || element.type === "boxRounded");
     if (radiusRow) radiusRow.style.display = showRadius ? "" : "none";
-    var textRows = ["textLines", "textColor", "textSize", "textAlign"];
+    var textRows = ["textLines", "textColor", "textSize", "textFont", "textAlign"];
     var showText = supportsTextEditing(element);
     var textVAlignRow = qs('[data-prop-row="textVAlign"]', panel);
     textRows.forEach(function (rowName) {
@@ -4621,6 +4762,7 @@
     if (radiusInput && showRadius) setStepperValue(radiusInput, element.radius || 0);
     if (strokeWidthInput) setStepperValue(strokeWidthInput, element.strokeWidth || 0);
     if (textSizeInput) setStepperValue(textSizeInput, Number(element.textSize) || 16);
+    syncPropDropdown("textFont", APP.normalizeTextFontName ? APP.normalizeTextFontName(element.textFont) : String(element.textFont || "Play"));
     syncPropDropdown("textAlign", String(element.textAlign || "left"));
     syncPropDropdown("textVAlign", String(element.textVAlign || "center"));
     if (imageSrcInput) imageSrcInput.value = String(element.imageSrc || "");
@@ -4662,6 +4804,7 @@
     strokeWidth: 1,
     textColor: 1,
     textSize: 1,
+    textFont: 1,
     textAlign: 1,
     textVAlign: 1,
     rotation: 1,
@@ -4745,6 +4888,10 @@
           break;
         case "textSize":
           element.textSize = Math.max(1, parseFloat(value) || 1);
+          changed = true;
+          break;
+        case "textFont":
+          element.textFont = APP.normalizeTextFontName ? APP.normalizeTextFontName(value) : String(value || "Play");
           changed = true;
           break;
         case "textAlign":
@@ -5284,6 +5431,719 @@
 
 })();
 
+// --- 080-bridge-commands.js ---
+// 080-bridge-commands.js - Ingame bridge via the live Lua editor page
+(function hudEditorBridgeCommands() {
+  "use strict";
+
+  var NS = "HudEditor";
+  var APP = window[NS];
+  if (!APP) return;
+
+  var UNIT_SLOT_NAME = "unit";
+  var UNIT_FILTER_NAME = "onStart()";
+  var BOOT_DOC_MARKER = "local HUD_EDITOR_BOOT_DOCUMENT =";
+  var SELECT_POLL_MS = 25;
+  var SELECT_MAX_ROUNDS = 120;
+
+  function getLuaEditorRoot() {
+    return document.getElementById("dpu_editor");
+  }
+
+  function isElementVisible(node) {
+    if (!node) return false;
+    if (node.style && node.style.display === "none") return false;
+    return node.offsetParent !== null || node === document.activeElement;
+  }
+
+  function getLuaEditorManager() {
+    return window.LUAEditorManager || null;
+  }
+
+  function hasLuaEditorBridge() {
+    var manager = getLuaEditorManager();
+    return !!(
+      manager &&
+      typeof manager.setCodeLuaEditor === "function" &&
+      typeof manager.apply === "function"
+    );
+  }
+
+  function getEditorStatus() {
+    var selection = getCurrentSelection();
+    var visible = isElementVisible(getLuaEditorRoot());
+    var available = hasLuaEditorBridge();
+    return {
+      available: available,
+      visible: visible,
+      selectedSlot: selection.slot,
+      selectedFilter: selection.filter,
+      canAccessOnStart: !!(available && visible)
+    };
+  }
+
+  function normalizeText(value) {
+    return String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
+  function getSlotNodes() {
+    var root = getLuaEditorRoot();
+    if (!root || !root.querySelectorAll) return [];
+    var nodes = root.querySelectorAll("#slots_container .slot");
+    var result = [];
+    for (var i = 0; i < nodes.length; i += 1) {
+      if (nodes[i] && !(nodes[i].classList && nodes[i].classList.contains("slotTemplate"))) {
+        result.push(nodes[i]);
+      }
+    }
+    return result;
+  }
+
+  function getFilterNodes() {
+    var root = getLuaEditorRoot();
+    if (!root || !root.querySelectorAll) return [];
+    var nodes = root.querySelectorAll("#filters_container .filter");
+    var result = [];
+    for (var i = 0; i < nodes.length; i += 1) {
+      if (!nodes[i] || (nodes[i].classList && nodes[i].classList.contains("filterTemplate"))) {
+        continue;
+      }
+      if (nodes[i].classList && !nodes[i].classList.contains("view")) {
+        continue;
+      }
+      result.push(nodes[i]);
+    }
+    return result;
+  }
+
+  function getSlotName(node) {
+    if (!node || !node.querySelector) return "";
+    var input = node.querySelector("input");
+    return String(input ? (input.value || input.placeholder || input.textContent || "") : (node.textContent || "")).trim();
+  }
+
+  function getFilterEventName(node) {
+    if (!node || !node.querySelector) return "";
+    var label = node.querySelector(".actionName");
+    return String(label ? (label.textContent || "") : "").trim();
+  }
+
+  function isSelectedNode(node) {
+    if (!node || !node.classList) return false;
+    return node.classList.contains("selected") ||
+      node.classList.contains("active") ||
+      node.classList.contains("current");
+  }
+
+  function clickNode(node) {
+    if (!node) return false;
+    try {
+      if (typeof node.click === "function") {
+        node.click();
+        return true;
+      }
+      if (typeof MouseEvent === "function" && typeof node.dispatchEvent === "function") {
+        node.dispatchEvent(new MouseEvent("click", {
+          bubbles: true,
+          cancelable: true,
+          view: window
+        }));
+        return true;
+      }
+    } catch (_ignoreClick) {}
+    return false;
+  }
+
+  function findSlotNodeByName(slotName) {
+    var wanted = normalizeText(slotName);
+    var slots = getSlotNodes();
+    var fallback = null;
+    for (var i = 0; i < slots.length; i += 1) {
+      var current = normalizeText(getSlotName(slots[i]));
+      if (!current) continue;
+      if (current === wanted) return slots[i];
+      if (!fallback && current.indexOf(wanted) >= 0) fallback = slots[i];
+    }
+    return fallback;
+  }
+
+  function normalizeFilterKey(name) {
+    return normalizeText(name).replace(/\([^)]*\)/g, "").replace(/\s+/g, "");
+  }
+
+  function findFilterNodeByEvent(filterName) {
+    var wanted = normalizeFilterKey(filterName);
+    var filters = getFilterNodes();
+    var fallback = null;
+    for (var i = 0; i < filters.length; i += 1) {
+      var current = normalizeFilterKey(getFilterEventName(filters[i]));
+      if (!current) continue;
+      if (current === wanted) return filters[i];
+      if (!fallback && current.indexOf(wanted) >= 0) fallback = filters[i];
+    }
+    return fallback;
+  }
+
+  function getCurrentSelection() {
+    var manager = getLuaEditorManager();
+    var currentData = manager && manager.currentData ? manager.currentData : null;
+    var currentSlot = currentData && currentData.currentSlot ? currentData.currentSlot : null;
+    var currentFilter = currentData && currentData.currentFilter ? currentData.currentFilter : null;
+    return {
+      slot: currentSlot && currentSlot.name ? String(currentSlot.name) : null,
+      filter: currentFilter && (currentFilter.signature || currentFilter.name) ? String(currentFilter.signature || currentFilter.name) : null
+    };
+  }
+
+  function pollUntil(stepFn, onDone, timeoutMessage) {
+    var round = 0;
+    function tick() {
+      var outcome = false;
+      try {
+        outcome = !!stepFn();
+      } catch (err) {
+        onDone(err);
+        return;
+      }
+      if (outcome) {
+        onDone(null);
+        return;
+      }
+      round += 1;
+      if (round >= SELECT_MAX_ROUNDS) {
+        onDone(new Error(timeoutMessage || "timed out"));
+        return;
+      }
+      window.setTimeout(tick, SELECT_POLL_MS);
+    }
+    tick();
+  }
+
+
+  function ensureUnitOnStartSelected(onDone) {
+    if (!hasLuaEditorBridge()) {
+      onDone(new Error("lua editor bridge unavailable"));
+      return;
+    }
+    var root = getLuaEditorRoot();
+    if (!isElementVisible(root)) {
+      onDone(new Error("lua editor not visible"));
+      return;
+    }
+
+    function ensureFilter() {
+      pollUntil(function () {
+        var selection = getCurrentSelection();
+        if (normalizeText(selection.slot) !== normalizeText(UNIT_SLOT_NAME)) {
+          return false;
+        }
+        if (normalizeFilterKey(selection.filter) === normalizeFilterKey(UNIT_FILTER_NAME)) {
+          return true;
+        }
+        var filterNode = findFilterNodeByEvent(UNIT_FILTER_NAME);
+        if (!filterNode) return false;
+        clickNode(filterNode);
+        return normalizeFilterKey(getCurrentSelection().filter) === normalizeFilterKey(UNIT_FILTER_NAME);
+      }, onDone, "unit.onStart selection not observed");
+    }
+
+    pollUntil(function () {
+      var selection = getCurrentSelection();
+      if (normalizeText(selection.slot) === normalizeText(UNIT_SLOT_NAME)) {
+        return true;
+      }
+      var slotNode = findSlotNodeByName(UNIT_SLOT_NAME);
+      if (!slotNode) return false;
+      clickNode(slotNode);
+      return normalizeText(getCurrentSelection().slot) === normalizeText(UNIT_SLOT_NAME);
+    }, function (err) {
+      if (err) {
+        onDone(err);
+        return;
+      }
+      ensureFilter();
+    }, "unit slot selection not observed");
+  }
+
+  function getCurrentFilterCode() {
+    var manager = getLuaEditorManager();
+    var currentData = manager && manager.currentData ? manager.currentData : null;
+    var currentFilter = currentData && currentData.currentFilter ? currentData.currentFilter : null;
+    if (currentFilter && typeof currentFilter.code === "string") {
+      return currentFilter.code;
+    }
+    try {
+      if (manager && typeof manager.getCodeLuaEditor === "function") {
+        return String(manager.getCodeLuaEditor() || "");
+      }
+    } catch (_ignoreGetCode) {}
+    try {
+      if (manager && typeof manager.getLuaEditor === "function") {
+        var codeMirror = manager.getLuaEditor();
+        if (codeMirror && typeof codeMirror.getValue === "function") {
+          return String(codeMirror.getValue() || "");
+        }
+      }
+    } catch (_ignoreCodeMirror) {}
+    return "";
+  }
+
+  function extractBootDocumentTable(code) {
+    var source = String(code || "");
+    var markerIndex = source.indexOf(BOOT_DOC_MARKER);
+    if (markerIndex < 0) return null;
+
+    var start = markerIndex + BOOT_DOC_MARKER.length;
+    while (start < source.length && /\s/.test(source.charAt(start))) {
+      start += 1;
+    }
+    if (source.charAt(start) !== "{") return null;
+
+    var depth = 0;
+    var quote = "";
+    var escaping = false;
+    for (var i = start; i < source.length; i += 1) {
+      var ch = source.charAt(i);
+      if (quote) {
+        if (escaping) {
+          escaping = false;
+        } else if (ch === "\\") {
+          escaping = true;
+        } else if (ch === quote) {
+          quote = "";
+        }
+        continue;
+      }
+      if (ch === "\"" || ch === "'") {
+        quote = ch;
+        continue;
+      }
+      if (ch === "{") {
+        depth += 1;
+      } else if (ch === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          return source.slice(start, i + 1);
+        }
+      }
+    }
+    return null;
+  }
+
+  function createLuaTableParser(text) {
+    var source = String(text || "");
+    var index = 0;
+
+    function error(message) {
+      throw new Error(message + " at " + index);
+    }
+
+    function peek() {
+      return source.charAt(index);
+    }
+
+    function skipWhitespace() {
+      while (index < source.length && /\s/.test(source.charAt(index))) {
+        index += 1;
+      }
+    }
+
+    function consume(expected) {
+      skipWhitespace();
+      if (source.charAt(index) !== expected) {
+        error("expected " + expected);
+      }
+      index += 1;
+    }
+
+    function parseString() {
+      skipWhitespace();
+      var quote = source.charAt(index);
+      if (quote !== "\"" && quote !== "'") {
+        error("expected string");
+      }
+      index += 1;
+      var out = "";
+      var escaping = false;
+      while (index < source.length) {
+        var ch = source.charAt(index);
+        index += 1;
+        if (escaping) {
+          if (ch === "n") out += "\n";
+          else if (ch === "r") out += "\r";
+          else if (ch === "t") out += "\t";
+          else out += ch;
+          escaping = false;
+          continue;
+        }
+        if (ch === "\\") {
+          escaping = true;
+          continue;
+        }
+        if (ch === quote) {
+          return out;
+        }
+        out += ch;
+      }
+      error("unterminated string");
+    }
+
+    function parseNumber() {
+      skipWhitespace();
+      var match = source.slice(index).match(/^-?(?:\d+\.\d+|\d+|\.\d+)(?:[eE][+-]?\d+)?/);
+      if (!match) error("expected number");
+      index += match[0].length;
+      return Number(match[0]);
+    }
+
+    function parseIdentifier() {
+      skipWhitespace();
+      var match = source.slice(index).match(/^[A-Za-z_][A-Za-z0-9_]*/);
+      if (!match) error("expected identifier");
+      index += match[0].length;
+      return match[0];
+    }
+
+    function parseValue() {
+      skipWhitespace();
+      var ch = peek();
+      if (ch === "{") return parseTable();
+      if (ch === "\"" || ch === "'") return parseString();
+      if (ch === "-" || ch === "." || /\d/.test(ch)) return parseNumber();
+
+      var ident = parseIdentifier();
+      if (ident === "true") return true;
+      if (ident === "false") return false;
+      if (ident === "nil" || ident === "null") return null;
+      return ident;
+    }
+
+    function tryParseKeyValue() {
+      skipWhitespace();
+      var start = index;
+      var key = null;
+
+      if (peek() === "[") {
+        index += 1;
+        key = parseValue();
+        skipWhitespace();
+        if (peek() !== "]") {
+          index = start;
+          return null;
+        }
+        index += 1;
+      } else {
+        var match = source.slice(index).match(/^[A-Za-z_][A-Za-z0-9_]*/);
+        if (!match) {
+          return null;
+        }
+        key = match[0];
+        index += match[0].length;
+      }
+
+      skipWhitespace();
+      if (peek() !== "=") {
+        index = start;
+        return null;
+      }
+      index += 1;
+      return {
+        key: String(key),
+        value: parseValue()
+      };
+    }
+
+    function parseTable() {
+      consume("{");
+      var array = [];
+      var object = {};
+      var hasArray = false;
+      var hasObject = false;
+
+      while (index < source.length) {
+        skipWhitespace();
+        if (peek() === "}") {
+          index += 1;
+          break;
+        }
+
+        var pair = tryParseKeyValue();
+        if (pair) {
+          object[pair.key] = pair.value;
+          hasObject = true;
+        } else {
+          array.push(parseValue());
+          hasArray = true;
+        }
+
+        skipWhitespace();
+        if (peek() === "," || peek() === ";") {
+          index += 1;
+        }
+      }
+
+      if (hasObject && !hasArray) return object;
+      if (hasArray && !hasObject) return array;
+      for (var i = 0; i < array.length; i += 1) {
+        object[String(i + 1)] = array[i];
+      }
+      return object;
+    }
+
+    return {
+      parse: function () {
+        var value = parseValue();
+        skipWhitespace();
+        return value;
+      }
+    };
+  }
+
+  function parseBootDocumentFromCode(code) {
+    var tableText = extractBootDocumentTable(code);
+    if (!tableText) return null;
+    var parser = createLuaTableParser(tableText);
+    var doc = parser.parse();
+    return normalizeDocument(doc);
+  }
+
+  function toArray(value) {
+    if (Array.isArray(value)) return value.slice();
+    if (!value || typeof value !== "object") return [];
+    var keys = Object.keys(value).filter(function (key) {
+      return /^\d+$/.test(key);
+    }).sort(function (a, b) {
+      return Number(a) - Number(b);
+    });
+    return keys.map(function (key) {
+      return value[key];
+    });
+  }
+
+  function toFiniteNumber(value, fallback) {
+    var num = Number(value);
+    return isFinite(num) ? num : fallback;
+  }
+
+  function normalizeColor(value, fallback) {
+    var arr = toArray(value);
+    if (!arr.length) return fallback.slice();
+    return [
+      toFiniteNumber(arr[0], fallback[0]),
+      toFiniteNumber(arr[1], fallback[1]),
+      toFiniteNumber(arr[2], fallback[2]),
+      toFiniteNumber(arr[3], fallback[3])
+    ];
+  }
+
+  function normalizeTextLines(value) {
+    return toArray(value).map(function (line) {
+      return String(line == null ? "" : line);
+    });
+  }
+
+  function normalizeElement(raw, index) {
+    if (!raw || typeof raw !== "object") return null;
+    var type = String(raw.type || "box");
+    if (type === "rounded") type = "boxRounded";
+    return {
+      id: raw.id ? String(raw.id) : ("element_" + (index + 1)),
+      type: type,
+      visible: raw.visible !== false,
+      x: toFiniteNumber(raw.x, 0),
+      y: toFiniteNumber(raw.y, 0),
+      w: toFiniteNumber(raw.w, 120),
+      h: toFiniteNumber(raw.h, 80),
+      radius: toFiniteNumber(raw.radius, 0),
+      fill: normalizeColor(raw.fill, [0.22, 0.24, 0.28, 0.92]),
+      stroke: normalizeColor(raw.stroke, [0.82, 0.84, 0.88, 1]),
+      strokeWidth: toFiniteNumber(raw.strokeWidth, 2),
+      textLines: normalizeTextLines(raw.textLines),
+      textColor: normalizeColor(raw.textColor, [1, 1, 1, 1]),
+      textSize: toFiniteNumber(raw.textSize, 16),
+      textFont: APP.normalizeTextFontName ? APP.normalizeTextFontName(raw.textFont) : (raw.textFont ? String(raw.textFont) : "Play"),
+      textAlign: raw.textAlign ? String(raw.textAlign) : "left",
+      textVAlign: raw.textVAlign ? String(raw.textVAlign) : "center",
+      rotation: toFiniteNumber(raw.rotation, 0),
+      shadowBlur: toFiniteNumber(raw.shadowBlur, 0),
+      shadowColor: normalizeColor(raw.shadowColor, [0, 0, 0, 0]),
+      imageSrc: raw.imageSrc ? String(raw.imageSrc) : "",
+      imageFit: raw.imageFit ? String(raw.imageFit) : "contain",
+      quadInset: toFiniteNumber(raw.quadInset, 0.125)
+    };
+  }
+
+  function normalizeDocument(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    var elements = toArray(raw.elements).map(function (element, index) {
+      return normalizeElement(element, index);
+    }).filter(Boolean);
+    return APP.normalizeDocumentMeta({
+      version: toFiniteNumber(raw.version, 1),
+      revision: toFiniteNumber(raw.revision, 1),
+      id: raw.id != null ? String(raw.id) : "",
+      screenWidth: toFiniteNumber(raw.screenWidth, 1920),
+      screenHeight: toFiniteNumber(raw.screenHeight, 1080),
+      elements: elements,
+      name: raw.name ? String(raw.name) : "Current Board Layout"
+    });
+  }
+
+  function emitBoardError(message) {
+    APP.emit("board-error", { message: message });
+  }
+
+  function emitCurrentList(doc) {
+    var scripts = [];
+    if (doc) {
+      scripts.push({
+        id: doc.id,
+        name: doc.name || "Current Board Layout",
+        modified: Number(doc.revision || 0)
+      });
+    }
+    APP.emit("board-list", { scripts: scripts });
+  }
+
+  function loadCurrentDocument(eventName, failurePrefix) {
+    ensureUnitOnStartSelected(function (err) {
+      if (err) {
+        emitBoardError(err.message || String(err));
+        if (eventName === "board-load") {
+          APP.emit("board-load", { document: null, error: err.message || String(err) });
+        }
+        return;
+      }
+
+      var code = getCurrentFilterCode();
+      var doc = null;
+      try {
+        doc = parseBootDocumentFromCode(code);
+      } catch (parseErr) {
+        emitBoardError(parseErr.message || String(parseErr));
+        if (eventName === "board-load") {
+          APP.emit("board-load", { document: null, error: parseErr.message || String(parseErr) });
+        }
+        return;
+      }
+
+      if (!doc) {
+        if (eventName === "board-list") {
+          emitCurrentList(null);
+        } else if (eventName === "board-load") {
+          APP.emit("board-load", { document: null, error: failurePrefix || "no boot document found" });
+        } else if (eventName === "board-sync") {
+          APP.emit("board-sync", {
+            mode: "start",
+            selectedId: null,
+            isDirty: false,
+            revision: 0,
+            document: null
+          });
+        }
+        return;
+      }
+
+      if (eventName === "board-list") {
+        emitCurrentList(doc);
+      } else if (eventName === "board-load") {
+        APP.emit("board-load", { document: doc });
+      } else if (eventName === "board-sync") {
+        APP.emit("board-sync", {
+          mode: "loaded",
+          selectedId: null,
+          isDirty: false,
+          revision: Number(doc.revision || 0),
+          document: doc
+        });
+      }
+    });
+  }
+
+  function saveCurrentDocument(options) {
+    options = options || {};
+    ensureUnitOnStartSelected(function (err) {
+      if (err) {
+        emitBoardError(err.message || String(err));
+        APP.emit("board-save", { ok: false });
+        return;
+      }
+
+      if (!APP.ideExport || typeof APP.ideExport.buildBoardOnStartCode !== "function") {
+        emitBoardError("board export unavailable");
+        APP.emit("board-save", { ok: false });
+        return;
+      }
+
+      var doc = APP.state && APP.state.document ? APP.state.document : null;
+      if (!doc) {
+        emitBoardError("no document to save");
+        APP.emit("board-save", { ok: false });
+        return;
+      }
+
+      var manager = getLuaEditorManager();
+      var closedHudForApply = false;
+      var keepHudOpen = !!options.keepHudOpen;
+      try {
+        manager.setCodeLuaEditor(APP.ideExport.buildBoardOnStartCode(doc));
+        if (!keepHudOpen && APP.state && APP.state.editModeActive && typeof APP.exitEditMode === "function") {
+          APP.exitEditMode();
+          if (typeof APP.updateToggleButton === "function") {
+            APP.updateToggleButton();
+          }
+          closedHudForApply = true;
+        }
+        manager.apply();
+        APP.emit("board-save", {
+          ok: true,
+          reopened: false,
+          hudClosed: closedHudForApply
+        });
+      } catch (saveErr) {
+        if (closedHudForApply && typeof APP.enterEditMode === "function") {
+          APP.enterEditMode();
+          if (typeof APP.updateToggleButton === "function") {
+            APP.updateToggleButton();
+          }
+        }
+        emitBoardError(saveErr && saveErr.message ? saveErr.message : String(saveErr));
+        APP.emit("board-save", { ok: false });
+      }
+    });
+  }
+
+  APP.bridge = {
+    isAvailable: hasLuaEditorBridge,
+    getEditorStatus: getEditorStatus,
+    ping: function () {
+      APP.emit("board-pong", { version: "lua-editor-bridge" });
+      return true;
+    },
+    sync: function () {
+      loadCurrentDocument("board-sync", "no boot document found");
+      return true;
+    },
+    newDocument: function (_screenW, _screenH) {
+      return true;
+    },
+    loadDocument: function (_scriptId) {
+      loadCurrentDocument("board-load", "no boot document found");
+      return true;
+    },
+    saveDocument: function (options) {
+      saveCurrentDocument(options);
+      return true;
+    },
+    listScripts: function () {
+      loadCurrentDocument("board-list", "no boot document found");
+      return true;
+    },
+    pollOutput: function () { return null; },
+    handleResponse: function () { return null; }
+  };
+})();
+
 // --- 082-shape-snippets.js ---
 // 082-shape-snippets.js - Shared snippet catalog for reproducible HUD shape demos
 (function hudEditorShapeSnippets() {
@@ -5677,7 +6537,7 @@
       id: "primitive_text_default",
       family: "primitive/default",
       title: "Primitive Text Default",
-      capabilities: ["text", "fill", "stroke", "textSize", "textAlign"],
+      capabilities: ["text", "fill", "stroke", "textSize", "textFont", "textAlign"],
       elements: [
         elem("text_default", "text", 640, 300, 640, 280, {
           radius: 24,
@@ -5777,7 +6637,7 @@
       id: "overlap_mixed_shapes_basic",
       family: "overlap/mixed-type",
       title: "Overlap Mixed Shapes Basic",
-      capabilities: ["boxRounded", "circle", "line", "text", "fill", "stroke", "alpha", "zOrder"],
+      capabilities: ["boxRounded", "circle", "line", "text", "fill", "stroke", "textFont", "alpha", "zOrder"],
       elements: [
         elem("mixed_backplate", "boxRounded", 610, 260, 380, 340, {
           radius: 46,
@@ -5815,7 +6675,7 @@
       id: "effect_text_rgb_split",
       family: "effect/text-treatment",
       title: "Effect Text RGB Split",
-      capabilities: ["text", "fill", "stroke", "textSize", "alpha", "zOrder"],
+      capabilities: ["text", "fill", "stroke", "textSize", "textFont", "alpha", "zOrder"],
       elements: [
         elem("rgb_text_r", "text", 760, 300, 320, 320, {
           fill: [0, 0, 0, 0],
@@ -5989,6 +6849,7 @@
       s: CLEAR_TEXT_STROKE.slice(),
       sw: 0,
       ts: toFiniteNumber(raw.textSize, 16),
+      tf: APP.normalizeTextFontName ? APP.normalizeTextFontName(raw.textFont) : String(raw.textFont || "Play"),
       ta: String(raw.textAlign || "left"),
       tv: String(raw.textVAlign || "center")
     };
@@ -6454,7 +7315,7 @@
     if (!ctx || typeof ctx.sendPacket !== "function") {
       return { ok: false, error: "runtime_ctx_unavailable" };
     }
-    var requestId = "hud-editor-" + targetKind + "-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
+    var requestId = "lua-painter-" + targetKind + "-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
     ctx.sendPacket("hud_editor_ide_export", {
       requestId: requestId,
       targetKind: targetKind,
@@ -6538,264 +7399,156 @@
   });
 })();
 
-// --- 100-file-sync.web.js ---
-// 100-file-sync.web.js - Browser-only localStorage persistence for the web harness
-(function hudEditorFileSync() {
+// --- 090-databank-sync.js ---
+// 090-databank-sync.js - Ingame-only persistence via the live Lua editor
+(function hudEditorDatabankSync() {
   "use strict";
 
   var NS = "HudEditor";
   var APP = window[NS];
   if (!APP) return;
 
-  // ─── Storage keys ───────────────────────────────────────────────
+  var pendingLoadToEditor = false;
+  var pendingSaveAction = null;
+  var pendingRename = null;
 
-  var STORAGE_KEY = "hud_editor_layouts";
-  var CURRENT_KEY = "hud_editor_current";
-
-  // ─── Layout storage ────────────────────────────────────────────
-
-  function getStoredLayouts() {
-    try {
-      var raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return {};
-      return JSON.parse(raw);
-    } catch (e) {
-      return {};
-    }
+  function hasBridge() {
+    return !!(APP.bridge && typeof APP.bridge.isAvailable === "function" && APP.bridge.isAvailable());
   }
 
-  function saveLayouts(layouts) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(layouts));
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  // ─── Save layout to browser storage ───────────────────────────
-
-  function saveLayoutLocally(id, name, document) {
-    var layouts = getStoredLayouts();
-    layouts[id] = {
-      id: id,
-      name: name,
-      saved: Date.now(),
-      document: document,
+  function readEditorContext() {
+    var fallback = {
+      available: hasBridge(),
+      visible: false,
+      selectedSlot: null,
+      selectedFilter: null,
+      canAccessOnStart: false
     };
-    saveLayouts(layouts);
+    var status = APP.bridge && typeof APP.bridge.getEditorStatus === "function"
+      ? (APP.bridge.getEditorStatus() || fallback)
+      : fallback;
+    APP.state.editorContext = status;
+    APP.emit("editor-context", status);
+    return status;
+  }
+
+  function ensureVisibleEditorForBoardAction() {
+    var status = readEditorContext();
+    if (status && status.canAccessOnStart) {
+      return true;
+    }
+    APP.emit("toast", {
+      type: "error",
+      text: "Open the programming board Lua editor and keep it visible for load/save/export"
+    });
+    return false;
+  }
+
+  function handlePostSaveEditorClose(message) {
+    if (APP.state && APP.state.editModeActive && typeof APP.exitEditMode === "function") {
+      APP.exitEditMode();
+      if (typeof APP.updateToggleButton === "function") {
+        APP.updateToggleButton();
+      }
+      APP.emit("toast", {
+        type: "info",
+        text: message || "Lua editor applied and closed; Lua Painter closed too"
+      });
+      return;
+    }
+    if (typeof APP.goToStart === "function") {
+      APP.goToStart();
+    }
+  }
+
+  function applyLoadedDocument(doc, options) {
+    if (!doc) return false;
+    APP.state.document = doc;
+    APP.state.selectedElementId = null;
+    APP.state.selectedElementIds = [];
+    if (typeof APP.setSavedDocumentBaseline === "function") {
+      APP.setSavedDocumentBaseline(doc);
+    } else {
+      APP.state.isDirty = false;
+    }
+    APP.emit("document-loaded", doc);
+
+    if (options && options.enterEditor && typeof APP.goToEditor === "function") {
+      APP.goToEditor();
+    }
+
+    setTimeout(function () {
+      if (APP.canvas && typeof APP.canvas.render === "function") {
+        APP.canvas.render();
+      }
+    }, 0);
     return true;
   }
 
-  // ─── Load layout from browser storage ─────────────────────────
-
-  function loadLayoutLocally(id) {
-    var layouts = getStoredLayouts();
-    return layouts[id] || null;
-  }
-
-  // ─── List all saved layouts ───────────────────────────────────
-
-  function listLayoutsLocally() {
-    var layouts = getStoredLayouts();
-    var list = [];
-    for (var id in layouts) {
-      if (layouts.hasOwnProperty(id)) {
-        if (!layouts[id] || !layouts[id].id || !layouts[id].document || !layouts[id].document.id) {
-          continue;
-        }
-        list.push({
-          id: layouts[id].id,
-          name: layouts[id].name,
-          saved: layouts[id].saved,
-        });
-      }
-    }
-    // Sort by saved time, newest first
-    list.sort(function(a, b) { return (b.saved || 0) - (a.saved || 0); });
-    return list;
-  }
-
-  // ─── Delete layout from browser storage ───────────────────────
-
-  function deleteLayoutLocally(id) {
-    var layouts = getStoredLayouts();
-    if (layouts[id]) {
-      delete layouts[id];
-      saveLayouts(layouts);
+  function requestSync() {
+    if (hasBridge() && APP.bridge.sync) {
+      APP.bridge.sync();
       return true;
     }
     return false;
   }
 
-  function renameLayoutLocally(id, name) {
-    var layouts = getStoredLayouts();
-    var entry = layouts[id];
-    var finalName = String(name || "").trim();
-    if (!entry || !finalName) {
+  function requestLoad(scriptId) {
+    if (hasBridge() && APP.bridge.loadDocument) {
+      APP.bridge.loadDocument(scriptId || "_current");
+      return true;
+    }
+    return false;
+  }
+
+  function requestList() {
+    if (hasBridge() && APP.bridge.listScripts) {
+      APP.bridge.listScripts();
+      return true;
+    }
+    return false;
+  }
+
+  function requestSave(options) {
+    if (hasBridge() && APP.bridge.saveDocument) {
+      APP.bridge.saveDocument(options || null);
+      return true;
+    }
+    return false;
+  }
+
+  function requestBoardSave(actionName, options) {
+    if (!ensureVisibleEditorForBoardAction()) {
+      pendingSaveAction = null;
       return false;
     }
-    entry.name = finalName;
-    entry.saved = Date.now();
-    if (entry.document && typeof entry.document === "object") {
-      entry.document.name = finalName;
-    }
-    layouts[id] = entry;
-    if (!saveLayouts(layouts)) {
+    pendingSaveAction = String(actionName || "save");
+    if (!requestSave(options)) {
+      pendingSaveAction = null;
       return false;
-    }
-    if (APP.state && APP.state.document && String(APP.state.document.id || "") === String(id)) {
-      APP.state.document.name = finalName;
-      if (typeof APP.setSavedDocumentBaseline === "function") {
-        APP.setSavedDocumentBaseline(APP.state.document);
-      }
-      APP.emit("document-loaded", APP.state.document);
     }
     return true;
   }
 
-  // ─── Save current layout ─────────────────────────────────────
-
-  function saveCurrentLayout(name) {
-    var doc = APP.state.document;
-    if (!doc) return null;
-
-    var finalName = (name || doc.name || "Layout").trim();
-    doc.name = finalName;
-    if (!APP.normalizeDocumentMeta || !APP.normalizeDocumentMeta(doc)) {
-      return null;
-    }
-    var success = saveLayoutLocally(doc.id, doc.name, deepCopyDoc(doc));
-
-    if (success) {
-      if (typeof APP.setSavedDocumentBaseline === "function") {
-        APP.setSavedDocumentBaseline(doc);
-      } else {
-        APP.state.isDirty = false;
-      }
-      return doc.id;
-    }
-    return null;
-  }
-
-  function deepCopyDoc(doc) {
-    if (!doc) return null;
-    return JSON.parse(JSON.stringify(doc));
-  }
-
-  // ─── Load layout by ID ───────────────────────────────────────
-
-  function loadLayout(id) {
-    var stored = loadLayoutLocally(id);
-    if (!stored) return null;
-
-    var doc = deepCopyDoc(stored.document);
-    if (!APP.normalizeDocumentMeta || !APP.normalizeDocumentMeta(doc)) {
-      return null;
-    }
-    APP.state.document = doc;
-    APP.state.selectedElementId = null;
-    if (typeof APP.setSavedDocumentBaseline === "function") {
-      APP.setSavedDocumentBaseline(APP.state.document);
-    } else {
-      APP.state.isDirty = false;
-    }
-    APP.emit("document-loaded", APP.state.document);
-    return stored;
-  }
-
-  // ─── Export layout as JSON string ────────────────────────────
-
-  function exportLayoutAsJson(doc) {
-    doc = doc || APP.state.document;
-    if (!doc) return null;
-    return JSON.stringify(doc, null, 2);
-  }
-
-  // ─── Import layout from JSON string ──────────────────────────
-
-  function importLayoutFromJson(json) {
-    try {
-      var doc = JSON.parse(json);
-      if (!doc || !doc.elements) {
-        return { error: "Invalid layout format" };
-      }
-      if (!APP.normalizeDocumentMeta || !APP.normalizeDocumentMeta(doc)) {
-        return { error: "Layout id missing" };
-      }
-      APP.state.document = doc;
-      APP.state.selectedElementId = null;
-      APP.state.isDirty = true;
-      APP.emit("document-loaded", doc);
-      setTimeout(function () {
-        if (APP.canvas && typeof APP.canvas.render === "function") {
-          APP.canvas.render();
-        }
-      }, 0);
-      return { success: true, document: doc };
-    } catch (e) {
-      return { error: e.message };
-    }
-  }
-
-  // ─── Generate unique ID ───────────────────────────────────────
-
-  function generateLayoutId() {
-    return APP.createLayoutId();
-  }
-
-  // ─── Bridge integration (for external file operations) ─────────
-
-  // When MCP bridge is available, expose layout data for external tools
-  function getLayoutForBridge() {
-    var doc = APP.state.document;
-    if (!doc) return null;
-    return {
-      json: exportLayoutAsJson(doc),
-      size: exportLayoutAsJson(doc).length,
-    };
-  }
-
-  // ─── Event handlers ───────────────────────────────────────────
-
   APP.on("save", function () {
-    var id = saveCurrentLayout(APP.state.document && APP.state.document.name || "Layout");
-    if (id) {
-      APP.emit("toast", { type: "success", text: "Layout saved" });
-    } else {
-      APP.emit("toast", { type: "error", text: "Save failed" });
+    if (!requestBoardSave("save")) {
+      APP.emit("toast", { type: "error", text: "Lua editor bridge unavailable" });
     }
   });
 
   APP.on("saveas-confirm", function (name) {
-    var id = saveCurrentLayout(name);
-    if (id) {
-      APP.emit("toast", { type: "success", text: "Layout saved as: " + name });
-    } else {
-      APP.emit("toast", { type: "error", text: "Save failed" });
+    if (APP.state.document) {
+      APP.state.document.name = String(name || "").trim() || "Layout";
+    }
+    if (!requestBoardSave("save")) {
+      APP.emit("toast", { type: "error", text: "Lua editor bridge unavailable" });
     }
   });
 
-  APP.on("load-confirm", function (id) {
-    var loaded = loadLayout(id);
-    if (loaded) {
-      APP.emit("toast", { type: "success", text: "Layout loaded" });
-      if (typeof APP.goToEditor === "function") {
-        APP.goToEditor();
-      }
-      setTimeout(function () {
-        if (APP.canvas && typeof APP.canvas.render === "function") {
-          APP.canvas.render();
-        }
-      }, 0);
-    } else {
-      APP.emit("toast", { type: "error", text: "Load failed" });
+  APP.on("publish-screen-via-board", function () {
+    if (!requestBoardSave("export-screen")) {
+      APP.emit("toast", { type: "error", text: "Lua editor bridge unavailable" });
     }
-  });
-
-  APP.on("request-script-list", function () {
-    var list = listLayoutsLocally();
-    APP.emit("script-list-response", list);
   });
 
   APP.on("rename-layout-confirm", function (payload) {
@@ -6805,29 +7558,170 @@
       APP.emit("toast", { type: "error", text: "Rename failed" });
       return;
     }
-    if (renameLayoutLocally(id, name)) {
-      APP.emit("toast", { type: "success", text: "Renamed layout to: " + name });
-      APP.emit("script-list-response", listLayoutsLocally());
-      APP.emit("rename-layout-success", { id: id, name: name });
-    } else {
-      APP.emit("toast", { type: "error", text: "Rename failed" });
+    pendingRename = { id: id, name: name };
+    pendingLoadToEditor = false;
+    if (!ensureVisibleEditorForBoardAction()) {
+      pendingRename = null;
+      return;
+    }
+    if (!requestLoad(id)) {
+      pendingRename = null;
+      APP.emit("toast", { type: "error", text: "Lua editor bridge unavailable" });
     }
   });
 
-  // ─── Public API ───────────────────────────────────────────────
+  APP.on("load-confirm", function (id) {
+    pendingLoadToEditor = true;
+    if (!ensureVisibleEditorForBoardAction()) {
+      pendingLoadToEditor = false;
+      return;
+    }
+    if (!requestLoad(id)) {
+      pendingLoadToEditor = false;
+      APP.emit("toast", { type: "error", text: "Lua editor bridge unavailable" });
+    }
+  });
 
-  APP.fileSync = {
-    save: saveCurrentLayout,
-    load: loadLayout,
-    list: listLayoutsLocally,
-    delete: deleteLayoutLocally,
-    rename: renameLayoutLocally,
-    exportJson: exportLayoutAsJson,
-    importJson: importLayoutFromJson,
-    getForBridge: getLayoutForBridge,
-    generateId: generateLayoutId,
+  APP.on("request-script-list", function () {
+    if (!ensureVisibleEditorForBoardAction()) {
+      APP.emit("script-list-response", []);
+      return;
+    }
+    if (!requestList()) {
+      APP.emit("script-list-response", []);
+    }
+  });
+
+  APP.on("enter-edit", function () {
+    readEditorContext();
+    if (!APP.state.document) {
+      requestSync();
+    }
+  });
+
+  APP.on("board-sync", function (result) {
+    readEditorContext();
+    if (result && result.document && !APP.state.document) {
+      applyLoadedDocument(result.document, { enterEditor: false });
+    }
+  });
+
+  APP.on("board-load", function (result) {
+    readEditorContext();
+    if (pendingRename) {
+      var renameTarget = pendingRename;
+      if (!(result && result.document && applyLoadedDocument(result.document, {
+        enterEditor: false
+      }))) {
+        pendingLoadToEditor = false;
+        pendingRename = null;
+        APP.emit("toast", { type: "error", text: "Rename failed" });
+        return;
+      }
+      APP.state.document.name = renameTarget.name;
+      pendingLoadToEditor = false;
+      if (!requestBoardSave("rename", { keepHudOpen: true })) {
+        pendingRename = null;
+        APP.emit("toast", { type: "error", text: "Lua editor bridge unavailable" });
+      }
+      return;
+    }
+    var loaded = !!(result && result.document && applyLoadedDocument(result.document, {
+      enterEditor: pendingLoadToEditor
+    }));
+    pendingLoadToEditor = false;
+
+    if (loaded) {
+      var count = Array.isArray(result.document.elements) ? result.document.elements.length : 0;
+      APP.emit("toast", {
+        type: "success",
+        text: "Loaded " + count + " element" + (count === 1 ? "" : "s")
+      });
+    } else {
+      APP.emit("toast", { type: "error", text: "Load failed" });
+    }
+  });
+
+  APP.on("board-save", function (result) {
+    var action = pendingSaveAction || "save";
+    var renameTarget = pendingRename;
+    pendingSaveAction = null;
+    readEditorContext();
+    if (result && result.ok) {
+      if (typeof APP.setSavedDocumentBaseline === "function") {
+        APP.setSavedDocumentBaseline(APP.state.document);
+      } else {
+        APP.state.isDirty = false;
+      }
+      if (action === "export-screen") {
+        APP.emit("toast", {
+          type: "success",
+          text: "Boot document applied to unit.onStart; restart the board to update the linked screen"
+        });
+        handlePostSaveEditorClose("Lua editor applied and closed; restart the board to update the linked screen");
+      } else if (action === "rename") {
+        pendingRename = null;
+        APP.emit("toast", {
+          type: "success",
+          text: "Renamed layout to: " + ((renameTarget && renameTarget.name) || (APP.state.document && APP.state.document.name) || "Layout")
+        });
+        APP.emit("request-script-list");
+        APP.emit("rename-layout-success", {
+          id: renameTarget && renameTarget.id ? renameTarget.id : (APP.state.document && APP.state.document.id) || "",
+          name: (renameTarget && renameTarget.name) || (APP.state.document && APP.state.document.name) || "Layout"
+        });
+      } else {
+        APP.emit("toast", { type: "success", text: "Saved to unit.onStart" });
+        handlePostSaveEditorClose();
+      }
+    } else {
+      if (action === "rename") {
+        pendingRename = null;
+      }
+      if (action === "export-screen") {
+        APP.emit("toast", { type: "error", text: "Boot document export to unit.onStart failed" });
+      } else if (action === "rename") {
+        APP.emit("toast", { type: "error", text: "Rename failed" });
+      } else {
+        APP.emit("toast", { type: "error", text: "Save to unit.onStart failed" });
+      }
+    }
+  });
+
+  APP.on("board-list", function (result) {
+    APP.emit("script-list-response", result && result.scripts ? result.scripts : []);
+  });
+
+  APP.on("board-error", function (err) {
+    readEditorContext();
+    var message = String((err && err.message) || err || "unknown");
+    if (message === "lua editor not visible") {
+        APP.emit("toast", {
+          type: "error",
+          text: "Open the programming board Lua editor and keep it visible for load/save/export"
+        });
+      return;
+    }
+    APP.emit("toast", { type: "error", text: "Lua editor error: " + message });
+  });
+
+  APP.databank = {
+    save: function () {
+      return requestBoardSave("save");
+    },
+    rename: function (id, name) {
+      APP.emit("rename-layout-confirm", { id: id, name: name });
+      return true;
+    },
+    publishScreenViaBoard: function () {
+      return requestBoardSave("export-screen");
+    },
+    load: requestLoad,
+    list: requestList,
+    sync: requestSync
   };
 
+  readEditorContext();
 })();
 
 // --- 110-undo-redo.js ---

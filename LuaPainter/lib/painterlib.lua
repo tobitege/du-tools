@@ -11,12 +11,32 @@ local function N(value, fallback)
     return value
 end
 
-local function GF(size)
+local function FN(name)
+    if type(name) ~= "string" or name == "" then
+        return "Play"
+    end
+    return name
+end
+
+local function GF(name, size)
+    local fontName = FN(name)
     size = math.max(1, math.floor(N(size, 16)))
-    local font = FONT_CACHE[size]
-    if not font then
-        font = loadFont("Play", size)
-        FONT_CACHE[size] = font
+    local key = fontName .. "|" .. tostring(size)
+    local font = FONT_CACHE[key]
+    if font == nil then
+        local ok, loaded = pcall(loadFont, fontName, size)
+        if ok and loaded then
+            font = loaded
+        elseif fontName ~= "Play" then
+            ok, loaded = pcall(loadFont, "Play", size)
+            if ok and loaded then
+                font = loaded
+            end
+        end
+        FONT_CACHE[key] = font or false
+    end
+    if font == false then
+        return nil
     end
     return font
 end
@@ -159,7 +179,7 @@ function P.tx(layer, command)
     SC(layer, command and command.s, {0, 0, 0, 0})
     setNextStrokeWidth(layer, N(command and command.sw, 0))
     local size = math.max(1, math.floor(N(command and command.ts, 16)))
-    local font = GF(size)
+    local font = GF(command and command.tf or nil, size)
     if not font then
         return
     end

@@ -155,9 +155,9 @@ This gives us immediate parity work without waiting for bezier, triangle, quad, 
 
 - `web/fixtures/`
   - generated or checked-in snippet fixtures
-- `web/tests/hud-editor.spec.js`
+- `web/tests/lua-painter.spec.js`
   - smoke tests for toolbar behavior and current primitive snippets
-- `web/tests/hud-editor-snippets.spec.js`
+- `web/tests/lua-painter-snippets.spec.js`
   - visual and structural parity checks for the snippet catalog
 
 ### Lua side
