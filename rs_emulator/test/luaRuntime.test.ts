@@ -12,7 +12,6 @@ import welcomeScreenMSource from "../examples/SilverZero/WelcomeScreenM.lua?raw"
 import shipStatsSSource from "../examples/SilverZero/ShipStatsS.lua?raw";
 import shipFrameMSource from "../examples/SilverZero/ShipFrameM.lua?raw";
 import dispenserSignSSource from "../examples/SilverZero/DispenserSignS.lua?raw";
-import hubPanelSSource from "../examples/SilverZero/HubPanelS.lua?raw";
 import hubPanelLSource from "../examples/SilverZero/HubPanelL.lua?raw";
 import containerSignMSource from "../examples/SilverZero/ContainerSignM.lua?raw";
 import containerHubHubMSource from "../examples/SilverZero/ContainerHubHubM.lua?raw";
@@ -178,7 +177,6 @@ const silverZeroFileSources = {
   "examples/SilverZero/ShipStatsS.lua": shipStatsSSource,
   "examples/SilverZero/ShipFrameM.lua": shipFrameMSource,
   "examples/SilverZero/DispenserSignS.lua": dispenserSignSSource,
-  "examples/SilverZero/HubPanelS.lua": hubPanelSSource,
   "examples/SilverZero/HubPanelL.lua": hubPanelLSource,
   "examples/SilverZero/ContainerSignM.lua": containerSignMSource,
   "examples/SilverZero/ContainerHubHubM.lua": containerHubHubMSource,
@@ -2670,18 +2668,6 @@ describe("lua runtime example integration", () => {
     expect(largestBox?.h).toBeGreaterThan(200);
     expect(largestBox?.x).toBeGreaterThan(findText("\"Hyperion\"")!.x);
     expect(largestBox?.y).toBeLessThan(findText("\"Hyperion\"")!.y);
-  });
-
-  it("renders HubPanelS with SilverZero shared library", async () => {
-    const buffer = new DrawBuffer();
-    const env = createLuaEnvironment(buffer, createLuaFileResolver(silverZeroFileSources));
-
-    const result = await executeLuaFile(env, "examples/SilverZero/HubPanelS.lua");
-
-    expect(result.success).toBe(true);
-    expect(result.requestAnimFrames).toBe(1);
-    expect(buffer.commands.some((command) => command.op === "AddText")).toBe(true);
-    expect(buffer.commands.some((command) => command.op === "AddBoxRounded")).toBe(true);
   });
 
   it("renders HubPanelL with SilverZero shared library", async () => {

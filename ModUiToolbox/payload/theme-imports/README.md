@@ -25,7 +25,7 @@ How the values are translated:
   - `nu` / `nc` for neutral colors
   - `b1` / `b2` / `b3` / `bc` for base surfaces and text
   - `i`, `w`, `e` for info, warning, and error accents
-- In `..\lua-editor-probe.modules\030-caret-theme-ide-sync.js`, the probe turns those raw values into a richer editor theme object.
+- In `..\lua-editor-probe.modules\023-theme-core.js`, the probe turns those raw values into a richer editor theme object.
 - That translation layer does things like:
   - preserve the imported light-theme flag as `isLight` on the runtime theme object
   - mix and shade colors to build readable row backgrounds and elevated surfaces
@@ -45,11 +45,11 @@ How the values are translated:
 In short:
 
 - JSON = source palette tokens
-- `030-caret-theme-ide-sync.js` = translation/derivation layer
 - `010-context-and-viewport.js` = concrete UI styling layer
+- `023-theme-core.js` = translation/derivation layer
 
 Related files:
 
-- `..\lua-editor-probe.modules\030-caret-theme-ide-sync.js`
+- `..\lua-editor-probe.modules\023-theme-core.js`
 - `..\lua-editor-probe.modules\010-context-and-viewport.js`
 - `..\..\tools\extract-flowery-daisy-palettes.ps1`

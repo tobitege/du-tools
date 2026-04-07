@@ -2,7 +2,11 @@
 000-core.js
 010-context-and-viewport.js
 020-slot-filter-restore.js
-030-caret-theme-ide-sync.js
+022-color-tools.js
+023-theme-core.js
+024-theme-ui.js
+025-editor-enhancements.js
+026-inventory-theme.js
 035-lua-mcp-runtime.js
 040-menu-helpers.js
 050-quick-menu-actions.js

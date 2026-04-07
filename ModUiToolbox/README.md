@@ -309,7 +309,7 @@ Probe override resolution order on each inject:
 - **Three shortcut dots** in the title/header bar switch to **daisy-black**, **daisy-emerald**, and **daisy-smooth**. If no user theme preference exists yet, the default shortcut theme is `daisy-black`.
 - **`...`** opens the full Daisy theme catalog.
 - **`Off`** disables theming without clearing the last selected theme, so users can quickly switch the shared themed styling on and off.
-- Those controls drive `--lua-probe-*` CSS variables on `#dpu_editor` (surfaces, borders, CodeMirror accents, etc.); see `000-core.js` (`colorThemes`), `010-context-and-viewport.js` (injected overrides), `030-caret-theme-ide-sync.js` (`applyTheme`).
+- Those controls drive `--lua-probe-*` CSS variables on `#dpu_editor` (surfaces, borders, CodeMirror accents, etc.); see `000-core.js` (`colorThemes`), `023-theme-core.js` (`applyTheme` and theme derivation), `024-theme-ui.js` (theme switcher/catalog UI), and `010-context-and-viewport.js` (injected overrides).
 - **`lua_theme_changed`** packets include `theme`, `label`, `accent`, `header`, `caretBg`, `surfaceMain` (and related vars are applied inline on the editor root).
 - **APPLY / CANCEL** use theme-specific gradients and 3D shadows (`btnApply*`, `btnCancel*` tokens per preset) so they stay distinct from vanilla DU chrome while matching the active theme.
 - The visible `screen_editor` now reuses the same theme token set and the same shortcut dots / catalog / `Off` controls, so both editor UIs stay visually aligned without moving any UI logic into the MCP server.
@@ -337,8 +337,10 @@ Files to inspect first:
   Holds imported Daisy palette values plus compact `il` metadata for whether a theme is light.
 - `tools/extract-flowery-daisy-palettes.ps1`
   Regenerates the compact Daisy palette import and computes `il` from `DaisyBase100Color`. If imported palettes are misclassified as light/dark, fix the extraction path or source metadata here.
-- `payload/lua-editor-probe.modules/030-caret-theme-ide-sync.js`
-  This is the main shared theme translation layer. Inspect `resolveThemeLightFlag`, `normalizeThemeDefinition`, `buildThemeFromCompact`, `pickReadableTextColor`, `ensureReadableAccentColor`, and `applyTheme`.
+- `payload/lua-editor-probe.modules/023-theme-core.js`
+  This is the main shared theme translation layer. Inspect `resolveThemeLightFlag`, `normalizeThemeDefinition`, `buildThemeFromCompact`, and `applyTheme`.
+- `payload/lua-editor-probe.modules/024-theme-ui.js`
+  This holds the shared theme switcher and catalog UI that drives the shared runtime theme state.
 - `payload/lua-editor-probe.modules/010-context-and-viewport.js`
   This is where surface-specific CSS consumes the shared `--lua-probe-*` tokens. Only use this after confirming the runtime theme object is already producing sensible colors.
 
@@ -347,7 +349,7 @@ Methodology:
 - First verify the light/dark classification.
   If the wrong surfaces become unreadable only on light Daisy themes, inspect `isLight` / `il` first. A wrong light/dark flag causes many downstream contrast mistakes.
 - Then verify the shared token derivation.
-  In `030-caret-theme-ide-sync.js`, prefer fixing `textMuted`, `textDim`, `cmText`, `cmString`, accent readability, or derived surface colors so the correction benefits every UI that shares the theme object.
+  In `023-theme-core.js`, prefer fixing `textMuted`, `textDim`, `cmText`, `cmString`, accent readability, or derived surface colors so the correction benefits every UI that shares the theme object.
 - Prefer shared readable tokens over hardcoded colors.
   When possible, use existing variables such as `var(--lua-probe-cm-text)`, `var(--lua-probe-cm-string)`, `var(--lua-probe-text-muted)`, `var(--lua-probe-text-dim)`, and `var(--lua-probe-accent-solid)` rather than new literal hex values.
 - Use surface-local overrides only for proven one-off readability problems.
