@@ -4385,9 +4385,11 @@
       + "background-color:var(--lua-probe-surface-backdrop) !important;border-color:var(--lua-probe-border-strong) !important;box-shadow:none !important;}"
       + rootSelector + " .selected_item_inspector_wrapper{"
       + "margin-left:0.5rem !important;}"
-      + rootSelector + " .selected_item_inspector_wrapper,"
-      + rootSelector + " .selected_item_inspector_wrapper .item_inspector,"
-      + rootSelector + " .selected_item_inspector_wrapper .item_inspector_wrapper{"
+      + rootSelector + " .selected_item_inspector_wrapper.hide{"
+      + "display:none !important;}"
+      + rootSelector + " .selected_item_inspector_wrapper:not(.hide),"
+      + rootSelector + " .selected_item_inspector_wrapper:not(.hide) .item_inspector,"
+      + rootSelector + " .selected_item_inspector_wrapper:not(.hide) .item_inspector_wrapper{"
       + "display:flex !important;flex-direction:column !important;min-height:0 !important;height:100% !important;}"
       + rootSelector + " .selected_item_inspector_wrapper .item_inspector_wrapper.hide{"
       + "display:none !important;}"
@@ -6615,7 +6617,6 @@
         resetInventoryInspectorWrapper(wrapper);
         continue;
       }
-
       restore = wrapper.querySelector(".item_restore_count") || content.querySelector(".item_restore_count");
       description = wrapper.querySelector(".item_description_wrapper") || content.querySelector(".item_description_wrapper");
       summary = wrapper.querySelector(".modui-inventory-inspector-summary");
