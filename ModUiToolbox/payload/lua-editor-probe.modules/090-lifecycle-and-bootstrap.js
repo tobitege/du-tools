@@ -311,6 +311,7 @@
     applyTheme: applyTheme,
     setThemeEnabled: setThemeEnabled,
     isThemeEnabled: isThemeEnabled,
+    syncPopupInspectorUi: syncPopupInventoryInspectorUi,
     getActiveTheme: function () {
       return getThemeByName(state.activeTheme || getDefaultThemeName());
     },

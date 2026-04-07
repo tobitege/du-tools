@@ -215,6 +215,8 @@
     inventoryThemeDirty: true,
     inventoryThemeApplying: false,
     inventoryThemeIgnoreMutationsUntil: 0,
+    popupInventoryInspectorSyncToken: "",
+    popupInventoryInspectorSyncEnabled: null,
     inventoryInspectorCollapsed: false,
     pendingSlotAutoOpen: null,
     pendingSlotAutoOpenSeq: 0,

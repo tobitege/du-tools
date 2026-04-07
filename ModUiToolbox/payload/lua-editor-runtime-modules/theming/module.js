@@ -93,6 +93,10 @@ function (ctx) {
       api.applyTheme(activeThemeName || "daisy-black", false);
     }
 
+    if (typeof api.syncPopupInspectorUi === "function") {
+      api.syncPopupInspectorUi();
+    }
+
     lastThemeEnabled = themeEnabled;
     lastThemeName = activeThemeName || "daisy-black";
     return true;

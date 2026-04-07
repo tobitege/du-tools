@@ -461,7 +461,7 @@ function ensureInventoryThemeStyle() {
     + popupInspectorRootSelector + " .item_inspector .item_data .value_label{"
     + "color:var(--lua-probe-text-main) !important;-webkit-text-fill-color:var(--lua-probe-text-main) !important;text-shadow:none !important;}"
     + popupInspectorRootSelector + " .item_inspector .item_data .label.important{"
-    + "color:var(--lua-probe-accent-solid) !important;-webkit-text-fill-color:var(--lua-probe-accent-solid) !important;font-weight:700 !important;}"
+    + "color:var(--lua-probe-warning) !important;-webkit-text-fill-color:var(--lua-probe-warning) !important;font-weight:700 !important;text-shadow:none !important;}"
     + popupInspectorRootSelector + " .item_inspector .item_inspector_button_wrapper .item_inspector_window_input{"
     + "background-color:var(--lua-probe-surface-row) !important;border:1px solid var(--lua-probe-border-strong) !important;border-radius:4px !important;box-shadow:none !important;}"
     + popupInspectorRootSelector + " .item_inspector .item_inspector_button_wrapper .item_inspector_window_input:hover{"
@@ -530,11 +530,11 @@ function ensureInventoryThemeStyle() {
     + "position:static !important;top:auto !important;right:auto !important;margin:0 !important;}"
     + popupInspectorRootSelector + " .modui-inventory-inspector-summary .item_inspector_button_wrapper{"
     + "display:flex !important;align-items:center !important;gap:8px !important;height:auto !important;}"
-    + popupInspectorRootSelector + " .modui-inventory-inspector-summary .open_in_new_inspector_button{"
-    + "display:none !important;}"
     + popupInspectorRootSelector + " .modui-inventory-inspector-summary .item_inspector_window_input:not(.hide){"
     + "display:inline-flex !important;align-items:center !important;justify-content:center !important;}"
     + popupInspectorRootSelector + " .modui-inventory-inspector-summary .item_inspector_window_input.hide{"
+    + "display:none !important;}"
+    + popupInspectorRootSelector + " .modui-inventory-inspector-summary .item_inspector_window_input.open_in_new_inspector_button{"
     + "display:none !important;}"
     + popupInspectorRootSelector + " .modui-inventory-inspector-toggle{"
     + "display:inline-flex !important;align-items:center !important;justify-content:center !important;width:32px !important;height:32px !important;border:1px solid var(--lua-probe-border-strong) !important;border-radius:4px !important;background:var(--lua-probe-surface-row) !important;color:var(--lua-probe-text-main) !important;font-size:18px !important;line-height:1 !important;cursor:pointer !important;box-shadow:none !important;}"
@@ -595,7 +595,7 @@ function ensureInventoryThemeStyle() {
     + rootSelector + " .selected_item_inspector_wrapper .item_data .value_label{"
     + "color:var(--lua-probe-text-main) !important;-webkit-text-fill-color:var(--lua-probe-text-main) !important;text-shadow:none !important;}"
     + rootSelector + " .selected_item_inspector_wrapper .item_data .label.important{"
-    + "color:var(--lua-probe-accent-solid) !important;-webkit-text-fill-color:var(--lua-probe-accent-solid) !important;font-weight:700 !important;}"
+    + "color:var(--lua-probe-warning) !important;-webkit-text-fill-color:var(--lua-probe-warning) !important;font-weight:700 !important;text-shadow:none !important;}"
     + rootSelector + " .selected_item_inspector_wrapper .wrapper-dropdown.open_down{"
     + "background-color:var(--lua-probe-surface-backdrop) !important;border-color:var(--lua-probe-border-strong) !important;box-shadow:none !important;}"
     + rootSelector + " .selected_item_inspector_wrapper .wrapper-dropdown .title_wrapper,"
@@ -666,7 +666,7 @@ function ensureInventoryThemeStyle() {
     + lightRootSelector + " .selected_item_inspector_wrapper .item_data .value{"
     + "background-color:var(--lua-probe-surface-row) !important;border-color:var(--lua-probe-border-strong) !important;box-shadow:none !important;}"
     + lightRootSelector + " .selected_item_inspector_wrapper .item_data .label.important{"
-    + "color:var(--lua-probe-text-main) !important;-webkit-text-fill-color:var(--lua-probe-text-main) !important;font-weight:700 !important;}"
+    + "color:var(--lua-probe-warning) !important;-webkit-text-fill-color:var(--lua-probe-warning) !important;font-weight:700 !important;text-shadow:none !important;}"
     + lightRootSelector + " .selected_item_inspector_wrapper .drilldownElementBody .label,"
     + lightRootSelector + " .selected_item_inspector_wrapper .drilldownElementBody .string,"
     + lightRootSelector + " .selected_item_inspector_wrapper .drilldownElementBody .element_label,"
@@ -1089,17 +1089,178 @@ function resetInventoryInspectorWrapper(wrapper) {
   }
 }
 
-function teardownInventoryInspectorEnhancer(root) {
+function teardownInventoryInspectorEnhancer(root, includePopupInspectors) {
   var wrappers;
   var i;
+  var selector;
   if (!root || !root.querySelectorAll) {
     return;
   }
 
-  wrappers = root.querySelectorAll(".selected_item_inspector_wrapper .item_inspector_wrapper, .basic_window.item_inspector_win .item_inspector_wrapper");
+  selector = includePopupInspectors === false
+    ? ".selected_item_inspector_wrapper .item_inspector_wrapper"
+    : ".selected_item_inspector_wrapper .item_inspector_wrapper, .basic_window.item_inspector_win .item_inspector_wrapper";
+  wrappers = root.querySelectorAll(selector);
   for (i = 0; i < wrappers.length; i += 1) {
     resetInventoryInspectorWrapper(wrappers[i]);
   }
+}
+
+function syncSingleInventoryInspector(inspector) {
+  var wrapper;
+  var header;
+  var content;
+  var info;
+  var restore;
+  var description;
+  var summary;
+  var actions;
+  var toggle;
+  var buttonHost;
+  var topPanel;
+
+  if (!inspector || !inspector.querySelector) {
+    return;
+  }
+
+  state.inventoryInspectorCollapsed = getInventoryInspectorCollapsed(inspector);
+
+  wrapper = inspector.querySelector(".item_inspector_wrapper");
+  header = wrapper ? wrapper.querySelector(".header_wrapper") : null;
+  content = wrapper ? wrapper.querySelector(".content_wrapper") : null;
+  info = content ? content.querySelector(".item_informations_wrapper") : null;
+  if (!wrapper || !header || !content || !info) {
+    return;
+  }
+  if (inspector.classList && inspector.classList.contains("item_inspector_win") && !isElementVisible(inspector)) {
+    return;
+  }
+  ensurePopupInventoryInspectorWindowState(inspector);
+  if (!state.themeEnabled && inspector.classList && inspector.classList.contains("item_inspector_win")) {
+    resetInventoryInspectorWrapper(wrapper);
+    return;
+  }
+  if (!hasEnhanceableInventoryInspectorContent(inspector, wrapper, content, info)) {
+    resetInventoryInspectorWrapper(wrapper);
+    return;
+  }
+  restore = wrapper.querySelector(".item_restore_count") || content.querySelector(".item_restore_count");
+  description = wrapper.querySelector(".item_description_wrapper") || content.querySelector(".item_description_wrapper");
+  summary = wrapper.querySelector(".modui-inventory-inspector-summary");
+  if (!summary) {
+    summary = document.createElement("div");
+    summary.className = "modui-inventory-inspector-summary";
+
+    var title = document.createElement("div");
+    title.className = "modui-inventory-inspector-summary-title";
+    summary.appendChild(title);
+
+    actions = document.createElement("div");
+    actions.className = "modui-inventory-inspector-summary-actions";
+
+    toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "modui-inventory-inspector-toggle";
+
+    actions.appendChild(toggle);
+    summary.appendChild(actions);
+    wrapper.insertBefore(summary, wrapper.firstChild);
+  }
+
+  actions = summary.querySelector(".modui-inventory-inspector-summary-actions");
+  toggle = summary.querySelector(".modui-inventory-inspector-toggle");
+  bindInventoryInspectorToggle(toggle);
+  buttonHost = wrapper.querySelector(".item_inspector_button_wrapper");
+  if (actions && buttonHost && buttonHost.parentNode !== actions) {
+    actions.insertBefore(buttonHost, toggle || null);
+  }
+
+  topPanel = wrapper.querySelector(".modui-inventory-inspector-top-panel");
+  if (!topPanel) {
+    topPanel = document.createElement("div");
+    topPanel.className = "modui-inventory-inspector-top-panel";
+    wrapper.insertBefore(topPanel, content);
+  }
+
+  if (header.parentNode !== topPanel) {
+    topPanel.appendChild(header);
+  }
+  if (restore && restore.parentNode !== topPanel) {
+    topPanel.appendChild(restore);
+  }
+  if (description && description.parentNode !== topPanel) {
+    topPanel.appendChild(description);
+  }
+  if (info.parentNode !== content) {
+    content.appendChild(info);
+  }
+
+  updateInventoryInspectorSummary(inspector, summary);
+}
+
+function buildVisiblePopupInventoryInspectorSyncToken() {
+  var inspectors = document.querySelectorAll(".basic_window.item_inspector_win");
+  var tokens = [];
+  var wm = window.windowsManager && Array.isArray(window.windowsManager.windows) ? window.windowsManager.windows : [];
+  var i;
+  for (i = 0; i < inspectors.length; i += 1) {
+    var inspector = inspectors[i];
+    var wrapper;
+    var titleNode;
+    var summary;
+    var topPanel;
+    var entry = null;
+    var j;
+    if (!isElementVisible(inspector)) {
+      continue;
+    }
+    wrapper = inspector.querySelector(".item_inspector_wrapper");
+    titleNode = inspector.querySelector(".header_wrapper .item_longname") || inspector.querySelector(".item_longname");
+    summary = wrapper ? wrapper.querySelector(".modui-inventory-inspector-summary") : null;
+    topPanel = wrapper ? wrapper.querySelector(".modui-inventory-inspector-top-panel") : null;
+    for (j = 0; j < wm.length; j += 1) {
+      if (wm[j] && wm[j].win === inspector) {
+        entry = wm[j];
+        break;
+      }
+    }
+    tokens.push([
+      titleNode ? String(titleNode.textContent || "").trim() : "",
+      summary ? "1" : "0",
+      topPanel ? "1" : "0",
+      inspector.getAttribute("data-modui-inventory-inspector-collapsed") || "",
+      entry && entry.options ? String(entry.options.maxHeight || "") : ""
+    ].join("|"));
+  }
+  return tokens.join("||");
+}
+
+function syncPopupInventoryInspectorUi() {
+  var syncToken = buildVisiblePopupInventoryInspectorSyncToken();
+  var themeEnabled = !!state.themeEnabled;
+  var inspectors;
+  var i;
+
+  if (!syncToken) {
+    state.popupInventoryInspectorSyncToken = "";
+    state.popupInventoryInspectorSyncEnabled = themeEnabled;
+    return false;
+  }
+
+  if (state.popupInventoryInspectorSyncToken === syncToken &&
+      state.popupInventoryInspectorSyncEnabled === themeEnabled) {
+    return false;
+  }
+
+  inspectors = document.querySelectorAll(".basic_window.item_inspector_win");
+  for (i = 0; i < inspectors.length; i += 1) {
+    syncSingleInventoryInspector(inspectors[i]);
+  }
+  applyInlineThemeToVisibleItemInspectors(document);
+
+  state.popupInventoryInspectorSyncToken = buildVisiblePopupInventoryInspectorSyncToken();
+  state.popupInventoryInspectorSyncEnabled = themeEnabled;
+  return true;
 }
 
 function hasEnhanceableInventoryInspectorContent(inspector, wrapper, content, info) {
@@ -1130,100 +1291,7 @@ function ensureInventoryInspectorEnhancer(root) {
 
   inspectors = root.querySelectorAll(".selected_item_inspector_wrapper, .basic_window.item_inspector_win");
   for (i = 0; i < inspectors.length; i += 1) {
-    var inspector = inspectors[i];
-    var wrapper;
-    var header;
-    var content;
-    var info;
-    var restore;
-    var description;
-    var summary;
-    var actions;
-    var toggle;
-    var buttonHost;
-    var topPanel;
-
-    if (!inspector.querySelector) {
-      continue;
-    }
-
-    state.inventoryInspectorCollapsed = getInventoryInspectorCollapsed(inspector);
-
-    wrapper = inspector.classList && inspector.classList.contains("item_inspector_win")
-      ? inspector.querySelector(".item_inspector_wrapper")
-      : inspector.querySelector(".item_inspector_wrapper");
-    header = wrapper ? wrapper.querySelector(".header_wrapper") : null;
-    content = wrapper ? wrapper.querySelector(".content_wrapper") : null;
-    info = content ? content.querySelector(".item_informations_wrapper") : null;
-    if (!wrapper || !header || !content || !info) {
-      continue;
-    }
-    // Embedded inspectors can preload content while hidden in single-view mode.
-    // Prepare them early so the summary/toggle is already there when that content is reused.
-    if (inspector.classList && inspector.classList.contains("item_inspector_win") && !isElementVisible(inspector)) {
-      continue;
-    }
-    ensurePopupInventoryInspectorWindowState(inspector);
-    if (!state.themeEnabled && inspector.classList && inspector.classList.contains("item_inspector_win")) {
-      resetInventoryInspectorWrapper(wrapper);
-      continue;
-    }
-    if (!hasEnhanceableInventoryInspectorContent(inspector, wrapper, content, info)) {
-      resetInventoryInspectorWrapper(wrapper);
-      continue;
-    }
-    restore = wrapper.querySelector(".item_restore_count") || content.querySelector(".item_restore_count");
-    description = wrapper.querySelector(".item_description_wrapper") || content.querySelector(".item_description_wrapper");
-    summary = wrapper.querySelector(".modui-inventory-inspector-summary");
-    if (!summary) {
-      summary = document.createElement("div");
-      summary.className = "modui-inventory-inspector-summary";
-
-      var title = document.createElement("div");
-      title.className = "modui-inventory-inspector-summary-title";
-      summary.appendChild(title);
-
-      actions = document.createElement("div");
-      actions.className = "modui-inventory-inspector-summary-actions";
-
-      toggle = document.createElement("button");
-      toggle.type = "button";
-      toggle.className = "modui-inventory-inspector-toggle";
-
-      actions.appendChild(toggle);
-      summary.appendChild(actions);
-      wrapper.insertBefore(summary, wrapper.firstChild);
-    }
-
-    actions = summary.querySelector(".modui-inventory-inspector-summary-actions");
-    toggle = summary.querySelector(".modui-inventory-inspector-toggle");
-    bindInventoryInspectorToggle(toggle);
-    buttonHost = wrapper.querySelector(".item_inspector_button_wrapper");
-    if (actions && buttonHost && buttonHost.parentNode !== actions) {
-      actions.insertBefore(buttonHost, toggle || null);
-    }
-
-    topPanel = wrapper.querySelector(".modui-inventory-inspector-top-panel");
-    if (!topPanel) {
-      topPanel = document.createElement("div");
-      topPanel.className = "modui-inventory-inspector-top-panel";
-      wrapper.insertBefore(topPanel, content);
-    }
-
-    if (header.parentNode !== topPanel) {
-      topPanel.appendChild(header);
-    }
-    if (restore && restore.parentNode !== topPanel) {
-      topPanel.appendChild(restore);
-    }
-    if (description && description.parentNode !== topPanel) {
-      topPanel.appendChild(description);
-    }
-    if (info.parentNode !== content) {
-      content.appendChild(info);
-    }
-
-    updateInventoryInspectorSummary(inspector, summary);
+    syncSingleInventoryInspector(inspectors[i]);
   }
 }
 
@@ -1255,7 +1323,7 @@ function ensureInventoryThemeRoot() {
   rootChanged = state.inventoryThemeRootKeys !== rootKeys.join("|");
   if (!rootVisible) {
     disconnectInventoryThemeObservers();
-    teardownInventoryInspectorEnhancer(document);
+    teardownInventoryInspectorEnhancer(document, false);
     state.inventoryThemeRootNode = null;
     state.inventoryThemeRootKeys = "";
     state.inventoryThemeRootVisible = false;
