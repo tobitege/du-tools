@@ -1663,8 +1663,10 @@
       + "display:flex;align-items:center;justify-content:flex-end;gap:12px;overflow:visible;}"
       + "#inventory .navigation_inputs_wrapper .player_wallet_wrapper{"
       + "flex:0 0 auto;}"
+      + "#inventory #ModUiToolbox-inventory-theme-host{"
+      + "position:absolute;left:8px;top:-22px;z-index:25;display:block;overflow:visible;pointer-events:auto;}"
       + "#inventory #ModUiToolbox-inventory-theme-dots{"
-      + "position:relative;display:flex;gap:0;align-items:center;z-index:11;overflow:visible;flex:0 0 auto;}"
+      + "position:absolute;left:0;right:auto;top:0;transform:none;display:flex;gap:0;align-items:center;z-index:11;overflow:visible;flex:0 0 auto;margin:0;}"
       + "#dpu_editor #ModUiToolbox-lua-theme-dots .lua-theme-dot{"
       + "width:12px;height:12px;border-radius:999px;border:1px solid rgba(255,255,255,0.6);"
       + "padding:0;cursor:pointer;opacity:0.88;}"
@@ -1725,7 +1727,7 @@
       + "padding:10px;border-radius:10px;background:var(--lua-probe-surface-elevated) !important;"
       + "border:1px solid var(--lua-probe-accent) !important;box-shadow:0 10px 26px rgba(0,0,0,0.42);}"
       + "#inventory #ModUiToolbox-inventory-theme-dots .lua-theme-catalog-panel{"
-      + "left:auto;right:0;}"
+      + "left:0;right:auto;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-panel[data-open=\"1\"],"
       + "#inventory .modui-theme-switcher .lua-theme-catalog-panel[data-open=\"1\"],"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-panel[data-open=\"1\"],"
@@ -2039,6 +2041,30 @@
       + ".global_inputs_wrapper[data-lua-probe-active=\"1\"] .button_holder .globalmenu_button_wrapper.disabled .label,"
       + ".global_inputs_wrapper[data-lua-probe-active=\"1\"] .button_holder .globalmenu_button_wrapper.disabled .shortcut{"
       + "fill:var(--lua-probe-btn-disabled-color) !important;color:var(--lua-probe-btn-disabled-color) !important;}"
+      + "body[data-lua-probe-active=\"1\"] .context_menu{"
+      + "background:transparent !important;box-shadow:none !important;}"
+      + "body[data-lua-probe-active=\"1\"] .context_menu > ul,"
+      + "body[data-lua-probe-active=\"1\"] .context_menu ul{"
+      + "margin:0 !important;padding:4px 0 !important;list-style:none !important;"
+      + "background:var(--lua-probe-surface-backdrop) !important;border:1px solid var(--lua-probe-border-strong) !important;"
+      + "box-shadow:0 10px 26px var(--lua-probe-shadow) !important;}"
+      + "body[data-lua-probe-active=\"1\"] .context_menu li.menu{"
+      + "display:flex !important;align-items:stretch !important;background:transparent !important;border:0 !important;box-shadow:none !important;}"
+      + "body[data-lua-probe-active=\"1\"] .context_menu li.menu > a{"
+      + "display:flex !important;align-items:center !important;width:100% !important;padding:6px 18px !important;"
+      + "min-height:28px !important;box-sizing:border-box !important;"
+      + "background:transparent !important;color:var(--lua-probe-text-muted) !important;-webkit-text-fill-color:var(--lua-probe-text-muted) !important;"
+      + "text-shadow:none !important;text-decoration:none !important;}"
+      + "body[data-lua-probe-active=\"1\"] .context_menu li.menu:hover,"
+      + "body[data-lua-probe-active=\"1\"] .context_menu li.menu:hover > a,"
+      + "body[data-lua-probe-active=\"1\"] .context_menu li.menu.selected,"
+      + "body[data-lua-probe-active=\"1\"] .context_menu li.menu.selected > a{"
+      + "background:var(--lua-probe-text-muted) !important;color:var(--lua-probe-surface-backdrop) !important;-webkit-text-fill-color:var(--lua-probe-surface-backdrop) !important;}"
+      + "body[data-lua-probe-active=\"1\"] .context_menu li.menu.disabled,"
+      + "body[data-lua-probe-active=\"1\"] .context_menu li.menu.disabled > a{"
+      + "background:transparent !important;color:var(--lua-probe-btn-disabled-color) !important;-webkit-text-fill-color:var(--lua-probe-btn-disabled-color) !important;}"
+      + "body[data-lua-probe-active=\"1\"] .context_menu li.menu + li.menu{"
+      + "border-top:1px solid var(--lua-probe-border-strong) !important;}"
       + "#industry_panel[data-lua-probe-active=\"1\"]{"
       + "background:var(--lua-probe-surface-backdrop) !important;background-image:none !important;"
       + "color:var(--lua-probe-text-muted) !important;}"
@@ -4088,11 +4114,36 @@
   }
 
   function getInventoryThemeRoot() {
-    var root = document.getElementById("inventory");
-    if (!root || !root.style || typeof root.style.setProperty !== "function") {
-      return null;
+    var roots = getInventoryThemeRoots();
+    var i;
+    for (i = 0; i < roots.length; i += 1) {
+      if (isElementVisible(roots[i])) {
+        return roots[i];
+      }
     }
-    return root;
+    return roots.length ? roots[0] : null;
+  }
+
+  function getInventoryThemeRoots() {
+    var roots = [];
+    var candidates = [
+      document.getElementById("inventory"),
+      document.getElementById("containerPanel_view")
+    ];
+    for (var i = 0; i < candidates.length; i += 1) {
+      var root = candidates[i];
+      if (!root || !root.style || typeof root.style.setProperty !== "function") {
+        continue;
+      }
+      if (roots.indexOf(root) >= 0) {
+        continue;
+      }
+      if (root.id === "containerPanel_view" && !(root.classList && root.classList.contains("right_container"))) {
+        continue;
+      }
+      roots.push(root);
+    }
+    return roots;
   }
 
   function normalizeInventoryItemName(name) {
@@ -4113,13 +4164,29 @@
       var slot = slots[i];
       var wrapper = slot.querySelector(".item_wrapper");
       var nameEl = slot.querySelector(".item_name");
+      var iconEl = slot.querySelector(".item_icon");
       var normalizedName = normalizeInventoryItemName(nameEl ? nameEl.textContent : "");
+      var iconBackground = iconEl && iconEl.style ? String(iconEl.style.backgroundImage || "") : "";
       var isOwnerUnclaimed = !!wrapper && !!wrapper.classList && wrapper.classList.contains("owner_unclaimed");
       var isExcludedBigfoot = normalizedName.indexOf("poin bigfoot") >= 0;
+      var isCoreToolIcon;
+      if (!iconBackground && iconEl && typeof window.getComputedStyle === "function") {
+        iconBackground = String(window.getComputedStyle(iconEl).backgroundImage || "");
+      }
+      isCoreToolIcon = /iconslib\/misclib\/[^)]*tool\.png/i.test(iconBackground.replace(/\\/g, ""));
       if (isOwnerUnclaimed && !isExcludedBigfoot) {
         slot.setAttribute("data-modui-inventory-unclaimed-tool", "1");
       } else {
         slot.removeAttribute("data-modui-inventory-unclaimed-tool");
+      }
+      if (iconEl && iconEl.setAttribute && iconEl.removeAttribute && iconEl.style && typeof iconEl.style.setProperty === "function" && typeof iconEl.style.removeProperty === "function") {
+        if (isCoreToolIcon) {
+          iconEl.setAttribute("data-modui-inventory-core-tool-icon", "1");
+          iconEl.style.setProperty("--modui-inventory-core-tool-icon-url", iconBackground);
+        } else {
+          iconEl.removeAttribute("data-modui-inventory-core-tool-icon");
+          iconEl.style.removeProperty("--modui-inventory-core-tool-icon-url");
+        }
       }
     }
   }
@@ -4147,13 +4214,27 @@
     var style = document.getElementById(styleId);
     var rootSelector = "#inventory[data-lua-probe-active=\"1\"]";
     var lightRootSelector = "#inventory[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"]";
+    var rightRootSelector = "#containerPanel_view[data-lua-probe-active=\"1\"]";
+    var rightLightRootSelector = "#containerPanel_view[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"]";
     var popupInspectorRootSelector = "body[data-lua-probe-active=\"1\"] .basic_window.item_inspector_win";
+    var inspectorCollapsedHintSelectors = [
+      ".item_informations_wrapper > .item_datatable > .blueprint_fields > .warning",
+      ".item_informations_wrapper > .item_datatable > .recipe_fields",
+      ".item_informations_wrapper > .item_datatable > .recipes_dropdown_wrapper",
+      ".item_informations_wrapper > .item_datatable > .territoy_fields"
+    ];
+    var popupCollapsedHintSelector = inspectorCollapsedHintSelectors.map(function (selector) {
+      return popupInspectorRootSelector + "[data-modui-inventory-inspector-collapsed=\"1\"] " + selector;
+    }).join(",");
+    var embeddedCollapsedHintSelector = inspectorCollapsedHintSelectors.map(function (selector) {
+      return rootSelector + " .selected_item_inspector_wrapper[data-modui-inventory-inspector-collapsed=\"1\"] " + selector;
+    }).join(",");
     if (!style) {
       style = document.createElement("style");
       style.id = styleId;
       (document.head || document.documentElement || document.body).appendChild(style);
     }
-    style.textContent = ""
+    var cssText = ""
       + rootSelector + "{"
       + "background-color:var(--lua-probe-surface-main) !important;background-image:none !important;border-color:var(--lua-probe-border-strong) !important;color:var(--lua-probe-text-muted) !important;}"
       + rootSelector + " .container_layout_wrapper,"
@@ -4191,12 +4272,27 @@
       + rootSelector + " .meta_panel,"
       + rootSelector + " .legend_group{"
       + "background-color:var(--lua-probe-surface-elevated) !important;background-image:none !important;border-color:var(--lua-probe-border-strong) !important;color:var(--lua-probe-text-muted) !important;box-shadow:none !important;}"
+      + rootSelector + " .wrapper-dropdown .title_wrapper{"
+      + "border:1px solid var(--lua-probe-border-strong) !important;box-sizing:border-box !important;}"
+      + rootSelector + " .containerView_autoClaim_wrapper{"
+      + "background-color:var(--lua-probe-surface-backdrop) !important;border-top:1px solid var(--lua-probe-border-strong) !important;border-bottom:1px solid var(--lua-probe-border-strong) !important;}"
+      + rootSelector + " .containerView_autoClaim_wrapper .wrapper-dropdown,"
+      + rootSelector + " .containerView_autoClaim_wrapper .wrapper-dropdown.open_down,"
+      + rootSelector + " .containerView_autoClaim_wrapper .title_wrapper{"
+      + "background-color:var(--lua-probe-surface-row) !important;background-image:none !important;border-color:var(--lua-probe-border-strong) !important;box-shadow:none !important;}"
+      + rootSelector + " .validation_button.containerView_autoClaim_validationButton{"
+      + "background:var(--lua-probe-btn-apply-bg) !important;border:1px solid var(--lua-probe-btn-apply-border) !important;color:var(--lua-probe-btn-apply-color) !important;box-shadow:none !important;}"
+      + rootSelector + " .validation_button.containerView_autoClaim_validationButton.disabled{"
+      + "background:var(--lua-probe-btn-disabled-bg) !important;border-color:var(--lua-probe-btn-disabled-border) !important;color:var(--lua-probe-btn-disabled-color) !important;}"
       + rootSelector + " .itemset_tabs_list .itemset_button,"
       + rootSelector + " .itemset_tabs_list .itemset_button .item_set_tab_wrapper{"
       + "background-color:var(--lua-probe-surface-row) !important;background-image:none !important;border-color:var(--lua-probe-border-strong) !important;color:var(--lua-probe-text-muted) !important;box-shadow:none !important;}"
       + rootSelector + " .itemset_tabs_list .itemset_button:not(.selected):hover,"
       + rootSelector + " .itemset_tabs_list .itemset_button:not(.selected):hover .item_set_tab_wrapper{"
       + "background-color:var(--lua-probe-surface-row-alt) !important;border-color:var(--lua-probe-border-hover) !important;color:var(--lua-probe-accent-solid) !important;}"
+      + rootSelector + " .itemset_tabs_list .itemset_button.drop-zone:not(.selected):not(.is_reference_itemset),"
+      + rootSelector + " .itemset_tabs_list .itemset_button.drop-zone:not(.selected):not(.is_reference_itemset) .item_set_tab_wrapper{"
+      + "background-color:var(--lua-probe-surface-row) !important;box-shadow:inset 0 1px 0 rgba(255,255,255,0.10), inset 0 0 0 999px rgba(255,255,255,0.035) !important;}"
       + rootSelector + " .itemset_tabs_list .itemset_button.selected,"
       + rootSelector + " .itemset_tabs_list .itemset_button.selected .item_set_tab_wrapper{"
       + "background:var(--lua-probe-mode-selected-bg) !important;border-color:var(--lua-probe-mode-selected-border) !important;color:var(--lua-probe-mode-selected-color) !important;box-shadow:inset 0 0 0 1px var(--lua-probe-selection-border) !important;}"
@@ -4212,10 +4308,12 @@
       + rootSelector + " .group_title_label,"
       + rootSelector + " .title_icon_filter,"
       + rootSelector + " .item_name,"
+      + rootSelector + " .player_wallet_wrapper h3,"
       + rootSelector + " .item_quantity,"
-      + rootSelector + " .key_legend span,"
-      + rootSelector + " .key_legend kbd{"
+      + rootSelector + " .key_legend span{"
       + "color:var(--lua-probe-text-muted) !important;text-shadow:none !important;}"
+      + rootSelector + " .key_legend kbd{"
+      + "color:#111111 !important;-webkit-text-fill-color:#111111 !important;text-shadow:none !important;}"
       + rootSelector + " .capacity_percentage_label,"
       + rootSelector + " .sort_dropdown_area .label{"
       + "color:var(--lua-probe-text-dim) !important;text-shadow:none !important;}"
@@ -4227,6 +4325,10 @@
       + rootSelector + " .capacity_percentage_gauge_wrapper,"
       + rootSelector + " .container_footer .progressbar .track{"
       + "background-color:var(--lua-probe-surface-deep) !important;border-color:var(--lua-probe-border-strong) !important;}"
+      + rootSelector + " .container_footer .progressbar .void{"
+      + "background-color:var(--lua-probe-surface-row-alt) !important;background-image:none !important;}"
+      + rootSelector + " .scrollbar_input{"
+      + "background-color:var(--lua-probe-border-hover) !important;background-image:none !important;border-color:var(--lua-probe-border-hover) !important;box-shadow:none !important;}"
       + rootSelector + " .gauge_current_fill{"
       + "background-color:var(--lua-probe-accent-solid) !important;background-image:none !important;}"
       + rootSelector + " .search_box{"
@@ -4248,6 +4350,8 @@
       + lightRootSelector + " .item_slot[data-modui-inventory-unclaimed-tool=\"1\"] .item_body,"
       + lightRootSelector + " .item_slot[data-modui-inventory-unclaimed-tool=\"1\"] .item_name_wrapper{"
       + "background-color:var(--lua-probe-surface-backdrop) !important;border-color:var(--lua-probe-border-strong) !important;}"
+      + lightRootSelector + " .item_slot .item_icon[data-modui-inventory-core-tool-icon=\"1\"]{"
+      + "background-image:none !important;background-color:var(--lua-probe-accent-solid) !important;-webkit-mask-image:var(--modui-inventory-core-tool-icon-url) !important;-webkit-mask-repeat:no-repeat !important;-webkit-mask-position:center !important;-webkit-mask-size:contain !important;filter:none !important;opacity:1 !important;}"
       + rootSelector + " .item_slot:hover,"
       + rootSelector + " .item_slot:hover .item_wrapper,"
       + rootSelector + " .item_slot:hover .item_body,"
@@ -4360,6 +4464,11 @@
       + lightRootSelector + " .wrapper_left_container_header .close_button svg,"
       + lightRootSelector + " .wrapper_left_container_header .close_button svg use{"
       + "fill:var(--lua-probe-text-muted) !important;color:var(--lua-probe-text-muted) !important;}"
+      + lightRootSelector + " .container_header .itemset_title,"
+      + lightRootSelector + " .container_header .itemset_title.selected{"
+      + "color:var(--lua-probe-text-main) !important;-webkit-text-fill-color:var(--lua-probe-text-main) !important;text-shadow:none !important;}"
+      + lightRootSelector + " .containerView_autoClaim_wrapper label{"
+      + "color:var(--lua-probe-accent-solid) !important;-webkit-text-fill-color:var(--lua-probe-accent-solid) !important;text-shadow:none !important;}"
       + lightRootSelector + " .selected_item_inspector_wrapper .item_label,"
       + lightRootSelector + " .selected_item_inspector_wrapper .item_data .label{"
       + "color:var(--lua-probe-text-dim) !important;text-shadow:none !important;}"
@@ -4375,7 +4484,10 @@
       + lightRootSelector + " .key_legend span{"
       + "color:var(--lua-probe-text-muted) !important;}"
       + lightRootSelector + " .key_legend kbd{"
-      + "background:color-mix(in srgb, var(--lua-probe-accent-solid) 18%, white 82%) !important;border:1px solid color-mix(in srgb, var(--lua-probe-accent-solid) 32%, white 68%) !important;color:color-mix(in srgb, var(--lua-probe-accent-solid) 58%, var(--lua-probe-text-muted) 42%) !important;box-shadow:none !important;}"
+      + "background:color-mix(in srgb, var(--lua-probe-accent-solid) 18%, white 82%) !important;border:1px solid color-mix(in srgb, var(--lua-probe-accent-solid) 32%, white 68%) !important;color:#111111 !important;-webkit-text-fill-color:#111111 !important;box-shadow:none !important;}"
+      + lightRootSelector + " .itemset_tabs_list .itemset_button.drop-zone:not(.selected):not(.is_reference_itemset),"
+      + lightRootSelector + " .itemset_tabs_list .itemset_button.drop-zone:not(.selected):not(.is_reference_itemset) .item_set_tab_wrapper{"
+      + "background-color:var(--lua-probe-surface-row) !important;box-shadow:inset 0 1px 0 rgba(255,255,255,0.02), inset 0 0 0 999px rgba(0,0,0,0.12) !important;}"
       + "body[data-modui-inventory-light-active=\"1\"] .tools_list .shortcut{"
       + "color:var(--modui-inventory-shortcut-color, #333c4d) !important;text-shadow:0 1px 2px rgba(255,255,255,0.65) !important;}"
       + lightRootSelector + " .selected_item_inspector_wrapper .item_inspector_wrapper,"
@@ -4561,6 +4673,8 @@
       + "display:none !important;}"
       + popupInspectorRootSelector + "[data-modui-inventory-inspector-collapsed=\"1\"] .content_wrapper .item_informations_wrapper{"
       + "padding-top:12px !important;}"
+      + popupCollapsedHintSelector + "{"
+      + "display:none !important;}"
       + rootSelector + " .selected_item_inspector_wrapper .modui-inventory-inspector-top-panel .header_wrapper{"
       + "display:block !important;position:relative !important;margin:0 0 0.35rem 0 !important;min-height:auto !important;height:auto !important;padding:0 0 0.6rem 0 !important;border-bottom:1px solid var(--lua-probe-border-strong) !important;flex:0 0 auto !important;align-items:normal !important;}"
       + rootSelector + " .selected_item_inspector_wrapper .modui-inventory-inspector-top-panel .item_icon_wrapper{"
@@ -4604,6 +4718,8 @@
       + "display:none !important;}"
       + rootSelector + " .selected_item_inspector_wrapper[data-modui-inventory-inspector-collapsed=\"1\"] .content_wrapper .item_informations_wrapper{"
       + "padding-top:12px !important;}"
+      + embeddedCollapsedHintSelector + "{"
+      + "display:none !important;}"
       + rootSelector + " .selected_item_inspector_wrapper .drilldown_zone,"
       + rootSelector + " .selected_item_inspector_wrapper .drilldown_generic,"
       + rootSelector + " .selected_item_inspector_wrapper .drillDownElementWrapper,"
@@ -4713,6 +4829,8 @@
       + lightRootSelector + " .secondary_toolbar_wrapper svg.icon_button.disabled,"
       + lightRootSelector + " .secondary_toolbar_wrapper svg.icon_button.disabled use{"
       + "fill:var(--lua-probe-btn-disabled-color) !important;color:var(--lua-probe-btn-disabled-color) !important;}";
+    style.textContent = cssText
+      + cssText.split(lightRootSelector).join(rightLightRootSelector).split(rootSelector).join(rightRootSelector);
   }
 
   function syncEditorThemeActivation() {
@@ -4720,16 +4838,18 @@
     var screenRoot = getScreenEditorRoot();
     var bodyRoot = document.body || null;
     var globalMenuRoot = getGlobalMenuThemeRoot();
-    var inventoryRoot = getInventoryThemeRoot();
+    var inventoryRoots = getInventoryThemeRoots();
     var extraRoots = document.querySelectorAll("[data-modui-theme-target=\"1\"]");
     setThemeRootActive(bodyRoot, !!state.themeEnabled);
     setThemeRootActive(luaRoot, !!state.themeEnabled);
     setThemeRootActive(screenRoot, !!state.themeEnabled && !!screenRoot && isElementVisible(screenRoot));
     setThemeRootActive(globalMenuRoot, !!state.themeEnabled && !!globalMenuRoot);
-    setThemeRootActive(inventoryRoot, !!state.themeEnabled && !!inventoryRoot && isElementVisible(inventoryRoot));
+    for (var i = 0; i < inventoryRoots.length; i += 1) {
+      setThemeRootActive(inventoryRoots[i], !!state.themeEnabled && isElementVisible(inventoryRoots[i]));
+    }
     if (extraRoots && typeof extraRoots.length === "number") {
-      for (var i = 0; i < extraRoots.length; i += 1) {
-        setThemeRootActive(extraRoots[i], !!state.themeEnabled);
+      for (var j = 0; j < extraRoots.length; j += 1) {
+        setThemeRootActive(extraRoots[j], !!state.themeEnabled);
       }
     }
     updateThemeOffButtonSelection();
@@ -6088,7 +6208,7 @@
     var luaRoot = document.getElementById("dpu_editor");
     var screenRoot = getScreenEditorRoot();
     var globalMenuRoot = getGlobalMenuThemeRoot();
-    var inventoryRoot = getInventoryThemeRoot();
+    var inventoryRoots = getInventoryThemeRoots();
     var extraRoots = document.querySelectorAll("[data-modui-theme-target=\"1\"]");
     function pushRoot(node) {
       if (!node || !node.style || typeof node.style.setProperty !== "function") {
@@ -6111,12 +6231,12 @@
     if (globalMenuRoot) {
       pushRoot(globalMenuRoot);
     }
-    if (inventoryRoot) {
-      pushRoot(inventoryRoot);
+    for (var i = 0; i < inventoryRoots.length; i += 1) {
+      pushRoot(inventoryRoots[i]);
     }
     if (extraRoots && typeof extraRoots.length === "number") {
-      for (var i = 0; i < extraRoots.length; i += 1) {
-        pushRoot(extraRoots[i]);
+      for (var j = 0; j < extraRoots.length; j += 1) {
+        pushRoot(extraRoots[j]);
       }
     }
     return roots;
@@ -6250,12 +6370,13 @@
       return;
     }
 
-    host = root.querySelector(".navigation_inputs_wrapper");
+    host = document.getElementById("ModUiToolbox-inventory-theme-host");
     if (!host) {
-      host = root.querySelector(".container_header");
+      host = document.createElement("div");
+      host.id = "ModUiToolbox-inventory-theme-host";
     }
-    if (!host) {
-      return;
+    if (host.parentNode !== root) {
+      root.appendChild(host);
     }
 
     ensureSharedThemeSwitcher(host, "ModUiToolbox-inventory-theme-dots", false);
@@ -6389,14 +6510,36 @@
     }
   }
 
-  function disconnectInventoryThemeObserver() {
-    try {
-      if (state.inventoryThemeObserver && typeof state.inventoryThemeObserver.disconnect === "function") {
-        state.inventoryThemeObserver.disconnect();
+  function getInventoryThemeRootKey(root) {
+    if (!root) {
+      return "";
+    }
+    if (root.id) {
+      return "#" + root.id;
+    }
+    return String(root.className || "");
+  }
+
+  function disconnectInventoryThemeObservers(keepKeys) {
+    var observers = state.inventoryThemeObservers || {};
+    var keys = Object.keys(observers);
+    var i;
+    var key;
+    var entry;
+    for (i = 0; i < keys.length; i += 1) {
+      key = keys[i];
+      if (keepKeys && keepKeys[key]) {
+        continue;
       }
-    } catch (_ignoreInventoryThemeObserverDisconnect) {}
-    state.inventoryThemeObserver = null;
-    state.inventoryThemeObserverRoot = null;
+      entry = observers[key];
+      try {
+        if (entry && entry.observer && typeof entry.observer.disconnect === "function") {
+          entry.observer.disconnect();
+        }
+      } catch (_ignoreInventoryThemeObserverDisconnect) {}
+      delete observers[key];
+    }
+    state.inventoryThemeObservers = observers;
   }
 
   function isInventoryThemeMutationRelevant(mutation) {
@@ -6425,16 +6568,18 @@
   }
 
   function ensureInventoryThemeObserver(root) {
+    var observers;
+    var key;
     var observer;
     if (!root || !window.MutationObserver) {
       return;
     }
 
-    if (state.inventoryThemeObserver && state.inventoryThemeObserverRoot === root) {
+    observers = state.inventoryThemeObservers || {};
+    key = getInventoryThemeRootKey(root);
+    if (key && observers[key] && observers[key].root === root) {
       return;
     }
-
-    disconnectInventoryThemeObserver();
 
     observer = new MutationObserver(function (mutations) {
       var i;
@@ -6458,8 +6603,13 @@
       attributes: true
     });
 
-    state.inventoryThemeObserver = observer;
-    state.inventoryThemeObserverRoot = root;
+    if (key) {
+      observers[key] = {
+        root: root,
+        observer: observer
+      };
+      state.inventoryThemeObservers = observers;
+    }
   }
 
   function bindInventoryInspectorToggle(toggle) {
@@ -6675,19 +6825,35 @@
 
   function ensureInventoryThemeRoot() {
     var root = getInventoryThemeRoot();
+    var roots = getInventoryThemeRoots();
+    var visibleRoots = [];
+    var keepObserverKeys = {};
+    var rootKeys = [];
+    var i;
     var themeName = state.activeTheme || getDefaultThemeName();
     var theme = getThemeByName(themeName);
     var themeEnabled = !!state.themeEnabled;
-    var rootVisible = !!root && isElementVisible(root);
-    var rootChanged = state.inventoryThemeRootNode !== root;
+    var rootVisible;
+    var rootChanged;
     var themeChanged;
     var needsRefresh;
-    if (!rootVisible) {
-      disconnectInventoryThemeObserver();
-      if (state.inventoryThemeRootNode && state.inventoryThemeRootNode.querySelector) {
-        teardownInventoryInspectorEnhancer(state.inventoryThemeRootNode);
+    for (i = 0; i < roots.length; i += 1) {
+      if (!isElementVisible(roots[i])) {
+        continue;
       }
+      visibleRoots.push(roots[i]);
+      keepObserverKeys[getInventoryThemeRootKey(roots[i])] = true;
+      rootKeys.push(getInventoryThemeRootKey(roots[i]));
+    }
+    root = visibleRoots.length ? visibleRoots[0] : root;
+    rootVisible = !!root && isElementVisible(root);
+    rootKeys.sort();
+    rootChanged = state.inventoryThemeRootKeys !== rootKeys.join("|");
+    if (!rootVisible) {
+      disconnectInventoryThemeObservers();
+      teardownInventoryInspectorEnhancer(document);
       state.inventoryThemeRootNode = null;
+      state.inventoryThemeRootKeys = "";
       state.inventoryThemeRootVisible = false;
       state.inventoryThemeAppliedTheme = "";
       state.inventoryThemeAppliedEnabled = null;
@@ -6697,21 +6863,20 @@
       return;
     }
 
-    if (state.inventoryThemeRootNode && state.inventoryThemeRootNode !== root && state.inventoryThemeRootNode.querySelector) {
-      teardownInventoryInspectorEnhancer(state.inventoryThemeRootNode);
-    }
     if (rootChanged) {
-      disconnectInventoryThemeObserver();
       state.inventoryThemeDirty = true;
     }
-
-    ensureInventoryThemeObserver(root);
+    disconnectInventoryThemeObservers(keepObserverKeys);
+    for (i = 0; i < visibleRoots.length; i += 1) {
+      ensureInventoryThemeObserver(visibleRoots[i]);
+    }
 
     themeChanged = state.inventoryThemeAppliedTheme !== themeName ||
       state.inventoryThemeAppliedEnabled !== themeEnabled;
     needsRefresh = rootChanged || themeChanged || !!state.inventoryThemeDirty;
 
     state.inventoryThemeRootNode = root;
+    state.inventoryThemeRootKeys = rootKeys.join("|");
     state.inventoryThemeRootVisible = true;
 
     if (!needsRefresh) {
@@ -6723,9 +6888,11 @@
       state.inventoryThemeIgnoreMutationsUntil = Date.now() + 150;
       ensureInventoryThemeStyle();
       ensureInventoryThemeSwitcher();
-      refreshInventoryThemeAnnotations(root);
+      for (i = 0; i < roots.length; i += 1) {
+        refreshInventoryThemeAnnotations(roots[i]);
+        setThemeRootActive(roots[i], themeEnabled && isElementVisible(roots[i]));
+      }
       setInventoryHudLightActive(themeEnabled && !!theme && !!theme.isLight, root);
-      setThemeRootActive(root, themeEnabled && rootVisible);
       if (themeEnabled) {
         ensureInventoryInspectorEnhancer(document);
       } else {

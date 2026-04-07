@@ -318,6 +318,7 @@ Probe override resolution order on each inject:
 - The recipe-bank inventory view inside the industry panel now consumes the same shared tokens for its shell, header, toolbars, item grid, footer, and filter flyout instead of keeping the vanilla DU chrome in those sections.
 - Shared runtime theme objects now expose `isLight`, and imported Daisy palettes carry compact `il` metadata, so light-theme contrast fixes can stay in the shared theme layer instead of relying on one-off selector guesses.
 - For visible spacing between the shortcut dots, `...`, and `Off`, prefer explicit margins on the controls instead of relying on flex `gap`; the embedded DU browser may not render `gap` changes reliably on that switcher row.
+- For live HUD and inventory probe CSS, do not rely on `:is(...)` selector support. The embedded DU browser used on the live HUD path does not support `:is(...)`, so root-scoped theme rules must use explicit selectors or duplicated blocks instead.
 - The visible `screen_editor` now also gets its own `IDE Sync` button in the top control row; it uses the same chunked packet family as the Lua editor, but exports with `targetKind = screen_editor`.
 
 #### Repeatable workflow for theme contrast fixes
