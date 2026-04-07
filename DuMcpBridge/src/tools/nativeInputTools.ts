@@ -102,6 +102,16 @@ type NativeInputResult = {
   sendMode: string;
   key?: string | null;
   repeatCount?: number | null;
+  startX?: number | null;
+  startY?: number | null;
+  endX?: number | null;
+  endY?: number | null;
+  startScreenX?: number | null;
+  startScreenY?: number | null;
+  endScreenX?: number | null;
+  endScreenY?: number | null;
+  durationMs?: number | null;
+  dragSteps?: number | null;
   error: string;
 };
 
@@ -136,6 +146,41 @@ const nativeKeySendOutputSchema = {
   sendMode: z.string().nullable(),
   nativeResultJson: z.string().nullable(),
   error: z.string().nullable()
+};
+
+const nativeMouseDragOutputSchema = {
+  invoked: z.boolean(),
+  ahkPath: z.string().nullable(),
+  scriptPath: z.string(),
+  windowTitle: z.string(),
+  targetHwnd: z.string().nullable(),
+  activeBefore: z.boolean().nullable(),
+  activeAfter: z.boolean().nullable(),
+  startX: z.number().int(),
+  startY: z.number().int(),
+  endX: z.number().int(),
+  endY: z.number().int(),
+  startScreenX: z.number().int().nullable(),
+  startScreenY: z.number().int().nullable(),
+  endScreenX: z.number().int().nullable(),
+  endScreenY: z.number().int().nullable(),
+  durationMs: z.number().int().nonnegative(),
+  dragSteps: z.number().int().positive(),
+  settleMs: z.number().int().nonnegative(),
+  cursorX: z.number().int().nullable(),
+  cursorY: z.number().int().nullable(),
+  sendMode: z.string().nullable(),
+  nativeResultJson: z.string().nullable(),
+  error: z.string().nullable()
+};
+
+type NativeMouseDragOptions = {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  durationMs: number;
+  dragSteps: number;
 };
 
 type EditorSnapshotFields = {
@@ -226,7 +271,7 @@ async function resolveAutoHotkeyExecutable(preferredPath?: string | null): Promi
 }
 
 export async function runNativeAhkInput(
-  action: "ctrl_l" | "send_key" | "camera_move",
+  action: "ctrl_l" | "send_key" | "camera_move" | "mouse_drag",
   windowTitle: string,
   activateWindow: boolean,
   sendEscapeFirst: boolean,
@@ -236,7 +281,8 @@ export async function runNativeAhkInput(
   preferredAhkPath?: string | null,
   moveX = 0,
   moveY = 0,
-  settleMs = 400
+  settleMs = 400,
+  dragOptions?: NativeMouseDragOptions | null
 ): Promise<{
   ahkPath: string | null;
   scriptPath: string;
@@ -269,6 +315,26 @@ export async function runNativeAhkInput(
   args.push("--repeat", String(repeatCount), "--delay-ms", String(delayMs));
   if (action === "camera_move") {
     args.push("--x", String(moveX), "--y", String(moveY), "--settle-ms", String(settleMs));
+  } else if (action === "mouse_drag") {
+    if (!dragOptions) {
+      throw new Error("mouse_drag_options_required");
+    }
+    args.push(
+      "--start-x",
+      String(dragOptions.startX),
+      "--start-y",
+      String(dragOptions.startY),
+      "--end-x",
+      String(dragOptions.endX),
+      "--end-y",
+      String(dragOptions.endY),
+      "--duration-ms",
+      String(dragOptions.durationMs),
+      "--steps",
+      String(dragOptions.dragSteps),
+      "--settle-ms",
+      String(settleMs)
+    );
   }
 
   try {
@@ -570,6 +636,89 @@ export function registerNativeInputTools(
         key,
         repeatCount: native.nativeResult?.repeatCount ?? repeatCount,
         delayMs,
+        sendMode: native.nativeResult?.sendMode || null,
+        nativeResultJson: native.nativeResultJson,
+        error: native.nativeResult?.error || null
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(structuredContent, null, 2)
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
+  server.registerTool(
+    "du_mouse_drag_native",
+    {
+      title: "Drag Mouse Inside Dual Universe Window",
+      description:
+        "Uses the native AutoHotkey helper from `DuMcpBridge/ahk` to perform a real left-button mouse drag between two client-relative points inside the Dual Universe window. This is intended for live HUD interactions such as resize-handle drags that probe-only DOM events cannot reproduce.",
+      inputSchema: {
+        startX: z.number().int().min(0).max(20000).describe("Client-relative horizontal start coordinate in pixels"),
+        startY: z.number().int().min(0).max(20000).describe("Client-relative vertical start coordinate in pixels"),
+        endX: z.number().int().min(0).max(20000).describe("Client-relative horizontal end coordinate in pixels"),
+        endY: z.number().int().min(0).max(20000).describe("Client-relative vertical end coordinate in pixels"),
+        durationMs: z.number().int().min(0).max(10000).default(220).describe("Total drag duration in milliseconds"),
+        dragSteps: z.number().int().min(1).max(240).default(18).describe("How many interpolated cursor moves to perform while the left button is held"),
+        settleMs: z.number().int().min(0).max(10000).default(120).describe("Post-drag settle delay in milliseconds before the tool returns"),
+        windowTitle: z.string().min(1).default("Dual Universe").describe("Window title substring used to locate the Dual Universe client"),
+        activateWindow: z.boolean().default(true).describe("When true, AutoHotkey first activates the target window before dragging"),
+        ahkPath: z.string().min(1).optional().describe("Optional AutoHotkey v2 exe path or directory override for this call")
+      },
+      outputSchema: nativeMouseDragOutputSchema
+    },
+    async ({ startX, startY, endX, endY, durationMs, dragSteps, settleMs, windowTitle, activateWindow, ahkPath }) => {
+      const resolvedAhkPath = ahkPath ?? options?.defaultAhkPath ?? null;
+      const native = await runNativeAhkInput(
+        "mouse_drag",
+        windowTitle,
+        activateWindow,
+        false,
+        null,
+        1,
+        0,
+        resolvedAhkPath,
+        0,
+        0,
+        settleMs,
+        {
+          startX,
+          startY,
+          endX,
+          endY,
+          durationMs,
+          dragSteps
+        }
+      );
+      const nativeOk = native.nativeResult?.ok === true;
+
+      const structuredContent = {
+        invoked: nativeOk,
+        ahkPath: native.ahkPath,
+        scriptPath: native.scriptPath,
+        windowTitle,
+        targetHwnd: native.nativeResult?.targetHwnd || null,
+        activeBefore: native.nativeResult ? native.nativeResult.activeBefore : null,
+        activeAfter: native.nativeResult ? native.nativeResult.activeAfter : null,
+        startX: native.nativeResult?.startX ?? startX,
+        startY: native.nativeResult?.startY ?? startY,
+        endX: native.nativeResult?.endX ?? endX,
+        endY: native.nativeResult?.endY ?? endY,
+        startScreenX: native.nativeResult?.startScreenX ?? null,
+        startScreenY: native.nativeResult?.startScreenY ?? null,
+        endScreenX: native.nativeResult?.endScreenX ?? null,
+        endScreenY: native.nativeResult?.endScreenY ?? null,
+        durationMs: native.nativeResult?.durationMs ?? durationMs,
+        dragSteps: native.nativeResult?.dragSteps ?? dragSteps,
+        settleMs: native.nativeResult?.settleMs ?? settleMs,
+        cursorX: native.nativeResult?.cursorX ?? null,
+        cursorY: native.nativeResult?.cursorY ?? null,
         sendMode: native.nativeResult?.sendMode || null,
         nativeResultJson: native.nativeResultJson,
         error: native.nativeResult?.error || null

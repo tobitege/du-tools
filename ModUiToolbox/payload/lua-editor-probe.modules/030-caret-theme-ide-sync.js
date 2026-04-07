@@ -2471,6 +2471,24 @@
     setInventoryInspectorCollapsed(inspector, collapsed);
   }
 
+  function clearInventoryInspectorInlineTheme(inspector) {
+    var nodes;
+    var i;
+    if (!inspector || !inspector.querySelectorAll) {
+      return;
+    }
+
+    nodes = inspector.querySelectorAll(".drilldownElementBody .label, .drilldownElementBody .element_label, .drilldownElementBody .string, .drilldown_element_talent .talent_groups_name_label");
+    for (i = 0; i < nodes.length; i += 1) {
+      var node = nodes[i];
+      if (!node.style || typeof node.style.removeProperty !== "function") {
+        continue;
+      }
+      node.style.removeProperty("color");
+      node.style.removeProperty("-webkit-text-fill-color");
+    }
+  }
+
   function applyInventoryInspectorInlineTheme(inspector) {
     var labelNodes;
     var resolvedMain;
@@ -2539,7 +2557,11 @@
       if (!isElementVisible(inspectors[i])) {
         continue;
       }
-      applyInventoryInspectorInlineTheme(inspectors[i]);
+      if (state.themeEnabled) {
+        applyInventoryInspectorInlineTheme(inspectors[i]);
+      } else {
+        clearInventoryInspectorInlineTheme(inspectors[i]);
+      }
     }
   }
 
@@ -2681,6 +2703,30 @@
     });
   }
 
+  function ensurePopupInventoryInspectorWindowState(inspector) {
+    var wm;
+    var windows;
+    var entry;
+    var i;
+    if (!inspector || !inspector.classList || !inspector.classList.contains("item_inspector_win")) {
+      return;
+    }
+    wm = window.windowsManager;
+    windows = wm && Array.isArray(wm.windows) ? wm.windows : null;
+    entry = null;
+    if (windows && windows.length) {
+      for (i = 0; i < windows.length; i += 1) {
+        if (windows[i] && windows[i].win === inspector) {
+          entry = windows[i];
+          break;
+        }
+      }
+    }
+    if (entry && entry.options && typeof entry.options.maxHeight === "number" && entry.options.maxHeight < 95) {
+      entry.options.maxHeight = 95;
+    }
+  }
+
   function resetInventoryInspectorWrapper(wrapper) {
     var header;
     var content;
@@ -2810,6 +2856,11 @@
       if (inspector.classList && inspector.classList.contains("item_inspector_win") && !isElementVisible(inspector)) {
         continue;
       }
+      ensurePopupInventoryInspectorWindowState(inspector);
+      if (!state.themeEnabled && inspector.classList && inspector.classList.contains("item_inspector_win")) {
+        resetInventoryInspectorWrapper(wrapper);
+        continue;
+      }
       if (!hasEnhanceableInventoryInspectorContent(inspector, wrapper, content, info)) {
         resetInventoryInspectorWrapper(wrapper);
         continue;
@@ -2866,7 +2917,6 @@
       }
 
       updateInventoryInspectorSummary(inspector, summary);
-      applyInventoryInspectorInlineTheme(inspector);
     }
   }
 
@@ -2926,10 +2976,8 @@
     state.inventoryThemeRootKeys = rootKeys.join("|");
     state.inventoryThemeRootVisible = true;
 
-    if (themeEnabled) {
-      ensureInventoryInspectorEnhancer(document);
-      applyInlineThemeToVisibleItemInspectors(document);
-    }
+    ensureInventoryInspectorEnhancer(document);
+    applyInlineThemeToVisibleItemInspectors(document);
 
     if (!needsRefresh) {
       return;
@@ -2945,11 +2993,8 @@
         setThemeRootActive(roots[i], themeEnabled && isElementVisible(roots[i]));
       }
       setInventoryHudLightActive(themeEnabled && !!theme && !!theme.isLight, root);
-      if (themeEnabled) {
-        ensureInventoryInspectorEnhancer(document);
-      } else {
-        teardownInventoryInspectorEnhancer(document);
-      }
+      ensureInventoryInspectorEnhancer(document);
+      applyInlineThemeToVisibleItemInspectors(document);
 
       state.inventoryThemeAppliedTheme = themeName;
       state.inventoryThemeAppliedEnabled = themeEnabled;

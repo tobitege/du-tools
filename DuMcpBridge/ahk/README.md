@@ -10,6 +10,7 @@ Current supported action:
 
 - `ctrl_l`: send explicit left-`Ctrl+L` (`LCtrl`) to the `Dual Universe` window to open the currently targeted element code editor (`lua_editor` or `screen_editor`)
 - `camera_move`: move the cursor to the center of the `Dual Universe` client area, then apply one relative camera move with explicit `--x`, `--y`, and `--settle-ms` values
+- `mouse_drag`: perform a real left-button drag between two client-relative points inside the `Dual Universe` client area with explicit `--start-x`, `--start-y`, `--end-x`, `--end-y`, `--duration-ms`, `--steps`, and `--settle-ms` values
 
 Important behavior note:
 
@@ -44,6 +45,7 @@ Example manual call:
 ```powershell
 AutoHotkey64.exe ".\ahk\du_bridge_input.ahk" ctrl_l --window-title "Dual Universe" --activate true
 AutoHotkey64.exe ".\ahk\du_bridge_input.ahk" camera_move --window-title "Dual Universe" --x -100 --y 120 --settle-ms 1000
+AutoHotkey64.exe ".\ahk\du_bridge_input.ahk" mouse_drag --window-title "Dual Universe" --start-x 1200 --start-y 720 --end-x 1200 --end-y 900 --duration-ms 260 --steps 20 --settle-ms 200
 ```
 
 For testing, AHK v2 is here:

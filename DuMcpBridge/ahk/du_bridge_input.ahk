@@ -38,6 +38,16 @@ EmitResult(result) {
         . ',"sendMode":"' . JsonEscape(result.sendMode) . '"'
         . ',"key":"' . JsonEscape(result.key) . '"'
         . ',"repeatCount":' . result.repeatCount
+        . ',"startX":' . result.startX
+        . ',"startY":' . result.startY
+        . ',"endX":' . result.endX
+        . ',"endY":' . result.endY
+        . ',"startScreenX":' . result.startScreenX
+        . ',"startScreenY":' . result.startScreenY
+        . ',"endScreenX":' . result.endScreenX
+        . ',"endScreenY":' . result.endScreenY
+        . ',"durationMs":' . result.durationMs
+        . ',"dragSteps":' . result.dragSteps
         . ',"error":"' . JsonEscape(result.error) . '"'
         . "}"
     StdOut(json)
@@ -89,6 +99,20 @@ GetClientCenterScreen(targetHwnd, &centerX, &centerY) {
     return true
 }
 
+GetClientPointScreen(targetHwnd, clientX, clientY, &screenX, &screenY) {
+    point := Buffer(8, 0)
+    NumPut("Int", Integer(clientX), point, 0)
+    NumPut("Int", Integer(clientY), point, 4)
+
+    if (!DllCall("ClientToScreen", "ptr", targetHwnd, "ptr", point, "Int")) {
+        return false
+    }
+
+    screenX := NumGet(point, 0, "Int")
+    screenY := NumGet(point, 4, "Int")
+    return true
+}
+
 FocusClientCenter(windowTitle, activateWindow := true) {
     result := {
         ok: false,
@@ -105,6 +129,16 @@ FocusClientCenter(windowTitle, activateWindow := true) {
         sendMode: "",
         key: "",
         repeatCount: 1,
+        startX: 0,
+        startY: 0,
+        endX: 0,
+        endY: 0,
+        startScreenX: 0,
+        startScreenY: 0,
+        endScreenX: 0,
+        endScreenY: 0,
+        durationMs: 0,
+        dragSteps: 0,
         error: ""
     }
 
@@ -162,6 +196,16 @@ SendCtrlL(windowTitle, activateWindow := true, sendEscapeFirst := false) {
         sendMode: "",
         key: "",
         repeatCount: 1,
+        startX: 0,
+        startY: 0,
+        endX: 0,
+        endY: 0,
+        startScreenX: 0,
+        startScreenY: 0,
+        endScreenX: 0,
+        endScreenY: 0,
+        durationMs: 0,
+        dragSteps: 0,
         error: ""
     }
 
@@ -266,6 +310,16 @@ SendNativeKey(windowTitle, keyName, repeatCount := 1, delayMs := 120, activateWi
         sendMode: "",
         key: keyName,
         repeatCount: repeatCount,
+        startX: 0,
+        startY: 0,
+        endX: 0,
+        endY: 0,
+        startScreenX: 0,
+        startScreenY: 0,
+        endScreenX: 0,
+        endScreenY: 0,
+        durationMs: 0,
+        dragSteps: 0,
         error: ""
     }
 
@@ -351,6 +405,113 @@ MoveCamera(windowTitle, moveX, moveY, settleMs := 400, activateWindow := true) {
     return result
 }
 
+DragMouseInClient(windowTitle, startX, startY, endX, endY, durationMs := 220, steps := 18, settleMs := 120, activateWindow := true) {
+    result := {
+        ok: false,
+        action: "mouse_drag",
+        windowTitle: windowTitle,
+        targetHwnd: "",
+        activeBefore: false,
+        activeAfter: false,
+        moveX: 0,
+        moveY: 0,
+        settleMs: settleMs,
+        cursorX: 0,
+        cursorY: 0,
+        sendMode: "",
+        key: "",
+        repeatCount: 1,
+        startX: Integer(startX),
+        startY: Integer(startY),
+        endX: Integer(endX),
+        endY: Integer(endY),
+        startScreenX: 0,
+        startScreenY: 0,
+        endScreenX: 0,
+        endScreenY: 0,
+        durationMs: Max(0, Integer(durationMs)),
+        dragSteps: Max(1, Integer(steps)),
+        error: ""
+    }
+
+    targetHwnd := WinExist(windowTitle)
+    if (!targetHwnd) {
+        result.error := "window_not_found"
+        return result
+    }
+
+    targetSpec := "ahk_id " . targetHwnd
+    result.targetHwnd := String(targetHwnd)
+    result.activeBefore := !!WinActive(targetSpec)
+
+    if (activateWindow) {
+        try {
+            WinActivate(targetSpec)
+            WinWaitActive(targetSpec, , 1)
+            Sleep(50)
+        } catch as err {
+            result.error := "activate_failed:" . err.Message
+            return result
+        }
+    }
+
+    result.activeAfter := !!WinActive(targetSpec)
+    if (!result.activeAfter) {
+        result.error := "window_not_active"
+        return result
+    }
+
+    if (!GetClientPointScreen(targetHwnd, result.startX, result.startY, &startScreenX, &startScreenY)) {
+        result.error := "start_client_point_lookup_failed"
+        return result
+    }
+    if (!GetClientPointScreen(targetHwnd, result.endX, result.endY, &endScreenX, &endScreenY)) {
+        result.error := "end_client_point_lookup_failed"
+        return result
+    }
+
+    result.startScreenX := startScreenX
+    result.startScreenY := startScreenY
+    result.endScreenX := endScreenX
+    result.endScreenY := endScreenY
+
+    DllCall("SetCursorPos", "Int", startScreenX, "Int", startScreenY)
+    result.cursorX := startScreenX
+    result.cursorY := startScreenY
+    Sleep(40)
+
+    DllCall("mouse_event", "UInt", 0x0002, "Int", 0, "Int", 0, "UInt", 0, "UPtr", 0)
+
+    perStepDelayMs := result.dragSteps > 0 ? Floor(result.durationMs / result.dragSteps) : 0
+    remainderMs := result.durationMs - (perStepDelayMs * result.dragSteps)
+
+    Loop result.dragSteps {
+        progress := A_Index / result.dragSteps
+        nextX := Round(startScreenX + ((endScreenX - startScreenX) * progress))
+        nextY := Round(startScreenY + ((endScreenY - startScreenY) * progress))
+        DllCall("SetCursorPos", "Int", nextX, "Int", nextY)
+        result.cursorX := nextX
+        result.cursorY := nextY
+        if (perStepDelayMs > 0) {
+            Sleep(perStepDelayMs)
+        }
+    }
+
+    if (remainderMs > 0) {
+        Sleep(remainderMs)
+    }
+
+    DllCall("mouse_event", "UInt", 0x0004, "Int", 0, "Int", 0, "UInt", 0, "UPtr", 0)
+    if (settleMs > 0) {
+        Sleep(settleMs)
+    }
+
+    result.sendMode := "set_cursor_pos_mouse_event_drag"
+    result.ok := true
+    result.error := ""
+    return result
+}
+
 Main() {
     action := A_Args.Length >= 1 ? String(A_Args[1]) : ""
     windowTitle := ReadOption("--window-title", "Dual Universe")
@@ -361,9 +522,15 @@ Main() {
     delayMs := Integer(ReadOption("--delay-ms", "120"))
     moveX := Integer(ReadOption("--x", "0"))
     moveY := Integer(ReadOption("--y", "0"))
+    startX := Integer(ReadOption("--start-x", "0"))
+    startY := Integer(ReadOption("--start-y", "0"))
+    endX := Integer(ReadOption("--end-x", "0"))
+    endY := Integer(ReadOption("--end-y", "0"))
+    durationMs := Integer(ReadOption("--duration-ms", "220"))
+    dragSteps := Integer(ReadOption("--steps", "18"))
     settleMs := Integer(ReadOption("--settle-ms", "400"))
 
-    if (action != "ctrl_l" && action != "send_key" && action != "camera_move") {
+    if (action != "ctrl_l" && action != "send_key" && action != "camera_move" && action != "mouse_drag") {
         EmitResult({
             ok: false,
             action: action,
@@ -379,6 +546,16 @@ Main() {
             sendMode: "",
             key: keyName,
             repeatCount: repeatCount,
+            startX: startX,
+            startY: startY,
+            endX: endX,
+            endY: endY,
+            startScreenX: 0,
+            startScreenY: 0,
+            endScreenX: 0,
+            endScreenY: 0,
+            durationMs: durationMs,
+            dragSteps: dragSteps,
             error: "unsupported_action"
         })
         ExitApp(64)
@@ -388,6 +565,8 @@ Main() {
         result := SendCtrlL(windowTitle, activateWindow, sendEscapeFirst)
     } else if (action = "camera_move") {
         result := MoveCamera(windowTitle, moveX, moveY, settleMs, activateWindow)
+    } else if (action = "mouse_drag") {
+        result := DragMouseInClient(windowTitle, startX, startY, endX, endY, durationMs, dragSteps, settleMs, activateWindow)
     } else {
         result := SendNativeKey(windowTitle, keyName, repeatCount, delayMs, activateWindow)
     }
