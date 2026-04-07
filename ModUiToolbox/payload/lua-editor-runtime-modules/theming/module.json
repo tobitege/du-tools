@@ -1,0 +1,10 @@
+{
+  "id": "theming",
+  "name": "Theming",
+  "description": "Global theme switcher and on/off state for the currently active themed UI.",
+  "version": "0.1.0",
+  "order": 10,
+  "defaultEnabled": true,
+  "entry": "module.js",
+  "config": {}
+}

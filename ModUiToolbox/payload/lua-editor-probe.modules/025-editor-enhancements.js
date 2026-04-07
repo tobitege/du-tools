@@ -645,19 +645,6 @@ function ensureLuaBufferSize() {
   sizeNode.setAttribute("data-count", String(code.length));
 }
 
-function ensureScreenThemeSwitcher(root) {
-  if (!root || !root.querySelector) {
-    return;
-  }
-
-  var header = root.querySelector(".header_block");
-  if (!header) {
-    return;
-  }
-
-  ensureSharedThemeSwitcher(header, "ModUiToolbox-screen-theme-dots", false);
-}
-
 function ensureScreenBufferSize(root) {
   if (!root || !root.querySelector) {
     return;
@@ -750,7 +737,6 @@ function ensureScreenEditorFacelift() {
   }
 
   setThemeRootActive(root, !!state.themeEnabled);
-  ensureScreenThemeSwitcher(root);
   ensureScreenIdeSyncButton(root);
   ensureScreenBufferSize(root);
   var screenPrefContextKey = contextKey || "__screen-visible__";

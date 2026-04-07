@@ -18,6 +18,7 @@
   var actionId = cfg.actionId || 900001;
   var dumpId = "lua-probe-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
   var luaEditorEnhancementModuleId = "lua-editor-enhancements";
+  var themingModuleId = "theming";
   var themeCatalogStorageKey = "ModUiToolbox.lua.theme-catalog.flowery-daisy.v2";
   var mcpResultChunkSize = 7000;
   var luaApplyCloseHoldDelayMs = 2000;
@@ -133,15 +134,23 @@
   }
 
   function loadThemePreference() {
-    var runtimeValue = getRuntimeModuleStateValue(luaEditorEnhancementModuleId, "theme", "");
+    var runtimeValue = "";
+    if (hasRuntimeModuleStateValue(themingModuleId, "theme")) {
+      runtimeValue = getRuntimeModuleStateValue(themingModuleId, "theme", "");
+    } else if (hasRuntimeModuleStateValue(luaEditorEnhancementModuleId, "theme")) {
+      runtimeValue = getRuntimeModuleStateValue(luaEditorEnhancementModuleId, "theme", "");
+    }
     return runtimeValue ? String(runtimeValue) : "";
   }
 
   function saveThemePreference(themeName) {
-    return persistRuntimeModuleStateValue(luaEditorEnhancementModuleId, "theme", String(themeName || ""));
+    return persistRuntimeModuleStateValue(themingModuleId, "theme", String(themeName || ""));
   }
 
   function loadThemeEnabledPreference() {
+    if (hasRuntimeModuleStateValue(themingModuleId, "themeEnabled")) {
+      return !!getRuntimeModuleStateValue(themingModuleId, "themeEnabled", true);
+    }
     if (!hasRuntimeModuleStateValue(luaEditorEnhancementModuleId, "themeEnabled")) {
       return true;
     }
@@ -149,7 +158,7 @@
   }
 
   function saveThemeEnabledPreference(enabled) {
-    return persistRuntimeModuleStateValue(luaEditorEnhancementModuleId, "themeEnabled", !!enabled);
+    return persistRuntimeModuleStateValue(themingModuleId, "themeEnabled", !!enabled);
   }
 
   function loadThemeCatalogCache() {
@@ -1659,6 +1668,12 @@
       + "#dpu_editor #ModUiToolbox-lua-theme-dots{"
       + "position:absolute;left:12px;top:50%;transform:translateY(-50%);"
       + "display:flex;gap:0;align-items:center;z-index:11;overflow:visible;}"
+      + "#ModUiToolbox-global-theme-host{"
+      + "position:fixed;left:0;top:0;z-index:2147482601;display:flex;align-items:center;overflow:visible;pointer-events:auto;"
+      + "padding:4px 6px;border-radius:9px;background:rgba(6,12,16,0.72);border:1px solid rgba(132,208,235,0.28);"
+      + "box-shadow:0 6px 18px rgba(0,0,0,0.35);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);}"
+      + "#ModUiToolbox-global-theme-dots{"
+      + "display:flex;gap:0;align-items:center;overflow:visible;}"
       + "#inventory .navigation_inputs_wrapper{"
       + "display:flex;align-items:center;justify-content:flex-end;gap:12px;overflow:visible;}"
       + "#inventory .navigation_inputs_wrapper .player_wallet_wrapper{"
@@ -1675,17 +1690,20 @@
       + "#ModUiToolbox-industry-panel-theme-switcher{"
       + "display:flex;gap:0;align-items:center;overflow:visible;}"
       + "#dpu_editor #ModUiToolbox-lua-theme-dots .lua-theme-dot,"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-dot,"
       + "#inventory #ModUiToolbox-inventory-theme-dots .lua-theme-dot,"
       + ".screen_content_editor_panel #ModUiToolbox-screen-theme-dots .lua-theme-dot,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-dot{"
       + "width:12px;height:12px;border-radius:999px;border:1px solid rgba(255,255,255,0.6);"
       + "padding:0;margin-right:4px;cursor:pointer;opacity:0.88;}"
       + "#dpu_editor #ModUiToolbox-lua-theme-dots .lua-theme-dot[data-active=\"1\"],"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-dot[data-active=\"1\"],"
       + "#inventory #ModUiToolbox-inventory-theme-dots .lua-theme-dot[data-active=\"1\"],"
       + ".screen_content_editor_panel #ModUiToolbox-screen-theme-dots .lua-theme-dot[data-active=\"1\"],"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-dot[data-active=\"1\"]{"
       + "transform:scale(1.1);opacity:1;box-shadow:0 0 0 1px rgba(0,0,0,0.55),0 0 8px rgba(255,255,255,0.35);}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-trigger,"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-catalog-trigger,"
       + "#inventory .modui-theme-switcher .lua-theme-catalog-trigger,"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-trigger,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-trigger{"
@@ -1695,11 +1713,13 @@
       + "border:1px solid rgba(255,255,255,0.22);background:rgba(0,0,0,0.28);"
       + "color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;font-family:Play,sans-serif;font-size:11px;font-weight:900;line-height:1;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-trigger:hover,"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-catalog-trigger:hover,"
       + "#inventory .modui-theme-switcher .lua-theme-catalog-trigger:hover,"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-trigger:hover,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-trigger:hover{"
       + "border-color:var(--lua-probe-border-hover) !important;color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;background:rgba(0,0,0,0.42);}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-off-button,"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-off-button,"
       + "#inventory .modui-theme-switcher .lua-theme-off-button,"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-off-button,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-off-button{"
@@ -1709,17 +1729,20 @@
       + "border:1px solid rgba(255,255,255,0.22);background:rgba(0,0,0,0.24);"
       + "color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;font-family:Play,sans-serif;font-size:10px;font-weight:900;line-height:1;text-transform:uppercase;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-off-button:hover,"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-off-button:hover,"
       + "#inventory .modui-theme-switcher .lua-theme-off-button:hover,"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-off-button:hover,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-off-button:hover{"
       + "border-color:var(--lua-probe-border-hover) !important;color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;background:rgba(0,0,0,0.38);}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-off-button[data-active=\"1\"],"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-off-button[data-active=\"1\"],"
       + "#inventory .modui-theme-switcher .lua-theme-off-button[data-active=\"1\"],"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-off-button[data-active=\"1\"],"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-off-button[data-active=\"1\"]{"
       + "border-color:rgba(255,185,185,0.92) !important;background:rgba(130,36,36,0.88) !important;color:#fff5f2 !important;"
       + "box-shadow:0 0 0 1px rgba(0,0,0,0.22),0 0 8px rgba(160,38,38,0.28);}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-panel,"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-catalog-panel,"
       + "#inventory .modui-theme-switcher .lua-theme-catalog-panel,"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-panel,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-panel{"
@@ -1729,19 +1752,23 @@
       + "#inventory #ModUiToolbox-inventory-theme-dots .lua-theme-catalog-panel{"
       + "left:0;right:auto;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-panel[data-open=\"1\"],"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-catalog-panel[data-open=\"1\"],"
       + "#inventory .modui-theme-switcher .lua-theme-catalog-panel[data-open=\"1\"],"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-panel[data-open=\"1\"],"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-panel[data-open=\"1\"]{display:block;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-status,"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-catalog-status,"
       + "#inventory .modui-theme-switcher .lua-theme-catalog-status,"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-status,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-status{"
       + "color:var(--lua-probe-text-dim) !important;font-family:Play,sans-serif;font-size:12px;font-weight:700;margin-bottom:8px;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-list,"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-catalog-list,"
       + "#inventory .modui-theme-switcher .lua-theme-catalog-list,"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-list,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-right:-6px;margin-bottom:-8px;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-item,"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-catalog-item,"
       + "#inventory .modui-theme-switcher .lua-theme-catalog-item,"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-item,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-item{"
@@ -1753,6 +1780,8 @@
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-item:focus,"
       + "#inventory .modui-theme-switcher .lua-theme-catalog-item:hover,"
       + "#inventory .modui-theme-switcher .lua-theme-catalog-item:focus,"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-catalog-item:hover,"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-catalog-item:focus,"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-item:hover,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-item:hover,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-item:focus{"
@@ -1760,16 +1789,19 @@
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-item:focus{"
       + "border-color:var(--lua-probe-border-hover) !important;background:var(--lua-probe-surface-row-alt) !important;color:var(--lua-probe-text-muted) !important;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-item[data-active=\"1\"],"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-catalog-item[data-active=\"1\"],"
       + "#inventory .modui-theme-switcher .lua-theme-catalog-item[data-active=\"1\"],"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-item[data-active=\"1\"],"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-item[data-active=\"1\"]{"
       + "border-color:var(--lua-probe-accent) !important;box-shadow:0 0 0 1px rgba(0,0,0,0.25) inset;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-swatch,"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-catalog-swatch,"
       + "#inventory .modui-theme-switcher .lua-theme-catalog-swatch,"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-swatch,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-swatch{"
       + "width:12px;height:12px;border-radius:999px;flex:0 0 12px;border:1px solid rgba(255,255,255,0.55);margin-right:8px;}"
       + "#dpu_editor .modui-theme-switcher .lua-theme-catalog-label,"
+      + "#ModUiToolbox-global-theme-dots .lua-theme-catalog-label,"
       + "#inventory .modui-theme-switcher .lua-theme-catalog-label,"
       + ".screen_content_editor_panel .modui-theme-switcher .lua-theme-catalog-label,"
       + "#ModUiToolbox-industry-panel-theme-switcher .lua-theme-catalog-label{"
@@ -4962,21 +4994,6 @@ function ensureSharedThemeSwitcher(hostNode, switcherId, applyActiveTheme) {
   return switcher;
 }
 
-function ensureThemeSwitcher() {
-  var root = document.getElementById("dpu_editor");
-  if (!root || !root.querySelector) {
-    return;
-  }
-
-  var header = root.querySelector(".editor_header .header_container");
-  if (!header) {
-    return;
-  }
-
-  ensureSharedThemeSwitcher(header, "ModUiToolbox-lua-theme-dots", false);
-  ensureLuaBufferSize();
-  applyTheme(state.activeTheme || getDefaultThemeName(), false);
-}
 function updateCaretToggleVisual() {
   var toggle = document.getElementById("ModUiToolbox-lua-caret-toggle");
   if (!toggle) {
@@ -5624,19 +5641,6 @@ function ensureLuaBufferSize() {
   sizeNode.setAttribute("data-count", String(code.length));
 }
 
-function ensureScreenThemeSwitcher(root) {
-  if (!root || !root.querySelector) {
-    return;
-  }
-
-  var header = root.querySelector(".header_block");
-  if (!header) {
-    return;
-  }
-
-  ensureSharedThemeSwitcher(header, "ModUiToolbox-screen-theme-dots", false);
-}
-
 function ensureScreenBufferSize(root) {
   if (!root || !root.querySelector) {
     return;
@@ -5729,7 +5733,6 @@ function ensureScreenEditorFacelift() {
   }
 
   setThemeRootActive(root, !!state.themeEnabled);
-  ensureScreenThemeSwitcher(root);
   ensureScreenIdeSyncButton(root);
   ensureScreenBufferSize(root);
   var screenPrefContextKey = contextKey || "__screen-visible__";
@@ -6476,25 +6479,6 @@ function ensureInventoryThemeStyle() {
     + cssText.split(lightRootSelector).join(rightLightRootSelector).split(rootSelector).join(rightRootSelector);
 }
 
-function ensureInventoryThemeSwitcher() {
-  var root = getInventoryThemeRoot();
-  var host;
-  if (!root || !root.querySelector || !isElementVisible(root)) {
-    return;
-  }
-
-  host = document.getElementById("ModUiToolbox-inventory-theme-host");
-  if (!host) {
-    host = document.createElement("div");
-    host.id = "ModUiToolbox-inventory-theme-host";
-  }
-  if (host.parentNode !== root) {
-    root.appendChild(host);
-  }
-
-  ensureSharedThemeSwitcher(host, "ModUiToolbox-inventory-theme-dots", false);
-}
-
 function getInventoryInspectorCollapsed(inspector) {
   var attrValue;
   if (inspector && typeof inspector.getAttribute === "function") {
@@ -7067,7 +7051,6 @@ function ensureInventoryThemeRoot() {
   try {
     state.inventoryThemeIgnoreMutationsUntil = Date.now() + 150;
     ensureInventoryThemeStyle();
-    ensureInventoryThemeSwitcher();
     for (i = 0; i < roots.length; i += 1) {
       refreshInventoryThemeAnnotations(roots[i]);
       setThemeRootActive(roots[i], themeEnabled && isElementVisible(roots[i]));
@@ -12630,7 +12613,6 @@ function ensureInventoryThemeRoot() {
     installFreshOpenViewportGuard();
     resetEditorViewportToTop();
 
-    ensureThemeSwitcher();
     ensureIdeSyncButton();
     ensureEditorSwitchHooks();
     ensureAutoClickObserver();
@@ -12673,7 +12655,6 @@ function ensureInventoryThemeRoot() {
       state.editorVisible = true;
       onEditorOpened();
     } else if (visible && state.editorVisible) {
-      ensureThemeSwitcher();
       ensureIdeSyncButton();
       ensureEditorSwitchHooks();
       ensureAutoClickObserver();
@@ -12905,10 +12886,7 @@ function ensureInventoryThemeRoot() {
 
   window.__UI_TOOLBOX_LUA_PROBE_UNINSTALL__ = uninstallProbe;
   window.__UI_TOOLBOX_LUA_PROBE_STATE__ = state;
-  state.luaEditorEnhancements = {
-    install: installLuaEditorEnhancements,
-    uninstall: uninstallLuaEditorEnhancements,
-    runMaintenance: runLuaEditorEnhancementMaintenance,
+  state.theming = {
     ensureThemeSwitcherHost: ensureSharedThemeSwitcher,
     applyTheme: applyTheme,
     setThemeEnabled: setThemeEnabled,
@@ -12923,6 +12901,11 @@ function ensureInventoryThemeRoot() {
       var theme = getThemeByName(state.activeTheme || getDefaultThemeName());
       return !!(theme && theme.isLight);
     }
+  };
+  state.luaEditorEnhancements = {
+    install: installLuaEditorEnhancements,
+    uninstall: uninstallLuaEditorEnhancements,
+    runMaintenance: runLuaEditorEnhancementMaintenance
   };
   try {
     var enhancementRecord = typeof getRuntimeModuleRecord === "function"

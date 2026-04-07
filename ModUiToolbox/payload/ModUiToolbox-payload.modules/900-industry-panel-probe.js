@@ -48,8 +48,6 @@
   var KEBAB_STYLE_ID = "ModUiToolbox-industry-panel-kebab-style";
   var KEBAB_BUTTON_ID = "ModUiToolbox-industry-panel-kebab-button";
   var KEBAB_PANEL_ID = "ModUiToolbox-industry-panel-kebab-panel";
-  var THEME_SWITCHER_HOST_ID = "ModUiToolbox-industry-panel-theme-switcher-host";
-  var THEME_SWITCHER_ID = "ModUiToolbox-industry-panel-theme-switcher";
   var TIME_LABEL_NODE_ID = "industryPanel_productionSubPanel_remainingTime";
   var LEGACY_TIME_LABEL_HELPER_NODE_ID = "ModUiToolbox-industry-panel-remaining-time-helper";
   var SHARED_TIME_PRECISION_KEY = "__uiToolboxIndustryPanelTimePrecisionUnits";
@@ -84,9 +82,9 @@
     return window.industryPanel;
   }
 
-  function getEnhancementApi() {
+  function getThemeApi() {
     var state = window.__UI_TOOLBOX_LUA_PROBE_STATE__;
-    return state && state.luaEditorEnhancements ? state.luaEditorEnhancements : null;
+    return state && state.theming ? state.theming : null;
   }
 
   function getProductionEnum(name, fallback) {
@@ -397,7 +395,6 @@
     removeManagedNode(KEBAB_BUTTON_ID);
     removeManagedNode(KEBAB_PANEL_ID);
     removeManagedNode(KEBAB_STYLE_ID);
-    removeManagedNode(THEME_SWITCHER_HOST_ID);
     clearIndustryThemeRootFlags();
   }
 
@@ -443,14 +440,11 @@
   }
 
   function syncIndustryThemeUi(panel) {
-    var api = getEnhancementApi();
+    var api = getThemeApi();
     var rootNode = getIndustryThemeAnchorRoot(panel);
-    var hostNode = document.getElementById(THEME_SWITCHER_HOST_ID);
     var activeThemeName;
-    var rect;
     var themeEnabled = !api || typeof api.isThemeEnabled !== "function" ? true : api.isThemeEnabled();
     if (!rootNode) {
-      removeManagedNode(THEME_SWITCHER_HOST_ID);
       clearIndustryThemeRootFlags();
       return false;
     }
@@ -462,27 +456,10 @@
       rootNode.removeAttribute("data-lua-probe-active");
     }
 
-    if (!hostNode) {
-      hostNode = document.createElement("div");
-      hostNode.id = THEME_SWITCHER_HOST_ID;
-      (document.body || document.documentElement).appendChild(hostNode);
-    }
-
-    hostNode.setAttribute("data-modui-theme-target", "1");
-
-    try {
-      rect = typeof rootNode.getBoundingClientRect === "function" ? rootNode.getBoundingClientRect() : null;
-      if (rect && hostNode.style) {
-        hostNode.style.left = Math.max(0, Math.round(rect.left + 52)) + "px";
-        hostNode.style.top = Math.max(4, Math.round(rect.top + 10)) + "px";
-      }
-    } catch (_ignoreThemeHostPosition) {}
-
-    if (!api || typeof api.ensureThemeSwitcherHost !== "function") {
+    if (!api) {
       return false;
     }
 
-    api.ensureThemeSwitcherHost(hostNode, THEME_SWITCHER_ID, false);
     activeThemeName = typeof api.getActiveThemeName === "function" ? api.getActiveThemeName() : null;
     if (typeof api.applyTheme === "function") {
       api.applyTheme(activeThemeName || "daisy-black", false);

@@ -367,18 +367,3 @@ function ensureSharedThemeSwitcher(hostNode, switcherId, applyActiveTheme) {
   return switcher;
 }
 
-function ensureThemeSwitcher() {
-  var root = document.getElementById("dpu_editor");
-  if (!root || !root.querySelector) {
-    return;
-  }
-
-  var header = root.querySelector(".editor_header .header_container");
-  if (!header) {
-    return;
-  }
-
-  ensureSharedThemeSwitcher(header, "ModUiToolbox-lua-theme-dots", false);
-  ensureLuaBufferSize();
-  applyTheme(state.activeTheme || getDefaultThemeName(), false);
-}

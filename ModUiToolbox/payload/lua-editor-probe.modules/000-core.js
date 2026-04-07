@@ -15,6 +15,7 @@
   var actionId = cfg.actionId || 900001;
   var dumpId = "lua-probe-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
   var luaEditorEnhancementModuleId = "lua-editor-enhancements";
+  var themingModuleId = "theming";
   var themeCatalogStorageKey = "ModUiToolbox.lua.theme-catalog.flowery-daisy.v2";
   var mcpResultChunkSize = 7000;
   var luaApplyCloseHoldDelayMs = 2000;
@@ -130,15 +131,23 @@
   }
 
   function loadThemePreference() {
-    var runtimeValue = getRuntimeModuleStateValue(luaEditorEnhancementModuleId, "theme", "");
+    var runtimeValue = "";
+    if (hasRuntimeModuleStateValue(themingModuleId, "theme")) {
+      runtimeValue = getRuntimeModuleStateValue(themingModuleId, "theme", "");
+    } else if (hasRuntimeModuleStateValue(luaEditorEnhancementModuleId, "theme")) {
+      runtimeValue = getRuntimeModuleStateValue(luaEditorEnhancementModuleId, "theme", "");
+    }
     return runtimeValue ? String(runtimeValue) : "";
   }
 
   function saveThemePreference(themeName) {
-    return persistRuntimeModuleStateValue(luaEditorEnhancementModuleId, "theme", String(themeName || ""));
+    return persistRuntimeModuleStateValue(themingModuleId, "theme", String(themeName || ""));
   }
 
   function loadThemeEnabledPreference() {
+    if (hasRuntimeModuleStateValue(themingModuleId, "themeEnabled")) {
+      return !!getRuntimeModuleStateValue(themingModuleId, "themeEnabled", true);
+    }
     if (!hasRuntimeModuleStateValue(luaEditorEnhancementModuleId, "themeEnabled")) {
       return true;
     }
@@ -146,7 +155,7 @@
   }
 
   function saveThemeEnabledPreference(enabled) {
-    return persistRuntimeModuleStateValue(luaEditorEnhancementModuleId, "themeEnabled", !!enabled);
+    return persistRuntimeModuleStateValue(themingModuleId, "themeEnabled", !!enabled);
   }
 
   function loadThemeCatalogCache() {

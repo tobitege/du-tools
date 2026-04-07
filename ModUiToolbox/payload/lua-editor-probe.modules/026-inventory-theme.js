@@ -718,25 +718,6 @@ function ensureInventoryThemeStyle() {
     + cssText.split(lightRootSelector).join(rightLightRootSelector).split(rootSelector).join(rightRootSelector);
 }
 
-function ensureInventoryThemeSwitcher() {
-  var root = getInventoryThemeRoot();
-  var host;
-  if (!root || !root.querySelector || !isElementVisible(root)) {
-    return;
-  }
-
-  host = document.getElementById("ModUiToolbox-inventory-theme-host");
-  if (!host) {
-    host = document.createElement("div");
-    host.id = "ModUiToolbox-inventory-theme-host";
-  }
-  if (host.parentNode !== root) {
-    root.appendChild(host);
-  }
-
-  ensureSharedThemeSwitcher(host, "ModUiToolbox-inventory-theme-dots", false);
-}
-
 function getInventoryInspectorCollapsed(inspector) {
   var attrValue;
   if (inspector && typeof inspector.getAttribute === "function") {
@@ -1309,7 +1290,6 @@ function ensureInventoryThemeRoot() {
   try {
     state.inventoryThemeIgnoreMutationsUntil = Date.now() + 150;
     ensureInventoryThemeStyle();
-    ensureInventoryThemeSwitcher();
     for (i = 0; i < roots.length; i += 1) {
       refreshInventoryThemeAnnotations(roots[i]);
       setThemeRootActive(roots[i], themeEnabled && isElementVisible(roots[i]));

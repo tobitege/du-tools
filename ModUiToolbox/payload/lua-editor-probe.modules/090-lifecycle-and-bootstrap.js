@@ -33,7 +33,6 @@
     installFreshOpenViewportGuard();
     resetEditorViewportToTop();
 
-    ensureThemeSwitcher();
     ensureIdeSyncButton();
     ensureEditorSwitchHooks();
     ensureAutoClickObserver();
@@ -76,7 +75,6 @@
       state.editorVisible = true;
       onEditorOpened();
     } else if (visible && state.editorVisible) {
-      ensureThemeSwitcher();
       ensureIdeSyncButton();
       ensureEditorSwitchHooks();
       ensureAutoClickObserver();
@@ -308,10 +306,7 @@
 
   window.__UI_TOOLBOX_LUA_PROBE_UNINSTALL__ = uninstallProbe;
   window.__UI_TOOLBOX_LUA_PROBE_STATE__ = state;
-  state.luaEditorEnhancements = {
-    install: installLuaEditorEnhancements,
-    uninstall: uninstallLuaEditorEnhancements,
-    runMaintenance: runLuaEditorEnhancementMaintenance,
+  state.theming = {
     ensureThemeSwitcherHost: ensureSharedThemeSwitcher,
     applyTheme: applyTheme,
     setThemeEnabled: setThemeEnabled,
@@ -326,6 +321,11 @@
       var theme = getThemeByName(state.activeTheme || getDefaultThemeName());
       return !!(theme && theme.isLight);
     }
+  };
+  state.luaEditorEnhancements = {
+    install: installLuaEditorEnhancements,
+    uninstall: uninstallLuaEditorEnhancements,
+    runMaintenance: runLuaEditorEnhancementMaintenance
   };
   try {
     var enhancementRecord = typeof getRuntimeModuleRecord === "function"
