@@ -2594,6 +2594,14 @@
       return true;
     }
 
+    if (mutation.type === "characterData") {
+      target = mutation.target && mutation.target.parentNode ? mutation.target.parentNode : mutation.target || null;
+      if (target && target.closest && target.closest(".modui-inventory-inspector-summary, .modui-inventory-inspector-top-panel")) {
+        return false;
+      }
+      return true;
+    }
+
     return !!(
       (mutation.addedNodes && mutation.addedNodes.length) ||
       (mutation.removedNodes && mutation.removedNodes.length)
@@ -2633,7 +2641,8 @@
     observer.observe(root, {
       childList: true,
       subtree: true,
-      attributes: true
+      attributes: true,
+      characterData: true
     });
 
     if (key) {
@@ -2781,7 +2790,7 @@
       var buttonHost;
       var topPanel;
 
-      if (!isElementVisible(inspector) || !inspector.querySelector) {
+      if (!inspector.querySelector) {
         continue;
       }
 
@@ -2794,6 +2803,11 @@
       content = wrapper ? wrapper.querySelector(".content_wrapper") : null;
       info = content ? content.querySelector(".item_informations_wrapper") : null;
       if (!wrapper || !header || !content || !info) {
+        continue;
+      }
+      // Embedded inspectors can preload content while hidden in single-view mode.
+      // Prepare them early so the summary/toggle is already there when that content is reused.
+      if (inspector.classList && inspector.classList.contains("item_inspector_win") && !isElementVisible(inspector)) {
         continue;
       }
       if (!hasEnhanceableInventoryInspectorContent(inspector, wrapper, content, info)) {
@@ -2911,6 +2925,11 @@
     state.inventoryThemeRootNode = root;
     state.inventoryThemeRootKeys = rootKeys.join("|");
     state.inventoryThemeRootVisible = true;
+
+    if (themeEnabled) {
+      ensureInventoryInspectorEnhancer(document);
+      applyInlineThemeToVisibleItemInspectors(document);
+    }
 
     if (!needsRefresh) {
       return;
