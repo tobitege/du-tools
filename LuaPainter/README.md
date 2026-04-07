@@ -166,11 +166,11 @@ More harness details are in `web/README.md`.
 | `js/modules/083-screen-commands.js` | Shared screen draw-command normalization for export/runtime parity |
 | `js/modules/085-ide-export.js` | Generated Lua export for board/screen editors |
 | `js/modules/090-databank-sync.js` | In-game save/load integration |
-| `e2e_testing.md` | Full local + live end-to-end validation runbook |
-| `render-shape-snippet-plan.md` | Snippet-catalog roadmap for expanding primitive and effect coverage |
 | `js/modules/100-file-sync.web.js` | Web-only file/export helpers |
 | `js/modules/110-undo-redo.js` | History stack |
 | `js/modules/120-dialogs.js` | Dialogs and confirmations |
+| `e2e_testing.md` | Full local + live end-to-end validation runbook |
+| `render-shape-snippet-plan.md` | Snippet-catalog roadmap for expanding primitive and effect coverage |
 | `scripts/build.ps1` | Bundle builder (used by `publish.ps1`) |
 | `scripts/publish.ps1` | Build web + ingame and publish runtime module |
 | `web/harness.js` | Browser harness bootstrap |

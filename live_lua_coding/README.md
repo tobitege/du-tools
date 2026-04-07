@@ -24,7 +24,6 @@ Concrete demos now live under `live_lua_coding/examples/`.
 
 - `examples/form_editor/` — First example. Screen-side form editor where a board restores persisted layout state, renders a reduced screen script, and accepts move or resize deltas back from the screen.
 - `examples/form_editor_v2/` — Simplified form editor workflow using a library-onStart pattern.
-- `LuaPainter/` — **Lua Painter**: an in-game layout painter delivered as an optional ModUiToolbox runtime plugin. Users paint shapes visually, save layouts on a programming board, and export generated Lua/RenderScript for screens and signs. See section 4A below.
 
 That split keeps the root folder reusable for future examples without tying every workflow note to one specific demo.
 
@@ -511,50 +510,6 @@ Second example in `live_lua_coding/examples/form_editor_v2/`:
   Library-slot onStart entry point.
 - `ScreenLayoutEditor.lua`
   Shared ScreenLayoutEditor module.
-
-### 4A. Lua Painter — `LuaPainter/`
-
-This example is an in-game Lua Painter for Dual Universe.
-
-The actual product is not the browser harness. The actual product is an optional runtime plugin injected through the ModUiToolbox helper flow. Once injected, it can be enabled or disabled from the special kebab menu in the in-game mod UI.
-
-Purpose:
-
-- paint shapes visually onto a layout canvas
-- edit and arrange those shapes in-game
-- save the layout on a programming board
-- generate/export Lua-based RenderScript for linked screens and signs
-
-Current structure:
-
-- `js/modules/` — editor source modules
-- `js/assets/` — CSS
-- `board/` — programming board Lua files
-- `screen/` — screen runtime Lua
-- `scripts/publish.ps1` — build web + ingame bundles and publish into ModUiToolbox runtime modules (`build.ps1` is the internal bundle step)
-- `web/` — browser-only development and test harness
-
-Important editor modules:
-
-- `000-core.js` — app bootstrap and shared state
-- `020-editor-shell.js` — main editor UI
-- `030-canvas-renderer.js` — preview rendering
-- `040-tool-handlers.js` — shape creation tools
-- `050-selection-manager.js` — selection, drag, resize, grouping
-- `085-ide-export.js` — generated board/screen export
-- `090-databank-sync.js` — in-game save/load integration
-
-Build and publish:
-
-```powershell
-pwsh -File .\LuaPainter\scripts\publish.ps1
-```
-
-The `web/` folder is only for faster local iteration and Playwright coverage. It is useful, but it is not the shipped workflow.
-
-Use tracked repo files from the example you are actively editing as the source for editor push workflows.
-For the currently documented example, that usually means files in `live_lua_coding/examples/form_editor/`.
-Do not use temporary untracked files as the normal long-term workflow.
 
 ## 5. Client State Model
 
@@ -1266,7 +1221,7 @@ Action:
 - [Client Pixel Live Tests](du-client-pixel-live-tests.md)
 - [Camera Steering Tests](du-camera-steering-tests.md)
 - [DU Visual Subagent Notes](../du-visual-subagent.md)
-- [HUD Editor Plan](LuaPainter/hud-editor.md)
+- [LuaPainter](LuaPainter/README.md)
 
 ## 18. Maintaining The Tracked Live Snapshots
 
