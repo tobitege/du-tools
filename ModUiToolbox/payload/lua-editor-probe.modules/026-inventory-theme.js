@@ -13,7 +13,8 @@ function getInventoryThemeRoots() {
   var roots = [];
   var candidates = [
     document.getElementById("inventory"),
-    document.getElementById("containerPanel_view")
+    document.getElementById("containerPanel_view"),
+    document.getElementById("industryPanel_recipeBankSubPanel_wrapper")
   ];
   for (var i = 0; i < candidates.length; i += 1) {
     var root = candidates[i];
@@ -101,6 +102,8 @@ function ensureInventoryThemeStyle() {
   var lightRootSelector = "#inventory[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"]";
   var rightRootSelector = "#containerPanel_view[data-lua-probe-active=\"1\"]";
   var rightLightRootSelector = "#containerPanel_view[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"]";
+  var recipeBankRootSelector = "#industryPanel_recipeBankSubPanel_wrapper[data-lua-probe-active=\"1\"]";
+  var recipeBankLightRootSelector = "#industryPanel_recipeBankSubPanel_wrapper[data-lua-probe-active=\"1\"][data-lua-probe-theme-light=\"1\"]";
   var popupInspectorRootSelector = "body[data-lua-probe-active=\"1\"] .basic_window.item_inspector_win";
   var inspectorCollapsedHintSelectors = [
     ".item_informations_wrapper > .item_datatable > .blueprint_fields > .warning",
@@ -715,7 +718,8 @@ function ensureInventoryThemeStyle() {
     + lightRootSelector + " .secondary_toolbar_wrapper svg.icon_button.disabled use{"
     + "fill:var(--lua-probe-btn-disabled-color) !important;color:var(--lua-probe-btn-disabled-color) !important;}";
   style.textContent = cssText
-    + cssText.split(lightRootSelector).join(rightLightRootSelector).split(rootSelector).join(rightRootSelector);
+    + cssText.split(lightRootSelector).join(rightLightRootSelector).split(rootSelector).join(rightRootSelector)
+    + cssText.split(lightRootSelector).join(recipeBankLightRootSelector).split(rootSelector).join(recipeBankRootSelector);
 }
 
 function getInventoryInspectorCollapsed(inspector) {

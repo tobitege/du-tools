@@ -4,6 +4,10 @@ function (ctx) {
   var HOST_ID = "ModUiToolbox-global-theme-host";
   var SWITCHER_ID = "ModUiToolbox-global-theme-dots";
   var RUNTIME_BUTTON_ID = "ModUiToolbox-runtime-module-button";
+  var lastThemeName = "";
+  var lastThemeEnabled = null;
+  var lastLeft = "";
+  var lastTop = "";
 
   function getThemeApi() {
     var state = window.__UI_TOOLBOX_LUA_PROBE_STATE__;
@@ -27,12 +31,28 @@ function (ctx) {
     return host;
   }
 
+  function setHostPosition(host, left, top) {
+    if (!host || !host.style) {
+      return;
+    }
+    if (left !== lastLeft) {
+      host.style.left = left;
+      lastLeft = left;
+    }
+    if (top !== lastTop) {
+      host.style.top = top;
+      lastTop = top;
+    }
+  }
+
   function syncThemeUi() {
     var api = getThemeApi();
     var host = ensureHost();
     var button = document.getElementById(RUNTIME_BUTTON_ID);
     var rect;
     var activeThemeName;
+    var themeEnabled;
+    var switcherMissing;
 
     if (!api || !host) {
       return false;
@@ -49,20 +69,32 @@ function (ctx) {
       rect = button && typeof button.getBoundingClientRect === "function"
         ? button.getBoundingClientRect()
         : null;
-      if (rect && host.style) {
-        host.style.left = Math.max(0, Math.round(rect.right + 8)) + "px";
-        host.style.top = Math.max(0, Math.round(rect.top + 3)) + "px";
-      } else if (host.style) {
-        host.style.left = "52px";
-        host.style.top = "13px";
+      if (rect) {
+        setHostPosition(
+          host,
+          Math.max(0, Math.round(rect.right + 8)) + "px",
+          Math.max(0, Math.round(rect.top + 3)) + "px"
+        );
+      } else {
+        setHostPosition(host, "52px", "13px");
       }
     } catch (_ignoreThemeHostPosition) {}
 
-    api.ensureThemeSwitcherHost(host, SWITCHER_ID, false);
     activeThemeName = typeof api.getActiveThemeName === "function" ? api.getActiveThemeName() : null;
-    if (typeof api.applyTheme === "function") {
+    themeEnabled = typeof api.isThemeEnabled === "function" ? !!api.isThemeEnabled() : true;
+    switcherMissing = !document.getElementById(SWITCHER_ID);
+
+    if (switcherMissing || themeEnabled !== lastThemeEnabled || activeThemeName !== lastThemeName) {
+      api.ensureThemeSwitcherHost(host, SWITCHER_ID, false);
+    }
+
+    if (themeEnabled && typeof api.applyTheme === "function" &&
+        (themeEnabled !== lastThemeEnabled || activeThemeName !== lastThemeName)) {
       api.applyTheme(activeThemeName || "daisy-black", false);
     }
+
+    lastThemeEnabled = themeEnabled;
+    lastThemeName = activeThemeName || "daisy-black";
     return true;
   }
 

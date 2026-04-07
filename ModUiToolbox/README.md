@@ -53,8 +53,8 @@ For normal AI assistant, MCP-driven Lua or screen editor work:
 4. Make sure you installed and activated the `DuMcpBridge` MCP server in your AI-capable IDE, like Cursor, OpenCode, VS Code etc.
 5. In game, right click any programming board or screen and open the right-click context menu, hover over "Mod: UI Toolbox" and click "Inject LUA editor probe".
 6. In top-left corner a kebab menu button appears, hit TAB to go into mouse mode and click on it.
-7. By default it shows the published runtime-module toggles; enable the editor enhancements or any other extras you want.
-8. If editor enhancements are active, open the target editor in-game, like of a programming board or screen, and you should see the shared theme switcher and other tweaks.
+7. By default it shows the published runtime-module toggles; enable `Theming`, the editor enhancements, or any other extras you want.
+8. If `Theming` is enabled, the global theme controls appear beside the top-left runtime-module kebab. If editor enhancements are active, opening a programming board or screen editor also shows the editor QoL tweaks on the currently active themed UI.
 9. Use the MCP tools from outside the game. `ModUiToolbox` is the part that receives those commands in the game and sends the results back out.
 
 For live IDE sync:
@@ -103,7 +103,7 @@ If you only remember one thing, remember this: `ModUiToolbox` is the in-game tra
 - `payload/lua-editor-probe.js`: composed Lua probe payload (generated from modules)
 - `payload/lua-editor-probe.build.json`: fingerprint from `build-lua-probe.ps1` (`contentSha256Short` matches the chat hash); **embedded** in the DLL (LogicalName `lua-editor-probe.build.json`) and mirrored under `lua-editor-probe.modules/` for publishes
 - `payload/lua-editor-runtime-modules/`: separately discovered runtime modules shown in the Lua probe kebab menu. This is the second extension layer: add a new module directory with `module.json` + entry script, publish it to `payload-overrides`, and it becomes available live without replacing the mod DLL.
-  Some modules, such as `industry-panel`, reuse shared persisted state from other payload surfaces instead of keeping a separate parallel settings system.
+  Some modules, such as `industry-panel`, consume shared persisted state from `theming` instead of keeping a separate parallel settings system.
 - `payload/theme-imports/`: optional theme catalog imports that are also published into runtime overrides for live probe usage
 - `tools/build-lua-probe.ps1`: compose `lua-editor-probe.modules` into `payload/lua-editor-probe.js` (injects outer IIFE + `"use strict"`; module sources omit the wrapper so IDEs can lint them). **Important:** this does **not** copy anything into `tmp/ui-dumps/payload-overrides`.
 - `tools/publish-extractor-payload.ps1`: publish the base extractor payload plus additive extractor modules to `payload-overrides\ModUiToolbox-payload.override.js` and `payload-overrides\ModUiToolbox-payload.modules\`
@@ -222,10 +222,10 @@ Current additive module:
   - can switch production mode to `Run`, `Make`, or `Maintain`
   - can set `Make` / `Maintain` values through payload config
   - can show an optional centered `Industry Helper` button while the industry panel is visible
-  - can surface the shared theme switcher above the top-left of the industry page while the panel is visible
+  - consumes the shared global theming state while the panel is visible
   - uses the persisted `industry-panel` runtime-module toggle when `industryPanelKebabEnabled` is not set explicitly
   - uses the persisted `industry-panel` runtime-module `timePrecisionUnits` state when `industryPanelTimePrecisionUnits` is not set explicitly
-  - consumes the shared `lua-editor-enhancements` theme selection and theme on/off state rather than keeping industry-only theme preferences
+  - consumes the shared `theming` runtime-module theme selection and theme on/off state rather than keeping industry-only theme preferences
   - can press the live `Start`, `Finish & stop`, and `Stop` buttons
 
 Supported `industry_panel_probe` payload config keys:
@@ -261,15 +261,16 @@ Runtime-module relationship:
   - `2-unit time display`
   - `Run`, `Make`, `Maintain`
   - `Start`, `Finish & stop`, `Stop`
-- While the helper is enabled, the same shared theme switcher used by the Lua editor and screen editor stays available near the top-left of the industry page across the industry tabs.
-- That switcher currently provides:
-  - shortcut dots for `daisy-black`, `daisy-emerald`, and `daisy-smooth`
-  - `...` to open the full Daisy theme catalog
-  - `Off` to disable theming without losing the last selected theme
+- While the helper is enabled, the industry panel consumes the same shared theme state as the Lua editor, screen editor, and other themed surfaces.
+- The visible theme controls are global rather than industry-local:
+  - they sit directly right of the runtime-module kebab
+  - they provide shortcut dots for `daisy-black`, `daisy-emerald`, and `daisy-smooth`
+  - `...` opens the full Daisy theme catalog
+  - `Off` disables theming without losing the last selected theme
 - The runtime module persists both:
   - whether the helper is enabled at all
   - the last chosen `timePrecisionUnits` value
-- Theme selection and theme enabled/disabled state are shared with `lua-editor-enhancements`, so Lua editor, screen editor, and industry panel stay aligned.
+- Theme selection and theme enabled/disabled state are owned by the `theming` runtime module, so Lua editor, screen editor, industry panel, and inventory surfaces stay aligned.
 - The extractor-side `industry_panel_probe` consumes that persisted state so bridge-driven panel control and the visible helper stay in sync.
 - The feature is intentionally scoped to the industry panel UI. It does not add outer mod-menu actions.
 
@@ -304,20 +305,23 @@ Probe override resolution order on each inject:
 - **`build-lua-probe.ps1`** wraps the concatenated manifest body with the same preamble/postamble as **`ModUIToolbox.ResolveRuntimeModuleScript`** (`WrappedModuleScriptPreamble` / `WrappedModuleScriptPostamble` in `ModUIToolbox.cs`). If you change one, keep the other in sync.
 - Without that wrapper, runtime **module override** mode would inject invalid JS (illegal top-level `return`).
 
-### Lua editor themes & footer buttons (probe UI)
+### Global theming controls & themed surfaces
 
-- **Three shortcut dots** in the title/header bar switch to **daisy-black**, **daisy-emerald**, and **daisy-smooth**. If no user theme preference exists yet, the default shortcut theme is `daisy-black`.
+- The runtime module `theming` owns the visible theme controls.
+- When `theming` is enabled, the controls appear directly right of the runtime-module kebab in the top-left HUD and are wrapped in a dimmed shared background for readability.
+- **Three shortcut dots** switch to **daisy-black**, **daisy-emerald**, and **daisy-smooth**. If no user theme preference exists yet, the default shortcut theme is `daisy-black`.
 - **`...`** opens the full Daisy theme catalog.
 - **`Off`** disables theming without clearing the last selected theme, so users can quickly switch the shared themed styling on and off.
-- Those controls drive `--lua-probe-*` CSS variables on `#dpu_editor` (surfaces, borders, CodeMirror accents, etc.); see `000-core.js` (`colorThemes`), `023-theme-core.js` (`applyTheme` and theme derivation), `024-theme-ui.js` (theme switcher/catalog UI), and `010-context-and-viewport.js` (injected overrides).
+- Disabling the `theming` runtime module hides those controls and also forces shared theming off.
+- Those controls drive shared `--lua-probe-*` CSS variables on the currently active themed UI; see `000-core.js` (`colorThemes`), `023-theme-core.js` (`applyTheme` and theme derivation), `024-theme-ui.js` (theme switcher/catalog UI), and `010-context-and-viewport.js` (injected overrides).
 - **`lua_theme_changed`** packets include `theme`, `label`, `accent`, `header`, `caretBg`, `surfaceMain` (and related vars are applied inline on the editor root).
 - **APPLY / CANCEL** use theme-specific gradients and 3D shadows (`btnApply*`, `btnCancel*` tokens per preset) so they stay distinct from vanilla DU chrome while matching the active theme.
-- The visible `screen_editor` now reuses the same theme token set and the same shortcut dots / catalog / `Off` controls, so both editor UIs stay visually aligned without moving any UI logic into the MCP server.
+- The visible `screen_editor` reuses the same shared theme token set as the Lua editor, so both editor UIs stay visually aligned without moving any UI logic into the MCP server.
 - The `screen_editor` content header panel (`sub_title`, wrap/font controls, mode switch block) is now themed as well, so the whole top control area matches the active probe theme instead of keeping the vanilla DU look.
-- The industry panel uses the same shared switcher and theme state when the `industry-panel` runtime module is enabled, so all three UI surfaces stay consistent.
+- The industry panel and inventory views consume the same shared theme state when their relevant runtime/module paths are active, so the visible surfaces stay consistent.
 - The recipe-bank inventory view inside the industry panel now consumes the same shared tokens for its shell, header, toolbars, item grid, footer, and filter flyout instead of keeping the vanilla DU chrome in those sections.
 - Shared runtime theme objects now expose `isLight`, and imported Daisy palettes carry compact `il` metadata, so light-theme contrast fixes can stay in the shared theme layer instead of relying on one-off selector guesses.
-- For visible spacing between the shortcut dots, `...`, and `Off`, prefer explicit margins on the controls instead of relying on flex `gap`; the embedded DU browser may not render `gap` changes reliably on that switcher row.
+- For visible spacing between the shortcut dots, `...`, and `Off`, prefer explicit margins on the controls instead of relying on flex `gap`; the embedded DU browser may not render `gap` changes reliably on that global switcher row.
 - For live HUD and inventory probe CSS, do not rely on `:is(...)` selector support. The embedded DU browser used on the live HUD path does not support `:is(...)`, so root-scoped theme rules must use explicit selectors or duplicated blocks instead.
 - The visible `screen_editor` now also gets its own `IDE Sync` button in the top control row; it uses the same chunked packet family as the Lua editor, but exports with `targetKind = screen_editor`.
 
@@ -341,6 +345,8 @@ Files to inspect first:
   This is the main shared theme translation layer. Inspect `resolveThemeLightFlag`, `normalizeThemeDefinition`, `buildThemeFromCompact`, and `applyTheme`.
 - `payload/lua-editor-probe.modules/024-theme-ui.js`
   This holds the shared theme switcher and catalog UI that drives the shared runtime theme state.
+- `payload/lua-editor-runtime-modules/theming/module.js`
+  This owns the global theme-control host beside the runtime-module kebab and the enable/disable lifecycle for visible theming controls.
 - `payload/lua-editor-probe.modules/010-context-and-viewport.js`
   This is where surface-specific CSS consumes the shared `--lua-probe-*` tokens. Only use this after confirming the runtime theme object is already producing sensible colors.
 
@@ -359,7 +365,7 @@ Methodology:
 - Do not guess selectors when a live UI dump is available.
   Use the local extracted HTML and stylesheet dumps as the source of truth for wrapper hierarchy and actual class names before writing overrides.
 - For switcher spacing in DU’s embedded browser, prefer explicit margins over flex `gap`.
-  The browser may not render `gap` changes reliably on the shared theme-switcher row.
+  The browser may not render `gap` changes reliably on the global theme-switcher row.
 
 Success criteria:
 
@@ -373,7 +379,7 @@ After each edit:
 2. In-game, open element context menu.
 3. Click `UI Toolbox\Inject LUA editor probe`.
 4. Re-open or refocus Lua editor (`Edit Lua script (Ctrl + L)`).
-5. Confirm probe is active (probe-owned controls like the runtime-module kebab, theme dots, or `IDE Sync` are visible).
+5. Confirm probe is active (probe-owned controls like the runtime-module kebab, the global theme controls, or `IDE Sync` are visible).
 
 No DLL rebuild needed for:
 

@@ -7,7 +7,7 @@ Current modules in this folder:
 - `example-module`
   - Tiny reference module used to verify runtime discovery, toggling, cleanup, and persistence.
   - It shows a small badge in the HUD when enabled.
-- `Lua Painter: Off`
+- `lua-painter`
   - Lua Painter HUD layout editor.
   - Adds the Lua Painter toggle button and the editor UI for building layouts.
   - This is the main WYSIWYG-style editor experiment moved out of the probe core.
@@ -17,15 +17,17 @@ Current modules in this folder:
 - `industry-panel`
   - Adds the centered `Industry Helper` button when the industry panel is visible.
   - The helper opens quick controls for time precision, production mode, and the live `Start` / `Finish & stop` / `Stop` buttons.
-  - While the helper is enabled, the shared theme switcher also stays available near the top-left of the industry page across the industry tabs.
-  - That shared switcher uses shortcut dots for `daisy-black`, `daisy-emerald`, and `daisy-smooth`, plus `...` for the full catalog and `Off` to disable theming without clearing the selected theme.
   - Persists the helper toggle plus its `timePrecisionUnits` preference for the extractor-side industry panel probe.
-  - Reuses the shared `lua-editor-enhancements` theme selection and theme on/off state instead of storing separate industry-only theme preferences.
+  - Reuses the shared `theming` runtime-module theme selection and theme on/off state instead of storing separate industry-only theme preferences.
   - With the current helper UI, `2-unit time display` rewrites the original `Time remaining` label to `min` + `s` while at least `60` seconds remain, then falls back to the game's original label below that threshold.
+- `theming`
+  - Owns the global theme controls shown beside the runtime-module kebab.
+  - Provides shortcut dots for `daisy-black`, `daisy-emerald`, and `daisy-smooth`, plus `...` for the full catalog and `Off` to disable theming without clearing the selected theme.
+  - When disabled, it removes the visible controls and forces shared theming off.
+  - Persists the shared theme selection and on/off state consumed by Lua editor, screen editor, industry panel, inventory views, and other themed surfaces.
 - `lua-editor-enhancements`
   - Restores the full Lua editor enhancement layer that used to be built into core.
   - Covers the Lua editor and screen editor QoL features such as:
-    - shared theme switcher with three shortcut dots, a full catalog button, and an `Off` button
     - quick menu helpers/actions
     - caret highlight toggle
     - IDE sync button

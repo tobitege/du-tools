@@ -213,7 +213,7 @@ Important scope note:
 
 - this path assumes the screen editor is already opening or open in the client
 - when the editor is not visible, `describe` returns a safe empty snapshot and `apply` rejects with `screen_editor_not_visible`
-- when visible, the injected probe now also gives `screen_editor` the same theme-switcher treatment as the Lua editor and themes the content header panel as well; this remains probe-side UI logic, not MCP-side state
+- when visible, the injected probe now applies the same shared runtime theming state to `screen_editor` as the Lua editor and themes the content header panel as well; the visible controls are owned by the separate `theming` runtime module, and this remains probe-side UI logic, not MCP-side state
 - when visible, the probe also adds its own `IDE Sync` button to the top control row; export goes to `ide-workspace/player-<playerId>/screen_editor/snippet.txt`, and file edits flow back through `payload-overrides/ide_import.player-<playerId>.screen_editor.json`
 - when visible, the probe also remembers and restores the screen editor viewport per screen context (`title + subTitle + mode`): top line plus caret line/column return automatically when the same screen is reopened during the active probe session
 - opening or toggling a screen through gameplay hotkeys such as `Ctrl+L` or `F` is not currently exposed through MCP
