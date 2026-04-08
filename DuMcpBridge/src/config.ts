@@ -56,7 +56,7 @@ export function loadConfig(): BridgeConfig {
 
   return {
     serverName: "du-mcp-bridge",
-    version: "0.1.0",
+    version: "0.1.1",
     pollIntervalMs: envInt("DU_MCP_BRIDGE_POLL_MS", 500),
     maxEventsReturned: envInt("DU_MCP_BRIDGE_MAX_EVENTS", 100),
     maxEventFilesScanned: envInt("DU_MCP_BRIDGE_MAX_EVENT_FILES_SCANNED", 12),
