@@ -4,6 +4,9 @@ Split a DU UI dump html file into separate html files by direct <body> children.
 
 Default output folder:
   <input_html_folder>/html
+
+Default output format:
+  raw html fragments without the original document head/body wrapper
 """
 
 from __future__ import annotations
@@ -46,7 +49,7 @@ def render_document(lang: str, head_html: str, body_class: str, node_html: str) 
     )
 
 
-def split_html(input_path: Path, output_dir: Path) -> dict:
+def split_html(input_path: Path, output_dir: Path, wrap_document: bool = False) -> dict:
     source_text = input_path.read_text(encoding="utf-8", errors="replace")
     soup = BeautifulSoup(source_text, "lxml")
 
@@ -77,7 +80,10 @@ def split_html(input_path: Path, output_dir: Path) -> dict:
         out_path = output_dir / file_name
 
         node_html = str(node)
-        out_text = render_document(lang, head_html, body_class, node_html)
+        if wrap_document:
+            out_text = render_document(lang, head_html, body_class, node_html)
+        else:
+            out_text = node_html + "\n"
         out_path.write_text(out_text, encoding="utf-8", newline="\n")
 
         descendants = len(list(node.find_all(True)))
@@ -98,6 +104,7 @@ def split_html(input_path: Path, output_dir: Path) -> dict:
             {
                 "source": str(input_path),
                 "outputDir": str(output_dir),
+                "outputMode": "wrapped-document" if wrap_document else "raw-fragment",
                 "rootCount": len(index_rows),
                 "items": index_rows,
             },
@@ -112,6 +119,7 @@ def split_html(input_path: Path, output_dir: Path) -> dict:
         "",
         f"- Source: `{input_path}`",
         f"- Output: `{output_dir}`",
+        f"- Output mode: **{'wrapped-document' if wrap_document else 'raw-fragment'}**",
         f"- Root files: **{len(index_rows)}**",
         "",
         "| index | file | tag | id | classes | descendants | htmlChars |",
@@ -128,6 +136,7 @@ def split_html(input_path: Path, output_dir: Path) -> dict:
     return {
         "source": str(input_path),
         "outputDir": str(output_dir),
+        "outputMode": "wrapped-document" if wrap_document else "raw-fragment",
         "rootCount": len(index_rows),
     }
 
@@ -140,6 +149,11 @@ def main() -> None:
         default="",
         help='Output folder (default: "<input_folder>/html")',
     )
+    parser.add_argument(
+        "--wrap-document",
+        action="store_true",
+        help="Wrap each extracted root in a full html/head/body document instead of writing the raw fragment only.",
+    )
     args = parser.parse_args()
 
     input_path = Path(args.input).expanduser().resolve()
@@ -151,7 +165,11 @@ def main() -> None:
     else:
         output_dir = input_path.parent / "html"
 
-    result = split_html(input_path=input_path, output_dir=output_dir)
+    result = split_html(
+        input_path=input_path,
+        output_dir=output_dir,
+        wrap_document=args.wrap_document,
+    )
     print(json.dumps(result, indent=2))
 
 

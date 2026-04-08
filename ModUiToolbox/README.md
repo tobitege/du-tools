@@ -21,7 +21,8 @@ This repo now includes:
 - robust full CSS extraction (`ALL .css files (full)`)
 - full script-body extraction (`ALL .js files (full)`)
 - NDJSON reassembly into per-section files
-- automatic HTML splitting (`html.html` -> `html\*.html`)
+- automatic HTML splitting (`html.html` -> raw `html\*.html` fragments by default)
+- all-scripts extraction omits toolbox-injected scripts by default
 
 ## Feature Overview
 
@@ -109,7 +110,7 @@ If you only remember one thing, remember this: `ModUiToolbox` is the in-game tra
 - `tools/publish-extractor-payload.ps1`: publish the base extractor payload plus additive extractor modules to `payload-overrides\ModUiToolbox-payload.override.js` and `payload-overrides\ModUiToolbox-payload.modules\`
 - `tools/publish-lua-probe.ps1`: compose + publish all live override assets to runtime override paths (default `DumpDir`: `C:\MyDUserver\tmp\ui-dumps`): `lua-editor-probe.override.js`, `lua-editor-probe.build.json`, `lua-editor-probe.modules/`, `lua-editor-runtime-modules/`, and `theme-imports/`. Use this for every live probe test after JS/module changes.
 - `tools/reassemble-ui-dump.ps1`: reassemble NDJSON to files
-- `tools/split-html-dump.py`: split `html.html` by direct `<body>` root elements
+- `tools/split-html-dump.py`: split `html.html` by direct `<body>` root elements into raw fragment files by default
 
 ## Build Requirements
 
@@ -714,6 +715,8 @@ In the `UI Rig` tab you can:
   -OutDir "C:\MyDUserver\tmp\ui-dumps\reassembled"
 ```
 
+Add `-WrapHtmlSplitDocument` only if you explicitly want each split html file wrapped back into a full document.
+
 Per dump folder (`<OutDir>\<dumpId>`), reassemble writes:
 
 - `manifest.json`
@@ -732,7 +735,7 @@ If `html.html` exists, reassemble automatically calls `split-html-dump.py` and a
 
 - `html\index.md`
 - `html\index.json`
-- `html\*.html` (one file per direct `<body>` child/root area)
+- `html\*.html` (one raw file per direct `<body>` child/root area, without duplicated shared head/body wrapper markup)
 
 ## Targeted Stylesheet Extraction (Action 4)
 
@@ -771,6 +774,8 @@ Then run:
 4. Open `<dumpId>\all_scripts_manifest.json`.
 5. Use extracted scripts:
    - `<dumpId>\scripts\all_script_js_*.js`
+
+`all_scripts_manifest.json` also reports `skippedUiToolbox` so you can see how many toolbox-owned scripts were intentionally omitted.
 
 ## Safety Notes
 

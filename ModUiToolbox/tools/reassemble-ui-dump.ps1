@@ -3,7 +3,9 @@ param(
     [string]$InputNdjson,
 
     [Parameter(Mandatory = $true)]
-    [string]$OutDir
+    [string]$OutDir,
+
+    [switch]$WrapHtmlSplitDocument
 )
 
 Set-StrictMode -Version Latest
@@ -186,7 +188,9 @@ function Invoke-HtmlSplitIfAvailable {
         [string]$HtmlPath,
 
         [Parameter(Mandatory = $true)]
-        [string]$DumpDir
+        [string]$DumpDir,
+
+        [switch]$WrapDocument
     )
 
     if (-not (Test-Path -LiteralPath $HtmlPath)) {
@@ -221,6 +225,10 @@ function Invoke-HtmlSplitIfAvailable {
                 "--out-dir", $outputDir
             )
         }
+    }
+
+    if ($WrapDocument) {
+        $pythonArgs += "--wrap-document"
     }
 
     if ([string]::IsNullOrWhiteSpace([string]$pythonExecutable)) {
@@ -264,7 +272,10 @@ Get-Content -LiteralPath $InputNdjson | ForEach-Object {
     if ($row.PSObject.Properties.Name -contains "packet") {
         # Server-side NDJSON written by ModUIToolbox wraps payload in "packet".
         $packet = $row.packet
-    } elseif ($row.PSObject.Properties.Name -contains "data") {
+    } elseif (
+        ($row.PSObject.Properties.Name -contains "data") -and
+        -not ($row.PSObject.Properties.Name -contains "type")
+    ) {
         # Keep compatibility with older wrappers that used "data".
         $packet = $row.data
     } else {
@@ -461,7 +472,7 @@ foreach ($dumpId in $dumps.Keys) {
     $manifest.warnings = @($manifestWarnings)
 
     if ($null -ne $htmlSectionPath) {
-        Invoke-HtmlSplitIfAvailable -HtmlPath $htmlSectionPath -DumpDir $dumpDir
+        Invoke-HtmlSplitIfAvailable -HtmlPath $htmlSectionPath -DumpDir $dumpDir -WrapDocument:$WrapHtmlSplitDocument
     }
 
     if ($entry.starts.Count -gt 0) {

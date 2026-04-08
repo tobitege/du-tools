@@ -24,6 +24,7 @@
     allStylesheetMaxSheetChars: 12000000,
     allStylesheetPacketDelayMs: 2,
     allScriptsOnlyJsSrc: true,
+    allScriptsExcludeUiToolbox: true,
     allScriptsMaxScripts: 512,
     allScriptsMaxScriptChars: 12000000,
     allScriptsPacketDelayMs: 2,
@@ -1027,6 +1028,58 @@
     return "all_script_js_" + leftPadNumber(scriptIndex, 3) + "_" + stem;
   }
 
+  function isUiToolboxScriptSource(srcHref) {
+    var normalized = normalizeHref(srcHref || "");
+    if (!normalized) {
+      return false;
+    }
+
+    return (
+      normalized.indexOf("moduitoolbox-payload.js") >= 0 ||
+      normalized.indexOf("moduitoolbox-payload.override.js") >= 0 ||
+      normalized.indexOf("moduitoolbox-payload.modules/") >= 0 ||
+      normalized.indexOf("lua-editor-probe.js") >= 0 ||
+      normalized.indexOf("lua-editor-probe.override.js") >= 0 ||
+      normalized.indexOf("lua-editor-probe.modules/") >= 0 ||
+      normalized.indexOf("lua-editor-runtime-modules/") >= 0
+    );
+  }
+
+  function isUiToolboxScriptBody(scriptText) {
+    var text = String(scriptText || "");
+    if (!text) {
+      return false;
+    }
+
+    return (
+      text.indexOf("__UI_TOOLBOX_RUNNING__") >= 0 ||
+      text.indexOf("__UI_TOOLBOX_CONFIG") >= 0 ||
+      text.indexOf("__UI_TOOLBOX_PAYLOAD_API__") >= 0 ||
+      text.indexOf("__UI_TOOLBOX_LUA_PROBE_") >= 0 ||
+      text.indexOf("__UI_TOOLBOX_LUA_PROBE_STATE__") >= 0 ||
+      text.indexOf("NQ.UIToolbox") >= 0
+    );
+  }
+
+  function isUiToolboxScript(scriptNode, srcHref, bodyText) {
+    if (isUiToolboxScriptSource(srcHref)) {
+      return true;
+    }
+
+    if (isUiToolboxScriptBody(bodyText)) {
+      return true;
+    }
+
+    try {
+      var scriptId = scriptNode && scriptNode.id ? String(scriptNode.id) : "";
+      if (scriptId && /ui[_-]?toolbox|lua[_-]?probe/i.test(scriptId)) {
+        return true;
+      }
+    } catch (_ignoreScriptId) {}
+
+    return false;
+  }
+
   function buildScriptSourceCandidates(srcHref) {
     var out = [];
     var seen = {};
@@ -1345,6 +1398,7 @@
     var maxScripts = Math.min(scripts.length, config.allScriptsMaxScripts);
     var manifest = [];
     var skippedNonJs = 0;
+    var skippedUiToolbox = 0;
     var exported = 0;
 
     function sendManifestAndFinish() {
@@ -1355,6 +1409,7 @@
         scriptLimitHit: scripts.length > maxScripts,
         exportedScripts: exported,
         skippedNonJavascript: skippedNonJs,
+        skippedUiToolbox: skippedUiToolbox,
         items: manifest
       });
       finalize();
@@ -1397,6 +1452,7 @@
 
       collectScriptBodyAsync(scriptNode, srcHref, config.allScriptsMaxScriptChars, function (body) {
         var sectionName = makeAllScriptSectionName(index, srcHref || ("inline_script_" + index));
+        var excludedUiToolbox = !!config.allScriptsExcludeUiToolbox && isUiToolboxScript(scriptNode, srcHref, body.text || "");
 
         var item = {
           section: sectionName,
@@ -1410,9 +1466,16 @@
           sourceLength: body.sourceLength,
           exportedLength: (body.text || "").length,
           truncated: !!body.truncated,
-          readError: body.readError || ""
+          readError: body.readError || "",
+          excludedUiToolbox: excludedUiToolbox
         };
         manifest.push(item);
+
+        if (excludedUiToolbox) {
+          skippedUiToolbox += 1;
+          setTimeout(function () { processScript(index + 1); }, config.phaseDelayMs);
+          return;
+        }
 
         if (!body.text && body.readError) {
           pushWarning("all_scripts", "failed to read script body for " + (srcHref || ("script#" + index)) + ": " + body.readError);
