@@ -907,6 +907,7 @@ Note:
 
 - Lua editor apply/save behavior can close the editor panel as part of the normal path
 - the probe now holds the Lua close path for at least `2000ms` after `apply()` so the client-side save roundtrip is not immediately followed by a close
+- `du_editor_save(targetKind = lua_editor)` now waits past that hold and then best-effort calls `close_runtime_ui` for lingering runtime-module UI
 - do not assume a Lua close always returns the client to a usable free in-world state
 - if a verified board-target `Ctrl+L` fails immediately after a Lua close, treat that as a recovery case for the open-editor path instead of sending unconditional close-time `Escape`
 - do not parallelize additional probe calls on the same editor while saving

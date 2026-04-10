@@ -1009,6 +1009,7 @@ Why this exists:
 - `du_open_editor_native` uses `DuMcpBridge/ahk/du_bridge_input.ahk` and AutoHotkey v2. You can pass `--ahk-path` on `run-mcp.cmd` or use `DU_AHK_EXE`, `DU_MCP_BRIDGE_AHK_EXE`, `DU_AHK_DIR`, or `DU_MCP_BRIDGE_AHK_DIR`.
 - `sendEscapeFirst` is a fallback only. From a normal in-world state it can open the Options UI.
 - `screen_editor cancel` and `screen_editor save` both include the delayed native `Escape` cleanup path.
+- `lua_editor save` now also waits out the probe-side apply/close hold and then best-effort calls `close_runtime_ui` to dismiss lingering runtime-module UI.
 
 ### `du_editor_pull_code`
 
@@ -1081,6 +1082,7 @@ Behavior:
 
 - for `lua_editor`, the mod calls `LUAEditorManager.apply()`
 - for `screen_editor`, the mod calls `CPPScreenContentEditor.save(...)`
+- after `lua_editor` save injection, the bridge waits past the Lua apply-close hold and then best-effort calls `close_runtime_ui`
 - after `screen_editor` save injection, the bridge also sends one delayed native `Escape` as the same cleanup path already used by `screen_editor cancel`
 
 This only makes sense when the target editor UI is already open.

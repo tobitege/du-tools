@@ -749,7 +749,9 @@
       visible: true,
       title: titleNode ? String(titleNode.textContent || "").trim() : "",
       wrapLines: !!(wrapNode && wrapNode.checked),
-      canApply: isElementVisible(applyNode),
+      canApply: typeof isLuaApplyButtonInteractive === "function"
+        ? isLuaApplyButtonInteractive(applyNode)
+        : isElementVisible(applyNode),
       codeLength: code.length,
       selectedSlot: selectedSlot,
       selectedFilter: selectedFilter,

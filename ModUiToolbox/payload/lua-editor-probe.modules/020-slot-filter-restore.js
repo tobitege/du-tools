@@ -167,6 +167,38 @@
     return getFilterDisplaySignature(filterNode);
   }
 
+  function isLuaApplyButtonNativelyDisabled(button) {
+    if (!button) {
+      return true;
+    }
+
+    var probeForcedDisabled = false;
+    try {
+      probeForcedDisabled = button.getAttribute("data-lua-probe-force-disabled") === "1";
+    } catch (_ignoreProbeForcedDisabled) {}
+
+    try {
+      return !!(
+        button.disabled ||
+        (button.classList && button.classList.contains("disabled")) ||
+        button.getAttribute("disabled") !== null ||
+        (!probeForcedDisabled && button.getAttribute("aria-disabled") === "true")
+      );
+    } catch (_ignoreNativeDisabled) {}
+
+    return false;
+  }
+
+  function isLuaApplyButtonInteractive(button) {
+    if (!button || !isElementVisible(button)) {
+      return false;
+    }
+    if (button.getAttribute("data-lua-probe-force-disabled") === "1") {
+      return false;
+    }
+    return !isLuaApplyButtonNativelyDisabled(button);
+  }
+
   function syncLuaApplyButtonState() {
     var button = getLuaApplyButtonNode();
     if (!button) {
@@ -193,16 +225,7 @@
 
     var hasFilters = getVisibleFilterNodes().length > 0;
     var activeFilterNode = getResolvedActiveFilterNode();
-    var nativeDisabled = false;
-    try {
-      nativeDisabled = !!(
-        button.disabled ||
-        (button.classList && button.classList.contains("disabled")) ||
-        button.getAttribute("disabled") !== null ||
-        button.getAttribute("aria-disabled") === "true"
-      );
-    } catch (_ignoreNativeDisabled) {}
-
+    var nativeDisabled = isLuaApplyButtonNativelyDisabled(button);
     var shouldForceDisable = !hasFilters || !activeFilterNode || nativeDisabled;
     if (shouldForceDisable) {
       button.setAttribute("data-lua-probe-force-disabled", "1");

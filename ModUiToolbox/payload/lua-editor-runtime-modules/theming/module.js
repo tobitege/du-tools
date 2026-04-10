@@ -107,9 +107,11 @@ function (ctx) {
       syncThemeUi();
       ctx.setInterval(syncThemeUi, 500);
     },
-    uninstall: function () {
+    uninstall: function (reason) {
       var api = getThemeApi();
-      if (api && typeof api.setThemeEnabled === "function") {
+      var why = String(reason || "disable");
+      var shouldPersistDisabled = why === "disable" || why === "toggle" || why === "menu";
+      if (api && typeof api.setThemeEnabled === "function" && shouldPersistDisabled) {
         api.setThemeEnabled(false, true);
       }
       removeHost();

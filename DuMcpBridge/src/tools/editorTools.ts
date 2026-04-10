@@ -1774,13 +1774,14 @@ async function runEditorEscapeCleanup(
   playerId: number,
   timeoutMs: number,
   defaultAhkPath: string | null,
-  editorKind: "screen_editor" | "lua_editor"
+  editorKind: "screen_editor" | "lua_editor",
+  initialDelayMs = 500
 ): Promise<{
   nativeOk: boolean;
   native: Awaited<ReturnType<typeof runNativeAhkInput>>;
   finalDescribe: ProbeResultSnapshot;
 }> {
-  await sleepMs(500);
+  await sleepMs(Math.max(0, initialDelayMs));
   const native = await runNativeAhkInput(
     "send_key",
     "Dual Universe",
@@ -1799,6 +1800,24 @@ async function runEditorEscapeCleanup(
     native,
     finalDescribe
   };
+}
+
+async function runLuaEditorRuntimeUiCleanup(
+  commandQueue: BridgeCommandQueue,
+  eventStore: BridgeEventStore,
+  playerId: number,
+  timeoutMs: number
+): Promise<ProbeResultSnapshot> {
+  await sleepMs(2250);
+  return await enqueueAndWaitUiProbe(
+    commandQueue,
+    eventStore,
+    "lua_editor",
+    playerId,
+    "close_runtime_ui",
+    [],
+    Math.max(1000, Math.min(timeoutMs, 4000))
+  );
 }
 
 export function registerEditorTools(
@@ -3379,6 +3398,26 @@ export function registerEditorTools(
             }
           } catch {
             // If command_result payload parsing fails, keep the save result stable and skip cleanup inference.
+          }
+        }
+      } else if (targetKind === "lua_editor") {
+        const cleanupTimeoutMs = waitForEditor
+          ? Math.min((maxAttempts * retryDelayMs) + 6000, 30000)
+          : 6000;
+        const commandEvent = await eventStore.waitForCommandEvent(result.command.commandId, "command_result", cleanupTimeoutMs);
+        if (commandEvent.found) {
+          try {
+            const payload = commandEvent.payloadJson ? JSON.parse(commandEvent.payloadJson) as Record<string, unknown> : null;
+            if (payload?.status === "injected") {
+              await runLuaEditorRuntimeUiCleanup(
+                commandQueue,
+                eventStore,
+                playerId,
+                cleanupTimeoutMs
+              );
+            }
+          } catch {
+            // Keep lua_editor save stable if delayed cleanup inference fails.
           }
         }
       }
