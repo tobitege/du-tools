@@ -40,6 +40,7 @@ Main features:
 - supports Lua editor and screen editor workflows (for programming boards, flight controllers, screens/signs), including live describe, select, apply, and save sequences through the bridge
 - supports file-based IDE sync for `lua_editor` and `screen_editor`
 - remembers viewport and caret position for editor contexts so reopening the same context is less disruptive
+- keys Lua viewport memory from the live slot/filter manager identity during the active probe session, which is critical when a slot contains duplicate handler names such as multiple `onStart()` or `onTimer(...)` rows
 - provides themed editor UI, runtime-module loading, and extra in-game controls such as `IDE Sync`
 - can capture full UI dumps, stylesheet dumps, and script dumps when deeper inspection is needed
 - exposes an `industry_panel` bridge target for live industry panel inspection/control without leaving the open panel UI
@@ -659,6 +660,10 @@ Probe workflow notes (see `DuMcpBridge/README.md` for detail):
 - In plain terms: save/apply is not the end of the Lua close path. After `du_editor_save(targetKind = lua_editor)` returns, the bridge still waits about `2250 ms` and then best-effort calls `close_runtime_ui`.
 - During that short window, do not send more Lua-editor probe actions and do not treat an immediate manual `Ctrl+L` reopen as a reliable signal yet.
 - If more Lua work is needed after save, reopen the editor and select the target context again.
+- Lua slot changes now use a real mouse sequence from the probe side so the enhancement logic sees the same `mousedown`/auto-open signal path as a manual user click.
+- Duplicate Lua handler names are still possible and normal. `select_context` is only deterministic when the visible name/signature is unique inside the selected slot.
+- When duplicate names exist, inspect the live manager filter list or use `select_filter_index` instead of trusting the generic visible `selectedFilter` label.
+- Reinject the Lua probe with the editor closed. Open-editor reinject is not the normal safe workflow.
 - **`select_filter`** activates an **existing** `.filter.view` row. **`add_filter`** uses **`+ add filter`** when needed, then the new row’s kebab. **`outer_html`** returns truncated `outerHTML`. **`raw_eval`** runs trusted-debug JS with parameter `state` = probe state object.
 - For `lua_editor`, hidden editor state is treated as stale cache. The probe only reports live content while the editor is visible; hidden snapshots are zeroed and editor-mutating methods reject with `lua_editor_not_visible`.
 - For `screen_editor`, hidden editor state is treated as stale cache. The probe only reports live content while the editor is visible; hidden snapshots are zeroed and `apply` rejects with `screen_editor_not_visible`.

@@ -24,7 +24,6 @@
         root.removeAttribute("data-lua-probe-active");
       }
     }
-    state.scrollTopByContext = Object.create(null);
     state.lastContextKey = "";
     state.currentSnippetKey = "";
     state.forceEditorFocusOnNextSwitch = false;
@@ -58,7 +57,6 @@
     state.activeFilterFingerprint = "";
     state.currentSnippetKey = "";
     state.lastContextKey = "";
-    state.scrollTopByContext = Object.create(null);
     state.forceEditorFocusOnNextSwitch = false;
     state.luaViewPreferenceRestorePending = false;
     state.luaViewPreferenceRestoreInProgress = false;

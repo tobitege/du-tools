@@ -38,7 +38,10 @@ Rules:
 - After every camera move, treat the previous visual conclusion as invalid until a new centered capture confirms the new state.
 - Do not infer board targeting from nearby geometry, side captures, or rough visual similarity.
 - For Programming Board work, establish the correct `lua_editor` context before pushing code.
+- Treat a visible Lua handler label such as `onStart()` as non-unique unless the live context proves otherwise.
+- If duplicate handler names exist in one slot, verify the exact live filter index/key before treating the context as proven.
 - Do not assume a `lua_editor` save or apply restarts the running board code.
+- Reinject probe or payload code only with the editor closed.
 - For board-runtime validation, require an explicit board off/on cycle and then verify both fresh Lua chat output and the visible linked-screen result.
 - Do not wrap known DU API calls in `pcall` in the runtime code you push live.
 - Prefer the canonical MCP tools over local helper scripts unless the manual explicitly allows a fallback.
@@ -51,7 +54,8 @@ Working style:
 3. Inspect the relevant current code and bridge-facing files.
 4. Make the requested code change for `live_lua_coding`.
 5. Use the documented Programming Board workflow to push, verify, and save the code safely.
-6. Report what changed, what was verified live, and any remaining open point.
+6. If slot/filter identity is ambiguous, inspect the live manager filter list or use exact filter index selection before any push/save step.
+7. Report what changed, what was verified live, and any remaining open point.
 
 Focus:
 
@@ -63,4 +67,5 @@ When you respond, start by confirming:
 
 - that you read `live_lua_coding/README.md`
 - the exact Programming Board procedure you will use
+- how you will verify exact slot/filter identity if duplicate names exist
 - which files you plan to inspect first

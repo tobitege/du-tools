@@ -57,11 +57,14 @@ This avoids races in the live DU UI.
    - visible result wins over chat
    - board runtime validation requires a real off/on cycle
    - session-sensitive live calls for the same `playerId` must stay sequential
+   - a visible Lua handler label such as `onStart()` is not a unique identity when duplicate rows exist in the same slot
+   - if duplicate Lua names exist, the exact live filter index/key must be verified before the context is treated as proven
    - if no real code change was made, do not assume `Apply` is enabled
    - for `lua_editor` with no real code change, close with `Cancel` or `Escape`
    - with unchanged code visible in `lua_editor`, `Escape` typically requires two taps
    - special case: if no Lua filter is selected at all, one `Escape` tap closes the editor
    - for `screen_editor` with no real code change, close with `Escape`, and expect two taps
+   - reinject probe or payload code only with the editor closed
 1. Read the latest structured state first:
    - `du_list_active_sessions`
    - `du_ui_describe(uiKind = lua_editor)` or `du_ui_wait(uiKind = lua_editor)`
@@ -117,10 +120,12 @@ If the task is to open the looked-at board editor:
 3. Try `du_open_editor_native` without `sendEscapeFirst`.
 4. Re-check via probe.
 5. If still unclear, capture again.
-6. Only if the UI appears stuck, blocked, or clearly wrong:
+6. If slot/filter identity is still ambiguous because duplicate Lua names are visible:
+   - inspect the live manager filter list or switch by exact filter index
+7. Only if the UI appears stuck, blocked, or clearly wrong:
    - retry `du_open_editor_native` with `sendEscapeFirst = true`
-7. Re-check via probe.
-8. If still unclear, capture again.
+8. Re-check via probe.
+9. If still unclear, capture again.
 
 This keeps `Escape` as a fallback, not a default.
 
@@ -149,6 +154,10 @@ The visual subagent should usually return a compact text summary like this:
 - `result`: success / blocked / ambiguous
 - `next_safe_step`: what the main agent can do next
 
+If Lua slot/filter identity matters, include:
+
+- `slot_filter_identity`: visible slot/filter plus exact live filter index/key when available
+
 Example:
 
 ```text
@@ -156,7 +165,7 @@ state_before: in-world looking at the board, no editor visible
 probe_before: lua_editor not visible
 actions_taken: capture -> open_editor_native(no ESC) -> probe describe -> capture
 state_after: Lua editor visible on Programming board xs [55]
-probe_after: selectedSlot=null selectedFilter=null title matches board
+probe_after: selectedSlot=unit selectedFilter=onStart() slot_filter_identity=index 0 key 0 title matches board
 result: success
 next_safe_step: main agent can now select unit/onStart
 ```

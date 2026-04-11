@@ -783,12 +783,21 @@ The preferred path is:
 
 Do not skip this step before code push.
 
+Critical identity rule:
+
+- a visible handler name such as `onStart()` is not a unique identity
+- the probe now tracks Lua viewport/context memory from the live manager slot/filter identity instead of the older generic label path
+- this fixes the common case where sibling filters with the same visible name used to share the wrong viewport memory
+- it does not make duplicate names safe to guess from text alone
+- if a slot contains duplicate `onStart()` or `onTimer(...)` rows, treat `select_context` as ambiguous until you inspect the live filter list or switch by filter index
+
 Minimum timing rule:
 
 - after any Lua filter change, the bridge must still wait at least 1 second before pushing code
 - if a caller passes a shorter `settleMs`, the bridge should clamp it internally instead of rejecting the tool call
 - `settleMs = 2000` on `select_context` is the safer default for live board work
 - pushing immediately after a filter click can race the editor and leave the old buffer active
+- probe-driven slot changes now send a full mouse sequence so the enhancement code can arm slot auto-open and viewport capture exactly like a manual click
 
 Important naming trap:
 
@@ -1167,6 +1176,7 @@ Action:
 
 - use `select_context`
 - verify slot and filter
+- if there are duplicate visible names in the slot, verify the exact live filter index/key through the manager state instead of trusting the label
 - verify the staged import metadata if the push still lands in the wrong handler
 - then push again
 
@@ -1204,11 +1214,17 @@ Action:
 - Do: wait at least 1 second after a Lua filter change before push/save.
 - Do not: click a filter and push immediately.
 
+- Do: treat duplicate names such as two `onStart()` rows as ambiguous until the live manager filter list proves which one is active.
+- Do not: assume the visible `selectedFilter` text is enough to identify the handler.
+
 - Do: verify the real timer signature when multiple `onTimer(...)` filters exist.
 - Do not: trust the generic `selectedFilter` text alone.
 
 - Do: treat `snippet.json` as part of the workspace snippet validity contract.
 - Do not: assume visible selection alone is always enough for `du_editor_push_code`.
+
+- Do: close the editor before reinjecting the Lua probe.
+- Do not: use open-editor reinject as the normal workflow.
 
 - Do: make a real minimal change before a screen save test.
 - Do not: treat a clean-buffer save attempt as a meaningful validation.

@@ -447,7 +447,7 @@ function restoreLuaEditorWrapLinesPreference() {
   return true;
 }
 
-function stepLuaEditorFontSizeToward(targetPx, remainingSteps, done) {
+function stepLuaEditorFontSizeToward(targetPx, remainingSteps, done, lastDirection, lastPx) {
   if (!(targetPx > 0)) {
     if (typeof done === "function") {
       done(true);
@@ -467,6 +467,19 @@ function stepLuaEditorFontSizeToward(targetPx, remainingSteps, done) {
     }
     return;
   }
+  var direction = currentPx < targetPx ? 1 : -1;
+  if (lastDirection && direction !== lastDirection) {
+    if (typeof done === "function") {
+      done(true);
+    }
+    return;
+  }
+  if (typeof lastPx === "number" && Math.abs(currentPx - lastPx) <= 0.01) {
+    if (typeof done === "function") {
+      done(false);
+    }
+    return;
+  }
   var root = document.getElementById("dpu_editor");
   if (!root || !root.querySelector) {
     if (typeof done === "function") {
@@ -474,7 +487,7 @@ function stepLuaEditorFontSizeToward(targetPx, remainingSteps, done) {
     }
     return;
   }
-  var selector = currentPx < targetPx
+  var selector = direction > 0
     ? '.header_editor .font_size_wrapper .lua_change_font_size[value="+"]'
     : '.header_editor .font_size_wrapper .lua_change_font_size[value="-"]';
   var button = root.querySelector(selector);
@@ -499,7 +512,7 @@ function stepLuaEditorFontSizeToward(targetPx, remainingSteps, done) {
     return;
   }
   scheduleDelayed(function () {
-    stepLuaEditorFontSizeToward(targetPx, remainingSteps - 1, done);
+    stepLuaEditorFontSizeToward(targetPx, remainingSteps - 1, done, direction, currentPx);
   }, 60);
 }
 

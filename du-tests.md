@@ -252,6 +252,8 @@ Recommended order.
 
 - Tool: `du_ui_invoke` with `uiKind = lua_editor`, `method = select_context`, `slotName`, `filterName`, optional `settleMs`
 - Expectation: `selectedSlot` and `selectedFilter` match the intended context
+- Rule: a visible handler label such as `onStart()` is not a unique identity. Duplicate names inside one slot are normal. If the target slot contains duplicates, verify the exact live filter index/key before treating the context as proven.
+- Rule: reinject the Lua probe with the editor closed. Do not use open-editor reinject as the normal workflow.
 
 ### Step N2 - Push Code
 

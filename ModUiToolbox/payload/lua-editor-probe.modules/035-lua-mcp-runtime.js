@@ -121,6 +121,20 @@
     return false;
   }
 
+  function activateSelectionNode(node) {
+    if (!node) {
+      return false;
+    }
+    if (typeof dispatchMouseSequence === "function") {
+      try {
+        if (dispatchMouseSequence(node)) {
+          return true;
+        }
+      } catch (_ignoreDispatchSequence) {}
+    }
+    return clickNode(node);
+  }
+
   function findSlotNodeByName(slotName) {
     var expected = normalizeProbeText(slotName);
     var slots = getSlotNodes();
@@ -295,6 +309,30 @@
     });
   }
 
+  function waitForSlotSelectionAsync(rawSlotName) {
+    var expectedSlot = normalizeProbeText(rawSlotName);
+    return pollUntilAsync(
+      function() {
+        var snapshot = describeLuaEditor();
+        if (normalizeProbeText(snapshot.selectedSlot) !== expectedSlot) {
+          return null;
+        }
+        if (!snapshot.filters || snapshot.filters.length <= 0) {
+          return snapshot;
+        }
+        if (snapshot.selectedFilter) {
+          return snapshot;
+        }
+        return null;
+      },
+      200,
+      25,
+      function() {
+        return new Error("slot_select_not_observed:" + rawSlotName);
+      }
+    );
+  }
+
   function selectLuaEditorContext(slotName, filterEvent, minPauseMs) {
     ensureLuaEditorVisible();
     var rawSlotName = String(slotName || "").trim();
@@ -320,7 +358,7 @@
         if (!slotNode) {
           throw new Error("slot_not_found:" + rawSlotName);
         }
-        if (!clickNode(slotNode)) {
+        if (!activateSelectionNode(slotNode)) {
           throw new Error("slot_click_failed:" + rawSlotName);
         }
         return null;
@@ -331,6 +369,8 @@
         return new Error("slot_select_not_observed:" + rawSlotName);
       }
     ).then(function() {
+      return waitForSlotSelectionAsync(rawSlotName);
+    }).then(function() {
       return waitMsAsync(requiredPauseMs);
     }).then(function() {
       return pollUntilAsync(
@@ -355,7 +395,7 @@
       if (selectedInfo && selectedInfo.signatureKey === filterInfo.signatureKey) {
         return describeLuaEditor();
       }
-      if (!clickNode(filterInfo.node)) {
+      if (!activateSelectionNode(filterInfo.node)) {
         throw new Error("filter_click_failed:" + rawFilterEvent);
       }
       return pollUntilAsync(
@@ -789,10 +829,10 @@
     if (!slotNode) {
       throw new Error("slot_not_found:" + slotName);
     }
-    if (!clickNode(slotNode)) {
+    if (!activateSelectionNode(slotNode)) {
       throw new Error("slot_click_failed:" + slotName);
     }
-    return describeLuaEditor();
+    return waitForSlotSelectionAsync(slotName);
   }
 
   function selectFilterByEvent(filterEvent) {
@@ -805,7 +845,7 @@
       throw new Error("filter_ambiguous:" + filterEvent + ":" + resolved.matches.length);
     }
     var filterInfo = resolved.matches[0];
-    if (!clickNode(filterInfo.node)) {
+    if (!activateSelectionNode(filterInfo.node)) {
       throw new Error("filter_click_failed:" + filterEvent);
     }
     return describeLuaEditor();
@@ -828,7 +868,7 @@
     if (!filterInfo) {
       throw new Error("filter_index_not_found:" + wantedIndex);
     }
-    if (!clickNode(filterInfo.node)) {
+    if (!activateSelectionNode(filterInfo.node)) {
       throw new Error("filter_index_click_failed:" + wantedIndex);
     }
     return describeLuaEditor();

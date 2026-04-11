@@ -173,3 +173,17 @@ Important details:
 - if you need to work on another filter after save, reopen the editor and select the target context again
 - use `du_open_lua_context` for a deterministic reopen path; a manual `Ctrl+L` immediately after apply can race the cleanup window
 - apply success means the editor accepted the save path; it does not prove a board runtime restart
+
+Context identity rules:
+
+- a visible handler name such as `onStart()` is not a unique identity
+- the probe now keys Lua editor context from the live manager slot/filter identity instead of the older generic label-based path
+- duplicate names in the same slot are normal and must be treated as ambiguous unless the live manager exposes a distinct active filter
+- if a slot has multiple matching names, do not assume that `selectedFilter` text alone proves the target
+- for diagnostics or exact switching in ambiguous slots, use `select_filter_index` or inspect `LUAEditorManager.currentSlot.filtersList` through `raw_eval`
+
+Selection and reinject rules:
+
+- probe-driven slot/filter selection now uses the same mouse sequence as a real user click so the enhancement code can arm slot auto-open and viewport capture correctly
+- `select_slot` is therefore safe again for normal live navigation, but it still does not remove ambiguity between duplicate filter names
+- reinject the Lua probe with the editor closed; do not treat open-editor reinject as the normal validation path

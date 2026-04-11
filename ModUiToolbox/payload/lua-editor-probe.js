@@ -2745,46 +2745,43 @@
     }
 
     var data = manager.currentData;
-    var keys = [
-      "slotId",
-      "slot",
-      "slotName",
-      "slotUuid",
-      "slotIndex",
-      "filterId",
-      "filter",
-      "filterName",
-      "action",
-      "actionName",
-      "eventName",
-      "event",
-      "eventId"
-    ];
+    var slot = data.currentSlot || null;
+    var filter = data.currentFilter || null;
     var parts = [];
 
-    for (var i = 0; i < keys.length; i += 1) {
-      var key = keys[i];
-      var value = data[key];
-      if (value === null || typeof value === "undefined") {
-        continue;
+    if (slot && typeof slot === "object") {
+      if (typeof slot.slotKey !== "undefined" && slot.slotKey !== null && String(slot.slotKey)) {
+        parts.push("slotKey=" + limitText(String(slot.slotKey), 48));
       }
-      var strValue = String(value);
-      if (!strValue) {
-        continue;
+      if (typeof slot.name !== "undefined" && slot.name !== null && String(slot.name)) {
+        parts.push("slotName=" + limitText(String(slot.name), 48));
       }
-      parts.push(key + "=" + limitText(strValue, 48));
+    }
+
+    if (filter && typeof filter === "object") {
+      if (typeof filter.key !== "undefined" && filter.key !== null && String(filter.key)) {
+        parts.push("filterKey=" + limitText(String(filter.key), 48));
+      }
+      if (typeof filter.signature !== "undefined" && filter.signature !== null && String(filter.signature)) {
+        parts.push("filterSignature=" + limitText(String(filter.signature), 96));
+      }
+      if (typeof filter.slotKey !== "undefined" && filter.slotKey !== null && String(filter.slotKey)) {
+        parts.push("filterSlotKey=" + limitText(String(filter.slotKey), 48));
+      }
+    }
+
+    if (slot && Array.isArray(slot.filtersList) && filter) {
+      for (var i = 0; i < slot.filtersList.length; i += 1) {
+        if (slot.filtersList[i] === filter) {
+          parts.push("filterIndex=" + i);
+          break;
+        }
+      }
     }
 
     if (parts.length > 0) {
       return "mgr:" + parts.join("|");
     }
-
-    try {
-      var json = JSON.stringify(data);
-      if (json) {
-        return "mgrjson:" + limitText(json, 180);
-      }
-    } catch (_ignore) {}
 
     return "";
   }
@@ -3223,13 +3220,36 @@
 
   function getEditorContextKey(codeMirror) {
     var managerKey = getManagerContextKey();
+    var domKey = getDomContextKey();
+    var parts = [];
     if (managerKey) {
-      return managerKey;
+      parts.push(managerKey);
+    }
+    if (domKey) {
+      parts.push(domKey);
     }
 
-    var domKey = getDomContextKey();
-    if (domKey) {
-      return domKey;
+    var resolvedFilterNode = getResolvedActiveFilterNode();
+    var resolvedFilterSignature = getFilterSignature(resolvedFilterNode);
+    var resolvedFilterDisplay = getFilterDisplaySignature(resolvedFilterNode);
+    var activeFilterIndex = typeof state.activeFilterIndex === "number" ? state.activeFilterIndex : -1;
+
+    if (resolvedFilterSignature) {
+      parts.push("filterSig=" + limitText(resolvedFilterSignature, 96));
+    } else if (state.activeFilterFingerprint) {
+      parts.push("filterSig=" + limitText(state.activeFilterFingerprint, 96));
+    }
+
+    if (resolvedFilterDisplay) {
+      parts.push("filterDisplay=" + limitText(resolvedFilterDisplay, 96));
+    }
+
+    if (activeFilterIndex >= 0) {
+      parts.push("filterIdx=" + activeFilterIndex);
+    }
+
+    if (parts.length > 0) {
+      return parts.join("::");
     }
 
     if (codeMirror) {
@@ -3261,6 +3281,10 @@
     }
   }
 
+  function isSnippetMemoryKey(key) {
+    return typeof key === "string" && key.indexOf("snippet:") === 0;
+  }
+
   function rememberTopLineForKey(keyHint) {
     var codeMirror = getLuaCodeMirror();
     if (!codeMirror || typeof codeMirror.getScrollInfo !== "function") {
@@ -3268,7 +3292,9 @@
     }
 
     var key = keyHint || getEditorContextKey(codeMirror) || state.lastContextKey || "default";
-    state.lastContextKey = key;
+    if (!isSnippetMemoryKey(key)) {
+      state.lastContextKey = key;
+    }
 
     try {
       var scrollInfo = codeMirror.getScrollInfo();
@@ -3333,7 +3359,9 @@
     if (!key) {
       return false;
     }
-    state.lastContextKey = key;
+    if (!isSnippetMemoryKey(key)) {
+      state.lastContextKey = key;
+    }
 
     var remembered = state.scrollTopByContext[key];
     var rememberedTopLine = -1;
@@ -5393,7 +5421,7 @@ function restoreLuaEditorWrapLinesPreference() {
   return true;
 }
 
-function stepLuaEditorFontSizeToward(targetPx, remainingSteps, done) {
+function stepLuaEditorFontSizeToward(targetPx, remainingSteps, done, lastDirection, lastPx) {
   if (!(targetPx > 0)) {
     if (typeof done === "function") {
       done(true);
@@ -5413,6 +5441,19 @@ function stepLuaEditorFontSizeToward(targetPx, remainingSteps, done) {
     }
     return;
   }
+  var direction = currentPx < targetPx ? 1 : -1;
+  if (lastDirection && direction !== lastDirection) {
+    if (typeof done === "function") {
+      done(true);
+    }
+    return;
+  }
+  if (typeof lastPx === "number" && Math.abs(currentPx - lastPx) <= 0.01) {
+    if (typeof done === "function") {
+      done(false);
+    }
+    return;
+  }
   var root = document.getElementById("dpu_editor");
   if (!root || !root.querySelector) {
     if (typeof done === "function") {
@@ -5420,7 +5461,7 @@ function stepLuaEditorFontSizeToward(targetPx, remainingSteps, done) {
     }
     return;
   }
-  var selector = currentPx < targetPx
+  var selector = direction > 0
     ? '.header_editor .font_size_wrapper .lua_change_font_size[value="+"]'
     : '.header_editor .font_size_wrapper .lua_change_font_size[value="-"]';
   var button = root.querySelector(selector);
@@ -5445,7 +5486,7 @@ function stepLuaEditorFontSizeToward(targetPx, remainingSteps, done) {
     return;
   }
   scheduleDelayed(function () {
-    stepLuaEditorFontSizeToward(targetPx, remainingSteps - 1, done);
+    stepLuaEditorFontSizeToward(targetPx, remainingSteps - 1, done, direction, currentPx);
   }, 60);
 }
 
@@ -7447,6 +7488,20 @@ function ensureInventoryThemeRoot() {
     return false;
   }
 
+  function activateSelectionNode(node) {
+    if (!node) {
+      return false;
+    }
+    if (typeof dispatchMouseSequence === "function") {
+      try {
+        if (dispatchMouseSequence(node)) {
+          return true;
+        }
+      } catch (_ignoreDispatchSequence) {}
+    }
+    return clickNode(node);
+  }
+
   function findSlotNodeByName(slotName) {
     var expected = normalizeProbeText(slotName);
     var slots = getSlotNodes();
@@ -7621,6 +7676,30 @@ function ensureInventoryThemeRoot() {
     });
   }
 
+  function waitForSlotSelectionAsync(rawSlotName) {
+    var expectedSlot = normalizeProbeText(rawSlotName);
+    return pollUntilAsync(
+      function() {
+        var snapshot = describeLuaEditor();
+        if (normalizeProbeText(snapshot.selectedSlot) !== expectedSlot) {
+          return null;
+        }
+        if (!snapshot.filters || snapshot.filters.length <= 0) {
+          return snapshot;
+        }
+        if (snapshot.selectedFilter) {
+          return snapshot;
+        }
+        return null;
+      },
+      200,
+      25,
+      function() {
+        return new Error("slot_select_not_observed:" + rawSlotName);
+      }
+    );
+  }
+
   function selectLuaEditorContext(slotName, filterEvent, minPauseMs) {
     ensureLuaEditorVisible();
     var rawSlotName = String(slotName || "").trim();
@@ -7646,7 +7725,7 @@ function ensureInventoryThemeRoot() {
         if (!slotNode) {
           throw new Error("slot_not_found:" + rawSlotName);
         }
-        if (!clickNode(slotNode)) {
+        if (!activateSelectionNode(slotNode)) {
           throw new Error("slot_click_failed:" + rawSlotName);
         }
         return null;
@@ -7657,6 +7736,8 @@ function ensureInventoryThemeRoot() {
         return new Error("slot_select_not_observed:" + rawSlotName);
       }
     ).then(function() {
+      return waitForSlotSelectionAsync(rawSlotName);
+    }).then(function() {
       return waitMsAsync(requiredPauseMs);
     }).then(function() {
       return pollUntilAsync(
@@ -7681,7 +7762,7 @@ function ensureInventoryThemeRoot() {
       if (selectedInfo && selectedInfo.signatureKey === filterInfo.signatureKey) {
         return describeLuaEditor();
       }
-      if (!clickNode(filterInfo.node)) {
+      if (!activateSelectionNode(filterInfo.node)) {
         throw new Error("filter_click_failed:" + rawFilterEvent);
       }
       return pollUntilAsync(
@@ -8115,10 +8196,10 @@ function ensureInventoryThemeRoot() {
     if (!slotNode) {
       throw new Error("slot_not_found:" + slotName);
     }
-    if (!clickNode(slotNode)) {
+    if (!activateSelectionNode(slotNode)) {
       throw new Error("slot_click_failed:" + slotName);
     }
-    return describeLuaEditor();
+    return waitForSlotSelectionAsync(slotName);
   }
 
   function selectFilterByEvent(filterEvent) {
@@ -8131,7 +8212,7 @@ function ensureInventoryThemeRoot() {
       throw new Error("filter_ambiguous:" + filterEvent + ":" + resolved.matches.length);
     }
     var filterInfo = resolved.matches[0];
-    if (!clickNode(filterInfo.node)) {
+    if (!activateSelectionNode(filterInfo.node)) {
       throw new Error("filter_click_failed:" + filterEvent);
     }
     return describeLuaEditor();
@@ -8154,7 +8235,7 @@ function ensureInventoryThemeRoot() {
     if (!filterInfo) {
       throw new Error("filter_index_not_found:" + wantedIndex);
     }
-    if (!clickNode(filterInfo.node)) {
+    if (!activateSelectionNode(filterInfo.node)) {
       throw new Error("filter_index_click_failed:" + wantedIndex);
     }
     return describeLuaEditor();
@@ -12893,7 +12974,6 @@ function ensureInventoryThemeRoot() {
         root.removeAttribute("data-lua-probe-active");
       }
     }
-    state.scrollTopByContext = Object.create(null);
     state.lastContextKey = "";
     state.currentSnippetKey = "";
     state.forceEditorFocusOnNextSwitch = false;
@@ -12927,7 +13007,6 @@ function ensureInventoryThemeRoot() {
     state.activeFilterFingerprint = "";
     state.currentSnippetKey = "";
     state.lastContextKey = "";
-    state.scrollTopByContext = Object.create(null);
     state.forceEditorFocusOnNextSwitch = false;
     state.luaViewPreferenceRestorePending = false;
     state.luaViewPreferenceRestoreInProgress = false;

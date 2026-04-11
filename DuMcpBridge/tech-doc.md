@@ -231,6 +231,9 @@ That means:
 - the intended workflow is: first confirm slot + filter, then transfer code
 - after a slot switch, the client can rebuild the FILTERS panel asynchronously; low-level automation should therefore not guess immediately from stale rows
 - preferred MCP path for live work is now `du_ui_invoke(uiKind = lua_editor, method = select_context)`: confirm slot, wait at least 1 second, then resolve the visible filter by name/signature
+- that name/signature resolution is only deterministic when the slot has exactly one visible match; duplicate handlers such as two `onStart()` rows are still ambiguous by design
+- the probe now keys live Lua contexts from the active manager slot/filter identity instead of the older generic label path, so viewport restore and filter tracking follow the real active filter more closely
+- probe-driven slot clicks now dispatch the same mouse sequence as a real user click so the enhancement code can arm slot auto-open and viewport capture on `mousedown`
 
 ### Lua runtime probe
 
@@ -613,6 +616,8 @@ Important built-in semantics:
 
 - `select_context` is the preferred Lua-editor workflow because it confirms the slot, waits at least `settleMs`, then resolves the visible filter by real name/signature.
 - For Lua context tools, `settleMs` is a requested delay, not a sharp lower-bound contract. Short values are accepted and raised internally to the bridge minimum.
+- `select_slot` now drives a full mouse sequence and waits for the slot transition to settle. If the slot has filters, the enhancement path is allowed to auto-open the active filter before the probe returns.
+- `select_context` still cannot safely guess between duplicate visible names in the same slot. In those cases use `select_filter_index` or inspect the live manager filter list first.
 - `cancel` on `screen_editor` automatically performs the required native cleanup after the probe close. This is not an optional flag.
 - `raw_eval` remains a trusted-debug escape hatch only.
 
@@ -1013,6 +1018,8 @@ Why this exists:
 - During that cleanup window, do not send more Lua-editor probe actions and do not treat an immediate manual `Ctrl+L` reopen as a stable signal yet.
 - If you need to continue editing after save, use `du_open_lua_context` and reselect the target context instead of chaining low-level actions into the close window.
 - `select_context` remains the preferred low-level Lua probe action because it confirms the slot, waits for settle, then resolves the visible filter by name.
+- duplicate Lua handler names are normal in real boards. If multiple rows share the same visible name, treat `select_context` as ambiguous and switch by filter index or verified manager identity instead.
+- viewport/caret restore for the Lua editor is now keyed from the live slot/filter manager identity for the active probe session, not from the old generic label-only path.
 - `outer_html` and `raw_eval` are debug-oriented escape hatches and should be used sparingly.
 - `du_open_editor_native` uses `DuMcpBridge/ahk/du_bridge_input.ahk` and AutoHotkey v2. You can pass `--ahk-path` on `run-mcp.cmd` or use `DU_AHK_EXE`, `DU_MCP_BRIDGE_AHK_EXE`, `DU_AHK_DIR`, or `DU_MCP_BRIDGE_AHK_DIR`.
 - `sendEscapeFirst` is a fallback only. From a normal in-world state it can open the Options UI.
@@ -1225,6 +1232,7 @@ That makes command results and probe results visible outside the game immediatel
 
 - the bridge now exposes three Windows-native input helpers: `du_camera_move` for explicit relative camera steering, `du_send_key_native` for a small supported key whitelist such as `F` / `Escape`, and `du_open_editor_native` for the shared element-editor `Ctrl+L` case
 - `du_reinject_lua_probe` is not a cold-start injector; without an already-present Lua probe page, it has nothing to call into
+- normal reinject workflow is still: close editor, reinject, reopen. Reinject with the editor already open can leave mixed old/new page state and is not the preferred validation path.
 - `screen_editor` still depends on the user having the correct editor UI open
 - `boardId` is not yet enforced as a verified board selection
 - `du_editor_pull_code` returns the last known snapshot, not necessarily the exact live editor state

@@ -1588,46 +1588,43 @@
     }
 
     var data = manager.currentData;
-    var keys = [
-      "slotId",
-      "slot",
-      "slotName",
-      "slotUuid",
-      "slotIndex",
-      "filterId",
-      "filter",
-      "filterName",
-      "action",
-      "actionName",
-      "eventName",
-      "event",
-      "eventId"
-    ];
+    var slot = data.currentSlot || null;
+    var filter = data.currentFilter || null;
     var parts = [];
 
-    for (var i = 0; i < keys.length; i += 1) {
-      var key = keys[i];
-      var value = data[key];
-      if (value === null || typeof value === "undefined") {
-        continue;
+    if (slot && typeof slot === "object") {
+      if (typeof slot.slotKey !== "undefined" && slot.slotKey !== null && String(slot.slotKey)) {
+        parts.push("slotKey=" + limitText(String(slot.slotKey), 48));
       }
-      var strValue = String(value);
-      if (!strValue) {
-        continue;
+      if (typeof slot.name !== "undefined" && slot.name !== null && String(slot.name)) {
+        parts.push("slotName=" + limitText(String(slot.name), 48));
       }
-      parts.push(key + "=" + limitText(strValue, 48));
+    }
+
+    if (filter && typeof filter === "object") {
+      if (typeof filter.key !== "undefined" && filter.key !== null && String(filter.key)) {
+        parts.push("filterKey=" + limitText(String(filter.key), 48));
+      }
+      if (typeof filter.signature !== "undefined" && filter.signature !== null && String(filter.signature)) {
+        parts.push("filterSignature=" + limitText(String(filter.signature), 96));
+      }
+      if (typeof filter.slotKey !== "undefined" && filter.slotKey !== null && String(filter.slotKey)) {
+        parts.push("filterSlotKey=" + limitText(String(filter.slotKey), 48));
+      }
+    }
+
+    if (slot && Array.isArray(slot.filtersList) && filter) {
+      for (var i = 0; i < slot.filtersList.length; i += 1) {
+        if (slot.filtersList[i] === filter) {
+          parts.push("filterIndex=" + i);
+          break;
+        }
+      }
     }
 
     if (parts.length > 0) {
       return "mgr:" + parts.join("|");
     }
-
-    try {
-      var json = JSON.stringify(data);
-      if (json) {
-        return "mgrjson:" + limitText(json, 180);
-      }
-    } catch (_ignore) {}
 
     return "";
   }

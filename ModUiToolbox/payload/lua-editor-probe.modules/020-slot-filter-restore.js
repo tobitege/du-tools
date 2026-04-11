@@ -346,13 +346,36 @@
 
   function getEditorContextKey(codeMirror) {
     var managerKey = getManagerContextKey();
+    var domKey = getDomContextKey();
+    var parts = [];
     if (managerKey) {
-      return managerKey;
+      parts.push(managerKey);
+    }
+    if (domKey) {
+      parts.push(domKey);
     }
 
-    var domKey = getDomContextKey();
-    if (domKey) {
-      return domKey;
+    var resolvedFilterNode = getResolvedActiveFilterNode();
+    var resolvedFilterSignature = getFilterSignature(resolvedFilterNode);
+    var resolvedFilterDisplay = getFilterDisplaySignature(resolvedFilterNode);
+    var activeFilterIndex = typeof state.activeFilterIndex === "number" ? state.activeFilterIndex : -1;
+
+    if (resolvedFilterSignature) {
+      parts.push("filterSig=" + limitText(resolvedFilterSignature, 96));
+    } else if (state.activeFilterFingerprint) {
+      parts.push("filterSig=" + limitText(state.activeFilterFingerprint, 96));
+    }
+
+    if (resolvedFilterDisplay) {
+      parts.push("filterDisplay=" + limitText(resolvedFilterDisplay, 96));
+    }
+
+    if (activeFilterIndex >= 0) {
+      parts.push("filterIdx=" + activeFilterIndex);
+    }
+
+    if (parts.length > 0) {
+      return parts.join("::");
     }
 
     if (codeMirror) {
@@ -384,6 +407,10 @@
     }
   }
 
+  function isSnippetMemoryKey(key) {
+    return typeof key === "string" && key.indexOf("snippet:") === 0;
+  }
+
   function rememberTopLineForKey(keyHint) {
     var codeMirror = getLuaCodeMirror();
     if (!codeMirror || typeof codeMirror.getScrollInfo !== "function") {
@@ -391,7 +418,9 @@
     }
 
     var key = keyHint || getEditorContextKey(codeMirror) || state.lastContextKey || "default";
-    state.lastContextKey = key;
+    if (!isSnippetMemoryKey(key)) {
+      state.lastContextKey = key;
+    }
 
     try {
       var scrollInfo = codeMirror.getScrollInfo();
@@ -456,7 +485,9 @@
     if (!key) {
       return false;
     }
-    state.lastContextKey = key;
+    if (!isSnippetMemoryKey(key)) {
+      state.lastContextKey = key;
+    }
 
     var remembered = state.scrollTopByContext[key];
     var rememberedTopLine = -1;
