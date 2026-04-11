@@ -4,7 +4,8 @@ import { join } from "node:path";
 import {
   type BridgeConfig,
   getPlayerIdeImportFile,
-  getPlayerSnippetFile
+  getPlayerSnippetFile,
+  getPlayerSnippetMetaFile
 } from "../config.js";
 import { bridgeEventSchema, type BridgeEvent } from "../contracts/events.js";
 import { appendNdjson, readJsonFileIfExists, readTextFileIfExists, statFileIfExists } from "./fileBus.js";
@@ -94,7 +95,14 @@ export interface ActiveCodeSnapshot {
   code: string | null;
   source: string | null;
   path: string | null;
+  metadataPath: string | null;
+  context: string | null;
+  syncId: string | null;
+  updatedAtUtc: string | null;
   lastModifiedUtc: string | null;
+  reason: string | null;
+  message: string | null;
+  nextStep: string | null;
 }
 
 export interface PendingIdeImportSnapshot {
@@ -133,12 +141,45 @@ interface IdeImportPayload {
   exportedAtUtc?: unknown;
 }
 
+interface WorkspaceSnippetMetadata {
+  context?: unknown;
+  syncId?: unknown;
+  updatedAtUtc?: unknown;
+}
+
 function optionalString(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 function optionalNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function buildMissingActiveCodeSnapshot(
+  targetKind: "lua_editor" | "screen_editor",
+  playerId: number,
+  codePath: string,
+  metadataPath: string,
+  reason: string | null,
+  message: string | null,
+  nextStep: string | null
+): ActiveCodeSnapshot {
+  return {
+    found: false,
+    targetKind,
+    playerId,
+    code: null,
+    source: null,
+    path: codePath,
+    metadataPath,
+    context: null,
+    syncId: null,
+    updatedAtUtc: null,
+    lastModifiedUtc: null,
+    reason,
+    message,
+    nextStep
+  };
 }
 
 export interface SessionSummary {
@@ -437,28 +478,67 @@ export class BridgeEventStore {
 
   public async readActiveCode(targetKind: "lua_editor" | "screen_editor", playerId: number): Promise<ActiveCodeSnapshot> {
     const playerSnippetPath = getPlayerSnippetFile(this.config, playerId, targetKind);
-    const snippetText = await readTextFileIfExists(playerSnippetPath);
-    if (snippetText !== null) {
-      const stats = await statFileIfExists(playerSnippetPath);
-      return {
-        found: true,
+    const playerSnippetMetaPath = getPlayerSnippetMetaFile(this.config, playerId, targetKind);
+    const [snippetText, snippetMeta] = await Promise.all([
+      readTextFileIfExists(playerSnippetPath),
+      readJsonFileIfExists<WorkspaceSnippetMetadata>(playerSnippetMetaPath)
+    ]);
+
+    if (snippetText === null && snippetMeta === null) {
+      return buildMissingActiveCodeSnapshot(
         targetKind,
         playerId,
-        code: snippetText,
-        source: "workspace_snippet",
-        path: playerSnippetPath,
-        lastModifiedUtc: stats?.mtimeUtc ?? null
-      };
+        playerSnippetPath,
+        playerSnippetMetaPath,
+        "snippet_missing",
+        "No workspace snippet is available for this editor.",
+        "Export or reselect the editor context to refresh snippet.lua|txt and snippet.json."
+      );
     }
 
+    if (snippetText === null || snippetMeta === null) {
+      return buildMissingActiveCodeSnapshot(
+        targetKind,
+        playerId,
+        playerSnippetPath,
+        playerSnippetMetaPath,
+        "snippet_pair_missing",
+        "snippet.lua|txt and snippet.json must exist together.",
+        "Refresh the workspace snippet so both files are rewritten as a pair."
+      );
+    }
+
+    const context = optionalString(snippetMeta.context);
+    const syncId = optionalString(snippetMeta.syncId);
+    const updatedAtUtc = optionalString(snippetMeta.updatedAtUtc);
+    if (!context || !syncId || !updatedAtUtc) {
+      return buildMissingActiveCodeSnapshot(
+        targetKind,
+        playerId,
+        playerSnippetPath,
+        playerSnippetMetaPath,
+        "snippet_metadata_invalid",
+        "snippet.json is missing required sync metadata.",
+        "Refresh the workspace snippet to regenerate snippet.json with context and syncId."
+      );
+    }
+
+    const stats = await statFileIfExists(playerSnippetPath);
     return {
-      found: false,
+      found: true,
       targetKind,
       playerId,
-      code: null,
-      source: null,
-      path: null,
-      lastModifiedUtc: null
+      code: snippetText,
+      source: "workspace_snippet_pair",
+      path: playerSnippetPath,
+      metadataPath: playerSnippetMetaPath,
+      context,
+      syncId,
+      updatedAtUtc,
+      lastModifiedUtc: stats?.mtimeUtc ?? null,
+      reason: null,
+      message: null,
+      nextStep: null
     };
   }
 

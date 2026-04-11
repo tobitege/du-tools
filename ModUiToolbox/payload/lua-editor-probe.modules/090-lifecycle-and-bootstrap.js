@@ -28,6 +28,8 @@
     state.lastContextKey = "";
     state.currentSnippetKey = "";
     state.forceEditorFocusOnNextSwitch = false;
+    state.luaViewPreferenceRestorePending = true;
+    state.luaViewPreferenceRestoreInProgress = false;
     state.skipNextSetCodeRestore = true;
     state.suppressRestoreUntilInteraction = true;
     installFreshOpenViewportGuard();
@@ -39,10 +41,10 @@
     ensureCaretHighlightToggle();
     ensureCaretHighlightBindings();
     ensureLuaBufferSize();
-    restoreLuaEditorViewPreferences();
     syncCurrentContextKey();
     syncCurrentSnippetKeyFromEditor();
     refreshActiveFilterMarker();
+    maybeRestoreLuaEditorViewPreferences();
     updateCaretLineHighlight();
     wrapLuaEditorManager();
     sendPacket("lua_editor_opened", {});
@@ -58,8 +60,11 @@
     state.lastContextKey = "";
     state.scrollTopByContext = Object.create(null);
     state.forceEditorFocusOnNextSwitch = false;
+    state.luaViewPreferenceRestorePending = false;
+    state.luaViewPreferenceRestoreInProgress = false;
     state.skipNextSetCodeRestore = false;
     state.suppressRestoreUntilInteraction = true;
+    state.programmaticViewPreferenceRestoreDepth = 0;
     state.lastIdeSyncContextKey = "";
     state.lastIdeSyncReference = null;
     removeFreshOpenViewportGuard();
@@ -82,6 +87,7 @@
       ensureCaretHighlightBindings();
       ensureLuaBufferSize();
       ensureLuaEditorViewPreferenceBindings();
+      maybeRestoreLuaEditorViewPreferences();
       if (state.suppressRestoreUntilInteraction) {
         installFreshOpenViewportGuard();
       } else {
@@ -196,6 +202,11 @@
     state.screenEditorVisible = false;
     state.screenLastRestoredContextKey = "";
     state.screenPreferenceRestoreContextKey = "";
+    state.screenPreferenceRestoredContextKey = "";
+    state.screenPreferenceRestoreInProgress = false;
+    state.luaViewPreferenceRestorePending = false;
+    state.luaViewPreferenceRestoreInProgress = false;
+    state.programmaticViewPreferenceRestoreDepth = 0;
     state.editorVisible = false;
     state.menuObserved = false;
 

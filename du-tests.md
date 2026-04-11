@@ -225,7 +225,7 @@ Examples:
 - `du_editor_pull_code`
 - `snippet.lua`
 - `snippet.txt`
-- `snippet.sync.json`
+- `snippet.json`
 
 Useful for file comparison, but not automatically identical to the visible live buffer.
 

@@ -4,6 +4,10 @@ Embedded myDU DLL mod that injects a defensive JavaScript payload into the DU cl
 
 The repository and DLL use name `ModUIToolbox`, but the in-game mod menu and user-facing action labels are `UI Toolbox`.
 
+High-level architecture overview:
+
+![ModUiToolbox payload management and DuMcpBridge interaction diagram](./du-mod-payload-bridge-er-diagram.svg)
+
 ## Start Here
 
 Important local-path note:
@@ -561,8 +565,8 @@ Important:
 Quick reality check after export:
 
 - verify that `snippet.lua` or `snippet.txt` got a fresh timestamp
-- verify that `snippet.sync.json` also got a fresh timestamp
-- verify that `snippet.sync.json` matches the intended slot/filter context
+- verify that `snippet.json` also got a fresh timestamp
+- verify that `snippet.json` matches the intended slot/filter context
 
 If those timestamps did not move, the usual cause is that `sync-ide.ps1` was not running when `IDE Sync` was clicked.
 
@@ -581,13 +585,15 @@ Lua-editor safety note:
 
 Atomicity / target-isolation notes:
 
-- Export now writes a sidecar file `tmp\ui-dumps\ide-workspace\player-<playerId>\<targetKind>\snippet.sync.json` with `targetKind`, `contextKey`, editor reference, and export hashes alongside the workspace code file.
+- Export now writes a sidecar file `tmp\ui-dumps\ide-workspace\player-<playerId>\<targetKind>\snippet.json` alongside the workspace code file.
+- `snippet.json` is intentionally minimal and contains only `context`, `syncId`, and `updatedAtUtc`.
 - Reassembly writes both the workspace code file and the sidecar atomically through temp-file swap, so external editors do not see partial chunk states.
 - IDE imports now carry `requestId`, `targetKind`, `contextKey`, `reference`, `baseCodeHash32`, and `baseCodeSha256`.
 - The live probe matches imports against the currently open editor before applying. For the Lua editor the current practical anchor is `constructId + slotElementName`, with `editorTitle` as an additional guard.
 - For `screen_editor`, the practical anchor is currently `title + subTitle + mode`; the bridge-side fallback reader now also reads the same player-scoped workspace/import files instead of depending only on `screen_state`.
 - If the player switched to the wrong board or wrong filter, the probe returns a retryable `ide_import_result` and the mod keeps retrying the same request until the correct target is live again.
 - Base hash/version mismatch is no longer blind, but also not a hard stop: the probe reports `applied_stale_base` when it had to write over a changed live base on the same target.
+- If `snippet.lua|snippet.txt` and `snippet.json` do not both exist, treat the workspace snippet as invalid and re-export before using it.
 
 Mode note:
 
@@ -650,6 +656,9 @@ For `lua_mcp_result`, the probe now emits `targetKind` so bridge events can keep
 Probe workflow notes (see `DuMcpBridge/README.md` for detail):
 
 - Reliable automation order from MCP is **`du_ui_invoke(method = select_context)` → file-based IDE import → `du_editor_save`**. Probe-level low-level calls still map to `select_slot` → `select_filter` → `apply`, and `apply` often closes the full Lua editor window.
+- In plain terms: save/apply is not the end of the Lua close path. After `du_editor_save(targetKind = lua_editor)` returns, the bridge still waits about `2250 ms` and then best-effort calls `close_runtime_ui`.
+- During that short window, do not send more Lua-editor probe actions and do not treat an immediate manual `Ctrl+L` reopen as a reliable signal yet.
+- If more Lua work is needed after save, reopen the editor and select the target context again.
 - **`select_filter`** activates an **existing** `.filter.view` row. **`add_filter`** uses **`+ add filter`** when needed, then the new row’s kebab. **`outer_html`** returns truncated `outerHTML`. **`raw_eval`** runs trusted-debug JS with parameter `state` = probe state object.
 - For `lua_editor`, hidden editor state is treated as stale cache. The probe only reports live content while the editor is visible; hidden snapshots are zeroed and editor-mutating methods reject with `lua_editor_not_visible`.
 - For `screen_editor`, hidden editor state is treated as stale cache. The probe only reports live content while the editor is visible; hidden snapshots are zeroed and `apply` rejects with `screen_editor_not_visible`.

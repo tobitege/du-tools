@@ -134,7 +134,7 @@ function Get-WorkspaceSpec {
         workspaceDir = $targetWorkspaceDir
         playerId = [UInt64]$PlayerId
         codePath = (Join-Path $targetWorkspaceDir $codeFileName)
-        metadataPath = (Join-Path $targetWorkspaceDir "snippet.sync.json")
+        metadataPath = (Join-Path $targetWorkspaceDir "snippet.json")
         importPath = (Join-Path $ImportDir ("ide_import.player-" + [string]$PlayerId + "." + $normalizedTargetKind + ".json"))
     }
 }
@@ -160,6 +160,62 @@ function Get-WorkspaceState {
     return $workspaceStates[$key]
 }
 
+function Get-CompactWorkspaceContext {
+    param(
+        [string]$TargetKind,
+        [string]$ContextKey,
+        [object]$Reference
+    )
+
+    function Normalize-ContextPart {
+        param([object]$Value)
+        if ($null -eq $Value) { return "" }
+        return ([string]$Value).Trim() -replace "\s+", " " -replace "\|", "/"
+    }
+
+    $ref = $Reference
+    if ($TargetKind -eq "lua_editor") {
+        $constructIdValue = $null
+        $slotNameValue = $null
+        $filterNameValue = $null
+        if ($null -ne $ref) {
+            $constructIdValue = $ref.constructId
+            $slotNameValue = $ref.currentSlotName
+            $filterNameValue = $ref.currentFilterSignature
+        }
+        $constructId = Normalize-ContextPart $constructIdValue
+        $slotName = Normalize-ContextPart $slotNameValue
+        $filterName = Normalize-ContextPart $filterNameValue
+        if (-not [string]::IsNullOrWhiteSpace($constructId) -and -not [string]::IsNullOrWhiteSpace($slotName) -and -not [string]::IsNullOrWhiteSpace($filterName)) {
+            return "board:$constructId|$slotName|$filterName"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($slotName) -and -not [string]::IsNullOrWhiteSpace($filterName)) {
+            return "lua|$slotName|$filterName"
+        }
+    } else {
+        $titleValue = $null
+        $subTitleValue = $null
+        $modeValue = $null
+        if ($null -ne $ref) {
+            $titleValue = $ref.title
+            $subTitleValue = $ref.subTitle
+            $modeValue = $ref.mode
+        }
+        $title = Normalize-ContextPart $titleValue
+        $subTitle = Normalize-ContextPart $subTitleValue
+        $mode = Normalize-ContextPart $modeValue
+        if (-not [string]::IsNullOrWhiteSpace($title) -or -not [string]::IsNullOrWhiteSpace($subTitle) -or -not [string]::IsNullOrWhiteSpace($mode)) {
+            return "screen|$title|$subTitle|$mode"
+        }
+    }
+
+    $normalizedContextKey = Normalize-ContextPart $ContextKey
+    if (-not [string]::IsNullOrWhiteSpace($normalizedContextKey)) {
+        return $normalizedContextKey
+    }
+    return "$TargetKind|unknown"
+}
+
 function Write-WorkspaceSnapshot {
     param(
         [hashtable]$WorkspaceSpec,
@@ -180,6 +236,9 @@ function Write-IdeImportFile {
     $safeCode = [string]$Code
     $requestId = "ide-import-" + [Guid]::NewGuid().ToString("N")
     $lastExportMeta = $WorkspaceState.lastExportMeta
+    if ($null -eq $lastExportMeta -or [string]::IsNullOrWhiteSpace([string]$lastExportMeta.syncId) -or (($null -eq $lastExportMeta.reference) -and [string]::IsNullOrWhiteSpace([string]$lastExportMeta.contextKey))) {
+        return $null
+    }
     $payload = [ordered]@{
         requestId = $requestId
         targetKind = [string]$WorkspaceState.targetKind
@@ -266,6 +325,13 @@ while ($true) {
                     }
 
                     $importMeta = Write-IdeImportFile -WorkspaceState $workspaceState -Code $code
+                    if ($null -eq $importMeta) {
+                        if (-not $workspaceState.warnedNoPlayerContext) {
+                            Write-Host ("WARNING: Skipping IDE import write because the current workspace snippet has no fresh export context for {0}. Re-export the current editor context first." -f $codePath)
+                            $workspaceState.warnedNoPlayerContext = $true
+                        }
+                        continue
+                    }
                     $workspaceState.lastCodeContent = $code
                     $workspaceState.lastCodeWriteUtc = [System.IO.File]::GetLastWriteTimeUtc($codePath)
                     $workspaceState.warnedNoPlayerContext = $false
@@ -428,6 +494,11 @@ while ($true) {
                                 $h32 = Get-TextHash32 -Text $fullCode
                                 $sha = Get-TextSha256Hex -Text $fullCode
                                 $utf8Bytes = [System.Text.Encoding]::UTF8.GetByteCount([string]$fullCode)
+                                $compactMetadata = [ordered]@{
+                                    context = (Get-CompactWorkspaceContext -TargetKind ([string]$state.targetKind) -ContextKey ([string]$state.contextKey) -Reference $state.reference)
+                                    syncId = $syncId
+                                    updatedAtUtc = [string]$state.exportedAtUtc
+                                }
                                 $metadata = [ordered]@{
                                     targetKind = [string]$state.targetKind
                                     playerId = [UInt64]$state.playerId
@@ -444,7 +515,7 @@ while ($true) {
                                     metadataPath = [string]$workspaceSpec.metadataPath
                                 }
 
-                                Write-WorkspaceSnapshot -WorkspaceSpec $workspaceSpec -Code $fullCode -Metadata $metadata
+                                Write-WorkspaceSnapshot -WorkspaceSpec $workspaceSpec -Code $fullCode -Metadata $compactMetadata
 
                                 $workspaceState = Get-WorkspaceState -WorkspaceSpec $workspaceSpec
                                 $workspaceState.targetKind = [string]$workspaceSpec.targetKind

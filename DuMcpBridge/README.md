@@ -154,3 +154,22 @@ What this does:
 Current example:
 
 - the HUD editor runtime module exposes a `closeUi(...)` hook, so `close_runtime_ui` can close the HUD overlay before returning to in-world interaction
+
+## Lua Edit And Apply
+
+Use this order for normal live Lua board editing:
+
+1. open the target context with `du_open_lua_context` or `du_ui_invoke(method = select_context)`
+2. push code into that exact visible context
+3. call `du_editor_save(targetKind = lua_editor)` as the explicit apply step
+4. wait for the save cleanup to finish before sending more Lua-editor actions
+
+Important details:
+
+- `du_editor_save(targetKind = lua_editor)` triggers the in-game apply path
+- that apply path can close the Lua editor window as part of normal behavior
+- after the apply call returns, the bridge still waits about `2250 ms` and then best-effort calls `close_runtime_ui`
+- during that short cleanup window, do not send more Lua-editor probe actions and do not judge reopen behavior yet
+- if you need to work on another filter after save, reopen the editor and select the target context again
+- use `du_open_lua_context` for a deterministic reopen path; a manual `Ctrl+L` immediately after apply can race the cleanup window
+- apply success means the editor accepted the save path; it does not prove a board runtime restart

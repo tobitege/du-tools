@@ -51,7 +51,7 @@ IDE-sync paths used by the Lua workflow:
 
 - `D:\MyDUserver\tmp\ui-dumps\payload-overrides\ide_import.player-<playerId>.lua_editor.json`
 - `D:\MyDUserver\tmp\ui-dumps\ide-workspace\player-<playerId>\lua_editor\snippet.lua`
-- `D:\MyDUserver\tmp\ui-dumps\ide-workspace\player-<playerId>\lua_editor\snippet.sync.json`
+- `D:\MyDUserver\tmp\ui-dumps\ide-workspace\player-<playerId>\lua_editor\snippet.json`
 
 Lua probe override path:
 
@@ -107,6 +107,9 @@ Important behavioral rules:
 - `screen_editor` is still bound only to the currently open active UI
 - hidden `screen_editor` state is treated as stale cache and must not be used as live board content
 - `boardId` is not yet enforced as a verified in-game board identity
+- the workspace snippet is valid only when `snippet.lua|snippet.txt` and `snippet.json` both exist as a pair
+- `snippet.json` is the minimal workspace sidecar and carries `context`, `syncId`, and `updatedAtUtc`
+- if the pair is missing or invalid, `du_editor_pull_code` returns `reason`, `message`, and `nextStep` instead of silently trusting the snippet
 
 ## Visual Verification Fallback
 
@@ -560,6 +563,7 @@ The live MCP surface is intentionally centered on a small set of tool families:
 Wrapper tools such as `du_lua_*` and `du_ui_eval_raw` are intentionally no longer part of the public surface. The generic UI path now owns the semantics that mattered in practice:
 
 - `du_ui_invoke(uiKind = lua_editor, method = select_context)` now uses `slotName`, `filterName`, and `settleMs` directly and stretches the timeout budget to cover the settle delay.
+- If a caller passes a very short `settleMs`, the bridge now clamps it to its safe minimum instead of rejecting the tool call. The wait still happens inside the bridge.
 - `du_ui_invoke(uiKind = screen_editor, method = cancel)` keeps the one correct current live exit path: probe cancel first, then delayed native `Escape` cleanup.
 - `du_editor_save(targetKind = screen_editor)` now performs the same delayed native `Escape` cleanup after the save command has been injected, so the close path does not leave the client stuck with mouse capture.
 
@@ -608,6 +612,7 @@ Supported methods today:
 Important built-in semantics:
 
 - `select_context` is the preferred Lua-editor workflow because it confirms the slot, waits at least `settleMs`, then resolves the visible filter by real name/signature.
+- For Lua context tools, `settleMs` is a requested delay, not a sharp lower-bound contract. Short values are accepted and raised internally to the bridge minimum.
 - `cancel` on `screen_editor` automatically performs the required native cleanup after the probe close. This is not an optional flag.
 - `raw_eval` remains a trusted-debug escape hatch only.
 
@@ -1004,6 +1009,9 @@ Why this exists:
 - For normal Lua editing, use `du_open_lua_context` first and prefer `du_push_lua_context_code` for tracked-file pushes.
 - Run probe calls sequentially per `playerId`. Parallel calls can race on the file bus.
 - `apply` uses the in-game confirm path and can close the whole Lua editor.
+- After `lua_editor` apply/save, the bridge still runs a short post-close cleanup window. The current bridge delay is about `2250 ms` before the best-effort `close_runtime_ui` call.
+- During that cleanup window, do not send more Lua-editor probe actions and do not treat an immediate manual `Ctrl+L` reopen as a stable signal yet.
+- If you need to continue editing after save, use `du_open_lua_context` and reselect the target context instead of chaining low-level actions into the close window.
 - `select_context` remains the preferred low-level Lua probe action because it confirms the slot, waits for settle, then resolves the visible filter by name.
 - `outer_html` and `raw_eval` are debug-oriented escape hatches and should be used sparingly.
 - `du_open_editor_native` uses `DuMcpBridge/ahk/du_bridge_input.ahk` and AutoHotkey v2. You can pass `--ahk-path` on `run-mcp.cmd` or use `DU_AHK_EXE`, `DU_MCP_BRIDGE_AHK_EXE`, `DU_AHK_DIR`, or `DU_MCP_BRIDGE_AHK_DIR`.
@@ -1084,6 +1092,9 @@ Behavior:
 - for `screen_editor`, the mod calls `CPPScreenContentEditor.save(...)`
 - after `lua_editor` save injection, the bridge waits past the Lua apply-close hold and then best-effort calls `close_runtime_ui`
 - after `screen_editor` save injection, the bridge also sends one delayed native `Escape` as the same cleanup path already used by `screen_editor cancel`
+- for `lua_editor`, treat the save call as a two-step close path: apply returns first, then the bridge cleanup finishes about `2250 ms` later
+- do not send more Lua-editor probe actions during that short gap
+- if you need the editor again right away, reopen it explicitly after the cleanup window and reselect the context
 
 This only makes sense when the target editor UI is already open.
 

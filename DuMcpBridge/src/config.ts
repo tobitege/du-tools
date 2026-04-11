@@ -111,7 +111,7 @@ export function getPlayerSnippetMetaFile(
   playerId: number,
   targetKind: "lua_editor" | "screen_editor"
 ): string {
-  return join(getPlayerTargetWorkspaceDir(config, playerId, targetKind), "snippet.sync.json");
+  return join(getPlayerTargetWorkspaceDir(config, playerId, targetKind), "snippet.json");
 }
 
 export function getPlayerIdeImportFile(

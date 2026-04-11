@@ -795,6 +795,7 @@
         var targetSnippetKey = getSnippetMemoryKeyFromCode(args && args.length > 0 ? args[0] : null);
         var hasRememberedTarget = hasRememberedTopLineForKey(targetSnippetKey);
         var suppressRestore = (!!state.skipNextSetCodeRestore || !!state.suppressRestoreUntilInteraction) && !hasRememberedTarget;
+        state.luaViewPreferenceRestorePending = true;
         state.skipNextSetCodeRestore = false;
         if (hasRememberedTarget && state.suppressRestoreUntilInteraction) {
           state.suppressRestoreUntilInteraction = false;
@@ -868,6 +869,7 @@
             } else {
               restoreSnippetAfterSwitch(info);
             }
+            maybeRestoreLuaEditorViewPreferences();
 
             sendPacket("lua_snippet_switch_end", {
               seq: info.seq,

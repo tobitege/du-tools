@@ -1,0 +1,175 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 980" role="img" aria-labelledby="title desc">
+  <title id="title">Dual Universe mod and MCP bridge ER diagram</title>
+  <desc id="desc">Entity relationship style diagram showing ModUiToolbox payload management, payload overrides, live Dual Universe UI injection, and DuMcpBridge command and event interactions.</desc>
+  <defs>
+    <style>
+      .bg { fill: #0b1020; }
+      .panel { fill: #121937; stroke: #31406f; stroke-width: 2; rx: 18; ry: 18; }
+      .panel-alt { fill: #0f1730; stroke: #3a4e86; stroke-width: 2; rx: 18; ry: 18; }
+      .panel-accent { fill: #13213d; stroke: #4c84ff; stroke-width: 2.5; rx: 18; ry: 18; }
+      .bus { fill: #10233c; stroke: #4aa3ff; stroke-width: 2; rx: 18; ry: 18; }
+      .rule { fill: #11274c; stroke: #67b0ff; stroke-width: 2; rx: 18; ry: 18; }
+      .title { font: 700 30px "Segoe UI", Arial, sans-serif; fill: #f5f7ff; }
+      .subtitle { font: 600 16px "Segoe UI", Arial, sans-serif; fill: #bcc8ee; }
+      .section { font: 700 20px "Segoe UI", Arial, sans-serif; fill: #dce6ff; }
+      .box-title { font: 700 20px "Segoe UI", Arial, sans-serif; fill: #ffffff; }
+      .body { font: 15px "Segoe UI", Arial, sans-serif; fill: #d4def8; }
+      .small { font: 13px "Segoe UI", Arial, sans-serif; fill: #afbddf; }
+      .label { font: 600 14px "Segoe UI", Arial, sans-serif; fill: #dbe7ff; }
+      .legend { font: 13px "Segoe UI", Arial, sans-serif; fill: #c7d4f7; }
+      .arrow { stroke: #8fbcff; stroke-width: 3.2; fill: none; marker-end: url(#arrowhead); }
+      .arrow-dashed { stroke: #9fd2ff; stroke-width: 3; stroke-dasharray: 10 8; fill: none; marker-end: url(#arrowhead); }
+      .divider { stroke: #2f3e6b; stroke-width: 1.5; }
+    </style>
+    <marker id="arrowhead" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#8fbcff" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1800" height="980" />
+
+  <text class="title" x="40" y="52">Dual Universe UI Bridge</text>
+  <text class="subtitle" x="40" y="80">Entity relationship view of ModUiToolbox payload management and DuMcpBridge file-bus interactions</text>
+
+  <line x1="40" y1="108" x2="1760" y2="108" class="divider" />
+
+  <text class="section" x="40" y="142">Payload Management</text>
+  <text class="section" x="40" y="612">Runtime Bridge Flow</text>
+
+  <rect class="panel" x="30" y="170" width="380" height="280" />
+  <text class="box-title" x="56" y="205">ModUiToolbox repo</text>
+  <text class="body" x="56" y="238">
+    <tspan x="56" dy="0">payload/ModUiToolbox-payload.js</tspan>
+    <tspan x="56" dy="22">payload/ModUiToolbox-payload.modules/*</tspan>
+    <tspan x="56" dy="22">payload/lua-editor-probe.js</tspan>
+    <tspan x="56" dy="22">payload/lua-editor-probe.modules/*</tspan>
+    <tspan x="56" dy="22">payload/lua-editor-runtime-modules/*</tspan>
+    <tspan x="56" dy="22">payload/theme-imports/*</tspan>
+    <tspan x="56" dy="22">tools/build-lua-probe.ps1</tspan>
+    <tspan x="56" dy="22">tools/publish-*.ps1</tspan>
+  </text>
+  <text class="small" x="56" y="430">Source of embedded fallback payloads and hot-reload publish inputs.</text>
+
+  <rect class="panel-alt" x="450" y="170" width="360" height="280" />
+  <text class="box-title" x="476" y="205">payload-overrides</text>
+  <text class="body" x="476" y="238">
+    <tspan x="476" dy="0">&lt;MyDUserver&gt;\tmp\ui-dumps\payload-overrides</tspan>
+    <tspan x="476" dy="22">lua-editor-probe.override.js</tspan>
+    <tspan x="476" dy="22">lua-editor-probe.modules/manifest.txt</tspan>
+    <tspan x="476" dy="22">ModUiToolbox-payload.override.js</tspan>
+    <tspan x="476" dy="22">ModUiToolbox-payload.modules/manifest.txt</tspan>
+    <tspan x="476" dy="22">lua-editor-runtime-modules/*</tspan>
+    <tspan x="476" dy="22">theme-imports/*</tspan>
+    <tspan x="476" dy="22">read fresh on every injection</tspan>
+  </text>
+
+  <rect class="panel-accent" x="850" y="170" width="360" height="280" />
+  <text class="box-title" x="876" y="205">ModUiToolbox.dll</text>
+  <text class="body" x="876" y="238">
+    <tspan x="876" dy="0">In-game transport and execution layer</tspan>
+    <tspan x="876" dy="22">Release DLL under wincs\all\Mods</tspan>
+    <tspan x="876" dy="22">loads embedded fallback payloads</tspan>
+    <tspan x="876" dy="22">reads mcp-bridge\commands</tspan>
+    <tspan x="876" dy="22">writes mcp-bridge\events</tspan>
+    <tspan x="876" dy="22">injects probe / extractor JavaScript</tspan>
+    <tspan x="876" dy="22">targets: lua_editor, screen_editor,</tspan>
+    <tspan x="876" dy="22">hud_chat, industry_panel</tspan>
+  </text>
+
+  <rect class="panel" x="1250" y="170" width="520" height="280" />
+  <text class="box-title" x="1276" y="205">Live Dual Universe UI</text>
+  <text class="body" x="1276" y="238">
+    <tspan x="1276" dy="0">Lua editor and screen editor surfaces</tspan>
+    <tspan x="1276" dy="22">HUD chat and industry panel surfaces</tspan>
+    <tspan x="1276" dy="22">Injected Lua probe controls real live state</tspan>
+    <tspan x="1276" dy="22">Runtime modules and theming stay on game side</tspan>
+    <tspan x="1276" dy="22">Probe methods include describe, apply,</tspan>
+    <tspan x="1276" dy="22">chat_snapshot, chat_send, and panel actions</tspan>
+  </text>
+  <text class="small" x="1276" y="430">Actual UI interaction happens here, not inside the MCP server.</text>
+
+  <rect class="rule" x="450" y="480" width="760" height="98" />
+  <text class="box-title" x="476" y="514">Payload resolution rules</text>
+  <text class="body" x="476" y="542">
+    <tspan x="476" dy="0">Lua probe inject: modules manifest -&gt; override.js -&gt; embedded lua-editor-probe.js</tspan>
+    <tspan x="476" dy="22">Extractor inject: override.js or embedded base -&gt; additive payload.modules/*</tspan>
+    <tspan x="476" dy="22">publish-lua-probe.ps1 / publish-extractor-payload.ps1 copy repo assets into hot-reload overrides</tspan>
+    <tspan x="476" dy="22">lua-editor-probe.build.json contentSha256Short aligns with injected chat sha8 verification</tspan>
+  </text>
+
+  <path class="arrow-dashed" d="M 410 250 C 430 250, 430 250, 450 250" />
+  <text class="label" x="476" y="238">publish hot-reload assets</text>
+
+  <path class="arrow-dashed" d="M 410 212 C 600 160, 660 160, 850 212" />
+  <text class="label" x="552" y="154">embed fallback payloads into DLL</text>
+
+  <path class="arrow-dashed" d="M 810 282 C 825 282, 835 282, 850 282" />
+  <text class="label" x="630" y="270">override lookup on each inject</text>
+
+  <path class="arrow" d="M 1210 310 C 1226 310, 1234 310, 1250 310" />
+  <text class="label" x="1306" y="300">injects JS and invokes UI actions</text>
+
+  <rect class="panel" x="60" y="650" width="300" height="190" />
+  <text class="box-title" x="86" y="685">AI / IDE / MCP client</text>
+  <text class="body" x="86" y="718">
+    <tspan x="86" dy="0">Cursor or another editor agent</tspan>
+    <tspan x="86" dy="22">calls du_* MCP tools</tspan>
+    <tspan x="86" dy="22">asks for editor state, writes, chat,</tspan>
+    <tspan x="86" dy="22">and housekeeping operations</tspan>
+    <tspan x="86" dy="22">consumes results and resources</tspan>
+  </text>
+
+  <rect class="panel-accent" x="420" y="650" width="330" height="190" />
+  <text class="box-title" x="446" y="685">DuMcpBridge</text>
+  <text class="body" x="446" y="718">
+    <tspan x="446" dy="0">Local MCP server</tspan>
+    <tspan x="446" dy="22">accepts MCP tool calls</tspan>
+    <tspan x="446" dy="22">writes JSON bridge commands</tspan>
+    <tspan x="446" dy="22">reads NDJSON bridge events</tspan>
+    <tspan x="446" dy="22">re-exposes results through MCP</tspan>
+  </text>
+
+  <text class="subtitle" x="840" y="628">Shared MyDUserver file bus under tmp\ui-dumps\mcp-bridge</text>
+
+  <rect class="bus" x="840" y="650" width="300" height="150" />
+  <text class="box-title" x="866" y="685">Command file bus</text>
+  <text class="body" x="866" y="718">
+    <tspan x="866" dy="0">&lt;MyDUserver&gt;\tmp\ui-dumps\mcp-bridge\commands\*.json</tspan>
+    <tspan x="866" dy="22">one request per command file</tspan>
+    <tspan x="866" dy="22">consumed by ModUiToolbox</tspan>
+    <tspan x="866" dy="22">bridge-side transport into the game</tspan>
+  </text>
+
+  <rect class="bus" x="1220" y="650" width="340" height="170" />
+  <text class="box-title" x="1246" y="685">Event file bus</text>
+  <text class="body" x="1246" y="718">
+    <tspan x="1246" dy="0">&lt;MyDUserver&gt;\tmp\ui-dumps\mcp-bridge\events\</tspan>
+    <tspan x="1246" dy="22">bridge-events-YYYYMMDD*.ndjson</tspan>
+    <tspan x="1246" dy="22">structured append-only result stream</tspan>
+    <tspan x="1246" dy="22">UTC dated, 512 KB rollover</tspan>
+    <tspan x="1246" dy="22">status / rotate / prune exposed by bridge</tspan>
+  </text>
+
+  <path class="arrow" d="M 360 745 C 380 745, 395 745, 420 745" />
+  <text class="label" x="120" y="736">MCP tool calls</text>
+
+  <path class="arrow" d="M 750 735 C 790 735, 800 735, 840 735" />
+  <text class="label" x="808" y="726">writes commands</text>
+
+  <path class="arrow" d="M 1020 650 C 1028 590, 1030 480, 1030 450" />
+  <text class="label" x="1048" y="550">folder watch</text>
+
+  <path class="arrow" d="M 1495 450 C 1495 520, 1450 570, 1390 650" />
+  <text class="label" x="1488" y="560">probe packets, command_result, probe_result</text>
+
+  <path class="arrow" d="M 1220 760 C 1080 845, 910 845, 750 760" />
+  <text class="label" x="918" y="874">reads events and exposes results back through MCP</text>
+
+  <path class="arrow" d="M 420 790 C 360 830, 300 835, 240 835" />
+  <text class="label" x="88" y="866">result resources, chat snapshots, status</text>
+
+  <line x1="1328" y1="58" x2="1368" y2="58" class="arrow" />
+  <text class="legend" x="1382" y="63">solid = runtime data flow</text>
+  <line x1="1328" y1="82" x2="1368" y2="82" class="arrow-dashed" />
+  <text class="legend" x="1382" y="87">dashed = build, publish, or override relationship</text>
+</svg>

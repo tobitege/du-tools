@@ -45,7 +45,14 @@ const pullCodeOutputSchema = {
   code: z.string().nullable(),
   source: z.string().nullable(),
   path: z.string().nullable(),
-  lastModifiedUtc: z.string().nullable()
+  metadataPath: z.string().nullable(),
+  context: z.string().nullable(),
+  syncId: z.string().nullable(),
+  updatedAtUtc: z.string().nullable(),
+  lastModifiedUtc: z.string().nullable(),
+  reason: z.string().nullable(),
+  message: z.string().nullable(),
+  nextStep: z.string().nullable()
 };
 
 const pendingIdeImportOutputSchema = {
@@ -1481,6 +1488,7 @@ async function openLuaContext(
   resultJson: string | null;
   error: string | null;
 }> {
+  const effectiveSettleMs = normalizeLuaContextSettleMs(settleMs, 1500);
   const initial = await enqueueAndWaitUiProbe(commandQueue, eventStore, "lua_editor", playerId, "describe", [], probeTimeoutMs);
   const initialSnapshot = parseEditorDescribeSnapshot(initial.resultJson);
   const initialParsed = parseJsonObject(initial.resultJson);
@@ -1622,9 +1630,9 @@ async function openLuaContext(
   const selectArgs = buildUiProbeArgs("lua_editor", "select_context", {
     slotName,
     filterName,
-    settleMs
+    settleMs: effectiveSettleMs
   });
-  const effectiveSelectTimeout = Math.max(probeTimeoutMs, settleMs + 5000);
+  const effectiveSelectTimeout = Math.max(probeTimeoutMs, effectiveSettleMs + 5000);
   const selected = await enqueueAndWaitUiProbe(
     commandQueue,
     eventStore,
@@ -1682,8 +1690,49 @@ async function stageEditorIdeImport(
   });
 }
 
+function stripSingleTrailingLineBreak(text: string): string {
+  if (text.endsWith("\r\n")) {
+    return text.slice(0, -2);
+  }
+  if (text.endsWith("\n") || text.endsWith("\r")) {
+    return text.slice(0, -1);
+  }
+  return text;
+}
+
+const minLuaContextSettleMs = 1000;
+
+function normalizeLuaContextSettleMs(value: number | undefined, fallbackMs: number): number {
+  const requested = typeof value === "number" && Number.isFinite(value)
+    ? Math.trunc(value)
+    : fallbackMs;
+  return Math.max(minLuaContextSettleMs, requested);
+}
+
+function computeTextHash32(text: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index);
+    const lowByte = code & 0xff;
+    const highByte = (code >>> 8) & 0xff;
+    hash = Math.imul((hash ^ lowByte) >>> 0, 0x01000193) >>> 0;
+    hash = Math.imul((hash ^ highByte) >>> 0, 0x01000193) >>> 0;
+  }
+
+  return hash.toString(16).padStart(8, "0");
+}
+
 function buildLuaBufferHashVerifyFunctionBody(expectedHash32: string, expectedLength: number): string {
   return [
+    "function stripSingleTrailingLineBreak(text) {",
+    "  if (text.endsWith('\\r\\n')) {",
+    "    return text.slice(0, -2);",
+    "  }",
+    "  if (text.endsWith('\\n') || text.endsWith('\\r')) {",
+    "    return text.slice(0, -1);",
+    "  }",
+    "  return text;",
+    "}",
     "function computeHash32(text) {",
     "  var hash = 0x811c9dc5;",
     "  for (var index = 0; index < text.length; index += 1) {",
@@ -1703,14 +1752,15 @@ function buildLuaBufferHashVerifyFunctionBody(expectedHash32: string, expectedLe
     "  var cm = manager.getLuaEditor();",
     "  code = cm && typeof cm.getValue === 'function' ? String(cm.getValue() || '') : '';",
     "}",
-    "var hash32 = computeHash32(code);",
+    "var normalizedCode = stripSingleTrailingLineBreak(code);",
+    "var hash32 = computeHash32(normalizedCode);",
     `var expectedHash32 = ${JSON.stringify(expectedHash32)};`,
     `var expectedLength = ${JSON.stringify(expectedLength)};`,
     "return {",
     "  ok: true,",
-    "  codeLength: code.length,",
+    "  codeLength: normalizedCode.length,",
     "  hash32: hash32,",
-    "  matches: code.length === expectedLength && hash32 === expectedHash32",
+    "  matches: normalizedCode.length === expectedLength && hash32 === expectedHash32",
     "};"
   ].join("\n");
 }
@@ -1719,8 +1769,7 @@ async function verifyLuaContextBuffer(
   commandQueue: BridgeCommandQueue,
   eventStore: BridgeEventStore,
   playerId: number,
-  expectedHash32: string,
-  expectedLength: number,
+  expectedCode: string,
   maxWaitMs: number,
   probeTimeoutMs: number,
   pollIntervalMs: number
@@ -1730,6 +1779,9 @@ async function verifyLuaContextBuffer(
   probe: ProbeResultSnapshot;
 }> {
   const started = Date.now();
+  const normalizedExpectedCode = stripSingleTrailingLineBreak(expectedCode);
+  const expectedHash32 = computeTextHash32(normalizedExpectedCode);
+  const expectedLength = normalizedExpectedCode.length;
   const functionBody = buildLuaBufferHashVerifyFunctionBody(expectedHash32, expectedLength);
   let last: ProbeResultSnapshot = {
     found: false,
@@ -1806,9 +1858,10 @@ async function runLuaEditorRuntimeUiCleanup(
   commandQueue: BridgeCommandQueue,
   eventStore: BridgeEventStore,
   playerId: number,
-  timeoutMs: number
+  timeoutMs: number,
+  initialDelayMs = 2250
 ): Promise<ProbeResultSnapshot> {
-  await sleepMs(2250);
+  await sleepMs(Math.max(0, initialDelayMs));
   return await enqueueAndWaitUiProbe(
     commandQueue,
     eventStore,
@@ -1818,6 +1871,39 @@ async function runLuaEditorRuntimeUiCleanup(
     [],
     Math.max(1000, Math.min(timeoutMs, 4000))
   );
+}
+
+async function runLuaEditorPostCloseCleanup(
+  commandQueue: BridgeCommandQueue,
+  eventStore: BridgeEventStore,
+  playerId: number,
+  timeoutMs: number,
+  mode: "apply" | "cancel"
+): Promise<{
+  runtimeUi: ProbeResultSnapshot;
+  finalDescribe: ProbeResultSnapshot;
+}> {
+  const runtimeUi = await runLuaEditorRuntimeUiCleanup(
+    commandQueue,
+    eventStore,
+    playerId,
+    timeoutMs,
+    mode === "cancel" ? 250 : 2250
+  );
+  const finalDescribe = await enqueueAndWaitUiProbe(
+    commandQueue,
+    eventStore,
+    "lua_editor",
+    playerId,
+    "describe",
+    [],
+    Math.max(1000, Math.min(timeoutMs, 4000))
+  );
+
+  return {
+    runtimeUi,
+    finalDescribe
+  };
 }
 
 export function registerEditorTools(
@@ -2414,7 +2500,7 @@ export function registerEditorTools(
           .optional()
           .describe("Visible filter or handler name for `select_filter`, `select_context`, or `add_filter`"),
         filterIndex: z.number().int().nonnegative().optional().describe("DOM filter index for `select_filter_index`"),
-        settleMs: z.number().int().min(1000).max(15000).optional().describe("Minimum wait after slot confirmation for `select_context`"),
+        settleMs: z.number().int().min(0).max(15000).optional().describe("Requested wait after slot confirmation for `select_context`. The bridge clamps short waits to its safe minimum."),
         selector: z.string().optional().describe("CSS selector for `outer_html`"),
         functionBody: z.string().optional().describe("Trusted function body for `raw_eval` using parameter `state`"),
         timeoutMs: z.number().int().min(250).max(15000).default(15000)
@@ -2434,18 +2520,34 @@ export function registerEditorTools(
       timeoutMs
     }) => {
       assertUiProbeMethodSupported(uiKind, method);
+      const effectiveSettleMs = method === "select_context"
+        ? normalizeLuaContextSettleMs(settleMs, minLuaContextSettleMs)
+        : undefined;
       const probeArgs = buildUiProbeArgs(uiKind, method, {
         slotName,
         filterName,
         filterIndex,
-        settleMs,
+        settleMs: effectiveSettleMs,
         selector,
         functionBody
       });
       const effectiveTimeout = method === "select_context"
-        ? Math.max(timeoutMs, (settleMs ?? 1000) + 5000)
+        ? Math.max(timeoutMs, normalizeLuaContextSettleMs(settleMs, minLuaContextSettleMs) + 5000)
         : timeoutMs;
       const probeResult = await enqueueAndWaitUiProbe(commandQueue, eventStore, uiKind, playerId, method, probeArgs, effectiveTimeout);
+      if (uiKind === "lua_editor" && (method === "cancel" || method === "apply") && probeResult.found && probeResult.success) {
+        try {
+          await runLuaEditorPostCloseCleanup(
+            commandQueue,
+            eventStore,
+            playerId,
+            effectiveTimeout,
+            method
+          );
+        } catch {
+          // Keep lua_editor invoke stable if delayed cleanup inference fails.
+        }
+      }
       if (uiKind === "screen_editor" && (method === "cancel" || method === "apply") && probeResult.found && probeResult.success) {
         const cleanup = await runEditorEscapeCleanup(
           commandQueue,
@@ -3104,7 +3206,7 @@ export function registerEditorTools(
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         slotName: z.string().min(1).describe("Lua slot to activate, for example `library`"),
         filterName: z.string().min(1).describe("Visible Lua handler/filter signature, for example `onStart()`"),
-        settleMs: z.number().int().min(1000).max(15000).default(1500).describe("Minimum wait after slot confirmation before final describe"),
+        settleMs: z.number().int().min(0).max(15000).default(1500).describe("Requested wait after slot confirmation before final describe. The bridge clamps short waits to its safe minimum."),
         timeoutMs: z.number().int().min(500).max(30000).default(10000).describe("Maximum total wait for the Lua editor to appear"),
         probeTimeoutMs: z.number().int().min(250).max(15000).default(8000).describe("Timeout for individual describe/select probe calls"),
         activateWindow: z.boolean().default(true).describe("When true, activate the Dual Universe window before native open"),
@@ -3152,7 +3254,7 @@ export function registerEditorTools(
         sourcePath: z.string().min(1).describe("Absolute path of the local source file to stage into the live Lua context"),
         slotName: z.string().min(1).describe("Lua slot to activate, for example `library`"),
         filterName: z.string().min(1).describe("Visible Lua handler/filter signature, for example `onStart()`"),
-        settleMs: z.number().int().min(1000).max(15000).default(1500).describe("Minimum wait after slot confirmation before push"),
+        settleMs: z.number().int().min(0).max(15000).default(1500).describe("Requested wait after slot confirmation before push. The bridge clamps short waits to its safe minimum."),
         timeoutMs: z.number().int().min(500).max(30000).default(10000).describe("Maximum total wait for the Lua editor to appear"),
         probeTimeoutMs: z.number().int().min(250).max(15000).default(8000).describe("Timeout for individual probe calls"),
         verifyTimeoutMs: z.number().int().min(500).max(30000).default(10000).describe("Maximum wait for the live buffer to match the staged source"),
@@ -3228,8 +3330,7 @@ export function registerEditorTools(
         commandQueue,
         eventStore,
         playerId,
-        staged.codeHash32,
-        staged.codeCharLength,
+        staged.code,
         verifyTimeoutMs,
         probeTimeoutMs,
         verifyPollIntervalMs
@@ -3276,7 +3377,7 @@ export function registerEditorTools(
     "du_editor_pull_code",
     {
       title: "Read Workspace Editor Code",
-      description: "Reads the last known editor workspace snippet for a session.",
+      description: "Reads the current workspace snippet pair (`snippet.lua|txt` plus `snippet.json`) and reports `reason/message/nextStep` when the pair is missing or invalid.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Player ID for session scoping"),
         targetKind: editorTargetKindSchema.default("lua_editor").describe("Target editor kind")
@@ -3294,7 +3395,7 @@ export function registerEditorTools(
             type: "text",
             text: snapshot.found
               ? snapshot.code ?? ""
-              : `No active code snapshot found for player ${playerId} (${targetKind}).`
+              : [snapshot.message, snapshot.nextStep].filter(Boolean).join(" ")
           }
         ],
         structuredContent
@@ -3445,11 +3546,12 @@ export function registerEditorTools(
                 return payload?.status === "injected";
               })();
             if (injectedOk) {
-              await runLuaEditorRuntimeUiCleanup(
+              await runLuaEditorPostCloseCleanup(
                 commandQueue,
                 eventStore,
                 playerId,
-                cleanupTimeoutMs
+                cleanupTimeoutMs,
+                "apply"
               );
             }
           } catch {

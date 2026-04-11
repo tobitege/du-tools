@@ -59,11 +59,13 @@ export interface StageIdeImportResult {
 
 type LegacySnippetMetadata = {
   syncId?: unknown;
-  codeHash32?: unknown;
-  codeSha256?: unknown;
+  context?: unknown;
+  updatedAtUtc?: unknown;
   contextKey?: unknown;
   reference?: unknown;
   exportedAtUtc?: unknown;
+  codeHash32?: unknown;
+  codeSha256?: unknown;
 };
 
 function readOptionalString(value: unknown): string | null {
@@ -81,6 +83,42 @@ function computeTextHash32(text: string): string {
   }
 
   return hash.toString(16).padStart(8, "0");
+}
+
+function normalizeWorkspaceContextPart(value: unknown): string {
+  return String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[|]/g, "/");
+}
+
+function buildWorkspaceContextString(
+  targetKind: "lua_editor" | "screen_editor",
+  contextKey: string | null,
+  reference: unknown
+): string {
+  const ref = reference && typeof reference === "object" ? reference as Record<string, unknown> : null;
+  if (targetKind === "lua_editor") {
+    const constructId = normalizeWorkspaceContextPart(ref?.constructId);
+    const slotName = normalizeWorkspaceContextPart(ref?.currentSlotName);
+    const filterName = normalizeWorkspaceContextPart(ref?.currentFilterSignature);
+    if (constructId && slotName && filterName) {
+      return `board:${constructId}|${slotName}|${filterName}`;
+    }
+    if (slotName && filterName) {
+      return `lua|${slotName}|${filterName}`;
+    }
+  } else {
+    const title = normalizeWorkspaceContextPart(ref?.title);
+    const subTitle = normalizeWorkspaceContextPart(ref?.subTitle);
+    const mode = normalizeWorkspaceContextPart(ref?.mode);
+    if (title || subTitle || mode) {
+      return `screen|${title}|${subTitle}|${mode}`;
+    }
+  }
+
+  const normalizedContextKey = normalizeWorkspaceContextPart(contextKey);
+  return normalizedContextKey || `${targetKind}|unknown`;
 }
 
 export class BridgeCommandQueue {
@@ -136,6 +174,10 @@ export class BridgeCommandQueue {
     const reference = hasLiveOverride
       ? (input.referenceOverride ?? null)
       : (lastExportMeta?.reference ?? null);
+    const workspaceContext = readOptionalString(lastExportMeta?.context)
+      ?? buildWorkspaceContextString(input.targetKind, contextKey, reference);
+    const workspaceSyncId = `snippet-${Date.now()}-${randomUUID().slice(0, 8)}`;
+    const workspaceUpdatedAtUtc = new Date().toISOString();
     const contextSource = hasLiveOverride
       ? "live_probe"
       : (lastExportMeta !== null ? "workspace_metadata" : "none");
@@ -150,16 +192,23 @@ export class BridgeCommandQueue {
       codeSha256,
       baseCodeHash32: readOptionalString(lastExportMeta?.codeHash32),
       baseCodeSha256: readOptionalString(lastExportMeta?.codeSha256),
-      sourceSyncId: readOptionalString(lastExportMeta?.syncId),
+      sourceSyncId: readOptionalString(lastExportMeta?.syncId) ?? workspaceSyncId,
       contextKey,
       reference,
-      exportedAtUtc: readOptionalString(lastExportMeta?.exportedAtUtc),
+      exportedAtUtc: readOptionalString(lastExportMeta?.exportedAtUtc) ?? workspaceUpdatedAtUtc,
       workspaceCodePath: workspacePath,
       workspaceMetaPath: metadataPath,
       requestCreatedAtUtc: new Date().toISOString()
     };
 
+    const workspaceMetadata = {
+      context: workspaceContext,
+      syncId: workspaceSyncId,
+      updatedAtUtc: workspaceUpdatedAtUtc
+    };
+
     await atomicWriteText(workspacePath, code);
+    await atomicWriteJson(metadataPath, workspaceMetadata);
     await atomicWriteJson(importPath, payload);
 
     return {

@@ -136,7 +136,7 @@ This is the external-editor handoff path added by our mod and probe.
 Critical prerequisite:
 
 - A running `sync-ide.ps1` watcher must already exist for the current live session.
-- The in-game `IDE Sync` button does not update `snippet.lua|snippet.txt` or `snippet.sync.json` by itself.
+- The in-game `IDE Sync` button does not update `snippet.lua|snippet.txt` or `snippet.json` by itself.
 - Without that watcher, the editor can still emit a valid export packet, but the workspace files stay stale.
 - In that state it looks as if `IDE Sync` "did nothing" even though the click itself worked.
 
@@ -144,7 +144,7 @@ Typical files:
 
 - `D:\MyDUserver\tmp\ui-dumps\ide-workspace\player-<playerId>\lua_editor\snippet.lua`
 - `D:\MyDUserver\tmp\ui-dumps\ide-workspace\player-<playerId>\screen_editor\snippet.txt`
-- matching `snippet.sync.json`
+- matching `snippet.json`
 
 How it is produced:
 
@@ -161,7 +161,8 @@ What must be true before you trust it:
 
 - the watcher was started explicitly for this session
 - the workspace file timestamp changed after the export click
-- `snippet.sync.json` also changed and matches the expected slot/filter context
+- `snippet.json` also changed and matches the expected slot/filter context
+- if either file is missing, treat the workspace snippet pair as invalid
 
 What it is not:
 
@@ -784,7 +785,8 @@ Do not skip this step before code push.
 
 Minimum timing rule:
 
-- after any Lua filter change, wait at least 1 second before pushing code
+- after any Lua filter change, the bridge must still wait at least 1 second before pushing code
+- if a caller passes a shorter `settleMs`, the bridge should clamp it internally instead of rejecting the tool call
 - `settleMs = 2000` on `select_context` is the safer default for live board work
 - pushing immediately after a filter click can race the editor and leave the old buffer active
 
@@ -862,13 +864,13 @@ What it does not do:
 Critical routing detail:
 
 - `du_editor_push_code` stages code using the last known Lua IDE-sync metadata
-- in practice this means `snippet.sync.json` participates in routing the staged import
-- if `snippet.sync.json` still says `onStart()` while the live target should be `onTimer(upd)`, the staged import can land in the wrong handler even when the correct filter is visibly selected
+- in practice this means `snippet.json` must describe the same live context as the visible editor before you trust the workspace snippet
+- if `snippet.json` still says `onStart()` while the live target should be `onTimer(upd)`, the workspace snippet is stale and must be refreshed before staging
 - the export-side fix for this is now in the Lua probe: IDE Sync metadata is expected to carry the resolved active filter signature, for example `onTimer(UPD)`, plus a Lua-specific `contextKey` like `lua:...|filter=ontimer(upd)` instead of the older generic DOM label
 
 Before a sensitive push, verify or refresh:
 
-- `snippet.sync.json`
+- `snippet.json`
 - `reference.currentFilterSignature`
 - `contextKey`
 
@@ -906,8 +908,10 @@ Expected:
 Note:
 
 - Lua editor apply/save behavior can close the editor panel as part of the normal path
-- the probe now holds the Lua close path for at least `2000ms` after `apply()` so the client-side save roundtrip is not immediately followed by a close
-- `du_editor_save(targetKind = lua_editor)` now waits past that hold and then best-effort calls `close_runtime_ui` for lingering runtime-module UI
+- after `apply()` returns, the Lua close path is still not fully done yet
+- `du_editor_save(targetKind = lua_editor)` now waits about `2250 ms` and then best-effort calls `close_runtime_ui` for lingering runtime-module UI
+- during that short cleanup window, do not send more Lua-editor probe actions
+- do not treat an immediate manual `Ctrl+L` reopen as a stable signal yet
 - do not assume a Lua close always returns the client to a usable free in-world state
 - if a verified board-target `Ctrl+L` fails immediately after a Lua close, treat that as a recovery case for the open-editor path instead of sending unconditional close-time `Escape`
 - do not parallelize additional probe calls on the same editor while saving
@@ -1157,7 +1161,7 @@ Symptoms:
 Likely cause:
 
 - slot or filter was not explicitly established
-- or `snippet.sync.json` still points at a different filter than the one you mean to update
+- or `snippet.json` still points at a different filter than the one you mean to update
 
 Action:
 
@@ -1203,7 +1207,7 @@ Action:
 - Do: verify the real timer signature when multiple `onTimer(...)` filters exist.
 - Do not: trust the generic `selectedFilter` text alone.
 
-- Do: treat `snippet.sync.json` as part of the IDE-import routing state.
+- Do: treat `snippet.json` as part of the workspace snippet validity contract.
 - Do not: assume visible selection alone is always enough for `du_editor_push_code`.
 
 - Do: make a real minimal change before a screen save test.

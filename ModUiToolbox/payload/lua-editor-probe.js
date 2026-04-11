@@ -226,8 +226,11 @@
     pendingSlotAutoOpenTimeoutId: 0,
     pendingSlotAutoOpenRetryTimeoutId: 0,
     forceEditorFocusOnNextSwitch: false,
+    luaViewPreferenceRestorePending: false,
+    luaViewPreferenceRestoreInProgress: false,
     skipNextSetCodeRestore: false,
     suppressRestoreUntilInteraction: true,
+    programmaticViewPreferenceRestoreDepth: 0,
     cursorGuardCodeMirror: null,
     luaApplyCloseHoldUntil: 0,
     luaApplyCloseHoldTimerId: 0,
@@ -235,6 +238,8 @@
     screenEditorVisible: false,
     screenLastRestoredContextKey: "",
     screenPreferenceRestoreContextKey: "",
+    screenPreferenceRestoredContextKey: "",
+    screenPreferenceRestoreInProgress: false,
     lastIdeSyncContextKey: "",
     lastIdeSyncReference: null,
     lastInitDemReference: null,
@@ -5289,6 +5294,74 @@ function scheduleDelayed(fn, delayMs) {
   return window.setTimeout(fn, typeof delayMs === "number" ? delayMs : 0);
 }
 
+function isProgrammaticViewPreferenceRestoreActive() {
+  return !!(state.programmaticViewPreferenceRestoreDepth > 0);
+}
+
+function beginProgrammaticViewPreferenceRestore() {
+  state.programmaticViewPreferenceRestoreDepth = (state.programmaticViewPreferenceRestoreDepth || 0) + 1;
+}
+
+function endProgrammaticViewPreferenceRestore() {
+  if (state.programmaticViewPreferenceRestoreDepth > 0) {
+    state.programmaticViewPreferenceRestoreDepth -= 1;
+  } else {
+    state.programmaticViewPreferenceRestoreDepth = 0;
+  }
+}
+
+function applyCurrentThemeWithoutPersist() {
+  var theme = getThemeByName(state.activeTheme || getDefaultThemeName());
+  if (!theme) {
+    syncEditorThemeActivation();
+    return false;
+  }
+
+  var roots = getThemeRoots();
+  for (var i = 0; i < roots.length; i += 1) {
+    applyThemeToRoot(roots[i], theme);
+  }
+  state.lastAppliedTheme = theme.name;
+  syncEditorThemeActivation();
+  updateThemeDotSelection(theme.name);
+  updateThemeCatalogSelection(theme.name);
+  updateThemeOffButtonSelection();
+  return true;
+}
+
+function isLuaEditorViewPreferenceUiReady() {
+  var root = document.getElementById("dpu_editor");
+  if (!root || !root.querySelector || !isElementVisible(root) || state.switchInProgress) {
+    return false;
+  }
+
+  var wrapNode = document.getElementById("lua_wrap_lines");
+  var codeMirror = getLuaCodeMirror();
+  if (!wrapNode || !codeMirror) {
+    return false;
+  }
+
+  var targetPx = getRuntimeModuleStateValue(luaEditorEnhancementModuleId, "luaFontSizePx", 0);
+  if (!(targetPx > 0)) {
+    return true;
+  }
+
+  var currentPx = getCodeMirrorFontSizePx(codeMirror);
+  if (currentPx > 0 && Math.abs(currentPx - targetPx) <= 0.35) {
+    return true;
+  }
+
+  var canUseManager = !!(window.LUAEditorManager && typeof window.LUAEditorManager.changeFontSize === "function");
+  if (canUseManager) {
+    return true;
+  }
+
+  return !!(
+    root.querySelector('.header_editor .font_size_wrapper .lua_change_font_size[value="+"]') ||
+    root.querySelector('.header_editor .font_size_wrapper .lua_change_font_size[value="-"]')
+  );
+}
+
 function saveLuaEditorViewPreferences() {
   var wrapNode = document.getElementById("lua_wrap_lines");
   persistRuntimeModuleStateValue(luaEditorEnhancementModuleId, "luaWrapLines", !!(wrapNode && wrapNode.checked));
@@ -5302,7 +5375,7 @@ function saveLuaEditorViewPreferences() {
 function restoreLuaEditorWrapLinesPreference() {
   var wrapNode = document.getElementById("lua_wrap_lines");
   if (!wrapNode) {
-    return;
+    return false;
   }
   var wanted = !!getRuntimeModuleStateValue(
     luaEditorEnhancementModuleId,
@@ -5310,59 +5383,86 @@ function restoreLuaEditorWrapLinesPreference() {
     !!wrapNode.checked
   );
   if (!!wrapNode.checked === wanted) {
-    return;
+    return true;
   }
   try {
     wrapNode.click();
   } catch (_ignoreWrapClick) {
     wrapNode.checked = wanted;
   }
+  return true;
 }
 
-function stepLuaEditorFontSizeToward(targetPx, remainingSteps) {
-  if (!(targetPx > 0) || remainingSteps <= 0) {
+function stepLuaEditorFontSizeToward(targetPx, remainingSteps, done) {
+  if (!(targetPx > 0)) {
+    if (typeof done === "function") {
+      done(true);
+    }
+    return;
+  }
+  if (remainingSteps <= 0 || state.switchInProgress) {
+    if (typeof done === "function") {
+      done(false);
+    }
     return;
   }
   var currentPx = getCodeMirrorFontSizePx(getLuaCodeMirror());
   if (!(currentPx > 0) || Math.abs(currentPx - targetPx) <= 0.35) {
+    if (typeof done === "function") {
+      done(currentPx > 0);
+    }
     return;
   }
   var root = document.getElementById("dpu_editor");
   if (!root || !root.querySelector) {
+    if (typeof done === "function") {
+      done(false);
+    }
     return;
   }
   var selector = currentPx < targetPx
     ? '.header_editor .font_size_wrapper .lua_change_font_size[value="+"]'
     : '.header_editor .font_size_wrapper .lua_change_font_size[value="-"]';
   var button = root.querySelector(selector);
-  if (!button) {
+  var advanced = false;
+  try {
+    if (button) {
+      button.click();
+      advanced = true;
+    }
+  } catch (_ignoreFontClick) {
+  }
+  if (!advanced && window.LUAEditorManager && typeof window.LUAEditorManager.changeFontSize === "function") {
+    try {
+      window.LUAEditorManager.changeFontSize(currentPx < targetPx);
+      advanced = true;
+    } catch (_ignoreFontManagerCall) {}
+  }
+  if (!advanced) {
+    if (typeof done === "function") {
+      done(false);
+    }
     return;
   }
-  try {
-    button.click();
-  } catch (_ignoreFontClick) {
-    if (window.LUAEditorManager && typeof window.LUAEditorManager.changeFontSize === "function") {
-      try {
-        window.LUAEditorManager.changeFontSize(currentPx < targetPx);
-      } catch (_ignoreFontManagerCall) {}
-    }
-  }
   scheduleDelayed(function () {
-    stepLuaEditorFontSizeToward(targetPx, remainingSteps - 1);
+    stepLuaEditorFontSizeToward(targetPx, remainingSteps - 1, done);
   }, 60);
 }
 
-function restoreLuaEditorFontSizePreference() {
+function restoreLuaEditorFontSizePreference(done) {
   var targetPx = getRuntimeModuleStateValue(
     luaEditorEnhancementModuleId,
     "luaFontSizePx",
     0
   );
   if (!(targetPx > 0)) {
+    if (typeof done === "function") {
+      done(true);
+    }
     return;
   }
   scheduleDelayed(function () {
-    stepLuaEditorFontSizeToward(targetPx, 12);
+    stepLuaEditorFontSizeToward(targetPx, 12, done);
   }, 0);
 }
 
@@ -5376,6 +5476,9 @@ function ensureLuaEditorViewPreferenceBindings() {
   if (wrapNode && !wrapNode.__luaProbePreferenceBound) {
     wrapNode.__luaProbePreferenceBound = true;
     wrapNode.addEventListener("change", function () {
+      if (isProgrammaticViewPreferenceRestoreActive()) {
+        return;
+      }
       saveLuaEditorViewPreferences();
     }, true);
   }
@@ -5389,19 +5492,80 @@ function ensureLuaEditorViewPreferenceBindings() {
     button.__luaProbePreferenceBound = true;
     button.addEventListener("click", function () {
       scheduleDelayed(function () {
+        if (isProgrammaticViewPreferenceRestoreActive()) {
+          return;
+        }
         saveLuaEditorViewPreferences();
       }, 80);
     }, true);
   }
 }
 
-function restoreLuaEditorViewPreferences() {
+function maybeRestoreLuaEditorViewPreferences() {
   ensureLuaEditorViewPreferenceBindings();
-  restoreLuaEditorWrapLinesPreference();
-  restoreLuaEditorFontSizePreference();
-  scheduleDelayed(function () {
-    saveLuaEditorViewPreferences();
-  }, 120);
+  if (!state.luaViewPreferenceRestorePending || state.luaViewPreferenceRestoreInProgress) {
+    return false;
+  }
+  if (!isLuaEditorViewPreferenceUiReady()) {
+    return false;
+  }
+
+  state.luaViewPreferenceRestoreInProgress = true;
+  beginProgrammaticViewPreferenceRestore();
+  applyCurrentThemeWithoutPersist();
+
+  if (!restoreLuaEditorWrapLinesPreference()) {
+    endProgrammaticViewPreferenceRestore();
+    state.luaViewPreferenceRestoreInProgress = false;
+    return false;
+  }
+
+  restoreLuaEditorFontSizePreference(function (success) {
+    endProgrammaticViewPreferenceRestore();
+    state.luaViewPreferenceRestoreInProgress = false;
+    if (success) {
+      state.luaViewPreferenceRestorePending = false;
+    }
+  });
+  return true;
+}
+
+function isScreenEditorViewPreferenceUiReady(root) {
+  if (!root || !root.querySelector || !isElementVisible(root)) {
+    return false;
+  }
+
+  var wrapNode = null;
+  try {
+    wrapNode = root.querySelector('.wrap_line_wrapper .checkbox');
+  } catch (_ignoreScreenWrapReady) {}
+  if (!wrapNode) {
+    return false;
+  }
+
+  var codeMirror = getScreenEditorCodeMirror(root);
+  var currentPx = getCodeMirrorFontSizePx(codeMirror);
+  if (!(currentPx > 0)) {
+    try {
+      var codeNode = getScreenEditorCodeNode(getScreenEditorPanel(), root);
+      if (codeNode) {
+        currentPx = parsePixelFontSize(window.getComputedStyle(codeNode, null).fontSize);
+      }
+    } catch (_ignoreScreenFontReady) {}
+  }
+
+  var targetPx = getRuntimeModuleStateValue(luaEditorEnhancementModuleId, "screenFontSizePx", 0);
+  if (!(targetPx > 0)) {
+    return currentPx > 0;
+  }
+  if (currentPx > 0 && Math.abs(currentPx - targetPx) <= 0.35) {
+    return true;
+  }
+
+  return !!(
+    root.querySelector('.font_size_wrapper .lua_change_font_size[value="+"]') ||
+    root.querySelector('.font_size_wrapper .lua_change_font_size[value="-"]')
+  );
 }
 
 function saveScreenEditorViewPreferences(root) {
@@ -5430,14 +5594,14 @@ function saveScreenEditorViewPreferences(root) {
 
 function restoreScreenEditorWrapLinesPreference(root) {
   if (!root || !root.querySelector) {
-    return;
+    return false;
   }
   var wrapNode = null;
   try {
     wrapNode = root.querySelector('.wrap_line_wrapper .checkbox');
   } catch (_ignoreScreenWrap) {}
   if (!wrapNode) {
-    return;
+    return false;
   }
   var wanted = !!getRuntimeModuleStateValue(
     luaEditorEnhancementModuleId,
@@ -5445,17 +5609,43 @@ function restoreScreenEditorWrapLinesPreference(root) {
     !!wrapNode.checked
   );
   if (!!wrapNode.checked === wanted) {
-    return;
+    return true;
   }
   try {
     wrapNode.click();
   } catch (_ignoreScreenWrapClick) {
     wrapNode.checked = wanted;
   }
+  return true;
 }
 
-function stepScreenEditorFontSizeToward(root, targetPx, remainingSteps) {
-  if (!root || !(targetPx > 0) || remainingSteps <= 0) {
+function stepScreenEditorFontSizeToward(root, targetPx, remainingSteps, expectedContextKey, done) {
+  if (!root) {
+    if (typeof done === "function") {
+      done(false);
+    }
+    return;
+  }
+  if (!(targetPx > 0)) {
+    if (typeof done === "function") {
+      done(true);
+    }
+    return;
+  }
+  if (remainingSteps <= 0) {
+    if (typeof done === "function") {
+      done(false);
+    }
+    return;
+  }
+  var currentContextKey = "";
+  try {
+    currentContextKey = getScreenEditorContextSnapshot(root).contextKey || "__screen-visible__";
+  } catch (_ignoreScreenContextKey) {}
+  if (expectedContextKey && currentContextKey && expectedContextKey !== currentContextKey) {
+    if (typeof done === "function") {
+      done(false);
+    }
     return;
   }
   var currentPx = getCodeMirrorFontSizePx(getScreenEditorCodeMirror(root));
@@ -5468,6 +5658,9 @@ function stepScreenEditorFontSizeToward(root, targetPx, remainingSteps) {
     } catch (_ignoreScreenCurrentFont) {}
   }
   if (!(currentPx > 0) || Math.abs(currentPx - targetPx) <= 0.35) {
+    if (typeof done === "function") {
+      done(currentPx > 0);
+    }
     return;
   }
   var selector = currentPx < targetPx
@@ -5475,27 +5668,33 @@ function stepScreenEditorFontSizeToward(root, targetPx, remainingSteps) {
     : '.font_size_wrapper .lua_change_font_size[value="-"]';
   var button = root.querySelector(selector);
   if (!button) {
+    if (typeof done === "function") {
+      done(false);
+    }
     return;
   }
   try {
     button.click();
   } catch (_ignoreScreenFontClick) {}
   scheduleDelayed(function () {
-    stepScreenEditorFontSizeToward(root, targetPx, remainingSteps - 1);
+    stepScreenEditorFontSizeToward(root, targetPx, remainingSteps - 1, expectedContextKey, done);
   }, 60);
 }
 
-function restoreScreenEditorFontSizePreference(root) {
+function restoreScreenEditorFontSizePreference(root, expectedContextKey, done) {
   var targetPx = getRuntimeModuleStateValue(
     luaEditorEnhancementModuleId,
     "screenFontSizePx",
     0
   );
   if (!(targetPx > 0)) {
+    if (typeof done === "function") {
+      done(true);
+    }
     return;
   }
   scheduleDelayed(function () {
-    stepScreenEditorFontSizeToward(root, targetPx, 12);
+    stepScreenEditorFontSizeToward(root, targetPx, 12, expectedContextKey, done);
   }, 0);
 }
 
@@ -5510,6 +5709,9 @@ function ensureScreenEditorViewPreferenceBindings(root) {
   if (wrapNode && !wrapNode.__luaProbePreferenceBound) {
     wrapNode.__luaProbePreferenceBound = true;
     wrapNode.addEventListener("change", function () {
+      if (isProgrammaticViewPreferenceRestoreActive()) {
+        return;
+      }
       saveScreenEditorViewPreferences(root);
     }, true);
   }
@@ -5523,19 +5725,50 @@ function ensureScreenEditorViewPreferenceBindings(root) {
     button.__luaProbePreferenceBound = true;
     button.addEventListener("click", function () {
       scheduleDelayed(function () {
+        if (isProgrammaticViewPreferenceRestoreActive()) {
+          return;
+        }
         saveScreenEditorViewPreferences(root);
       }, 80);
     }, true);
   }
 }
 
-function restoreScreenEditorViewPreferences(root) {
+function maybeRestoreScreenEditorViewPreferences(root, expectedContextKey) {
   ensureScreenEditorViewPreferenceBindings(root);
-  restoreScreenEditorWrapLinesPreference(root);
-  restoreScreenEditorFontSizePreference(root);
-  scheduleDelayed(function () {
-    saveScreenEditorViewPreferences(root);
-  }, 120);
+  if (!root || !root.querySelector || state.screenPreferenceRestoreInProgress) {
+    return false;
+  }
+  var targetContextKey = String(expectedContextKey || "__screen-visible__");
+  if (state.screenPreferenceRestoreContextKey !== targetContextKey) {
+    state.screenPreferenceRestoreContextKey = targetContextKey;
+    state.screenPreferenceRestoredContextKey = "";
+  }
+  if (state.screenPreferenceRestoredContextKey === targetContextKey) {
+    return false;
+  }
+  if (!isScreenEditorViewPreferenceUiReady(root)) {
+    return false;
+  }
+
+  state.screenPreferenceRestoreInProgress = true;
+  beginProgrammaticViewPreferenceRestore();
+  applyCurrentThemeWithoutPersist();
+
+  if (!restoreScreenEditorWrapLinesPreference(root)) {
+    endProgrammaticViewPreferenceRestore();
+    state.screenPreferenceRestoreInProgress = false;
+    return false;
+  }
+
+  restoreScreenEditorFontSizePreference(root, targetContextKey, function (success) {
+    endProgrammaticViewPreferenceRestore();
+    state.screenPreferenceRestoreInProgress = false;
+    if (success && state.screenPreferenceRestoreContextKey === targetContextKey) {
+      state.screenPreferenceRestoredContextKey = targetContextKey;
+    }
+  });
+  return true;
 }
 
 function ensureLuaBufferSize() {
@@ -5646,6 +5879,8 @@ function ensureScreenEditorFacelift() {
     state.screenEditorVisible = false;
     state.screenLastRestoredContextKey = "";
     state.screenPreferenceRestoreContextKey = "";
+    state.screenPreferenceRestoredContextKey = "";
+    state.screenPreferenceRestoreInProgress = false;
     return;
   }
 
@@ -5664,6 +5899,8 @@ function ensureScreenEditorFacelift() {
     state.screenEditorVisible = false;
     state.screenLastRestoredContextKey = "";
     state.screenPreferenceRestoreContextKey = "";
+    state.screenPreferenceRestoredContextKey = "";
+    state.screenPreferenceRestoreInProgress = false;
     try {
       setThemeRootActive(root, false);
     } catch (_ignoreScreenProbeInactive) {}
@@ -5683,10 +5920,10 @@ function ensureScreenEditorFacelift() {
   var screenPrefContextKey = contextKey || "__screen-visible__";
   if (state.screenPreferenceRestoreContextKey !== screenPrefContextKey) {
     state.screenPreferenceRestoreContextKey = screenPrefContextKey;
-    restoreScreenEditorViewPreferences(root);
-  } else {
-    ensureScreenEditorViewPreferenceBindings(root);
+    state.screenPreferenceRestoredContextKey = "";
   }
+  ensureScreenEditorViewPreferenceBindings(root);
+  maybeRestoreScreenEditorViewPreferences(root, screenPrefContextKey);
   ensureScreenViewportBindings();
 
   if (contextKey) {
@@ -5702,7 +5939,7 @@ function ensureScreenEditorFacelift() {
     }
   }
 
-  applyTheme(state.activeTheme || getDefaultThemeName(), false);
+  applyCurrentThemeWithoutPersist();
 }
 function getInventoryThemeRoot() {
   var roots = getInventoryThemeRoots();
@@ -11830,6 +12067,7 @@ function ensureInventoryThemeRoot() {
         var targetSnippetKey = getSnippetMemoryKeyFromCode(args && args.length > 0 ? args[0] : null);
         var hasRememberedTarget = hasRememberedTopLineForKey(targetSnippetKey);
         var suppressRestore = (!!state.skipNextSetCodeRestore || !!state.suppressRestoreUntilInteraction) && !hasRememberedTarget;
+        state.luaViewPreferenceRestorePending = true;
         state.skipNextSetCodeRestore = false;
         if (hasRememberedTarget && state.suppressRestoreUntilInteraction) {
           state.suppressRestoreUntilInteraction = false;
@@ -11903,6 +12141,7 @@ function ensureInventoryThemeRoot() {
             } else {
               restoreSnippetAfterSwitch(info);
             }
+            maybeRestoreLuaEditorViewPreferences();
 
             sendPacket("lua_snippet_switch_end", {
               seq: info.seq,
@@ -12658,6 +12897,8 @@ function ensureInventoryThemeRoot() {
     state.lastContextKey = "";
     state.currentSnippetKey = "";
     state.forceEditorFocusOnNextSwitch = false;
+    state.luaViewPreferenceRestorePending = true;
+    state.luaViewPreferenceRestoreInProgress = false;
     state.skipNextSetCodeRestore = true;
     state.suppressRestoreUntilInteraction = true;
     installFreshOpenViewportGuard();
@@ -12669,10 +12910,10 @@ function ensureInventoryThemeRoot() {
     ensureCaretHighlightToggle();
     ensureCaretHighlightBindings();
     ensureLuaBufferSize();
-    restoreLuaEditorViewPreferences();
     syncCurrentContextKey();
     syncCurrentSnippetKeyFromEditor();
     refreshActiveFilterMarker();
+    maybeRestoreLuaEditorViewPreferences();
     updateCaretLineHighlight();
     wrapLuaEditorManager();
     sendPacket("lua_editor_opened", {});
@@ -12688,8 +12929,11 @@ function ensureInventoryThemeRoot() {
     state.lastContextKey = "";
     state.scrollTopByContext = Object.create(null);
     state.forceEditorFocusOnNextSwitch = false;
+    state.luaViewPreferenceRestorePending = false;
+    state.luaViewPreferenceRestoreInProgress = false;
     state.skipNextSetCodeRestore = false;
     state.suppressRestoreUntilInteraction = true;
+    state.programmaticViewPreferenceRestoreDepth = 0;
     state.lastIdeSyncContextKey = "";
     state.lastIdeSyncReference = null;
     removeFreshOpenViewportGuard();
@@ -12712,6 +12956,7 @@ function ensureInventoryThemeRoot() {
       ensureCaretHighlightBindings();
       ensureLuaBufferSize();
       ensureLuaEditorViewPreferenceBindings();
+      maybeRestoreLuaEditorViewPreferences();
       if (state.suppressRestoreUntilInteraction) {
         installFreshOpenViewportGuard();
       } else {
@@ -12826,6 +13071,11 @@ function ensureInventoryThemeRoot() {
     state.screenEditorVisible = false;
     state.screenLastRestoredContextKey = "";
     state.screenPreferenceRestoreContextKey = "";
+    state.screenPreferenceRestoredContextKey = "";
+    state.screenPreferenceRestoreInProgress = false;
+    state.luaViewPreferenceRestorePending = false;
+    state.luaViewPreferenceRestoreInProgress = false;
+    state.programmaticViewPreferenceRestoreDepth = 0;
     state.editorVisible = false;
     state.menuObserved = false;
 
