@@ -294,7 +294,7 @@ type UiProbeCallFields = {
 };
 
 const screenEditorProbeMethods = new Set<UiProbeMethod>(["describe", "apply", "cancel", "outer_html", "raw_eval"]);
-const luaEditorProbeMethods = new Set<UiProbeMethod>(["describe", "select_slot", "select_filter", "select_filter_index", "select_context", "cancel", "outer_html", "raw_eval", "close_runtime_ui"]);
+const luaEditorProbeMethods = new Set<UiProbeMethod>(["describe", "select_slot", "select_filter", "select_filter_index", "select_context", "apply", "cancel", "outer_html", "raw_eval", "close_runtime_ui"]);
 
 function buildUiProbeArgs(targetKind: EditorUiKind, method: UiProbeMethod, fields: UiProbeCallFields): string[] {
   switch (method) {
@@ -3348,16 +3348,40 @@ export function registerEditorTools(
       outputSchema: queuedCommandOutputSchema
     },
     async ({ playerId, targetKind, boardId, waitForEditor, maxAttempts, retryDelayMs }) => {
-      const result = await commandQueue.enqueue({
-        playerId,
-        targetKind,
-        action: "save",
-        boardId,
-        save: true,
-        waitForEditor,
-        maxAttempts,
-        retryDelayMs
-      });
+      const useProbeApplySave = targetKind === "lua_editor";
+      if (useProbeApplySave && waitForEditor) {
+        const readyState = await waitForLuaEditorReady(
+          commandQueue,
+          eventStore,
+          playerId,
+          maxAttempts * retryDelayMs,
+          Math.min(Math.max(retryDelayMs, 1000), 5000)
+        );
+        if (!readyState.ready) {
+          throw new Error("lua_editor_not_ready_for_save");
+        }
+      }
+
+      const result = await commandQueue.enqueue(
+        useProbeApplySave
+          ? {
+            playerId,
+            targetKind,
+            action: "probe_call",
+            probeMethod: "apply",
+            probeArgs: []
+          }
+          : {
+            playerId,
+            targetKind,
+            action: "save",
+            boardId,
+            save: true,
+            waitForEditor,
+            maxAttempts,
+            retryDelayMs
+          }
+      );
 
       await eventStore.appendSystemEvent({
         eventId: `evt-${result.command.commandId}`,
@@ -3372,6 +3396,8 @@ export function registerEditorTools(
           commandId: result.command.commandId,
           action: "save",
           queuePath: result.path,
+          bridgePath: useProbeApplySave ? "probe_call" : "save",
+          probeMethod: useProbeApplySave ? "apply" : null,
           waitForEditor,
           maxAttempts: waitForEditor ? maxAttempts : null,
           retryDelayMs: waitForEditor ? retryDelayMs : null
@@ -3404,11 +3430,21 @@ export function registerEditorTools(
         const cleanupTimeoutMs = waitForEditor
           ? Math.min((maxAttempts * retryDelayMs) + 6000, 30000)
           : 6000;
-        const commandEvent = await eventStore.waitForCommandEvent(result.command.commandId, "command_result", cleanupTimeoutMs);
-        if (commandEvent.found) {
+        const applyResult = useProbeApplySave
+          ? await eventStore.waitForProbeResult(result.command.commandId, cleanupTimeoutMs)
+          : null;
+        const commandEvent = useProbeApplySave
+          ? null
+          : await eventStore.waitForCommandEvent(result.command.commandId, "command_result", cleanupTimeoutMs);
+        if ((applyResult && applyResult.found && applyResult.success) || (commandEvent && commandEvent.found)) {
           try {
-            const payload = commandEvent.payloadJson ? JSON.parse(commandEvent.payloadJson) as Record<string, unknown> : null;
-            if (payload?.status === "injected") {
+            const injectedOk = applyResult
+              ? applyResult.success === true
+              : (() => {
+                const payload = commandEvent?.payloadJson ? JSON.parse(commandEvent.payloadJson) as Record<string, unknown> : null;
+                return payload?.status === "injected";
+              })();
+            if (injectedOk) {
               await runLuaEditorRuntimeUiCleanup(
                 commandQueue,
                 eventStore,

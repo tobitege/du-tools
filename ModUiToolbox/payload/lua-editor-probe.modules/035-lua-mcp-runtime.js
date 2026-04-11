@@ -851,13 +851,43 @@
 
   function applyLuaEditorChanges() {
     ensureLuaEditorVisible();
-    if (!window.LUAEditorManager || typeof window.LUAEditorManager.apply !== "function") {
-      throw new Error("apply_unavailable");
+    var root = getLuaEditorRoot();
+    if (!isElementVisible(root)) {
+      throw new Error("lua_editor_not_visible");
     }
-    window.LUAEditorManager.apply();
-    return {
-      applied: true
-    };
+
+    var applyNode = null;
+    if (typeof getLuaApplyButtonNode === "function") {
+      try {
+        applyNode = getLuaApplyButtonNode();
+      } catch (_ignoreApplyButtonLookup) {}
+    }
+    if (!applyNode && root && root.querySelector) {
+      try {
+        applyNode = root.querySelector(".btn_bar .lua_editor_apply_button");
+      } catch (_ignoreApplyButtonQuery) {}
+    }
+
+    var canUseApplyButton = !!(applyNode && isElementVisible(applyNode));
+    if (canUseApplyButton && typeof isLuaApplyButtonInteractive === "function") {
+      canUseApplyButton = isLuaApplyButtonInteractive(applyNode);
+    }
+    if (canUseApplyButton && dispatchMouseSequence(applyNode)) {
+      return waitForLuaEditorClosedAsync(root, {
+        applied: true,
+        path: "button"
+      }, "lua_editor_apply_failed");
+    }
+
+    if (window.LUAEditorManager && typeof window.LUAEditorManager.apply === "function") {
+      window.LUAEditorManager.apply();
+      return waitForLuaEditorClosedAsync(root, {
+        applied: true,
+        path: "manager"
+      }, "lua_editor_apply_failed");
+    }
+
+    throw new Error("apply_unavailable");
   }
 
   function getScreenEditorPanel() {
@@ -1652,34 +1682,35 @@
     throw new Error("unsupported_method_for_target:" + normalized + ":cancel");
   }
 
-  function cancelLuaEditorChanges() {
-    var root = getLuaEditorRoot();
-    function waitForLuaEditorClosedAsync(resultValue) {
-      return pollUntilAsync(
-        function() {
-          var currentRoot = getLuaEditorRoot();
-          if (!isElementVisible(currentRoot || root)) {
-            var out = {};
-            var key = null;
-            if (resultValue && typeof resultValue === "object") {
-              for (key in resultValue) {
-                if (Object.prototype.hasOwnProperty.call(resultValue, key)) {
-                  out[key] = resultValue[key];
-                }
+  function waitForLuaEditorClosedAsync(root, resultValue, errorCode) {
+    return pollUntilAsync(
+      function() {
+        var currentRoot = getLuaEditorRoot();
+        if (!isElementVisible(currentRoot || root)) {
+          var out = {};
+          var key = null;
+          if (resultValue && typeof resultValue === "object") {
+            for (key in resultValue) {
+              if (Object.prototype.hasOwnProperty.call(resultValue, key)) {
+                out[key] = resultValue[key];
               }
             }
-            out.editorClosed = true;
-            return out;
           }
-          return null;
-        },
-        40,
-        25,
-        function() {
-          return new Error("lua_editor_cancel_failed");
+          out.editorClosed = true;
+          return out;
         }
-      );
-    }
+        return null;
+      },
+      40,
+      25,
+      function() {
+        return new Error(errorCode || "lua_editor_close_failed");
+      }
+    );
+  }
+
+  function cancelLuaEditorChanges() {
+    var root = getLuaEditorRoot();
     if (!isElementVisible(root)) {
       throw new Error("lua_editor_not_visible");
     }
@@ -1691,9 +1722,9 @@
     }
     if (cancelNode && typeof cancelNode.click === "function") {
       cancelNode.click();
-      return waitForLuaEditorClosedAsync({
+      return waitForLuaEditorClosedAsync(root, {
         cancelled: true
-      });
+      }, "lua_editor_cancel_failed");
     }
     throw new Error("lua_editor_cancel_button_not_found");
   }

@@ -1181,6 +1181,10 @@ ORDER BY table_schema, table_name, ordinal_position";
             {
                 injectCode =
                     "(function(){" +
+                    "try{" +
+                    "var s=window.__UI_TOOLBOX_LUA_PROBE_STATE__;" +
+                    "if(s&&typeof s.applyLuaEditorChanges==='function'){s.applyLuaEditorChanges();return;}" +
+                    "}catch(_ignoreLuaProbeApply){}" +
                     "if(window.LUAEditorManager&&typeof LUAEditorManager.apply==='function'){LUAEditorManager.apply();}" +
                     "})();";
                 summary = "lua_editor save";
