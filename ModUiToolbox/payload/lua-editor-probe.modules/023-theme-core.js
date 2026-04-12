@@ -252,6 +252,8 @@ function buildThemeFromCompact(compact) {
   var btnDisabledBg = buildLinearGradient(shadeHexColor(base200, isLightBase ? -0.03 : 0.04), rowAlt, shadeHexColor(deep, isLightBase ? -0.08 : -0.02));
   var btnDisabledBorder = withAlpha(borderStrong, isLightBase ? 0.6 : 0.5);
   var btnDisabledColor = withAlpha(textDim, isLightBase ? 0.92 : 0.72);
+  var surfaceShine = isLightBase ? "rgba(255,255,255,0)" : "rgba(255,255,255,0.02)";
+  var elevationShadow = isLightBase ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.25)";
   return {
     name: themeName,
     label: normalizeThemeCatalogLabel(compact.l || compact.n || "Catalog Theme"),
@@ -273,6 +275,8 @@ function buildThemeFromCompact(compact) {
     borderHover: borderHover,
     selectionBorder: selectionBorder,
     shadow: isLightHexColor(base100) ? "rgba(0,0,0,0.18)" : "rgba(0,0,0,0.5)",
+    surfaceShine: surfaceShine,
+    elevationShadow: elevationShadow,
     textMuted: textMuted,
     textDim: textDim,
     cmText: cmText,
@@ -376,6 +380,8 @@ function applyThemeToRoot(root, theme) {
   root.style.setProperty("--lua-probe-border-hover", theme.borderHover);
   root.style.setProperty("--lua-probe-selection-border", theme.selectionBorder || theme.accent);
   root.style.setProperty("--lua-probe-shadow", theme.shadow);
+  root.style.setProperty("--lua-probe-surface-shine", theme.surfaceShine || "rgba(255,255,255,0.02)");
+  root.style.setProperty("--lua-probe-elevation-shadow", theme.elevationShadow || "rgba(0,0,0,0.25)");
   root.style.setProperty("--lua-probe-text-main", theme.cmText || theme.textMuted);
   root.style.setProperty("--lua-probe-text-muted", theme.textMuted);
   root.style.setProperty("--lua-probe-text-dim", theme.textDim);

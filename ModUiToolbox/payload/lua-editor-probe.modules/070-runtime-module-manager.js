@@ -460,9 +460,9 @@
       style = document.createElement("style");
       style.id = "ModUiToolbox-runtime-module-style";
       style.textContent = ""
-        + "#ModUiToolbox-runtime-module-button{position:fixed;top:10px;left:10px;z-index:2147482600;width:34px;height:34px;border:1px solid rgba(130,170,190,.7);border-radius:8px;background:rgba(14,20,24,.92);color:#d7edf6;font-size:22px;line-height:1;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.28);}" 
-        + "#ModUiToolbox-runtime-module-button:hover{background:rgba(25,34,40,.96);border-color:rgba(170,220,240,.95);}" 
-        + "#ModUiToolbox-runtime-module-panel{position:fixed;top:50px;left:10px;z-index:2147482600;min-width:260px;max-width:360px;max-height:60vh;overflow:auto;padding:10px;background:rgba(10,14,18,.97);border:1px solid rgba(100,150,170,.7);border-radius:10px;box-shadow:0 14px 36px rgba(0,0,0,.4);color:#dce8ee;font:13px/1.35 'Segoe UI',sans-serif;}"
+        + "#ModUiToolbox-runtime-module-button{position:fixed;top:10px;left:10px;z-index:2147482600;width:34px;height:34px;border:1px solid rgba(130,170,190,.7);border-radius:8px;background:rgba(14,20,24,.92);color:#d7edf6;font-size:22px;line-height:1;cursor:pointer;box-shadow:inset 0 1px 0 var(--lua-probe-surface-shine,rgba(255,255,255,.02)),0 1px 0 var(--lua-probe-elevation-shadow,rgba(0,0,0,.25)),0 6px 18px rgba(0,0,0,.28);}"
+        + "#ModUiToolbox-runtime-module-button:hover{background:rgba(25,34,40,.96);border-color:rgba(170,220,240,.95);box-shadow:inset 0 1px 0 var(--lua-probe-surface-shine,rgba(255,255,255,.02)),0 1px 0 var(--lua-probe-elevation-shadow,rgba(0,0,0,.25)),0 8px 20px rgba(0,0,0,.3);}"
+        + "#ModUiToolbox-runtime-module-panel{position:fixed;top:50px;left:10px;z-index:2147482600;min-width:260px;max-width:360px;max-height:60vh;overflow:auto;padding:10px;background:rgba(10,14,18,.97);border:1px solid rgba(100,150,170,.7);border-radius:10px;box-shadow:inset 0 1px 0 var(--lua-probe-surface-shine,rgba(255,255,255,.02)),0 1px 0 var(--lua-probe-elevation-shadow,rgba(0,0,0,.25)),0 14px 36px rgba(0,0,0,.4);color:#dce8ee;font:13px/1.35 'Segoe UI',sans-serif;}"
         + ".ModUiToolbox-runtime-module-title{margin:0 0 8px 0;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8fb3c2;}"
         + ".ModUiToolbox-runtime-module-empty{padding:8px 4px;color:#8ea2ad;}"
         + ".ModUiToolbox-runtime-module-row{display:flex;gap:0;align-items:flex-start;padding:8px 6px;border-radius:8px;cursor:pointer;}"
