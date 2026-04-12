@@ -2,7 +2,7 @@
   "use strict";
 
   var api = window.__UI_TOOLBOX_PAYLOAD_API__;
-  if (!api || typeof api.registerModeHandler !== "function") {
+  if (!api) {
     return;
   }
 
@@ -1072,85 +1072,22 @@
     };
   }
 
-  api.registerModeHandler(function (config) {
-    if (!api.isMode("industry_panel_probe")) {
-      return false;
-    }
+  function applyRequestedTimePrecision(precisionUnits) {
+    desiredTimePrecisionUnits = setSharedTimePrecisionUnits(precisionUnits);
+    ensureTimePrecisionPoller();
+    return desiredTimePrecisionUnits;
+  }
 
-    var panel = getPanel();
-    var buttonAction = String(config.industryPanelButtonAction || "").toLowerCase();
-    var modeAction = String(config.industryPanelModeAction || "").toLowerCase();
-    var installOverride = !!config.industryPanelInstallTimeOverride;
-    var hasExplicitPrecisionUnits = Object.prototype.hasOwnProperty.call(config, "industryPanelTimePrecisionUnits");
-    var cssText = typeof config.industryPanelCssText === "string" ? config.industryPanelCssText : "";
-    var cssStyleId = String(config.industryPanelCssStyleId || "ui-toolbox-industry-panel-style");
-    var htmlText = typeof config.industryPanelHtml === "string" ? config.industryPanelHtml : "";
-    var htmlTargetSelector = String(config.industryPanelHtmlTargetSelector || "#industryPanel_productionSubPanel_wrapper");
-    var htmlApplyMode = String(config.industryPanelHtmlApplyMode || "replace_inner");
-    var kebabEnabled = typeof config.industryPanelKebabEnabled === "boolean" ? config.industryPanelKebabEnabled : null;
-    var makeAmount = config.industryPanelMakeAmount;
-    var maintainAmount = config.industryPanelMaintainAmount;
-    var precisionUnits = Number(config.industryPanelTimePrecisionUnits);
-    if (!isFinite(precisionUnits) || precisionUnits <= 0) {
-      precisionUnits = 2;
-    } else {
-      precisionUnits = Math.floor(precisionUnits);
-    }
-
-    var response = {
-      commandId: typeof config.commandId === "string" ? config.commandId : "",
-      mode: "industry_panel_probe",
-      buttonActionRequested: buttonAction || "",
-      modeActionRequested: modeAction || "",
-      cssRequested: !!cssText,
-      htmlRequested: !!htmlText,
-      kebabRequested: kebabEnabled,
-      installTimeOverrideRequested: installOverride,
-      requestedTimePrecisionUnits: precisionUnits
-    };
-
-    if (!panel) {
-      response.panelFound = false;
-      api.sendSection("industry_panel_probe", response);
-      api.finalize();
-      return true;
-    }
-
-    if (installOverride || hasExplicitPrecisionUnits) {
-      desiredTimePrecisionUnits = setSharedTimePrecisionUnits(precisionUnits);
-      ensureTimePrecisionPoller();
-      response.timeOverrideResult = installTimeOverride(panel, precisionUnits);
-    }
-
-    if (cssText) {
-      response.cssApplyResult = applyIndustryCss(cssText, cssStyleId);
-    }
-
-    if (htmlText) {
-      response.htmlApplyResult = applyIndustryHtml(panel, htmlTargetSelector, htmlText, htmlApplyMode);
-    }
-
-    if (typeof kebabEnabled === "boolean") {
-      response.kebabResult = setIndustryKebab(panel, kebabEnabled);
-    }
-
-    if (modeAction) {
-      response.modeActionResult = applyModeAction(panel, modeAction, makeAmount, maintainAmount);
-    }
-
-    if (!buttonAction) {
-      response.state = collectPanelState(panel);
-      api.sendSection("industry_panel_probe", response);
-      api.finalize();
-      return true;
-    }
-
-    response.buttonActionResult = clickNode(resolveActionNode(panel, buttonAction));
-    window.setTimeout(function () {
-      response.state = collectPanelState(panel);
-      api.sendSection("industry_panel_probe", response);
-      api.finalize();
-    }, 50);
-    return true;
-  });
+  window.__UI_TOOLBOX_INDUSTRY_PANEL_SHARED__ = {
+    getPanel: getPanel,
+    applyRequestedTimePrecision: applyRequestedTimePrecision,
+    installTimeOverride: installTimeOverride,
+    applyIndustryCss: applyIndustryCss,
+    applyIndustryHtml: applyIndustryHtml,
+    setIndustryKebab: setIndustryKebab,
+    applyModeAction: applyModeAction,
+    resolveActionNode: resolveActionNode,
+    clickNode: clickNode,
+    collectPanelState: collectPanelState
+  };
 })();

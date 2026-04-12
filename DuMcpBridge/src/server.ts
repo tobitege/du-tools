@@ -7,6 +7,7 @@ import { BridgeEventStore } from "./bridge/eventStore.js";
 import { ensureBridgeDirectories, loadConfig } from "./config.js";
 import { registerEmptyPromptSupport } from "./prompts/emptyPromptSupport.js";
 import { registerSessionResources } from "./resources/sessionResources.js";
+import { registerConstructTools } from "./tools/constructTools.js";
 import { registerEditorTools } from "./tools/editorTools.js";
 import { registerLogTools } from "./tools/logTools.js";
 import { registerNativeInputTools } from "./tools/nativeInputTools.js";
@@ -56,6 +57,7 @@ async function main(): Promise<void> {
   registerEditorTools(server, commandQueue, eventStore, {
     defaultAhkPath: launchOptions.ahkPath
   });
+  registerConstructTools(server, commandQueue, eventStore);
   registerLogTools(server, eventStore);
   registerNativeInputTools(server, commandQueue, eventStore, {
     defaultAhkPath: launchOptions.ahkPath

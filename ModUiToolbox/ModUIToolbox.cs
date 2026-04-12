@@ -64,7 +64,7 @@ sealed class IdeImportWatchState
     public DateTime LastAttemptAtUtc { get; set; } = DateTime.MinValue;
 }
 
-public sealed class MyDuMod : IMod
+public sealed partial class MyDuMod : IMod
 {
     private const string ModName = "NQ.UIToolbox";
     private const ulong ActionRunSafe = 1;
@@ -527,6 +527,12 @@ public sealed class MyDuMod : IMod
             }
 
             if (await TryProcessServerChatBridgeCommand(commandId, targetKind, action, payload, playerId.Value, boardId))
+            {
+                MoveMcpBridgeCommandToProcessed(commandPath, commandId);
+                return;
+            }
+
+            if (await TryProcessConstructInspectorBridgeCommand(commandId, targetKind, action, payload, playerId.Value, boardId))
             {
                 MoveMcpBridgeCommandToProcessed(commandPath, commandId);
                 return;

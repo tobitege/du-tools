@@ -219,8 +219,7 @@ The additive module layer runs after the base payload script is loaded but befor
 Current additive module:
 
 - `900-industry-panel-probe.js`
-  - handles payload mode `industry_panel_probe`
-  - is driven through the `industry_panel` bridge target rather than visible outer mod-menu actions
+  - provides shared industry panel DOM helpers used by both the visible helper UI and the bridge-driven admin probe
   - can inspect current industry panel state
   - can override the live `Time remaining` label with a finer multi-unit format
   - currently the helper uses `2` precision units (`min` + `s`) and leaves the game's original label untouched when the remaining time drops below `60` seconds
@@ -233,6 +232,11 @@ Current additive module:
   - uses the persisted `industry-panel` runtime-module `timePrecisionUnits` state when `industryPanelTimePrecisionUnits` is not set explicitly
   - consumes the shared `theming` runtime-module theme selection and theme on/off state rather than keeping industry-only theme preferences
   - can press the live `Start`, `Finish & stop`, and `Stop` buttons
+- `905-industry-admin-probe.js`
+  - handles payload mode `industry_panel_probe`
+  - is driven through the `industry_panel` bridge target rather than visible outer mod-menu actions
+  - keeps bridge-only industry inspection and control in a separate admin-oriented payload module
+  - reuses the shared panel helpers exported by `900-industry-panel-probe.js`
 
 Supported `industry_panel_probe` payload config keys:
 
@@ -277,7 +281,8 @@ Runtime-module relationship:
   - whether the helper is enabled at all
   - the last chosen `timePrecisionUnits` value
 - Theme selection and theme enabled/disabled state are owned by the `theming` runtime module, so Lua editor, screen editor, industry panel, and inventory surfaces stay aligned.
-- The extractor-side `industry_panel_probe` consumes that persisted state so bridge-driven panel control and the visible helper stay in sync.
+- The extractor-side `industry_panel_probe` lives in `905-industry-admin-probe.js` and consumes that persisted state so bridge-driven panel control and the visible helper stay in sync.
+- Shared industry panel DOM/time/theme helpers stay in `900-industry-panel-probe.js`, separate from the admin bridge entrypoint.
 - The feature is intentionally scoped to the industry panel UI. It does not add outer mod-menu actions.
 
 Useful sync command:

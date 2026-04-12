@@ -10,7 +10,8 @@ export const bridgeEventTypeSchema = z.enum([
   "chat_snapshot",
   "chat_send_result",
   "chat_channel_result",
-  "server_chat_snapshot"
+  "server_chat_snapshot",
+  "construct_inspector_result"
 ]);
 
 export const bridgeEventSchema = z.object({

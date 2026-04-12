@@ -17,7 +17,7 @@ Current modules in this folder:
 - `industry-panel`
   - Adds the centered `Industry Helper` button when the industry panel is visible.
   - The helper opens quick controls for time precision, production mode, and the live `Start` / `Finish & stop` / `Stop` buttons.
-  - Persists the helper toggle plus its `timePrecisionUnits` preference for the extractor-side industry panel probe.
+  - Persists the helper toggle plus its `timePrecisionUnits` preference for the extractor-side industry panel admin probe.
   - Reuses the shared `theming` runtime-module theme selection and theme on/off state instead of storing separate industry-only theme preferences.
   - With the current helper UI, `2-unit time display` rewrites the original `Time remaining` label to `min` + `s` while at least `60` seconds remain, then falls back to the game's original label below that threshold.
 - `theming`
@@ -41,6 +41,9 @@ Architecture note:
 - Its job is to provide lifecycle, packet/MCP bridge support, runtime module loading, and the kebab menu.
 - Higher-level UX features should live here as runtime modules whenever practical.
 - Runtime-module state can also be consumed by other payloads when a feature spans more than one injected UI surface.
+- The bridge-driven industry admin payload is separate from this runtime module:
+  - `900-industry-panel-probe.js` exposes shared industry panel helpers
+  - `905-industry-admin-probe.js` owns the `industry_panel_probe` bridge entrypoint
 
 Required files per module:
 
