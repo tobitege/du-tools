@@ -940,10 +940,71 @@
     }, 500);
   }
 
+  function sampleObjectKeys(obj, maxKeys) {
+    if (!obj || typeof obj !== "object") {
+      return [];
+    }
+    var limit = Math.max(1, Math.floor(Number(maxKeys) || 40));
+    var keys;
+    try {
+      keys = Object.keys(obj);
+    } catch (_ignoreSampleObjectKeys) {
+      return [];
+    }
+    return keys.slice(0, limit);
+  }
+
+  function samplePrimitiveFields(obj, matcher, maxItems) {
+    if (!obj || typeof obj !== "object") {
+      return {};
+    }
+    var pattern = matcher instanceof RegExp ? matcher : /.*/;
+    var limit = Math.max(1, Math.floor(Number(maxItems) || 20));
+    var keys = sampleObjectKeys(obj, 200);
+    var out = {};
+    for (var i = 0; i < keys.length; i += 1) {
+      var key = keys[i];
+      if (!pattern.test(key)) {
+        continue;
+      }
+      var value;
+      try {
+        value = obj[key];
+      } catch (_ignorePrimitiveFieldRead) {
+        continue;
+      }
+      if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+        out[key] = value;
+      } else if (Array.isArray(value)) {
+        out[key] = {
+          type: "array",
+          length: value.length
+        };
+      }
+      if (Object.keys(out).length >= limit) {
+        break;
+      }
+    }
+    return out;
+  }
+
+  function nodePresence(id) {
+    var node = null;
+    try {
+      node = document.getElementById(id);
+    } catch (_ignoreNodePresence) {}
+    return {
+      present: !!node,
+      visible: !!(node && node.offsetParent),
+      className: node ? String(node.className || "") : ""
+    };
+  }
+
   function collectPanelState(panel) {
     var htmlNodes = panel && panel.productionSubPanel && panel.productionSubPanel.HTMLNodes;
     var recipe = panel && panel.currentRecipe ? panel.currentRecipe : null;
     var productionSubPanel = panel && panel.productionSubPanel ? panel.productionSubPanel : null;
+    var recipeBankSubPanel = panel && panel.recipeBankSubPanel ? panel.recipeBankSubPanel : null;
     return {
       panelFound: !!panel,
       hasCppIndustryPanel: !!(window.CPPIndustryPanel && typeof window.CPPIndustryPanel === "object"),
@@ -984,6 +1045,29 @@
       } : {
         installed: false,
         units: 0
+      },
+      tabs: {
+        production: nodePresence("industryPanel_productionSubPanel_wrapper"),
+        recipeBank: nodePresence("industryPanel_recipeBankSubPanel_wrapper"),
+        containers: nodePresence("industryPanel_containersSubPanel_wrapper")
+      },
+      machine: panel && panel.unitItemDefinition ? {
+        id: panel.unitItemDefinition.id,
+        name: panel.unitItemDefinition.fullName || panel.unitItemDefinition.name || "",
+        iconFilename: panel.unitItemDefinition.iconFilename || "",
+        className: panel.unitItemDefinition.className || "",
+        type: panel.unitItemDefinition.type || null
+      } : null,
+      recipeBank: recipeBankSubPanel ? {
+        present: true,
+        keySample: sampleObjectKeys(recipeBankSubPanel, 80),
+        fieldSample: samplePrimitiveFields(
+          recipeBankSubPanel,
+          /(available|doable|recipe|search|filter|schematic|selected|category|group|tree|list|item|display|production|container|tab|visible|state)/i,
+          40
+        )
+      } : {
+        present: false
       }
     };
   }

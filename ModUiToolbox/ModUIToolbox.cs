@@ -146,6 +146,7 @@ public sealed class MyDuMod : IMod
     private string luaProbeJs = "";
     private readonly ConcurrentDictionary<string, object> dumpFileLocks = new();
     private readonly ConcurrentDictionary<string, LuaMcpResultChunkAssembly> luaMcpResultChunkAssemblies = new();
+    private readonly ConcurrentDictionary<string, LuaMcpResultChunkAssembly> uiDumpChunkAssemblies = new();
     private readonly ConcurrentDictionary<string, IdeImportResultState> ideImportResultsByRequestId = new ConcurrentDictionary<string, IdeImportResultState>(StringComparer.Ordinal);
     private readonly object mcpBridgeEventWriteGate = new();
 
@@ -633,6 +634,99 @@ public sealed class MyDuMod : IMod
         ulong playerId,
         string? boardId)
     {
+        var mode = payload["mode"]?.Value<string>()?.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(mode))
+        {
+            mode = "full_dump";
+        }
+
+        if (string.Equals(mode, "all_scripts", StringComparison.OrdinalIgnoreCase))
+        {
+            var dumpConfig = new JObject
+            {
+                ["mode"] = "all_scripts",
+                ["phaseDelayMs"] = 20,
+                ["chunkSize"] = 9_000,
+                ["maxPayloadChars"] = 8_000_000,
+                ["allScriptsOnlyJsSrc"] = true,
+                ["allScriptsMaxScripts"] = 1024,
+                ["allScriptsMaxScriptChars"] = 16_000_000,
+                ["allScriptsPacketDelayMs"] = 25
+            };
+
+            await InjectPayload(
+                playerId,
+                dumpConfig,
+                "All script extraction requested. This can produce a very large dump.",
+                "all-scripts");
+
+            await AppendMcpBridgeEvent(
+                targetKind,
+                "command_result",
+                playerId,
+                new JObject
+                {
+                    ["commandId"] = commandId,
+                    ["status"] = "injected",
+                    ["action"] = "ui_dump",
+                    ["summary"] = "ui_dump all_scripts"
+                },
+                boardId);
+            return;
+        }
+
+        if (string.Equals(mode, "single_script", StringComparison.OrdinalIgnoreCase))
+        {
+            var scriptHref = payload["scriptHref"]?.Value<string>()?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(scriptHref))
+            {
+                await AppendMcpBridgeEvent(
+                    targetKind,
+                    "command_result",
+                    playerId,
+                    new JObject
+                    {
+                        ["commandId"] = commandId,
+                        ["status"] = "rejected",
+                        ["reason"] = "missing_script_href",
+                        ["action"] = "ui_dump"
+                    },
+                    boardId);
+                return;
+            }
+
+            var dumpConfig = new JObject
+            {
+                ["mode"] = "single_script",
+                ["targetScriptHref"] = scriptHref,
+                ["targetScriptMaxChars"] = 16_000_000,
+                ["targetScriptPacketDelayMs"] = 25,
+                ["chunkSize"] = 9_000,
+                ["maxPayloadChars"] = 8_000_000,
+                ["phaseDelayMs"] = 1
+            };
+
+            await InjectPayload(
+                playerId,
+                dumpConfig,
+                $"Script extraction requested: {scriptHref}",
+                "single-script");
+
+            await AppendMcpBridgeEvent(
+                targetKind,
+                "command_result",
+                playerId,
+                new JObject
+                {
+                    ["commandId"] = commandId,
+                    ["status"] = "injected",
+                    ["action"] = "ui_dump",
+                    ["summary"] = $"ui_dump single_script {scriptHref}"
+                },
+                boardId);
+            return;
+        }
+
         var deepMode = payload["deep"]?.Value<bool>() ?? true;
         var initialDelayMs = payload["initialDelayMs"]?.Value<int>() ?? 0;
         initialDelayMs = Math.Max(0, Math.Min(30000, initialDelayMs));
@@ -2447,28 +2541,20 @@ ORDER BY table_schema, table_name, ordinal_position";
                 var total = parsedPacket["total"]?.Value<int?>() ?? 0;
                 var part = parsedPacket["part"]?.Value<int?>() ?? 0;
                 var packetData = parsedPacket["data"]?.Value<string>() ?? "";
-                if (string.Equals(section, "industry_panel_probe", StringComparison.OrdinalIgnoreCase) && total == 1 && part == 1 && !string.IsNullOrWhiteSpace(packetData))
+                if (string.Equals(section, "industry_panel_probe", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(packetData))
                 {
-                    try
+                    var eventPayload = TryAssembleUiDumpSectionChunk(playerId, section, total, part, packetData);
+                    if (eventPayload is not null)
                     {
-                        var eventPayload = JObject.Parse(packetData);
                         await AppendMcpBridgeEvent("industry_panel", "industry_panel_probe_result", playerId, eventPayload);
                     }
-                    catch (Exception ex)
-                    {
-                        logger.LogDebug(ex, "UIToolbox failed to parse industry_panel_probe ui_dump payload");
-                    }
                 }
-                else if (string.Equals(section, "hud_probe", StringComparison.OrdinalIgnoreCase) && total == 1 && part == 1 && !string.IsNullOrWhiteSpace(packetData))
+                else if (string.Equals(section, "hud_probe", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(packetData))
                 {
-                    try
+                    var eventPayload = TryAssembleUiDumpSectionChunk(playerId, section, total, part, packetData);
+                    if (eventPayload is not null)
                     {
-                        var eventPayload = JObject.Parse(packetData);
                         await AppendMcpBridgeEvent("hud_page", "probe_result", playerId, eventPayload);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogDebug(ex, "UIToolbox failed to parse hud_probe ui_dump payload");
                     }
                 }
             }
@@ -2572,6 +2658,74 @@ ORDER BY table_schema, table_name, ordinal_position";
         }
     }
 
+    private JObject? TryAssembleUiDumpSectionChunk(ulong playerId, string section, int total, int part, string packetData)
+    {
+        CleanupExpiredUiDumpChunks(DateTime.UtcNow);
+
+        if (total <= 0 || total > MaxLuaMcpResultChunkCount || part <= 0 || part > total)
+        {
+            logger.LogDebug(
+                "UIToolbox ignored invalid ui_dump chunk metadata for player {PlayerId}: section={Section}, part={Part}, total={Total}",
+                playerId,
+                section,
+                part,
+                total);
+            uiDumpChunkAssemblies.TryRemove(BuildUiDumpChunkKey(playerId, section), out _);
+            return null;
+        }
+
+        var assemblyKey = BuildUiDumpChunkKey(playerId, section);
+        var state = uiDumpChunkAssemblies.GetOrAdd(
+            assemblyKey,
+            static _ => new LuaMcpResultChunkAssembly());
+
+        lock (state.Gate)
+        {
+            if (state.ExpectedTotal != 0 && state.ExpectedTotal != total)
+            {
+                state.ExpectedTotal = total;
+                state.Chunks.Clear();
+            }
+            else if (state.ExpectedTotal == 0)
+            {
+                state.ExpectedTotal = total;
+            }
+
+            state.UpdatedAtUtc = DateTime.UtcNow;
+            state.Chunks[part] = packetData;
+            if (state.Chunks.Count < state.ExpectedTotal)
+            {
+                return null;
+            }
+
+            var builder = new StringBuilder();
+            for (var i = 1; i <= state.ExpectedTotal; i += 1)
+            {
+                if (!state.Chunks.TryGetValue(i, out var chunkPart))
+                {
+                    return null;
+                }
+
+                builder.Append(chunkPart);
+            }
+
+            uiDumpChunkAssemblies.TryRemove(assemblyKey, out _);
+            try
+            {
+                return JObject.Parse(builder.ToString());
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(
+                    ex,
+                    "UIToolbox failed to parse reassembled {Section} ui_dump payload for player {PlayerId}",
+                    section,
+                    playerId);
+                return null;
+            }
+        }
+    }
+
     private async Task ProcessThemeCatalogRequest(ulong playerId, JObject packetData)
     {
         var requestId = packetData["requestId"]?.Value<string>()?.Trim() ?? "";
@@ -2631,9 +2785,27 @@ ORDER BY table_schema, table_name, ordinal_position";
         }
     }
 
+    private void CleanupExpiredUiDumpChunks(DateTime nowUtc)
+    {
+        foreach (var entry in uiDumpChunkAssemblies)
+        {
+            if (nowUtc - entry.Value.UpdatedAtUtc <= LuaMcpResultChunkTtl)
+            {
+                continue;
+            }
+
+            uiDumpChunkAssemblies.TryRemove(entry.Key, out _);
+        }
+    }
+
     private static string BuildLuaMcpResultChunkKey(ulong playerId, string packetId)
     {
         return playerId.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + packetId;
+    }
+
+    private static string BuildUiDumpChunkKey(ulong playerId, string section)
+    {
+        return playerId.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + section;
     }
 
     private string LoadEmbeddedScriptSafe(string resourceHint, string scriptLabel)

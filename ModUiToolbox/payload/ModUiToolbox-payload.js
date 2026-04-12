@@ -19,6 +19,9 @@
     htmlSelector: "",
     targetStylesheetHref: "",
     targetStylesheetMaxChars: 12000000,
+    targetScriptHref: "",
+    targetScriptMaxChars: 12000000,
+    targetScriptPacketDelayMs: 2,
     allStylesheetOnlyCssHref: true,
     allStylesheetMaxSheets: 512,
     allStylesheetMaxSheetChars: 12000000,
@@ -1028,6 +1031,11 @@
     return "all_script_js_" + leftPadNumber(scriptIndex, 3) + "_" + stem;
   }
 
+  function makeSingleScriptSectionName(srcHref) {
+    var stem = sanitizeSectionToken(extractUrlFileStem(srcHref, "target_script"), 40);
+    return "all_script_js_000_" + stem;
+  }
+
   function isUiToolboxScriptSource(srcHref) {
     var normalized = normalizeHref(srcHref || "");
     if (!normalized) {
@@ -1510,6 +1518,111 @@
     processScript(0);
   }
 
+  function runSingleScriptExtraction() {
+    var targetHref = String(config.targetScriptHref || "");
+    var scripts = document.scripts || [];
+    var matchedNode = null;
+    var matchedIndex = -1;
+    var matchedHref = "";
+    var scriptType = "";
+    var scriptAsync = false;
+    var scriptDefer = false;
+    var ownerNode = null;
+    var i;
+
+    if (!targetHref) {
+      pushWarning("single_script", "targetScriptHref is empty");
+    }
+
+    for (i = 0; i < scripts.length; i += 1) {
+      var scriptNode = scripts[i];
+      var srcHref = "";
+      try {
+        srcHref = scriptNode && scriptNode.src ? String(scriptNode.src) : "";
+      } catch (_ignoreSrcRead) {
+        srcHref = "";
+      }
+
+      if (!hrefMatchesTarget(srcHref, targetHref)) {
+        continue;
+      }
+
+      matchedNode = scriptNode;
+      matchedIndex = i;
+      matchedHref = srcHref;
+      try {
+        scriptType = scriptNode && scriptNode.type ? String(scriptNode.type) : "";
+      } catch (_ignoreTypeRead) {
+        scriptType = "";
+      }
+      try {
+        scriptAsync = !!(scriptNode && scriptNode.async);
+        scriptDefer = !!(scriptNode && scriptNode.defer);
+        ownerNode = simpleNodeInfo(scriptNode || null);
+      } catch (_ignoreMetaRead) {}
+      break;
+    }
+
+    if (!matchedNode) {
+      sendSection("single_script_manifest", {
+        mode: "single_script",
+        targetHref: targetHref,
+        found: false,
+        scannedScripts: scripts.length
+      });
+      pushWarning("single_script", "script not found: " + targetHref);
+      finalize();
+      return;
+    }
+
+    collectScriptBodyAsync(matchedNode, matchedHref, config.targetScriptMaxChars, function (body) {
+      sendSection("single_script_manifest", {
+        mode: "single_script",
+        targetHref: targetHref,
+        found: true,
+        matchedHref: matchedHref,
+        scriptIndex: matchedIndex,
+        type: scriptType,
+        async: scriptAsync,
+        defer: scriptDefer,
+        ownerNode: ownerNode,
+        extractionMethod: body.method,
+        sourceLength: body.sourceLength,
+        exportedLength: (body.text || "").length,
+        truncated: !!body.truncated,
+        readError: body.readError || ""
+      });
+
+      if (!body.text && body.readError) {
+        pushWarning("single_script", "failed to read script body for " + matchedHref + ": " + body.readError);
+      }
+
+      sendSectionPaced(
+        makeSingleScriptSectionName(matchedHref || targetHref),
+        body.text || "",
+        {
+          targetHref: targetHref,
+          matchedHref: matchedHref,
+          scriptIndex: matchedIndex,
+          type: scriptType,
+          async: scriptAsync,
+          defer: scriptDefer,
+          extractionMethod: body.method,
+          sourceLength: body.sourceLength,
+          exportedLength: (body.text || "").length,
+          truncated: !!body.truncated,
+          readError: body.readError || ""
+        },
+        {
+          noPayloadClip: true,
+          packetDelayMs: config.targetScriptPacketDelayMs
+        },
+        function () {
+          finalize();
+        });
+    });
+  }
+
   function collectComputedStyles() {
     return withSectionGuard("computed_styles", function () {
       var output = {
@@ -1896,6 +2009,9 @@
           mode: config.mode,
           targetStylesheetHref: config.targetStylesheetHref,
           targetStylesheetMaxChars: config.targetStylesheetMaxChars,
+          targetScriptHref: config.targetScriptHref,
+          targetScriptMaxChars: config.targetScriptMaxChars,
+          targetScriptPacketDelayMs: config.targetScriptPacketDelayMs,
           allStylesheetOnlyCssHref: config.allStylesheetOnlyCssHref,
           allStylesheetMaxSheets: config.allStylesheetMaxSheets,
           allStylesheetMaxSheetChars: config.allStylesheetMaxSheetChars,
@@ -1937,6 +2053,8 @@
           runSingleStylesheetExtraction();
         } else if (config.mode === "all_stylesheets") {
           runAllStylesheetsExtraction();
+        } else if (config.mode === "single_script") {
+          runSingleScriptExtraction();
         } else if (config.mode === "all_scripts") {
           runAllScriptsExtraction();
         } else {
