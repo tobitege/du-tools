@@ -83,6 +83,8 @@ sealed class EmbeddedIndustryRecipeReference
     public string ProductItemName { get; set; } = "";
     public string IndustryName { get; set; } = "";
     public string ParentGroupName { get; set; } = "";
+    public IReadOnlyList<string> ProductNames { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<string> IngredientNames { get; set; } = Array.Empty<string>();
 }
 
 sealed class EmbeddedIndustryRecipeCatalog
@@ -90,6 +92,8 @@ sealed class EmbeddedIndustryRecipeCatalog
     public IReadOnlyDictionary<string, EmbeddedIndustryRecipeReference> ByRecipeKey { get; set; } = new Dictionary<string, EmbeddedIndustryRecipeReference>(StringComparer.OrdinalIgnoreCase);
     public IReadOnlyDictionary<ulong, EmbeddedIndustryRecipeReference> ByRecipeId { get; set; } = new Dictionary<ulong, EmbeddedIndustryRecipeReference>();
     public IReadOnlyDictionary<ulong, EmbeddedIndustryRecipeReference> ByProductItemTypeId { get; set; } = new Dictionary<ulong, EmbeddedIndustryRecipeReference>();
+    public IReadOnlyDictionary<string, IReadOnlyList<EmbeddedIndustryRecipeReference>> ByProductName { get; set; } = new Dictionary<string, IReadOnlyList<EmbeddedIndustryRecipeReference>>(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, IReadOnlyList<EmbeddedIndustryRecipeReference>> ByIngredientName { get; set; } = new Dictionary<string, IReadOnlyList<EmbeddedIndustryRecipeReference>>(StringComparer.OrdinalIgnoreCase);
 }
 
 sealed class IndustryBatchOperation
@@ -186,6 +190,8 @@ public sealed partial class MyDuMod
                     return await BuildResolveStoragePayload(commandId, playerId, payload);
                 case "describe_storage":
                     return await BuildDescribeStoragePayload(commandId, playerId, payload);
+                case "describe_industry_support_storage":
+                    return await BuildDescribeIndustrySupportStoragePayload(commandId, playerId, payload);
                 case "spawn_item":
                     return await BuildSpawnOrTakePayload(commandId, playerId, payload, isTake: false);
                 case "spawn_item_batch":
@@ -200,10 +206,24 @@ public sealed partial class MyDuMod
                     return await BuildRenameElementPayload(commandId, playerId, payload);
                 case "refresh_construct_index":
                     return await BuildRefreshConstructIndexPayload(commandId, playerId, payload);
+                case "construct_runtime_availability":
+                    return await BuildConstructRuntimeAvailabilityPayload(commandId, playerId, payload);
                 case "query_construct_index":
                     return await BuildQueryConstructIndexPayload(commandId, playerId, payload);
                 case "related_construct_index":
                     return await BuildRelatedConstructIndexPayload(commandId, playerId, payload);
+                case "nearby_construct_index":
+                    return await BuildNearbyConstructIndexPayload(commandId, playerId, payload);
+                case "describe_industry_branch":
+                    return await BuildDescribeIndustryBranchPayload(commandId, playerId, payload);
+                case "trace_construct_index":
+                    return await BuildTraceConstructIndexPayload(commandId, playerId, payload);
+                case "describe_bank_from_anchor":
+                    return await BuildDescribeBankFromAnchorPayload(commandId, playerId, payload);
+                case "describe_consumer_bank_branches":
+                    return await BuildDescribeConsumerBankBranchesPayload(commandId, playerId, payload);
+                case "describe_industry_supports":
+                    return await BuildDescribeIndustrySupportsPayload(commandId, playerId, payload);
                 case "resolve_industry_recipe":
                     return await BuildResolveIndustryRecipePayload(commandId, playerId, payload);
                 case "describe_industry_batch":
@@ -250,6 +270,68 @@ public sealed partial class MyDuMod
         var probeArgs = payload["probeArgs"] as JArray;
         var selector = ReadProbeArgObject(probeArgs, 0);
         var itemLimit = ReadClampedProbeArgInt32(probeArgs, 1, 100, 1, 500);
+        var batchEntries = selector?["entries"] as JArray;
+        if (batchEntries is not null && batchEntries.Count > 0)
+        {
+            var results = new JObject[batchEntries.Count];
+
+            for (var index = 0; index < batchEntries.Count; index++)
+            {
+                if (batchEntries[index] is not JObject entry)
+                {
+                    results[index] = CreateDescribeStorageEntryFailure(
+                        index,
+                        "storage_batch_entry_invalid");
+                    continue;
+                }
+
+                try
+                {
+                    var batchResolved = await ResolveStorageTarget(requesterPlayerId, entry);
+                    var batchStorageService = services.GetRequiredService<IItemStorageService>();
+                    var batchStorage = await batchStorageService.Get(batchResolved.StorageRef, (PlayerId)requesterPlayerId);
+                    results[index] = new JObject
+                    {
+                        ["index"] = index,
+                        ["success"] = true,
+                        ["error"] = JValue.CreateNull(),
+                        ["storage"] = BuildResolvedStorageObject(batchResolved),
+                        ["snapshot"] = BuildStorageSnapshot(batchStorage, ResolveResolvedStorageCategory(batchResolved), itemLimit),
+                        ["candidates"] = new JArray()
+                    };
+                }
+                catch (ToolboxOpsException ex)
+                {
+                    results[index] = CreateDescribeStorageEntryFailure(index, ex.Message, ex.Details);
+                }
+                catch (Exception ex)
+                {
+                    results[index] = CreateDescribeStorageEntryFailure(index, ex.Message);
+                }
+            }
+
+            var successCount = results.Count(result => result["success"]?.Value<bool>() == true);
+            var failedCount = results.Length - successCount;
+            return new JObject
+            {
+                ["commandId"] = commandId,
+                ["success"] = failedCount == 0,
+                ["error"] = failedCount == 0 ? JValue.CreateNull() : "storage_batch_contains_failures",
+                ["method"] = "describe_storage",
+                ["storage"] = JValue.CreateNull(),
+                ["snapshot"] = JValue.CreateNull(),
+                ["summary"] = new JObject
+                {
+                    ["requestedCount"] = batchEntries.Count,
+                    ["successfulCount"] = successCount,
+                    ["failedCount"] = failedCount,
+                    ["itemLimit"] = itemLimit
+                },
+                ["results"] = new JArray(results),
+                ["candidates"] = new JArray()
+            };
+        }
+
         var resolved = await ResolveStorageTarget(requesterPlayerId, selector);
         var storageService = services.GetRequiredService<IItemStorageService>();
         var storage = await storageService.Get(resolved.StorageRef, (PlayerId)requesterPlayerId);
@@ -261,7 +343,23 @@ public sealed partial class MyDuMod
             ["error"] = JValue.CreateNull(),
             ["method"] = "describe_storage",
             ["storage"] = BuildResolvedStorageObject(resolved),
-            ["snapshot"] = BuildStorageSnapshot(storage, ResolveResolvedStorageCategory(resolved), itemLimit)
+            ["snapshot"] = BuildStorageSnapshot(storage, ResolveResolvedStorageCategory(resolved), itemLimit),
+            ["summary"] = JValue.CreateNull(),
+            ["results"] = new JArray(),
+            ["candidates"] = new JArray()
+        };
+    }
+
+    private static JObject CreateDescribeStorageEntryFailure(int index, string error, JObject? details = null)
+    {
+        return new JObject
+        {
+            ["index"] = index,
+            ["success"] = false,
+            ["error"] = error,
+            ["storage"] = JValue.CreateNull(),
+            ["snapshot"] = JValue.CreateNull(),
+            ["candidates"] = details?["candidates"] is JArray candidates ? new JArray(candidates) : new JArray()
         };
     }
 
@@ -659,6 +757,60 @@ public sealed partial class MyDuMod
                 ["propertyName"] = "name",
                 ["beforeName"] = string.IsNullOrWhiteSpace(beforeName) ? JValue.CreateNull() : beforeName,
                 ["afterName"] = newName
+            }
+        };
+    }
+
+    private async Task<JObject> BuildConstructRuntimeAvailabilityPayload(string commandId, ulong requesterPlayerId, JObject payload)
+    {
+        var selector = ReadProbeArgObject(payload["probeArgs"] as JArray, 0) ?? new JObject();
+        var requestedConstructId = ReadUInt64Token(selector["constructId"]);
+        var playerPosition = await orleans.GetPlayerGrain((PlayerId)requesterPlayerId).GetPositionUpdate();
+        var currentConstructId = playerPosition?.localPosition?.constructId ?? 0UL;
+        var targetConstructId = requestedConstructId.HasValue && requestedConstructId.Value > 0
+            ? requestedConstructId.Value
+            : currentConstructId;
+        var currentConstructData = currentConstructId > 0
+            ? await TryReadTargetingConstructData((ConstructId)currentConstructId)
+            : null;
+        var targetConstructData = targetConstructId > 0
+            ? (currentConstructId == targetConstructId
+                ? currentConstructData
+                : await TryReadTargetingConstructData((ConstructId)targetConstructId))
+            : null;
+        var liveReadsExpected = currentConstructId > 0
+            && targetConstructId > 0
+            && currentConstructId == targetConstructId;
+
+        return new JObject
+        {
+            ["commandId"] = commandId,
+            ["success"] = true,
+            ["error"] = JValue.CreateNull(),
+            ["method"] = "construct_runtime_availability",
+            ["currentConstruct"] = new JObject
+            {
+                ["constructId"] = currentConstructId == 0 ? JValue.CreateNull() : new JValue(currentConstructId),
+                ["constructName"] = string.IsNullOrWhiteSpace(currentConstructData?.constructName) ? JValue.CreateNull() : currentConstructData!.constructName
+            },
+            ["targetConstruct"] = new JObject
+            {
+                ["constructId"] = targetConstructId == 0 ? JValue.CreateNull() : new JValue(targetConstructId),
+                ["constructName"] = string.IsNullOrWhiteSpace(targetConstructData?.constructName) ? JValue.CreateNull() : targetConstructData!.constructName,
+                ["usedCurrentConstruct"] = !requestedConstructId.HasValue || requestedConstructId.Value == 0
+            },
+            ["availability"] = new JObject
+            {
+                ["playerInConstruct"] = currentConstructId > 0,
+                ["liveIndustryReadsExpected"] = liveReadsExpected,
+                ["liveStorageReadsExpected"] = liveReadsExpected,
+                ["reason"] = liveReadsExpected
+                    ? "player_at_target_construct"
+                    : currentConstructId == 0
+                        ? "player_not_in_construct"
+                        : targetConstructId == 0
+                            ? "target_construct_unresolved"
+                            : "player_not_at_target_construct"
             }
         };
     }
@@ -1109,11 +1261,9 @@ public sealed partial class MyDuMod
             var currentState = beforeState;
             var stopApplied = false;
             var recipeSetApplied = false;
-            var activationApplied = false;
             var startApplied = false;
             JObject? afterStopState = null;
             JObject? afterSetState = null;
-            JObject? afterActivationState = null;
 
             if (IndustryRuntimeAlreadyMatches(currentState, desiredRecipeId, operation.StartMode, operation.RequestedAmount, operation.Recipe.ProductItemTypeId))
             {
@@ -1178,34 +1328,7 @@ public sealed partial class MyDuMod
                     "industry_set_recipe_timeout");
                 afterSetState = currentState;
             }
-
-            if (operation.StartMode == "maintain" && IndustryRuntimeRecipeId(currentState) != desiredRecipeId)
-            {
-                var activationMode = string.Equals(operation.Target.IndustryKind, "transfer", StringComparison.OrdinalIgnoreCase)
-                    ? "move"
-                    : "make";
-                var activationStart = await BuildIndustryStartRequest(operation.Target, activationMode, 1);
-                await grain.Start(requesterPlayerId, activationStart);
-                activationApplied = true;
-
-                currentState = await WaitForIndustryRuntimeCondition(
-                    operation.Target.Element.elementId,
-                    pollIntervalMs,
-                    stateTimeoutMs,
-                    runtime => IndustryRuntimeRecipeId(runtime) == desiredRecipeId,
-                    "industry_activation_timeout");
-
-                await grain.StopSoft();
-                currentState = await WaitForIndustryRuntimeCondition(
-                    operation.Target.Element.elementId,
-                    pollIntervalMs,
-                    stateTimeoutMs,
-                    runtime => IndustryRuntimeIsStopped(runtime) && IndustryRuntimeRecipeId(runtime) == desiredRecipeId,
-                    "industry_activation_stop_timeout");
-                afterActivationState = currentState;
-            }
-
-            var desiredStart = await BuildIndustryStartRequest(operation.Target, operation.StartMode, operation.RequestedAmount);
+            var desiredStart = await BuildIndustryStartRequest(operation.Target, operation.StartMode, operation.RequestedAmount, operation.Recipe.ProductItemTypeId);
             await grain.Start(requesterPlayerId, desiredStart);
             startApplied = true;
             currentState = await WaitForIndustryRuntimeCondition(
@@ -1225,14 +1348,14 @@ public sealed partial class MyDuMod
                 ["beforeState"] = beforeState,
                 ["afterStopState"] = afterStopState is null ? JValue.CreateNull() : afterStopState,
                 ["afterSetState"] = afterSetState is null ? JValue.CreateNull() : afterSetState,
-                ["afterActivationState"] = afterActivationState is null ? JValue.CreateNull() : afterActivationState,
+                ["afterActivationState"] = JValue.CreateNull(),
                 ["state"] = currentState,
                 ["result"] = new JObject
                 {
                     ["operation"] = "configure",
                     ["stopApplied"] = stopApplied,
                     ["recipeSetApplied"] = recipeSetApplied,
-                    ["activationApplied"] = activationApplied,
+                    ["activationApplied"] = false,
                     ["startApplied"] = startApplied,
                     ["alreadyConfigured"] = false
                 }
@@ -1253,6 +1376,8 @@ public sealed partial class MyDuMod
     {
         var status = await orleans.GetIndustryUnitGrain(elementId).Status();
         var countersUsable = status.state == IndustryState.RUNNING;
+        var primaryProduct = status.recipe?.products?.FirstOrDefault();
+        var primaryProductItemTypeId = primaryProduct?.itemId ?? 0;
         return new JObject
         {
             ["available"] = true,
@@ -1266,6 +1391,14 @@ public sealed partial class MyDuMod
             ["batchesRemaining"] = countersUsable ? new JValue(status.batchesRemaining) : JValue.CreateNull(),
             ["maintainProductAmount"] = status.maintainProductAmount,
             ["currentProductAmount"] = status.currentProductAmount,
+            ["productItemTypeId"] = primaryProductItemTypeId == 0 ? JValue.CreateNull() : new JValue(primaryProductItemTypeId),
+            ["productItemName"] = primaryProductItemTypeId == 0 ? JValue.CreateNull() : ResolveItemTypeName(0, primaryProductItemTypeId),
+            ["maintainQuantity"] = primaryProductItemTypeId == 0
+                ? JValue.CreateNull()
+                : new JValue(ConvertRawQuantityToDisplay(primaryProductItemTypeId, (long)status.maintainProductAmount)),
+            ["currentQuantity"] = primaryProductItemTypeId == 0
+                ? JValue.CreateNull()
+                : new JValue(ConvertRawQuantityToDisplay(primaryProductItemTypeId, (long)status.currentProductAmount)),
             ["batchesRequested"] = status.batchesRequested,
             ["claimProducts"] = status.claimProducts,
             ["recipe"] = BuildIndustryRuntimeRecipeObject(status.recipe)
@@ -1302,7 +1435,11 @@ public sealed partial class MyDuMod
                 });
     }
 
-    private async Task<IndustryStart> BuildIndustryStartRequest(ResolvedToolboxIndustryTarget target, string startMode, long? requestedAmount)
+    private async Task<IndustryStart> BuildIndustryStartRequest(
+        ResolvedToolboxIndustryTarget target,
+        string startMode,
+        long? requestedAmount,
+        ulong? maintainProductItemTypeId = null)
     {
         var start = new IndustryStart
         {
@@ -1329,13 +1466,18 @@ public sealed partial class MyDuMod
                 throw new ToolboxOpsException("invalid_start_amount");
             }
 
-            var activeRecipe = await orleans.GetIndustryUnitGrain(target.Element.elementId).Recipe();
-            if (activeRecipe is null || activeRecipe.products is null || activeRecipe.products.Count == 0)
+            var productTypeId = maintainProductItemTypeId.GetValueOrDefault();
+            if (productTypeId == 0)
             {
-                throw new ToolboxOpsException("industry_recipe_required_for_maintain");
+                var activeRecipe = await orleans.GetIndustryUnitGrain(target.Element.elementId).Recipe();
+                if (activeRecipe is null || activeRecipe.products is null || activeRecipe.products.Count == 0)
+                {
+                    throw new ToolboxOpsException("industry_recipe_required_for_maintain");
+                }
+
+                productTypeId = activeRecipe.products[0].itemId;
             }
 
-            var productTypeId = activeRecipe.products[0].itemId;
             start.maintainProductAmount = (ulong)ConvertGameplayQuantityToRaw(productTypeId, requestedAmount.Value);
             return start;
         }
@@ -1436,6 +1578,7 @@ public sealed partial class MyDuMod
                 var expectedRawAmount = ConvertGameplayQuantityToRaw(productItemTypeId, requestedAmount.Value);
 
                 return IndustryRuntimeMaintainAmount(runtime) == expectedRawAmount
+                    && IndustryRuntimeBatchesRequested(runtime) == 0
                     && !IndustryRuntimeIsStopped(runtime);
             }
             default:
@@ -2186,6 +2329,32 @@ public sealed partial class MyDuMod
         return null;
     }
 
+    private IReadOnlyList<EmbeddedIndustryRecipeReference> ResolveEmbeddedIndustryRecipeReferencesByProductName(string itemName)
+    {
+        if (string.IsNullOrWhiteSpace(itemName))
+        {
+            return Array.Empty<EmbeddedIndustryRecipeReference>();
+        }
+
+        var catalog = GetEmbeddedIndustryRecipeCatalog();
+        return catalog.ByProductName.TryGetValue(itemName.Trim(), out var matches)
+            ? matches
+            : Array.Empty<EmbeddedIndustryRecipeReference>();
+    }
+
+    private IReadOnlyList<EmbeddedIndustryRecipeReference> ResolveEmbeddedIndustryRecipeReferencesByIngredientName(string itemName)
+    {
+        if (string.IsNullOrWhiteSpace(itemName))
+        {
+            return Array.Empty<EmbeddedIndustryRecipeReference>();
+        }
+
+        var catalog = GetEmbeddedIndustryRecipeCatalog();
+        return catalog.ByIngredientName.TryGetValue(itemName.Trim(), out var matches)
+            ? matches
+            : Array.Empty<EmbeddedIndustryRecipeReference>();
+    }
+
     private void ApplyEmbeddedIndustryRecipeReference(ResolvedToolboxIndustryRecipe resolvedRecipe, EmbeddedIndustryRecipeReference? embeddedReference)
     {
         if (embeddedReference is null)
@@ -2233,6 +2402,8 @@ public sealed partial class MyDuMod
         var byRecipeKey = new Dictionary<string, EmbeddedIndustryRecipeReference>(StringComparer.OrdinalIgnoreCase);
         var byRecipeId = new Dictionary<ulong, EmbeddedIndustryRecipeReference>();
         var byProductItemTypeId = new Dictionary<ulong, EmbeddedIndustryRecipeReference>();
+        var byProductName = new Dictionary<string, List<EmbeddedIndustryRecipeReference>>(StringComparer.OrdinalIgnoreCase);
+        var byIngredientName = new Dictionary<string, List<EmbeddedIndustryRecipeReference>>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var property in root.Properties())
         {
@@ -2257,6 +2428,28 @@ public sealed partial class MyDuMod
             {
                 byProductItemTypeId[embeddedReference.ProductItemTypeId] = embeddedReference;
             }
+
+            foreach (var productName in embeddedReference.ProductNames)
+            {
+                if (!byProductName.TryGetValue(productName, out var matches))
+                {
+                    matches = new List<EmbeddedIndustryRecipeReference>();
+                    byProductName[productName] = matches;
+                }
+
+                matches.Add(embeddedReference);
+            }
+
+            foreach (var ingredientName in embeddedReference.IngredientNames)
+            {
+                if (!byIngredientName.TryGetValue(ingredientName, out var matches))
+                {
+                    matches = new List<EmbeddedIndustryRecipeReference>();
+                    byIngredientName[ingredientName] = matches;
+                }
+
+                matches.Add(embeddedReference);
+            }
         }
 
         logger.LogInformation(
@@ -2269,7 +2462,21 @@ public sealed partial class MyDuMod
         {
             ByRecipeKey = byRecipeKey,
             ByRecipeId = byRecipeId,
-            ByProductItemTypeId = byProductItemTypeId
+            ByProductItemTypeId = byProductItemTypeId,
+            ByProductName = byProductName.ToDictionary(
+                pair => pair.Key,
+                pair => (IReadOnlyList<EmbeddedIndustryRecipeReference>)pair.Value
+                    .Distinct()
+                    .OrderBy(reference => reference.RecipeId)
+                    .ToList(),
+                StringComparer.OrdinalIgnoreCase),
+            ByIngredientName = byIngredientName.ToDictionary(
+                pair => pair.Key,
+                pair => (IReadOnlyList<EmbeddedIndustryRecipeReference>)pair.Value
+                    .Distinct()
+                    .OrderBy(reference => reference.RecipeId)
+                    .ToList(),
+                StringComparer.OrdinalIgnoreCase)
         };
     }
 
@@ -2278,6 +2485,26 @@ public sealed partial class MyDuMod
         var firstProduct = (entry["Products"] as JArray)?
             .OfType<JObject>()
             .FirstOrDefault();
+        var productNames = (entry["Products"] as JArray)?
+            .OfType<JObject>()
+            .Select(product => product["Name"]?.Value<string>()?.Trim())
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList()
+            ?? new List<string>();
+        var ingredientNames = (entry["Ingredients"] as JArray)?
+            .OfType<JObject>()
+            .Select(ingredient => ingredient["Name"]?.Value<string>()?.Trim())
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList()
+            ?? new List<string>();
+        if (productNames.Count == 0 && !string.IsNullOrWhiteSpace(entry["Name"]?.Value<string>()?.Trim()))
+        {
+            productNames.Add(entry["Name"]!.Value<string>()!.Trim());
+        }
 
         return new EmbeddedIndustryRecipeReference
         {
@@ -2289,7 +2516,9 @@ public sealed partial class MyDuMod
                 ?? entry["Name"]?.Value<string>()?.Trim()
                 ?? "",
             IndustryName = entry["Industry"]?.Value<string>()?.Trim() ?? "",
-            ParentGroupName = entry["ParentGroupName"]?.Value<string>()?.Trim() ?? ""
+            ParentGroupName = entry["ParentGroupName"]?.Value<string>()?.Trim() ?? "",
+            ProductNames = productNames,
+            IngredientNames = ingredientNames
         };
     }
 

@@ -502,6 +502,8 @@ public sealed partial class MyDuMod
         {
             var status = await orleans.GetIndustryUnitGrain(element.elementId).Status();
             var countersUsable = status.state == IndustryState.RUNNING;
+            var primaryProduct = status.recipe?.products?.FirstOrDefault();
+            var primaryProductItemTypeId = primaryProduct?.itemId ?? 0;
             return new JObject
             {
                 ["available"] = true,
@@ -515,6 +517,14 @@ public sealed partial class MyDuMod
                 ["batchesRemaining"] = countersUsable ? new JValue(status.batchesRemaining) : JValue.CreateNull(),
                 ["maintainProductAmount"] = status.maintainProductAmount,
                 ["currentProductAmount"] = status.currentProductAmount,
+                ["productItemTypeId"] = primaryProductItemTypeId == 0 ? JValue.CreateNull() : new JValue(primaryProductItemTypeId),
+                ["productItemName"] = primaryProductItemTypeId == 0 ? JValue.CreateNull() : ResolveItemTypeName(0, primaryProductItemTypeId),
+                ["maintainQuantity"] = primaryProductItemTypeId == 0
+                    ? JValue.CreateNull()
+                    : new JValue(ConvertRawQuantityToDisplay(primaryProductItemTypeId, (long)status.maintainProductAmount)),
+                ["currentQuantity"] = primaryProductItemTypeId == 0
+                    ? JValue.CreateNull()
+                    : new JValue(ConvertRawQuantityToDisplay(primaryProductItemTypeId, (long)status.currentProductAmount)),
                 ["batchesRequested"] = status.batchesRequested,
                 ["claimProducts"] = status.claimProducts,
                 ["recipe"] = BuildIndustryRuntimeRecipeObject(status.recipe)

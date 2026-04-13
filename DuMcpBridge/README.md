@@ -48,7 +48,7 @@ Override options:
 PowerShell example:
 
 ```powershell
-$env:DU_SERVER_ROOT = "E:\MyDUserver"
+$env:DU_SERVER_ROOT = "D:\MyDUserver"
 ```
 
 `run-mcp.cmd`:
@@ -106,7 +106,15 @@ Current `toolbox_ops` MCP tools:
 
 - `du_construct_index_refresh`
 - `du_construct_index_query`
+- `du_construct_index_nearby`
 - `du_construct_index_related`
+- `du_construct_index_describe_industry_branch`
+- `du_construct_index_trace`
+- `du_construct_index_describe_bank_from_anchor`
+- `du_construct_index_describe_consumer_bank_branches`
+- `du_construct_index_industry_supports`
+- `du_construct_index_industry_support_storage`
+- `du_construct_runtime_availability`
 - `du_storage_resolve`
 - `du_storage_describe`
 - `du_storage_spawn`
@@ -120,25 +128,197 @@ Current `toolbox_ops` MCP tools:
 - `du_industry_start_batch`
 - `du_industry_configure_batch`
 
+Practical workflow:
+
+1. Refresh the construct index when topology may be stale.
+   - Use `du_construct_index_refresh` once per construct before heavy topology work.
+
+2. Find one exact anchor first.
+   - Use `du_construct_index_query` for exact names, semantic item classes, family filters, or recipe-capability filters such as `producesItemName` / `consumesItemName`.
+   - Use `du_construct_index_nearby` when the workflow starts from one known local element and needs the surrounding bank.
+   - Use `du_construct_index_related` when you already know one element and want its compact linked subgraph with typed edges.
+
+3. Switch to a packaged branch query when the workflow is really about one branch type.
+   - Use `du_construct_index_describe_industry_branch` when the branch kind itself matters and the caller needs to distinguish direct producer, support/refill, and distribution-TU layouts.
+   - Use `du_construct_index_trace` for bounded upstream/downstream walking with `maxHops` and stop conditions.
+   - Use `du_construct_index_describe_bank_from_anchor` to expand one anchor into a repeated bank.
+   - Use `du_construct_index_describe_consumer_bank_branches` when one consumer bank has several grouped upstream inputs.
+   - Use `du_construct_index_industry_supports` for support-buffer topology: support storage, refill target, downstream consumers, feeder TUs, and feeder source storages.
+   - Use `du_construct_index_industry_support_storage` when you need the same branch plus live storage snapshots for the support buffers and feeder sources.
+
+4. Use live backend reads only for current runtime and current stock.
+   - Use `du_construct_runtime_availability` first when the player may not be at the target construct.
+   - Use `du_industry_describe_batch` for the current state, recipe, and maintain quantities of one or more industry elements.
+   - Use `du_storage_describe` for current storage contents.
+   - `du_storage_describe` is batchable by default through `entries`, so one call can read many storages.
+
+5. Mutate in batches, then confirm in batches.
+   - Use `du_industry_configure_batch` for recipe plus mode plus amount.
+   - Use `du_industry_stop_batch`, `du_industry_set_recipes`, and `du_industry_start_batch` only when the workflow needs those split steps explicitly.
+   - Use `du_storage_spawn`, `du_storage_take`, `du_storage_move_slot`, and `du_storage_drop_slot` for deterministic storage mutations.
+
+Typical patterns:
+
+- Rebuild one support branch from a known support container:
+  1. `du_construct_index_industry_supports`
+  2. `du_construct_index_industry_support_storage`
+  3. `du_industry_describe_batch` on the returned feeder TUs
+  4. `du_industry_configure_batch` on the feeder TUs
+
+- Configure a local feeder wall from one known TU:
+  1. `du_construct_index_nearby`
+  2. `du_industry_describe_batch`
+  3. `du_industry_configure_batch`
+
+- Check many buffers at once:
+  1. `du_storage_describe` with `entries`
+  2. inspect `summary` and per-entry `results`
+
+Trace one producer upstream to pures and ores:
+
+Use the bounded trace tool first, then switch to packaged branch queries only where needed:
+
+1. find one exact producer anchor
+2. run `du_construct_index_trace` with `direction: upstream`
+3. stop at `pure` or `ore`, or anchor a second trace from one discovered branch node
+4. when one upstream storage is clearly a support branch, switch to `du_construct_index_industry_support_storage`
+
+Example: start from one known producer or product line
+
+```json
+{
+  "tool": "du_construct_index_query",
+  "playerId": 126152,
+  "constructId": 1002090,
+  "category": "industry",
+  "producesItemName": "Warp Cell",
+  "timeoutMs": 15000
+}
+```
+
+If the product semantic name is not reliable enough, anchor by exact machine or line name instead:
+
+```json
+{
+  "tool": "du_construct_index_query",
+  "playerId": 126152,
+  "constructId": 1002090,
+  "exactName": "Warp Cell S1",
+  "timeoutMs": 15000
+}
+```
+
+Then run a bounded upstream trace:
+
+```json
+{
+  "tool": "du_construct_index_trace",
+  "playerId": 126152,
+  "constructId": 1002090,
+  "id": 1234,
+  "direction": "upstream",
+  "stopAtItemClass": "pure",
+  "maxHops": 4,
+  "timeoutMs": 15000
+}
+```
+
+If you need the local subgraph shape as well, `du_construct_index_related` still works and now returns typed edges such as `industry_output_to_storage` and `storage_to_transfer_input`.
+
+Batch-read the storages you just found instead of one `du_storage_describe` call per container:
+
+```json
+{
+  "tool": "du_storage_describe",
+  "playerId": 126152,
+  "constructId": 1002090,
+  "storageKind": "container",
+  "itemLimit": 10,
+  "entries": [
+    { "id": 760 },
+    { "id": 755 },
+    { "id": 6629 }
+  ],
+  "timeoutMs": 15000
+}
+```
+
+If one upstream storage is clearly a support branch, switch to the packaged branch query instead of manually reconstructing that part from many calls:
+
+```json
+{
+  "tool": "du_construct_index_industry_support_storage",
+  "playerId": 126152,
+  "constructId": 1002090,
+  "id": 755,
+  "includeFeederSources": true,
+  "itemLimit": 10,
+  "timeoutMs": 15000
+}
+```
+
+Then read the returned feeder TUs in one batch:
+
+```json
+{
+  "tool": "du_industry_describe_batch",
+  "playerId": 126152,
+  "constructId": 1002090,
+  "entries": [
+    { "id": 880 },
+    { "id": 881 }
+  ],
+  "timeoutMs": 15000
+}
+```
+
+Repeat the same pattern from the next upstream container or producer:
+
+- use `du_construct_index_trace` when you need one more bounded upstream/downstream step from a new anchor
+- use `du_construct_index_related` when you need the compact local subgraph with typed edges
+- use `du_storage_describe.entries` when you need current stock for several storages
+- use `du_construct_index_industry_support_storage` when the current node is a support/refill branch
+- stop when the upstream semantic item class is already `pure` or `ore`
+
+Practical rule:
+
+- `du_construct_index_industry_supports` and `du_construct_index_industry_support_storage` are branch-packaging tools, not arbitrary whole-factory graph walkers
+- `du_construct_index_trace` is the generic bounded walker for “follow this upstream/downstream from here”
+- `du_construct_index_related` remains the compact local-subgraph tool when you need the surrounding typed edges
+- a full producer-to-pure or producer-to-ore trace is still a short repeated workflow, just with a dedicated bounded trace primitive now
+
 Construct index purpose:
 
 - `du_construct_index_refresh` snapshots one construct into the mod-side SQLite index with elements and links only
-- `du_construct_index_query` is the fast static+semantic lookup layer for workflow questions such as ore containers, refiner banks, and exact named branches
-- `du_construct_index_related` returns a compact depth-limited subgraph around one construct-local `id` or exact name
+- `du_construct_index_query` is the fast static+semantic lookup layer for workflow questions such as ore containers, refiner banks, exact named branches, and product-capability lookups
+- `du_construct_index_nearby` returns indexed elements near one anchor element using stored construct-local positions, with optional category, industry-family, radius, and vertical-tolerance filters
+- `du_construct_index_related` returns a compact depth-limited subgraph around one construct-local `id` or exact name, and its edges now carry typed meanings
+- `du_construct_index_describe_industry_branch` packages recognized branch kinds around one anchor
+- `du_construct_index_trace` walks the graph in one direction with bounded hops and stop conditions
+- `du_construct_index_describe_bank_from_anchor` expands one anchor into a repeated same-role bank
+- `du_construct_index_describe_consumer_bank_branches` summarizes a consumer bank plus grouped upstream input anchors
+- `du_construct_index_industry_supports` returns the packaged support-feeder branch data that a full industry-support workflow needs: support storage, refill target, downstream industry consumers, upstream feeder TUs, feeder source storages, and compact feeder runtime
+- `du_construct_index_industry_supports` also accepts an optional downstream `industryFamily` filter when the caller wants one family such as `smelter`
+- `du_construct_index_industry_support_storage` is the reusable storage-focused workflow tool on top of that support query and adds live snapshots for the support buffers plus optional feeder source storages
+- `du_construct_runtime_availability` checks whether live backend reads should work for the target construct from the player's current position
 - the construct index is not a live runtime layer; questions about what is currently producing or consuming an item still need live backend reads
 
 Important behavior:
 
 - construct index results are user-facing by construct-local `id`; backend/global element ids stay internal
 - construct index queries are deterministic only and use exact names plus explicit semantic filters
+- `producesItemName` / `consumesItemName` are capability filters based on recipe semantics, not current runtime state
+- if a needed topology workflow is not expressed cleanly by the existing construct-index tools, the fix belongs in a new mod-owned `toolbox_ops` primitive rather than external inspection of the construct-index database
 - construct-backed storage selectors are deterministic only
 - for `container` and `container_hub`, pass exactly one of construct-local `id` or exact `name`
 - `constructId` is optional and defaults to the player's current construct, but explicit cross-construct selectors are supported
+- `du_storage_describe` is batchable by default through an optional `entries` list; single-target calls keep the old `storage` plus `snapshot` shape, while batched calls return `summary` plus compact per-entry `results`
 - ambiguous storage or item-name matches return structured candidate lists instead of picking a target
 - industry target selectors are deterministic only and accept exactly one of construct-local `id` or exact `name`
 - the user-facing industry MCP surface is batch-first; even single-target work is sent as one-entry `entries` lists
 - `du_industry_set_recipes` enforces that the target machines are stopped before changing recipes
 - for transfer units, the recipe identifier is the product item type id
+- compact industry runtime payloads now carry `maintainQuantity`, `currentQuantity`, `productItemTypeId`, and `productItemName` for the active product instead of forcing callers to infer display quantities from raw backend fields
 - these tools are server-side `ModUiToolbox` bridge calls; they do not depend on the live `industry_panel` UI being open
 
 ## Live Screen Resolution Note

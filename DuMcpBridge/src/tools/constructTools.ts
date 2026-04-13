@@ -86,6 +86,19 @@ const constructRenameElementOutputSchema = {
   parseError: z.string().nullable()
 };
 
+const constructRuntimeAvailabilityOutputSchema = {
+  found: z.boolean(),
+  commandId: z.string(),
+  createdAtUtc: z.string().nullable(),
+  success: z.boolean(),
+  error: z.string().nullable(),
+  method: z.string().nullable(),
+  currentConstruct: z.union([jsonRecordSchema, z.null()]),
+  targetConstruct: z.union([jsonRecordSchema, z.null()]),
+  availability: z.union([jsonRecordSchema, z.null()]),
+  parseError: z.string().nullable()
+};
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
@@ -434,6 +447,52 @@ async function enqueueToolboxOpsCommand(
 }
 
 export function registerConstructTools(server: McpServer, commandQueue: BridgeCommandQueue, eventStore: BridgeEventStore): void {
+  server.registerTool(
+    "du_construct_runtime_availability",
+    {
+      title: "Construct Runtime Availability",
+      description: "Checks whether live industry and storage reads are expected to work for the target construct from the player's current position.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Requester player ID"),
+        constructId: z.number().int().nonnegative().optional().describe("Optional target construct ID; defaults to the player's current construct when available"),
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the toolbox_ops_result event")
+      },
+      outputSchema: constructRuntimeAvailabilityOutputSchema
+    },
+    async ({ playerId, constructId, timeoutMs }) => {
+      const selector: Record<string, unknown> = {
+        ...(typeof constructId === "number" ? { constructId } : {})
+      };
+      const eventResult = await enqueueToolboxOpsCommand(commandQueue, eventStore, playerId, "construct_runtime_availability", [selector], timeoutMs);
+      const parsed = parseToolboxOpsPayload(eventResult.payloadJson);
+      const payload = parsed.parsed;
+      const structuredContent = {
+        found: eventResult.found,
+        commandId: eventResult.commandId,
+        createdAtUtc: eventResult.createdAtUtc,
+        success: parsed.success,
+        error: parsed.error,
+        method: parsed.method,
+        currentConstruct: asRecord(payload?.currentConstruct),
+        targetConstruct: asRecord(payload?.targetConstruct),
+        availability: asRecord(payload?.availability),
+        parseError: parsed.parseError
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: eventResult.found
+              ? renderTextPayload(structuredContent)
+              : `No toolbox_ops_result event received within ${timeoutMs}ms.`
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
   server.registerTool(
     "du_construct_rename_element",
     {

@@ -35,6 +35,8 @@ const storageDescribeOutputSchema = {
   method: z.string().nullable(),
   storage: z.union([jsonRecordSchema, z.null()]),
   snapshot: z.union([jsonRecordSchema, z.null()]),
+  summary: z.union([jsonRecordSchema, z.null()]),
+  results: z.array(jsonRecordSchema),
   candidates: z.array(jsonRecordSchema),
   parseError: z.string().nullable()
 };
@@ -237,12 +239,29 @@ function compactBatchResult(source: Record<string, unknown>): Record<string, unk
   };
 }
 
+function compactDescribeBatchResult(source: Record<string, unknown>): Record<string, unknown> {
+  const storage = compactStorageRef(firstRecord(source, ["storage"]));
+  const snapshot = compactStorageSnapshot(firstRecord(source, ["snapshot"]));
+  const candidates = compactCandidates(asRecordArray(source.candidates), true);
+  return {
+    ...(compactObject([
+      ["storage", storage],
+      ["snapshot", snapshot],
+      ["error", firstString(source, ["error"])],
+      ["index", firstInteger(source, ["index"])]
+    ]) ?? {}),
+    ...(candidates.length > 0 ? { candidates } : {}),
+    success: source.success === true
+  };
+}
+
 function compactSummary(source: Record<string, unknown> | null): Record<string, unknown> | null {
   return compactObject([
     ["requestedCount", firstInteger(source, ["requestedCount"])],
     ["successfulCount", firstInteger(source, ["successfulCount"])],
     ["failedCount", firstInteger(source, ["failedCount"])],
     ["totalQuantity", firstNumber(source, ["totalQuantity"])],
+    ["itemLimit", firstInteger(source, ["itemLimit"])],
     ["storageKind", firstString(source, ["storageKind"])],
     ["storage", compactStorageRef(firstRecord(source, ["storage"]))]
   ]);
@@ -394,6 +413,15 @@ async function enqueueToolboxOpsCommand(
 }
 
 export function registerStorageTools(server: McpServer, commandQueue: BridgeCommandQueue, eventStore: BridgeEventStore): void {
+  const storageDescribeEntrySchema = z.object({
+    storageKind: storageKindSchema.optional().describe("Storage target kind override for this entry"),
+    constructId: z.number().int().nonnegative().optional().describe("Optional construct ID for this entry"),
+    id: z.number().int().nonnegative().optional().describe("Construct-local element ID inside the chosen construct"),
+    name: z.string().trim().min(1).optional().describe("Exact element custom name or exact type name inside the chosen construct"),
+    category: z.string().trim().min(1).optional().describe("Optional category filter, for example container or container_hub"),
+    targetPlayerId: z.number().int().nonnegative().optional().describe("Optional target player ID for player inventory selectors")
+  });
+
   server.registerTool(
     "du_storage_resolve",
     {
@@ -463,13 +491,14 @@ export function registerStorageTools(server: McpServer, commandQueue: BridgeComm
         name: z.string().trim().min(1).optional().describe("Exact element custom name or exact type name inside the chosen construct"),
         category: z.string().trim().min(1).optional().describe("Optional category filter, for example container or container_hub"),
         targetPlayerId: z.number().int().nonnegative().optional().describe("Optional target player ID for player inventory selectors"),
+        entries: z.array(storageDescribeEntrySchema).min(1).optional().describe("Optional batch of storage targets. Top-level storage fields act as defaults for entries that omit them."),
         itemLimit: z.number().int().min(1).max(500).default(100).describe("Maximum number of occupied slots to return"),
         timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the toolbox_ops_result event")
       },
       outputSchema: storageDescribeOutputSchema
     },
-    async ({ playerId, storageKind, constructId, id, name, category, targetPlayerId, itemLimit, timeoutMs }) => {
-      const selector = buildStorageSelector({
+    async ({ playerId, storageKind, constructId, id, name, category, targetPlayerId, entries, itemLimit, timeoutMs }) => {
+      const selectorBase = buildStorageSelector({
         storageKind,
         constructId,
         id,
@@ -477,11 +506,28 @@ export function registerStorageTools(server: McpServer, commandQueue: BridgeComm
         category,
         targetPlayerId
       });
+
+      const selector = Array.isArray(entries) && entries.length > 0
+        ? {
+            ...selectorBase,
+            entries: entries.map((entry) => buildStorageSelector({
+              storageKind: entry.storageKind ?? storageKind,
+              constructId: entry.constructId ?? constructId,
+              id: entry.id,
+              name: entry.name,
+              category: entry.category ?? category,
+              targetPlayerId: entry.targetPlayerId ?? targetPlayerId
+            }))
+          }
+        : selectorBase;
+
       const eventResult = await enqueueToolboxOpsCommand(commandQueue, eventStore, playerId, "describe_storage", [selector, itemLimit], timeoutMs);
       const parsed = parseToolboxOpsPayload(eventResult.payloadJson);
       const storage = compactStorageRef(parsed.storage);
       const snapshot = compactStorageSnapshot(asRecord(parsed.parsed?.snapshot));
       const candidates = compactCandidates(parsed.candidates, !parsed.success || storage === null);
+      const summary = compactSummary(parsed.summary);
+      const results = parsed.results.map((entry) => compactDescribeBatchResult(entry));
       const structuredContent = {
         found: eventResult.found,
         commandId: eventResult.commandId,
@@ -491,6 +537,8 @@ export function registerStorageTools(server: McpServer, commandQueue: BridgeComm
         method: parsed.method,
         storage,
         snapshot,
+        summary,
+        results,
         candidates,
         parseError: parsed.parseError
       };

@@ -254,10 +254,32 @@ Current `toolbox_ops` methods:
   - refreshes one construct snapshot into the mod-side SQLite index using elements and links only
 - `query_construct_index`
   - queries the indexed construct snapshot by exact/static and semantic filters
-  - supports category, exact name, name contains, semantic item id/name, semantic item class, industry family, and industry tier
+  - supports category, exact name, name contains, semantic item id/name, semantic item class, industry family, industry tier, and static recipe semantics through `producesItemName` / `consumesItemName`
+- `nearby_construct_index`
+  - returns indexed elements near one anchor element by stored construct-local position
+  - supports exact anchor `id` or exact `name`, 3D radius, optional vertical tolerance, category filters, and optional industry-family filtering
 - `related_construct_index`
   - returns a compact related subgraph around one construct-local `id` or exact name
-  - supports depth-limited expansion and optional output category filtering
+  - supports depth-limited expansion, optional output category filtering, and typed edges such as `industry_output_to_storage`, `storage_to_transfer_input`, `transfer_output_to_storage`, and `hub_child`
+- `describe_industry_branch`
+  - packages nearby branch topology around one anchor into recognized branch kinds such as `direct_producer_bank_to_storage`, `support_refill_tu_to_storage`, and `storage_to_distribution_tu_bank`
+- `trace_construct_index`
+  - walks upstream or downstream from one anchor with bounded hops and optional stop conditions such as `stopAtItemClass` or `stopAtIndustryFamily`
+- `describe_bank_from_anchor`
+  - expands one machine or storage anchor into repeated same-role banks
+  - supports grouping by `shared_output_storage`, `shared_input_support_pattern`, or `none`
+- `describe_consumer_bank_branches`
+  - summarizes a multi-input consumer bank plus grouped upstream input branches by item and storage anchor
+- `describe_industry_supports`
+  - returns industry support storage branches directly from the mod-owned construct index
+  - fills the workflow gap that `query_construct_index` and `related_construct_index` did not package in one deterministic call
+  - reports the support storage, the actual refill target, downstream industry consumers, upstream feeder transfer units, feeder source storages, and compact feeder runtime
+  - accepts an optional downstream `industryFamily` filter such as `smelter` or `refiner`
+  - keeps support-feeder traversal in `toolbox_ops` instead of requiring external SQLite reads
+- `describe_industry_support_storage`
+  - builds on `describe_industry_supports` for storage-focused workflows
+  - returns the same support branch structure plus live snapshots for the support buffers and optional feeder source storages
+  - keeps “support topology plus actual storage contents” in one deterministic backend call instead of many external storage reads
 - `resolve_storage`
   - resolves one target deterministically from explicit selectors
   - supports `player_inventory`, `player_inventory_raw`, `player_primary_container`, `container`, and `container_hub`
@@ -266,6 +288,7 @@ Current `toolbox_ops` methods:
   - ambiguous matches return a structured candidate list instead of picking one
 - `describe_storage`
   - reads one resolved storage and returns occupied slots plus capacity state
+  - when passed an `entries` batch, it returns one compact per-storage result list in the same method instead of requiring a second batch-specific storage describe primitive
 - `spawn_item`
   - gives an item type into the chosen storage target by exact item name or item type id
 - `take_item`
@@ -274,6 +297,8 @@ Current `toolbox_ops` methods:
   - moves part or all of one occupied source slot into another resolved storage target
 - `drop_slot`
   - removes part or all of one occupied source slot without moving it elsewhere
+- `construct_runtime_availability`
+  - reports the player's current construct, the target construct, and whether live industry/storage reads are expected to work from the current position
 - `resolve_industry_recipe`
   - resolves one recipe deterministically for one target industry element from either an explicit recipe id or an exact product item selector
   - for transfer units, the resolved recipe id is the product item type id
@@ -287,13 +312,71 @@ Current `toolbox_ops` methods:
   - supports `run`, `make`, `move`, and `maintain`
   - `move` is the transfer-unit alias
 
+Practical `toolbox_ops` workflow:
+
+1. Refresh the construct index when topology may be stale.
+   - Use `refresh_construct_index` once per construct before heavy topology work.
+
+2. Find one exact anchor first.
+   - Use `query_construct_index` for exact names, semantic item classes, industry-family filters, or recipe-capability lookups such as `producesItemName`.
+   - Use `nearby_construct_index` when the workflow starts from one known local element and needs the surrounding bank.
+   - Use `related_construct_index` when you already know one element and want its compact linked subgraph.
+
+3. Switch to a packaged branch query when the workflow is really about one branch type.
+   - Use `describe_industry_branch` when the anchor may be a direct producer branch, a refill-TU branch, or a distribution-TU branch and the caller needs the returned `branchKind`.
+   - Use `trace_construct_index` when the workflow needs a bounded upstream/downstream walk with clear stop conditions.
+   - Use `describe_bank_from_anchor` when one machine or output storage should expand into a repeated bank.
+   - Use `describe_consumer_bank_branches` when the real question is “which grouped upstream inputs feed this consumer bank?”
+   - Use `describe_industry_supports` for support-buffer topology: support storage, refill target, downstream consumers, feeder TUs, and feeder source storages.
+   - Use `describe_industry_support_storage` when you need the same branch plus live storage snapshots for the support buffers and feeder sources.
+
+4. Use live backend reads only for current runtime and current stock.
+   - Use `construct_runtime_availability` first when the caller is not sure whether live reads can work from the player's current position.
+   - Use `describe_storage` for current storage contents.
+   - `describe_storage` is batchable by default through `entries`, so one call can read many storages.
+   - Use the industry runtime methods when the workflow needs current recipe, mode, or maintain quantities instead of static topology.
+
+5. Mutate in batches, then confirm in batches.
+   - Resolve the branch from one anchor first.
+   - Then apply storage and industry writes to the derived targets instead of hopping around manually in the UI.
+
+Typical patterns:
+
+- Rebuild one support branch from a known support container:
+  1. `describe_industry_supports`
+  2. `describe_industry_support_storage`
+  3. read the returned feeder TUs and source storages
+  4. configure the feeder TUs through the industry methods
+
+- Configure a local feeder wall from one known TU:
+  1. `nearby_construct_index`
+  2. filter the returned bank by exact names, category, or industry family
+  3. read current runtime and stock only for the narrowed set
+  4. apply one batch mutation pass
+
+- Find producers by product instead of guessed names:
+  1. `query_construct_index` with `producesItemName`
+  2. `describe_industry_branch` or `describe_bank_from_anchor` from one returned anchor
+
+- Check whether live reads should work before trying runtime calls:
+  1. `construct_runtime_availability`
+  2. if `liveIndustryReadsExpected = false`, stay on static construct-index queries until the player is at the target construct
+
+- Check many buffers at once:
+  1. `describe_storage` with `entries`
+  2. inspect `summary` and per-entry `results`
+
 Behavior rules for `toolbox_ops`:
 
 - resolution is deterministic only; no fuzzy matching and no silent fallback target selection
 - item names are exact-name matches only; ambiguous names return candidate lists
 - construct index queries are static and semantic only; they answer intended topology and naming questions, not live industry runtime
+- if a workflow needs packaged topology that static query plus related-subgraph calls do not express cleanly, add a new mod-owned `toolbox_ops` query instead of reading the construct index database externally
 - the construct index stores construct-local `id` for user-facing selection and only keeps backend element ids internally for persistence
+- the construct index now also stores element positions so vicinity workflows can stay mod-owned and deterministic instead of relying on screenshot grouping or external DB reads
 - semantic item matching is intended to support workflow queries such as ore containers, refiner banks, and related TU/industry branches after a naming pass
+- recipe-semantic matching in `query_construct_index` is capability-based: `producesItemName` / `consumesItemName` resolve machine types that can run those recipes even when the machine custom names do not mention the product
+- industry runtime payloads now include display quantities for the active product as `maintainQuantity` and `currentQuantity`, plus `productItemTypeId` and `productItemName`, so callers do not have to reinterpret raw backend amounts
 - quantities are accepted as normal gameplay quantities; material quantities are converted through the gameplay bank before the storage operation runs
 - cross-construct work is supported whenever the caller provides explicit construct or storage selectors
 - for higher-level user requests, a bare mentioned `ID` should default to the construct-local `id`
