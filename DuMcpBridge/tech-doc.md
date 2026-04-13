@@ -20,6 +20,8 @@ The current implementation supports:
 - an explicit opt-in server-side chat snapshot path (`server_chat`) for multi-channel reads without the visible HUD tab restriction
 - channel-bound chat sending through the real HUD send path
 - custom channel create/join through the same `/join <name>` path as the HUD dialog
+- read-only construct inspection through `construct_inspector`
+- deterministic server-side construct/storage and industry operations through `toolbox_ops`
 
 Current in-game targets:
 
@@ -27,6 +29,9 @@ Current in-game targets:
 - `screen_editor`
 - `hud_chat`
 - `server_chat` (opt-in read path; no UI injection)
+- `industry_panel` (payload-backed live panel path)
+- `construct_inspector` (server-side construct read path)
+- `toolbox_ops` (server-side storage and industry operation path)
 
 ## Runtime Layout
 
@@ -73,6 +78,8 @@ Relevant files:
 
 - [server.ts](src/server.ts)
 - [editorTools.ts](src/tools/editorTools.ts)
+- [constructTools.ts](src/tools/constructTools.ts)
+- [storageTools.ts](src/tools/storageTools.ts)
 - [logTools.ts](src/tools/logTools.ts)
 - [sessionResources.ts](src/resources/sessionResources.ts)
 - [commandQueue.ts](src/bridge/commandQueue.ts)

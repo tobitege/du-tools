@@ -210,15 +210,16 @@ public sealed partial class MyDuMod
     private async Task<JObject> BuildConstructInspectElementPayload(string commandId, ulong playerId, JObject payload)
     {
         var probeArgs = payload["probeArgs"] as JArray;
-        var elementId = ReadProbeArgUInt64(probeArgs, 0);
-        if (!elementId.HasValue || elementId.Value == 0)
+        var requestedId = ReadProbeArgUInt64(probeArgs, 0);
+        if (!requestedId.HasValue || requestedId.Value == 0)
         {
-            return CreateConstructInspectorFailure(commandId, "inspect_element", "missing_element_id");
+            return CreateConstructInspectorFailure(commandId, "inspect_element", "missing_id");
         }
 
         var (constructId, usedCurrentConstruct) = await ResolveConstructIdForInspection(playerId, probeArgs, 1);
         var context = await LoadConstructInspectionContext(playerId, constructId, usedCurrentConstruct);
-        if (!context.ElementsById.TryGetValue(elementId.Value, out var element))
+        var element = context.ElementsById.Values.FirstOrDefault(candidate => candidate.localId == requestedId.Value);
+        if (element == null)
         {
             return CreateConstructInspectorFailure(commandId, "inspect_element", "element_not_found");
         }
@@ -515,7 +516,8 @@ public sealed partial class MyDuMod
                 ["maintainProductAmount"] = status.maintainProductAmount,
                 ["currentProductAmount"] = status.currentProductAmount,
                 ["batchesRequested"] = status.batchesRequested,
-                ["claimProducts"] = status.claimProducts
+                ["claimProducts"] = status.claimProducts,
+                ["recipe"] = BuildIndustryRuntimeRecipeObject(status.recipe)
             };
         }
         catch (Exception ex)

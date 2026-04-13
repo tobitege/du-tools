@@ -1,0 +1,29 @@
+OPEN 1
+Title: Add deterministic construct-element rename path
+
+Need:
+- Add a backend mod operation to rename a resolved construct element by exact deterministic selector.
+- Keep this in the backend/toolbox path, not the live UI panel path.
+
+Selectors:
+- Support exactly one of construct-local `id` or exact `name`.
+- Keep current conventions:
+- Bare `ID` means construct-local `id`.
+- Exact names are allowed.
+- If an exact name is ambiguous, stop and require the construct-local `id`.
+
+Implementation steps:
+- Add a new `toolbox_ops` method in `ToolboxOpsBridge.cs` for element rename.
+- Reuse the same deterministic construct-element resolution rules already used by storage/industry selectors.
+- Accept the new exact target name as an explicit required field.
+- Return the resolved target plus updated `customName` / `label` in the result payload.
+- Register the operation through `ModUIToolbox.cs` command dispatch.
+- Add a new MCP tool in `DuMcpBridge` such as `du_construct_rename_element`.
+- Wire the command/event contract updates in `commands.ts` and any affected result typing.
+- Register the new MCP tool in `server.ts`.
+- Build both projects and live-probe the rename path on a low-risk test element.
+
+Notes:
+- No fuzzy matching.
+- No UI-driven rename workflow.
+- Keep it as a low-level deterministic primitive; higher-level naming workflows stay in the agent.

@@ -5,6 +5,7 @@ import { BridgeCommandQueue } from "../bridge/commandQueue.js";
 import { BridgeEventStore, type CommandEventSnapshot, type ProbeResultSnapshot } from "../bridge/eventStore.js";
 import { targetKindSchema } from "../contracts/commands.js";
 import { runNativeAhkInput, type NativeInputToolOptions } from "./nativeInputTools.js";
+import { clampedIntSchema } from "./schemaUtils.js";
 
 const editorTargetKindSchema = z.enum(["lua_editor", "screen_editor"]);
 type EditorUiKind = z.infer<typeof editorTargetKindSchema>;
@@ -343,6 +344,7 @@ const industryPanelMethodSchema = z.enum([
   "click_button",
   "select_mode",
   "set_make_amount",
+  "set_move_amount",
   "set_maintain_amount",
   "apply_css",
   "apply_html",
@@ -486,6 +488,7 @@ function buildIndustryPanelProbeArgs(input: {
     case "select_mode":
       return [input.modeAction ?? ""];
     case "set_make_amount":
+    case "set_move_amount":
     case "set_maintain_amount":
       return [input.amount ?? 0];
     case "apply_css":
@@ -1988,7 +1991,7 @@ export function registerEditorTools(
         "Queues a read-only chat snapshot in the active HUD and waits for the structured chat_snapshot bridge event. Returns the selected channel and recent messages without sending chat input.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
-        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the chat_snapshot event")
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the chat_snapshot event")
       },
       outputSchema: chatSnapshotOutputSchema
     },
@@ -2050,7 +2053,7 @@ export function registerEditorTools(
           .boolean()
           .default(true)
           .describe("When agentId is set, also match plain @ai in addition to @ai:<agentId>"),
-        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the chat_snapshot event")
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the chat_snapshot event")
       },
       outputSchema: chatAiMentionsOutputSchema
     },
@@ -2121,7 +2124,7 @@ export function registerEditorTools(
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         limit: z.number().int().min(1).max(500).default(120).describe("Maximum number of recent chat messages to return across relevant server-side channels"),
-        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the server_chat_snapshot event")
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the server_chat_snapshot event")
       },
       outputSchema: serverChatSnapshotOutputSchema
     },
@@ -2186,7 +2189,7 @@ export function registerEditorTools(
           .default(true)
           .describe("When agentId is set, also match plain @ai in addition to @ai:<agentId>"),
         limit: z.number().int().min(1).max(500).default(120).describe("Maximum number of recent chat messages to inspect across relevant server-side channels"),
-        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the server_chat_snapshot event")
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the server_chat_snapshot event")
       },
       outputSchema: serverChatMentionsOutputSchema
     },
@@ -2260,7 +2263,7 @@ export function registerEditorTools(
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         message: z.string().min(1).describe("Chat message to send"),
         channelId: z.string().optional().describe("Optional explicit channel ID; otherwise the currently selected channel is used"),
-        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the probe_result event")
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the probe_result event")
       },
       outputSchema: chatSendOutputSchema
     },
@@ -2328,7 +2331,7 @@ export function registerEditorTools(
           .max(10)
           .regex(/^[A-Za-z0-9+_-]+$/)
           .describe("Custom channel name: 3-10 chars, no blanks, allowed: A-Z a-z 0-9 + _ -"),
-        timeoutMs: z.number().int().min(250).max(20000).default(8000).describe("How long to wait for the probe_result event")
+        timeoutMs: clampedIntSchema(250, 20000, 8000).describe("How long to wait for the probe_result event")
       },
       outputSchema: chatChannelOutputSchema
     },
@@ -2395,7 +2398,7 @@ export function registerEditorTools(
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         channelId: z.string().min(1).describe("Existing channel ID to select, e.g. room_local or room_ai_hlp2"),
-        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the probe_result event")
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the probe_result event")
       },
       outputSchema: chatChannelOutputSchema
     },
@@ -2460,7 +2463,7 @@ export function registerEditorTools(
       inputSchema: {
         uiKind: uiKindSchema,
         playerId: z.number().int().nonnegative().describe("Target player ID"),
-        timeoutMs: z.number().int().min(250).max(15000).default(15000).describe("How long to wait for the probe result event")
+        timeoutMs: clampedIntSchema(250, 15000, 15000).describe("How long to wait for the probe result event")
       },
       outputSchema: luaProbeOutputSchema
     },
@@ -2503,7 +2506,7 @@ export function registerEditorTools(
         settleMs: z.number().int().min(0).max(15000).optional().describe("Requested wait after slot confirmation for `select_context`. The bridge clamps short waits to its safe minimum."),
         selector: z.string().optional().describe("CSS selector for `outer_html`"),
         functionBody: z.string().optional().describe("Trusted function body for `raw_eval` using parameter `state`"),
-        timeoutMs: z.number().int().min(250).max(15000).default(15000)
+        timeoutMs: clampedIntSchema(250, 15000, 15000)
       },
       outputSchema: luaProbeOutputSchema
     },
@@ -2605,7 +2608,7 @@ export function registerEditorTools(
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         selector: z.string().min(1).describe("CSS selector to inspect in the active HUD page"),
         maxMatches: z.number().int().min(1).max(25).default(8).describe("Maximum matched nodes to return"),
-        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the HUD probe result")
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the HUD probe result")
       },
       outputSchema: hudDescribeOutputSchema
     },
@@ -2665,7 +2668,7 @@ export function registerEditorTools(
         styleId: z.string().min(1).describe("Managed style tag id used for later replacement or removal"),
         cssText: z.string().min(1).describe("CSS text to inject. If `rootSelector` is set and this contains declarations only, the bridge wraps them in that selector."),
         rootSelector: z.string().optional().describe("Optional selector to scope declaration-only CSS or to report matched root count"),
-        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the HUD probe result")
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the HUD probe result")
       },
       outputSchema: hudCssMutationOutputSchema
     },
@@ -2727,7 +2730,7 @@ export function registerEditorTools(
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         styleId: z.string().min(1).describe("Managed style tag id to remove"),
-        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the HUD probe result")
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the HUD probe result")
       },
       outputSchema: hudCssMutationOutputSchema
     },
@@ -2788,7 +2791,7 @@ export function registerEditorTools(
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         selector: z.string().optional().describe("Optional selector used to pre-bind `scope.nodes` and `scope.first`"),
         functionBody: z.string().min(1).describe("Trusted function body executed as `new Function('scope', ...)`"),
-        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the HUD probe result")
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the HUD probe result")
       },
       outputSchema: hudRawEvalOutputSchema
     },
@@ -2842,7 +2845,7 @@ export function registerEditorTools(
         "Reads the currently open industry panel through the bridge without leaving the panel UI.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
-        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the industry panel probe result")
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the industry panel probe result")
       },
       outputSchema: industryPanelOutputSchema
     },
@@ -2891,15 +2894,15 @@ export function registerEditorTools(
         method: industryPanelMethodSchema.describe("Industry panel probe method"),
         units: z.number().int().min(1).max(4).optional().describe("Precision units for `set_time_precision`"),
         buttonAction: z.enum(["start", "finish_stop", "stop"]).optional().describe("Button action for `click_button`"),
-        modeAction: z.enum(["run", "make", "maintain"]).optional().describe("Mode action for `select_mode`"),
-        amount: z.number().int().min(0).optional().describe("Amount for `set_make_amount` or `set_maintain_amount`"),
+        modeAction: z.enum(["run", "make", "move", "maintain"]).optional().describe("Mode action for `select_mode`; `move` is the transfer-unit label for the same underlying mode as `make`"),
+        amount: z.number().int().min(0).optional().describe("Amount for `set_make_amount`, `set_move_amount`, or `set_maintain_amount`"),
         enabled: z.boolean().optional().describe("Enabled state for `set_kebab`"),
         cssText: z.string().optional().describe("CSS text for `apply_css` or `apply_assets`"),
         cssStyleId: z.string().optional().describe("Optional style tag id for `apply_css`"),
         html: z.string().optional().describe("HTML text for `apply_html` or `apply_assets`"),
         htmlTargetSelector: z.string().optional().describe("Target selector for `apply_html` or `apply_assets`"),
         htmlApplyMode: z.enum(["replace_inner", "replace_outer"]).optional().describe("Apply mode for `apply_html` or `apply_assets`"),
-        timeoutMs: z.number().int().min(250).max(20000).default(5000).describe("How long to wait for the industry panel probe result")
+        timeoutMs: clampedIntSchema(250, 20000, 5000).describe("How long to wait for the industry panel probe result")
       },
       outputSchema: industryPanelOutputSchema
     },
@@ -2973,7 +2976,7 @@ export function registerEditorTools(
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID"),
         openEditorAfter: z.boolean().default(false).describe("When true, reopen the Lua editor after dispatching the reinject request"),
-        timeoutMs: z.number().int().min(250).max(15000).default(5000).describe("How long to wait for the initial raw_eval probe result"),
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the initial raw_eval probe result"),
         reopenDelayMs: z.number().int().min(0).max(5000).default(400).describe("Delay before reopening the editor after dispatching reinject"),
         reopenTimeoutMs: z.number().int().min(250).max(15000).default(8000).describe("How long to wait for the reopened editor describe snapshot"),
         activateWindow: z.boolean().default(true).describe("When reopening, activate the Dual Universe window before sending Ctrl+L"),
@@ -3111,7 +3114,7 @@ export function registerEditorTools(
         playerId: z.number().int().nonnegative(),
         maxWaitMs: z.number().int().min(500).max(120000).default(30000),
         pollIntervalMs: z.number().int().min(100).max(10000).default(500),
-        timeoutMs: z.number().int().min(250).max(15000).default(15000),
+        timeoutMs: clampedIntSchema(250, 15000, 15000),
         requireVisible: z.boolean().default(false)
       },
       outputSchema: luaWaitEditorOutputSchema
@@ -3207,7 +3210,7 @@ export function registerEditorTools(
         slotName: z.string().min(1).describe("Lua slot to activate, for example `library`"),
         filterName: z.string().min(1).describe("Visible Lua handler/filter signature, for example `onStart()`"),
         settleMs: z.number().int().min(0).max(15000).default(1500).describe("Requested wait after slot confirmation before final describe. The bridge clamps short waits to its safe minimum."),
-        timeoutMs: z.number().int().min(500).max(30000).default(10000).describe("Maximum total wait for the Lua editor to appear"),
+        timeoutMs: clampedIntSchema(500, 30000, 10000).describe("Maximum total wait for the Lua editor to appear"),
         probeTimeoutMs: z.number().int().min(250).max(15000).default(8000).describe("Timeout for individual describe/select probe calls"),
         activateWindow: z.boolean().default(true).describe("When true, activate the Dual Universe window before native open"),
         windowTitle: z.string().default("Dual Universe").describe("Window title substring used to locate the Dual Universe client"),
@@ -3255,7 +3258,7 @@ export function registerEditorTools(
         slotName: z.string().min(1).describe("Lua slot to activate, for example `library`"),
         filterName: z.string().min(1).describe("Visible Lua handler/filter signature, for example `onStart()`"),
         settleMs: z.number().int().min(0).max(15000).default(1500).describe("Requested wait after slot confirmation before push. The bridge clamps short waits to its safe minimum."),
-        timeoutMs: z.number().int().min(500).max(30000).default(10000).describe("Maximum total wait for the Lua editor to appear"),
+        timeoutMs: clampedIntSchema(500, 30000, 10000).describe("Maximum total wait for the Lua editor to appear"),
         probeTimeoutMs: z.number().int().min(250).max(15000).default(8000).describe("Timeout for individual probe calls"),
         verifyTimeoutMs: z.number().int().min(500).max(30000).default(10000).describe("Maximum wait for the live buffer to match the staged source"),
         verifyPollIntervalMs: z.number().int().min(100).max(5000).default(250).describe("Polling interval while verifying the live buffer"),

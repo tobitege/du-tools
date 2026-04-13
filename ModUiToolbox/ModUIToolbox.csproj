@@ -4,6 +4,7 @@
     <DUExternalLibDir Condition="'$(DUExternalLibDir)' == ''">D:\MyDUserver\wincs\all</DUExternalLibDir>
     <EnableDuChatServerRead Condition="'$(EnableDuChatServerRead)' == ''">false</EnableDuChatServerRead>
     <DefineConstants Condition="'$(EnableDuChatServerRead)' == 'true'">$(DefineConstants);DU_CHAT_SERVER_READ</DefineConstants>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
@@ -40,6 +41,7 @@
     <Reference Include="Orleans.Core.Abstractions">
       <HintPath>$(DUExternalLibDir)\Orleans.Core.Abstractions.dll</HintPath>
     </Reference>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
     <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="8.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
@@ -48,5 +50,6 @@
     <EmbeddedResource Include="payload\ModUiToolbox-payload.js" LogicalName="ModUiToolbox-payload.js" />
     <EmbeddedResource Include="payload\lua-editor-probe.js" LogicalName="lua-editor-probe.js" />
     <EmbeddedResource Include="payload\lua-editor-probe.build.json" LogicalName="lua-editor-probe.build.json" />
+    <EmbeddedResource Include="industry-data\RecipesGroups.json" LogicalName="RecipesGroups.json" />
   </ItemGroup>
 </Project>

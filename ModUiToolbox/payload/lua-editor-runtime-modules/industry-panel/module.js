@@ -63,6 +63,30 @@
     }
   }
 
+  function serializeRecipeEntries(entries) {
+    if (!entries || typeof entries.length !== "number") {
+      return [];
+    }
+
+    var result = [];
+    for (var i = 0; i < entries.length; i += 1) {
+      var entry = entries[i];
+      if (!entry) {
+        continue;
+      }
+
+      result.push({
+        typeId: typeof entry.typeId !== "undefined" ? entry.typeId : null,
+        itemId: typeof entry.itemId !== "undefined" ? entry.itemId : null,
+        name: entry.name || entry.displayName || entry.localizedName || "",
+        quantity: typeof entry.quantity !== "undefined" ? entry.quantity : null,
+        volume: typeof entry.volume !== "undefined" ? entry.volume : null
+      });
+    }
+
+    return result;
+  }
+
   function getButtonState(node) {
     return {
       present: !!node,
@@ -539,6 +563,12 @@
     return {
       panelFound: !!panel,
       currentState: panel ? panel.currentState : null,
+      stopRequested: panel ? !!panel.stopRequested : false,
+      currentProgression: panel ? panel.currentProgression : null,
+      batchSize: panel ? panel.batchSize : null,
+      batchesRemaining: panel ? panel.batchToProcess : null,
+      speedFactor: panel ? panel.speedFactor : null,
+      minRecipeTime: panel ? panel.minRecipeTime : null,
       selectedMode: productionSubPanel ? productionSubPanel.selectedMode : null,
       inputValues: {
         make: getNumberInputValue(productionSubPanel ? productionSubPanel.inputNumberMake : null),
@@ -548,11 +578,25 @@
         id: recipe.id,
         name: recipe.name || recipe.displayName || recipe.localizedName || "",
         durationModified: recipe.durationModified,
-        batchSize: recipe.batchSize
+        batchSize: recipe.batchSize,
+        ingredientsBase: serializeRecipeEntries(recipe.ingredientsBase),
+        ingredientsModified: serializeRecipeEntries(recipe.ingredientsModified),
+        productsBase: serializeRecipeEntries(recipe.productsBase),
+        productsModified: serializeRecipeEntries(recipe.productsModified),
+        mainProduct: recipe.mainProduct ? {
+          typeId: typeof recipe.mainProduct.typeId !== "undefined" ? recipe.mainProduct.typeId : null,
+          itemId: typeof recipe.mainProduct.itemId !== "undefined" ? recipe.mainProduct.itemId : null,
+          name: recipe.mainProduct.name || recipe.mainProduct.displayName || recipe.mainProduct.localizedName || "",
+          quantity: typeof recipe.mainProduct.quantity !== "undefined" ? recipe.mainProduct.quantity : null,
+          volume: typeof recipe.mainProduct.volume !== "undefined" ? recipe.mainProduct.volume : null
+        } : null
       } : null,
       labels: {
         status: htmlNodes ? getNodeText(htmlNodes.statusDisplay) : "",
-        remainingTime: htmlNodes ? getNodeText(htmlNodes.remainingTime) : ""
+        remainingTime: htmlNodes ? getNodeText(htmlNodes.remainingTime) : "",
+        leftToProcess: htmlNodes ? getNodeText(htmlNodes.outputInfoCount) : "",
+        uptime: htmlNodes ? getNodeText(htmlNodes.uptimeValue) : "",
+        efficiency: htmlNodes ? getNodeText(htmlNodes.efficiencyValue) : ""
       },
       buttons: {
         start: getButtonState(htmlNodes ? htmlNodes.startButton : null),

@@ -44,6 +44,7 @@ Main features:
 - provides themed editor UI, runtime-module loading, and extra in-game controls such as `IDE Sync`
 - can capture full UI dumps, stylesheet dumps, and script dumps when deeper inspection is needed
 - exposes an `industry_panel` bridge target for live industry panel inspection/control without leaving the open panel UI
+- exposes a separate server-side `toolbox_ops` bridge target for deterministic construct/storage operations such as resolving storages, reading contents, moving slot contents, spawning item types, taking item types, and dropping slot quantities
 - supports optional server-side chat snapshot reads for bridge workflows that need more than the visible HUD tab
 - rotates bridge-event files by UTC date and rolls over each active file at `512 KB` so one long session does not create one giant event file
 
@@ -223,20 +224,81 @@ Current additive module:
   - can inspect current industry panel state
   - can override the live `Time remaining` label with a finer multi-unit format
   - currently the helper uses `2` precision units (`min` + `s`) and leaves the game's original label untouched when the remaining time drops below `60` seconds
-  - can report current production mode plus visible `Make` / `Maintain` values
-  - can switch production mode to `Run`, `Make`, or `Maintain`
-  - can set `Make` / `Maintain` values through payload config
+  - can report current production mode plus visible `Make` / `Move` / `Maintain` semantics and whether the open panel is a transfer unit
+  - can switch production mode to `Run`, `Make`, `Move`, or `Maintain`
+  - can set `Make` / `Move` / `Maintain` values through payload config
   - can show an optional centered `Industry Helper` button while the industry panel is visible
   - consumes the shared global theming state while the panel is visible
   - uses the persisted `industry-panel` runtime-module toggle when `industryPanelKebabEnabled` is not set explicitly
   - uses the persisted `industry-panel` runtime-module `timePrecisionUnits` state when `industryPanelTimePrecisionUnits` is not set explicitly
   - consumes the shared `theming` runtime-module theme selection and theme on/off state rather than keeping industry-only theme preferences
   - can press the live `Start`, `Finish & stop`, and `Stop` buttons
+  - treats transfer units as a first-class case; the panel reports whether the open machine is a transfer unit, and `move` is exposed as the semantic alias of the underlying batch mode used by transfer units
 - `905-industry-admin-probe.js`
   - handles payload mode `industry_panel_probe`
   - is driven through the `industry_panel` bridge target rather than visible outer mod-menu actions
-  - keeps bridge-only industry inspection and control in a separate admin-oriented payload module
+  - keeps bridge-only industry inspection and control in its own payload module
   - reuses the shared panel helpers exported by `900-industry-panel-probe.js`
+
+Separate from that payload path, `ModUiToolbox` also exposes a pure server-side `toolbox_ops` bridge target.
+It does not use the extractor payload and does not extend `905`.
+It exists so higher-level agents can compose deterministic construct/storage workflows without mixing that logic into the live industry-panel payload.
+
+`toolbox_ops` now also owns a static construct index under `tmp\ui-dumps\mcp-bridge\state\constructs.sqlite`.
+That index stores construct heads plus relational `elements` and `links` tables.
+It excludes voxels on purpose and is meant for fast topology and semantic-name lookup, not live runtime truth.
+
+Current `toolbox_ops` methods:
+
+- `refresh_construct_index`
+  - refreshes one construct snapshot into the mod-side SQLite index using elements and links only
+- `query_construct_index`
+  - queries the indexed construct snapshot by exact/static and semantic filters
+  - supports category, exact name, name contains, semantic item id/name, semantic item class, industry family, and industry tier
+- `related_construct_index`
+  - returns a compact related subgraph around one construct-local `id` or exact name
+  - supports depth-limited expansion and optional output category filtering
+- `resolve_storage`
+  - resolves one target deterministically from explicit selectors
+  - supports `player_inventory`, `player_inventory_raw`, `player_primary_container`, `container`, and `container_hub`
+  - for construct-backed storage, accepts exactly one of construct-local `id` or exact `name`
+  - `constructId` is optional; when omitted, the player's current construct is used as the default search scope
+  - ambiguous matches return a structured candidate list instead of picking one
+- `describe_storage`
+  - reads one resolved storage and returns occupied slots plus capacity state
+- `spawn_item`
+  - gives an item type into the chosen storage target by exact item name or item type id
+- `take_item`
+  - removes an item type from the chosen storage target by exact item name or item type id
+- `move_slot`
+  - moves part or all of one occupied source slot into another resolved storage target
+- `drop_slot`
+  - removes part or all of one occupied source slot without moving it elsewhere
+- `resolve_industry_recipe`
+  - resolves one recipe deterministically for one target industry element from either an explicit recipe id or an exact product item selector
+  - for transfer units, the resolved recipe id is the product item type id
+- `industry_stop`
+  - stops one industry unit directly through the server-side grain path
+  - supports `soft` and `hard`
+- `industry_set_recipe`
+  - sets one recipe directly on one stopped industry unit through the server-side grain path
+- `industry_start`
+  - starts one industry unit directly through the server-side grain path
+  - supports `run`, `make`, `move`, and `maintain`
+  - `move` is the transfer-unit alias
+
+Behavior rules for `toolbox_ops`:
+
+- resolution is deterministic only; no fuzzy matching and no silent fallback target selection
+- item names are exact-name matches only; ambiguous names return candidate lists
+- construct index queries are static and semantic only; they answer intended topology and naming questions, not live industry runtime
+- the construct index stores construct-local `id` for user-facing selection and only keeps backend element ids internally for persistence
+- semantic item matching is intended to support workflow queries such as ore containers, refiner banks, and related TU/industry branches after a naming pass
+- quantities are accepted as normal gameplay quantities; material quantities are converted through the gameplay bank before the storage operation runs
+- cross-construct work is supported whenever the caller provides explicit construct or storage selectors
+- for higher-level user requests, a bare mentioned `ID` should default to the construct-local `id`
+- in user-facing commands, do not expose global backend element ids; resolve construct-local `id` to the backend id internally
+- for higher-level industry work, resolve the branch first from one named or numbered anchor and only then apply recipe and mode writes to the derived units
 
 Supported `industry_panel_probe` payload config keys:
 
@@ -245,8 +307,10 @@ Supported `industry_panel_probe` payload config keys:
   - `1` restores the game's original time label behavior
   - `2` installs the current helper format (`min` + `s` while at least `60` seconds remain)
 - `industryPanelButtonAction: "start" | "finish_stop" | "stop"`
-- `industryPanelModeAction: "run" | "make" | "maintain"`
+- `industryPanelModeAction: "run" | "make" | "move" | "maintain"`
+  - `move` is the transfer-unit alias for the same underlying game mode as `make`
 - `industryPanelMakeAmount: <int>`
+  - also used for transfer-unit `move` amounts
 - `industryPanelMaintainAmount: <int>`
 - `industryPanelKebabEnabled: true | false`
   - when omitted, the persisted `industry-panel` runtime-module toggle is used
@@ -260,7 +324,7 @@ Current HTML/CSS transport behavior:
 
 - CSS is applied through a managed `<style>` tag and can be updated by reinjecting new `industryPanelCssText`.
 - HTML is applied to a selected target node, then the module rebinds production subpanel node references and button handlers.
-- Existing `Make` / `Maintain` number input components are preserved and reattached after HTML replacement.
+- Existing `Make` / `Move` / `Maintain` number input components are preserved and reattached after HTML replacement.
 - After HTML apply, the module refreshes recipe, container, status, mode, and time display state against the live `industryPanel` object.
 
 Runtime-module relationship:
@@ -269,7 +333,7 @@ Runtime-module relationship:
 - When enabled and the industry panel is visible, it shows a centered `Industry Helper` button at the top of the UI.
 - That helper opens quick controls for:
   - `2-unit time display`
-  - `Run`, `Make`, `Maintain`
+  - `Run`, `Make` or `Move`, `Maintain`
   - `Start`, `Finish & stop`, `Stop`
 - While the helper is enabled, the industry panel consumes the same shared theme state as the Lua editor, screen editor, and other themed surfaces.
 - The visible theme controls are global rather than industry-local:
@@ -284,6 +348,15 @@ Runtime-module relationship:
 - The extractor-side `industry_panel_probe` lives in `905-industry-admin-probe.js` and consumes that persisted state so bridge-driven panel control and the visible helper stay in sync.
 - Shared industry panel DOM/time/theme helpers stay in `900-industry-panel-probe.js`, separate from the admin bridge entrypoint.
 - The feature is intentionally scoped to the industry panel UI. It does not add outer mod-menu actions.
+
+Transfer-unit note:
+
+- transfer units are special enough to treat explicitly in higher-level workflows
+- they exist as one shared element type with many concrete instances on a construct
+- for construct-side discovery, use that deterministic transfer-unit type/category as the anchor instead of trying to infer the type from free text
+- once the candidate set is restricted to transfer units, instance selection can still use explicit ids, links, or intentional player-assigned names
+- `ConstructInspectorBridge` already classifies them via `definition.Is<NQutils.Def.TransferUnit>()` and exposes category `transfer`
+- for live industry-panel control, the panel state exposes whether the open machine is a transfer unit and reports the active semantic mode as `move` instead of `make`
 
 Useful sync command:
 

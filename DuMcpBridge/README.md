@@ -90,6 +90,57 @@ MCP client
 
 Bridge-event files are UTC-dated and roll over at `512 KB` per active file. The MCP bridge also exposes `du_bridge_events_status` and `du_bridge_events_housekeeping` so old event files and processed command files can be inspected, rotated, reset, and pruned explicitly.
 
+## Construct And Storage Tools
+
+The bridge now has two different non-editor tool layers:
+
+- `construct_inspector`
+  - read-focused construct and element inspection
+  - exposed through tools such as `du_construct_describe`, `du_construct_find_elements`, `du_construct_inspect_element`, and `du_construct_analyze_patterns`
+- `toolbox_ops`
+  - deterministic server-side construct/storage operations
+  - kept separate from the live `industry_panel` payload path
+  - intended as the low-level primitive layer that a higher-level agent can combine into workflows
+
+Current `toolbox_ops` MCP tools:
+
+- `du_construct_index_refresh`
+- `du_construct_index_query`
+- `du_construct_index_related`
+- `du_storage_resolve`
+- `du_storage_describe`
+- `du_storage_spawn`
+- `du_storage_take`
+- `du_storage_move_slot`
+- `du_storage_drop_slot`
+- `du_industry_describe_batch`
+- `du_industry_resolve_recipes`
+- `du_industry_stop_batch`
+- `du_industry_set_recipes`
+- `du_industry_start_batch`
+- `du_industry_configure_batch`
+
+Construct index purpose:
+
+- `du_construct_index_refresh` snapshots one construct into the mod-side SQLite index with elements and links only
+- `du_construct_index_query` is the fast static+semantic lookup layer for workflow questions such as ore containers, refiner banks, and exact named branches
+- `du_construct_index_related` returns a compact depth-limited subgraph around one construct-local `id` or exact name
+- the construct index is not a live runtime layer; questions about what is currently producing or consuming an item still need live backend reads
+
+Important behavior:
+
+- construct index results are user-facing by construct-local `id`; backend/global element ids stay internal
+- construct index queries are deterministic only and use exact names plus explicit semantic filters
+- construct-backed storage selectors are deterministic only
+- for `container` and `container_hub`, pass exactly one of construct-local `id` or exact `name`
+- `constructId` is optional and defaults to the player's current construct, but explicit cross-construct selectors are supported
+- ambiguous storage or item-name matches return structured candidate lists instead of picking a target
+- industry target selectors are deterministic only and accept exactly one of construct-local `id` or exact `name`
+- the user-facing industry MCP surface is batch-first; even single-target work is sent as one-entry `entries` lists
+- `du_industry_set_recipes` enforces that the target machines are stopped before changing recipes
+- for transfer units, the recipe identifier is the product item type id
+- these tools are server-side `ModUiToolbox` bridge calls; they do not depend on the live `industry_panel` UI being open
+
 ## Live Screen Resolution Note
 
 For live Dual Universe screen work, do not assume that screen units always expose a `1920x1080` rendering surface.

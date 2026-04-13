@@ -72,6 +72,11 @@ The exact chain is:
 4. It passes that list into the Configuration tab:
    - `this.changeRecipeSubPanel.setRecipeList(industryInfo.productList, this.industryUnitType);`
 
+For tooling, `industryInfo.isTransferUnit` is the important discriminator.
+Transfer units are one shared machine type with many concrete instances, so the type itself can be treated deterministically while instance selection can still use explicit ids, links, or intentional player-assigned names.
+On the live panel, the semantic mode label is `Move`, but under the hood it is still the same production enum path as `MAKE_BATCHS`.
+For higher-level commands, a user-provided bare `ID` should be interpreted as the construct-local `localId` unless they explicitly say `elementId` or another global id kind.
+
 You can see that in:
 - [all_script_js_000_industry_panel.js](/d:/MyDUserver/tmp/ui-dumps/reassembled-ui-1775974616647-124182561/ui-1775974616647-124182561/scripts/all_script_js_000_industry_panel.js)
 - relevant hits:

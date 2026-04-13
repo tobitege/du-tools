@@ -10,6 +10,7 @@ import * as z from "zod/v4";
 
 import { BridgeCommandQueue } from "../bridge/commandQueue.js";
 import { BridgeEventStore, type ProbeResultSnapshot } from "../bridge/eventStore.js";
+import { clampedIntSchema } from "./schemaUtils.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -744,7 +745,7 @@ export function registerNativeInputTools(
         "Uses a native AutoHotkey v2 helper from `DuMcpBridge/ahk` to send `Ctrl+L` to the Dual Universe window and then waits until either the Lua editor or screen editor becomes visible, depending on the element the player is looking at.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Target player ID for the follow-up probe wait"),
-        timeoutMs: z.number().int().min(500).max(30000).default(12000).describe("Maximum total wait for either supported element editor to become visible"),
+        timeoutMs: clampedIntSchema(500, 30000, 12000).describe("Maximum total wait for either supported element editor to become visible"),
         windowTitle: z.string().min(1).default("Dual Universe").describe("Window title substring used to locate the Dual Universe client"),
         activateWindow: z.boolean().default(true).describe("When true, AutoHotkey first activates the target window before sending `Ctrl+L`"),
         sendEscapeFirst: z.boolean().default(false).describe("When true, AutoHotkey first sends `Escape` before `Ctrl+L`. Use this only as a recovery path when the client is already stuck in a UI; from a normal in-world state that first `Escape` can open the game Options menu, and a second `Escape` is then needed to return in-world before retrying."),

@@ -8,9 +8,12 @@ import { ensureBridgeDirectories, loadConfig } from "./config.js";
 import { registerEmptyPromptSupport } from "./prompts/emptyPromptSupport.js";
 import { registerSessionResources } from "./resources/sessionResources.js";
 import { registerConstructTools } from "./tools/constructTools.js";
+import { registerConstructIndexTools } from "./tools/constructIndexTools.js";
 import { registerEditorTools } from "./tools/editorTools.js";
+import { registerIndustryBackendTools } from "./tools/industryBackendTools.js";
 import { registerLogTools } from "./tools/logTools.js";
 import { registerNativeInputTools } from "./tools/nativeInputTools.js";
+import { registerStorageTools } from "./tools/storageTools.js";
 
 type LaunchOptions = {
   ahkPath: string | null;
@@ -58,6 +61,9 @@ async function main(): Promise<void> {
     defaultAhkPath: launchOptions.ahkPath
   });
   registerConstructTools(server, commandQueue, eventStore);
+  registerConstructIndexTools(server, commandQueue, eventStore);
+  registerStorageTools(server, commandQueue, eventStore);
+  registerIndustryBackendTools(server, commandQueue, eventStore);
   registerLogTools(server, eventStore);
   registerNativeInputTools(server, commandQueue, eventStore, {
     defaultAhkPath: launchOptions.ahkPath

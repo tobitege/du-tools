@@ -538,6 +538,12 @@ public sealed partial class MyDuMod : IMod
                 return;
             }
 
+            if (await TryProcessToolboxOpsBridgeCommand(commandId, targetKind, action, payload, playerId.Value, boardId))
+            {
+                MoveMcpBridgeCommandToProcessed(commandPath, commandId);
+                return;
+            }
+
             if (string.Equals(action, "ui_dump", StringComparison.OrdinalIgnoreCase))
             {
                 await ProcessMcpUiDumpBridgeCommand(commandId, targetKind, payload, playerId.Value, boardId);
@@ -1821,7 +1827,7 @@ ORDER BY table_schema, table_name, ordinal_position";
             case "select_mode":
             {
                 var modeName = probeArgs.FirstOrDefault()?.Value<string>()?.Trim() ?? "";
-                if (!new[] { "run", "make", "maintain" }.Contains(modeName, StringComparer.OrdinalIgnoreCase))
+                if (!new[] { "run", "make", "move", "maintain" }.Contains(modeName, StringComparer.OrdinalIgnoreCase))
                 {
                     status = "rejected";
                     details = "invalid_mode_action";
@@ -1831,9 +1837,12 @@ ORDER BY table_schema, table_name, ordinal_position";
                 break;
             }
             case "set_make_amount":
+            case "set_move_amount":
             {
                 var amount = Math.Max(0, probeArgs.FirstOrDefault()?.Value<int?>() ?? 0);
-                config["industryPanelModeAction"] = "make";
+                config["industryPanelModeAction"] = string.Equals(probeMethod, "set_move_amount", StringComparison.OrdinalIgnoreCase)
+                    ? "move"
+                    : "make";
                 config["industryPanelMakeAmount"] = amount;
                 break;
             }
