@@ -41,6 +41,12 @@
 - Some transfer-unit maintain targets must be based on total concurrent alpha demand of all linked consumers.
 - For shared feeder paths, maintain enough material so every linked consumer can start at the same time.
 - Example: if one transfer unit feeds `6` consumers and each can consume up to `100` liters of a material per start, a maintain target around `600` is enough; there is no need to set a much larger target unless the branch role requires extra buffer.
+- Catalyst rule:
+  1. Do not treat catalyst like a normal bulk input when setting direct support-buffer targets.
+  2. For direct machine buffers, keep catalyst at a very small target, normally no more than about `2` per linked device as a safety margin.
+  3. Never set direct catalyst buffers to large values like normal pure-material feeds unless the user explicitly says this branch is different.
+  4. Talents can return more catalyst than went in, so catalyst branches can slowly self-overfill.
+  5. Many factory branches therefore need overflow siphons or cleanup paths for catalyst so the support container does not clog over time.
 - Batch size and cycle output matter when choosing maintain levels. Some downstream parts produce in units like `1` while others produce in larger steps such as `50`, so maintain thresholds must reflect both per-batch size and consumer concurrency.
 - When live backend data is not enough to infer a correct maintain target, the agent should treat that as missing factory-domain knowledge and ask or consult stored notes instead of inventing values.
 - For backend tooling, industry operations should be batch-first. Even one machine should be treated as a one-entry batch.
@@ -49,6 +55,24 @@
 - In that stale state, a normal backend configure call may fail with `industry_activation_stop_timeout` even though the intended recovery is simple.
 - Recovery rule: retry only the affected subset with `hard` stop, then reapply the intended final recipe, mode, and amount. Do not leave the machine in ad-hoc `Move` mode after recovery.
 - After that forced restart, verify the final runtime state and stored target again before moving on.
+- Important reconfiguration rule: changing a TU or industry element from `Run` to `Maintain`, or changing its amount while it is still actively running, is not reliable enough for this factory. If the machine is already active, stop it first, then apply the final recipe, mode, and amount, and verify the stored target afterward.
+- Shared-support repair workflow:
+  1. Inspect the whole branch first: support buffers, feeder TUs, and the consumer bank.
+  2. Soft-stop any running or `target full` feeder TUs before touching the support buffer, because those TUs are often still in transit and can refill the buffer back to the wrong level while repair is in progress.
+  3. Wait for the stop to take effect before moving storage.
+  4. Empty the support buffer of all non-catalyst contents into the designated overflow target or hub for that branch.
+  5. Leave catalyst in place when the branch uses catalyst recirculation, unless the user explicitly wants a full clear.
+  6. When restoring catalyst feeders, use the low catalyst rule for the direct support buffer instead of copying the larger pure-material maintain pattern.
+  7. Reconfigure the feeder TUs to the intended final maintain targets.
+  8. Give the TUs time to refill. For ore and pure-material TUs this can be only a few seconds, so do not judge the branch too early.
+  9. Recheck the support buffer contents first, then recheck whether the downstream industry bank has started.
+- T3/T4 smelter-line fix pattern and default maintain targets:
+  1. Soft-stop the support feeder TUs first.
+  2. Empty the `XS` support buffer except the catalyst.
+  3. Restore each ore or pure-material support TU to `maintain 400` unless the user explicitly says this branch is different.
+  4. Restore the catalyst TU on the same support line to `maintain 10`.
+  5. Treat `400/10` as the default repair and restore target for all T3/T4 smelter support branches, not just for one alloy.
+  6. Wait for refill, then verify the smelter bank start state.
 - Player-assigned names are useful hints, but they can be stale or misleading after refactors or partial rebuilds. A TU named for one support line may actually feed a different container now.
 - Name rule: use exact names as discovery hints only. Final targeting for setup, repair, and maintain decisions must be confirmed from links.
 - For ore-to-pure refiner banks, the reliable backend workflow is:

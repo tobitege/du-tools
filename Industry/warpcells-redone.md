@@ -1,342 +1,817 @@
-# Warp Cell Factory — Compact Redesign
+# Warp Cell Factory — 7-Line Floorplan
 
 ## Purpose
 
-Redesign the warp cell production branch only (Glass2 → S buffers → Warp Cells Hub output, excluding Warp Drive Assy) for an empty construct, using actual machine counts from the original factory topology trace.
+Create a new floorplan for the warp cell branch only on an empty construct.
+
+Scope:
+
+- include the linked warp cell branch from shared upstream production down to warp cell output
+- exclude unused planned lines
+- exclude Warp Drive Assembly
+- use original machine counts and mesh boxes as the sizing basis
+
+This document is a build-oriented floorplan, not a reconstruction of the old construct's exact coordinates.
 
 ---
 
-## Actual Machine Counts (from original factory trace)
+## Active Counts
+
+Only the 7 actually linked warp cell lines are kept.
 
 | Tier | Element | Count | Notes |
 |------|---------|-------|-------|
-| **Smelter** | Smelter Al Fe A1 | **1** | Single AlFe smelter feeds entire chain |
-| **Smelter** | Smelter Cu-Ag A1..A9 | **9** | Parallel Cu-Ag pure bank |
-| **Smelter** | Smelter CaCo 1..9 | **9** | Parallel Ca-Reinforced Copper bank |
-| **Intermediate** | Electronics2 | **9** | Shared bank for AM Core and QA Unit |
-| **Buffer** | Adv AM Core S | **5** | Containers feeding WCell Support TUs |
-| **Buffer** | Adv QA Unit S | **5** | Containers feeding WCell Support TUs |
-| **Transfer** | TU AM Core 1..9 | **9** | One per WCell Support XS |
-| **Transfer** | TU QA Unit 1..9 | **9** | One per WCell Support XS |
-| **Buffer** | WCell Support XS 1..9 | **9** | Shared input hub for Glass2 |
-| **Production** | Glass2 | **70** | 10 per S buffer × 7 S buffers |
-| **Buffer** | Warp Cells S1..S7 | **7** | Per-S-buffer output containers |
-| **Transfer** | TU Warp Cells 1, 2 | **2** | Final distribution TUs |
+| Smelter | Smelter Al Fe A1 | 1 | Shared upstream |
+| Smelter | Smelter Cu-Ag A1..A9 | 9 | Shared upstream |
+| Smelter | Smelter CaCo 1..9 | 9 | Shared upstream |
+| Intermediate | Electronics2 | 100 | 10 live producer banks of 10 for `Adv AM Core S1..S5` and `Adv QA Unit S1..S5` |
+| Buffer | Adv AM Core S | 5 | Shared upstream buffers |
+| Buffer | Adv QA Unit S | 5 | Shared upstream buffers |
+| Buffer | Adv AM Core Support S1..S5 | 5 | Missing in first draft; each feeds one 10-machine Electronics2 bank |
+| Buffer | Adv QA Unit Support S2..S5 | 4 | Missing in first draft; each feeds one 10-machine Electronics2 bank |
+| Buffer | QA S1 direct-input XS storages | 5 | `QCores XS1`, `Bas LED XS1`, `Polycalcite XS7`, `Polycarb S6B XS1`, `Polysulfide XS9` |
+| Transfer | TU AM Core 1..7 | 7 | One per active line |
+| Transfer | TU QA Unit 1..7 | 7 | One per active line |
+| Buffer | WCell Support XS 1..7 | 7 | One per active line |
+| Production | Glass2 | 70 | 10 per active line |
+| Buffer | Warp Cells S1..S7 | 7 | One per active line |
+| Transfer | TU Warp Cells 1..2 | 2 | Final distribution |
+
+Core ratio:
+
+- 1 warp-cell line = 1 WCell Support XS + 10 Glass2 + 1 Warp Cells S
+- 7 active lines = 70 Glass2 total
 
 ---
 
-## Mesh Dimensions Reference
+## Mesh Box Reference
 
-| Element | W (m) | H (m) | D (m) | Stacking? |
-|---------|--------|--------|--------|-----------|
-| IndustryGlass2 | 2.01 | 1.74 | 6.01 | Can share X,Z with identical machine below/above |
-| IndustryElectronics2 | 1.45 | 3.71 | 1.57 | Same |
-| IndustrySmelter2 | 3.24 | 7.19 | 2.67 | Same |
-| IndustrySmelter | 3.24 | 7.19 | 2.67 | Same |
-| TransferUnit | 2.10 | 1.97 | 2.55 | Same |
-| ContainerSmall | 1.00 | 1.00 | 1.00 | Can grid in dense arrays |
-| ContainerMedium | 2.00 | 2.00 | 2.00 | Can share X,Z vertically |
+Taken from `all-mesh-boxes.json`.
 
-**Stacking rule:** Machines at identical X,Z with different Y floors do not collide. This is how the original factory achieves dense vertical packing.
+| Element | W (m) | H (m) | D (m) |
+|---------|-------|-------|-------|
+| IndustryGlass2 | 2.01 | 1.74 | 6.01 |
+| IndustryElectronics2 | 1.45 | 3.71 | 1.57 |
+| IndustrySmelter2 | 3.24 | 7.19 | 2.67 |
+| IndustrySmelter | 3.24 | 7.19 | 2.67 |
+| TransferUnit | 2.10 | 1.97 | 2.55 |
+| ContainerSmall | 1.00 | 1.00 | 1.00 |
+| ContainerMedium | 2.00 | 2.00 | 2.00 |
 
----
+Assumed placement rule:
 
-## Design Principle: Floor Assignments by Throughput
-
-Since Glass2 machines are 70 units and they all need simultaneous feeds from 9 WCell Support buffers, the WCell Support and Glass2 tiers dominate the layout footprint. The smelter row is much smaller (19 machines total) and fits at ground level.
-
-**Floor plan:** Each tier occupies a specific Y floor. Machines on the same floor share X,Z coordinates if stacked vertically, or spread along Z if the row is too wide.
+- machines may be stacked vertically at the same X,Z when Y is separated enough
+- this document uses that only where it reduces walking distance and footprint
 
 ---
 
-## Proposed Layout
+## Design Decision
 
-### Floor Y=0 — Smelter Row (ground level)
+Do not try to picture the whole factory as one long row.
 
-**19 smelters total**, laid out in a single row along X axis, all at Y=0.
+Use two parts:
 
-```
-Z=0 (depth row, all at Y=0)
+1. one compact shared upstream block
+2. seven identical warp-cell line modules
 
-Smelter Al Fe A1 (id 126)          X=0        — 3.24m wide
-Smelter Cu-Ag A1                   X=4         — 3.24m wide
-Smelter Cu-Ag A2                   X=7.5       — 3.24m wide
-Smelter Cu-Ag A3                   X=11        — 3.24m wide
-Smelter Cu-Ag A4                   X=14.5       — 3.24m wide
-Smelter Cu-Ag A5                   X=18        — 3.24m wide
-Smelter Cu-Ag A6                   X=21.5       — 3.24m wide
-Smelter Cu-Ag A7                   X=25        — 3.24m wide
-Smelter Cu-Ag A8                   X=28.5       — 3.24m wide
-Smelter Cu-Ag A9                   X=32        — 3.24m wide
-Smelter CaCo 1                     X=36        — 3.24m wide
-Smelter CaCo 2                     X=39.5       — 3.24m wide
-Smelter CaCo 3                     X=43        — 3.24m wide
-Smelter CaCo 4                     X=46.5       — 3.24m wide
-Smelter CaCo 5                     X=50        — 3.24m wide
-Smelter CaCo 6                     X=53.5       — 3.24m wide
-Smelter CaCo 7                     X=57        — 3.24m wide
-Smelter CaCo 8                     X=60.5       — 3.24m wide
-Smelter CaCo 9                     X=64        — 3.24m wide
-
-Total width: ~67m. Depth (Z): 2.67m per machine. Total Z extent: 3m.
-Player access corridor: Z=-2 to Z=0 (gap in front of machines).
-```
-
-### Floor Y=7.5 — Smelter Output XS Buffers
-
-**4 types of XS buffers** for smelter outputs. Each smelter feeds its dedicated XS buffer sitting directly above it (same X,Z). This floor is only ~1m above the smelter row so material flows downward-output to upward-input.
-
-```
-Y=7.5
-
-AlFe XS Buffer         (above SmelterAlFe at X=0)
-CuAg XS Buffer row     (9 buffers, one per Cu-Ag smelter, at X=4,7.5,11,14.5,18,21.5,25,28.5,32)
-CaCo XS Buffer row     (9 buffers, one per CaCo smelter, at X=36,39.5,43,46.5,50,53.5,57,60.5,64)
-
-Each buffer is 1m cube. Row width matches smelter row.
-This is a dense XS buffer corridor ~67m long.
-```
-
-### Floor Y=9.5 — TU Feeders to Electronics2 (Smelter → Electronics2)
-
-**4 groups of TUs** — one group per material type, each fed by the XS buffers below.
-
-```
-Y=9.5
-
-TU AlFe→Elec    (above AlFe XS buffer at X=0)
-TU CuAg #1→Elec  (above CuAg buffer at X=4)
-TU CuAg #2→Elec  (above CuAg buffer at X=7.5)
-... (9 TU CuAg, one per CuAg buffer)
-TU CaCo #1→Elec  (above CaCo buffer at X=36)
-... (9 TU CaCo)
-
-Each TU is ~2.1m wide. Total width: ~67m.
-```
-
-### Floor Y=14 — Electronics2 Bank (shared, 9 machines)
-
-**9 Electronics2 machines** in a 3×3 grid. These feed into Adv AM Core S and Adv QA Unit S containers above.
-
-```
-Y=14, Z=0
-
-Electronics2 #1    X=0
-Electronics2 #2    X=2.0
-Electronics2 #3    X=4.0
-Electronics2 #4    X=6.0   — Z=3 row
-Electronics2 #5    X=8.0
-Electronics2 #6    X=10.0
-Electronics2 #7    X=12.0  — Z=6 row
-Electronics2 #8    X=14.0
-Electronics2 #9    X=16.0
-
-Grid: 3 columns × 3 rows. Each machine 1.45m wide, 1.57m deep.
-Total footprint: 16m wide × 6m deep.
-```
-
-Each Electronics2 has 11 input plugs. They take feeds from:
-
-- AlFe XS via TU (from the 1 AlFe smelter)
-- CuAg XS via TU (from 9 CuAg smelters)
-- CaCo XS via TU (from 9 CaCo smelters)
-- AM Capsules via TU (from AssemblyXS2, not in this trace but part of chain)
-- Adv AM Core Support XS (from another Electronics2 pass — creates a secondary loop)
-
-### Floor Y=19 — Adv AM Core S + Adv QA Unit S Buffers
-
-**10 containers total** (5 AM Core S + 5 QA Unit S). These sit directly above Electronics2 outputs.
-
-```
-Y=19, Z=0
-
-Adv AM Core S1     X=0
-Adv AM Core S2     X=2.5
-Adv AM Core S3     X=5.0
-Adv AM Core S4     X=7.5
-Adv AM Core S5     X=10.0
-Adv QA Unit S1     X=13.0  — second row
-Adv QA Unit S2     X=15.5
-Adv QA Unit S3     X=18.0
-Adv QA Unit S4     X=20.5
-Adv QA Unit S5     X=23.0
-
-Each ContainerMedium is 2m cube. Grid arranged to align with Electronics2 above.
-Total footprint: ~25m wide × 5m deep.
-```
-
-### Floor Y=22 — TU Feeders to WCell Support (Buffer → WCell Support)
-
-**18 TUs total** — 9 TU AM Core + 9 TU QA Unit, one per WCell Support XS.
-
-```
-Y=22
-
-9× TU AM Core (one above each Adv AM Core S buffer, feeding into WCell Support XS)
-9× TU QA Unit (one above each Adv QA Unit S buffer, feeding into WCell Support XS)
-
-Total: 18 TransferUnits spread in two rows.
-```
-
-### Floor Y=26 — WCell Support XS (shared input hub for Glass2)
-
-**9 WCell Support XS containers**. These are the critical shared buffers — each receives from 1 TU AM Core and 1 TU QA Unit, then feeds multiple Glass2 machines.
-
-```
-Y=26, Z=0
-
-WCell Support 1   X=0
-WCell Support 2   X=2.0
-WCell Support 3   X=4.0
-WCell Support 4   X=6.0
-WCell Support 5   X=8.0   — Z=3 row
-WCell Support 6   X=10.0
-WCell Support 7   X=12.0
-WCell Support 8   X=14.0
-WCell Support 9   X=16.0  — Z=6 row
-
-Total footprint: 16m wide × 6m deep. Matches Electronics2 footprint below.
-```
-
-### Floor Y=29 — Glass2 Production Bank (warp cell production, 70 machines)
-
-**70 Glass2 machines** — 10 per WCell Support (9 WCell Supports × 10 = 70 Glass2, + 7 S buffer outputs).
-
-```
-Y=29
-
-Each WCell Support feeds 10 Glass2 machines arranged in a cluster above it.
-For WCell Support 1 (X=0, Z=0):
-  Glass2 #1-1  X=0,    Z=0,    Y=29
-  Glass2 #1-2  X=2.5,  Z=0,    Y=29
-  Glass2 #1-3  X=5.0,  Z=0,    Y=29
-  ... (10 machines per WCell Support, arranged 5×2 or similar grid)
-
-Across all 9 WCell Supports, the Glass2 bank spans:
-  X: 0 to ~40m (4 columns of 10 machines per WCell Support × 9 WCell Supports)
-  Z: 0 to ~12m (2 rows per cluster × 3 Z positions)
-  Y: 29 to 36 (Glass2 is 1.74m tall, so top at ~37)
-
-Actually: Glass2 mesh is 2.01m wide × 6.01m deep × 1.74m tall.
-Arranging 10 Glass2 per WCell Support in a 5-wide × 2-deep grid:
-  Width per cluster: 5 × 2.01m + gaps = ~11m
-  Depth per cluster: 2 × 6.01m + gap = ~13m
-
-9 clusters side by side:
-  Total X extent: 9 × 11m = ~99m
-  Total Z extent: ~13m
-```
-
-**Wait — that's enormous. Let me recalculate Glass2 footprint properly.**
-
-Glass2: 2.01m wide × 6.01m deep. 10 Glass2 per WCell Support.
-If we arrange each cluster as 5 wide × 2 deep:
-- Width: 5 × 2.01 = 10.05m ≈ 10.5m (with small gaps)
-- Depth: 2 × 6.01 = 12.02m ≈ 12.5m
-
-9 clusters × 10.5m wide = 94.5m X extent. That's very wide.
-
-**Alternative: Stack Glass2 vertically (same X,Z, different Y).**
-Glass2 is 1.74m tall. If we stack 10 Glass2 in a single column at the same X,Z:
-- Height: 10 × 1.74m = 17.4m (plus clearance)
-- Footprint: just 2.01m × 6.01m per WCell Support cluster
-
-But can Glass2 stack on itself in the same X,Z? In the original factory, multiple Glass2 machines share the same horizontal footprint but are at the same Y level — they're stacked in the Z dimension (side by side in depth), not vertically. The mesh data shows Glass2 is only 1.74m tall, so vertical stacking would require significant height but keep the footprint compact.
-
-**Revised Glass2 arrangement:**
-10 Glass2 per WCell Support, stacked in Z (side by side, not on top of each other), all at the same Y:
-
-For WCell Support 1 (at X=0, Z=0):
-```
-Glass2 cluster, Y=29, Z spread:
-  Glass2 #1-1:  X=0,    Z=0
-  Glass2 #1-2:  X=2.2,  Z=0
-  Glass2 #1-3:  X=4.4,  Z=0
-  Glass2 #1-4:  X=6.6,  Z=0
-  Glass2 #1-5:  X=8.8,  Z=0
-  Glass2 #1-6:  X=0,    Z=6.5
-  Glass2 #1-7:  X=2.2,  Z=6.5
-  Glass2 #1-8:  X=4.4,  Z=6.5
-  Glass2 #1-9:  X=6.6,  Z=6.5
-  Glass2 #1-10: X=8.8,  Z=6.5
-
-Cluster footprint: 9m wide × 7m deep.
-```
-
-9 clusters × 9m wide = 81m X extent. Still wide, but workable in a large construct.
-
-### Floor Y=37 — Warp Cells S Buffers + Glass2 Output Collection
-
-**7 Warp Cell S buffers** — one per S buffer zone, receiving direct output from 10 Glass2 each.
-
-```
-Y=37, Z=0
-
-Each Glass2 cluster's 10 machines output into one ContainerMedium S buffer.
-7 S buffers arranged in a row at Z=0, X spacing matching cluster positions.
-```
-
-### Floor Y=40 — TU Warp Cells Distribution + Hub
-
-**2 TU Warp Cells** feeding into the Warp Cells Hub output.
-
-```
-Y=40
-
-TU Warp Cells 1    X=0
-TU Warp Cells 2    X=3
-Warp Cells Hub     X=6  (final output, ContainerHub)
-```
+That is the easiest layout to build and the easiest layout to understand.
 
 ---
 
-## Summary Footprint
+## One Active Line Module
 
-| Floor | Y range | Main elements | Footprint |
-|-------|---------|---------------|-----------|
-| Smelter | 0–7.5 | 19 smelters | 67m × 3m |
-| XS Buffers | 7.5–9.5 | Smelter output buffers | 67m × 3m |
-| TU Smelter→Elec | 9.5–12 | Smelter TUs | 67m × 3m |
-| Electronics2 | 14–18 | 9 Electronics2 | 16m × 6m |
-| AM Core / QA S | 19–21 | 10 buffers | 25m × 5m |
-| TU → WCell | 22–25 | 18 TUs | 20m × 5m |
-| WCell Support | 26–28 | 9 WCell Support XS | 16m × 6m |
-| Glass2 | 29–37 | 70 Glass2 | **81m × 13m** |
-| S Buffers | 37–40 | 7 Warp Cell S buffers | 81m × 3m |
-| Distribution | 40–43 | 2 TU + Hub | 10m × 3m |
+Each active line is one repeatable module:
 
-**Overall footprint: ~81m wide × 13m deep × 43m tall**
+```text
+Top view of one line module
 
-The Glass2 bank dominates the width. A possible optimization: put the Glass2 bank on a second platform/area connected by a bridge, since it's physically separate from the smelter/refinement rows.
+[WCell Support XS]
+        |
+   feeds 10x Glass2
+        |
+[Warp Cells S]
+```
+
+Suggested Glass2 arrangement inside one line:
+
+- 10 Glass2 as a 5 x 2 grid
+- machine width uses X
+- machine depth uses Z
+
+Approximate line-module footprint:
+
+- width: about 11 m
+- depth: about 13 m
+
+Using simple spacing:
+
+```text
+One line module, top view
+
+Z
+0m   G1  G2  G3  G4  G5
+6.5  G6  G7  G8  G9  G10
+
+X:   0   2.2 4.4 6.6 8.8
+```
+
+Where:
+
+- `G1..G10` are the 10 Glass2 machines of that line
+- one `WCell Support XS` sits centered before the Glass2 pair rows
+- one `Warp Cells S` sits centered after the Glass2 pair rows
+
+This gives one compact unit instead of one huge continuous Glass2 wall.
 
 ---
 
-## Alternative: Split Layout (Smelter + Refinement vs. Glass2 Production)
+## Seven-Line Arrangement
 
-Given the massive Glass2 footprint (81m × 13m), the most practical redesign splits the factory into two connected areas:
+Arrange the seven line modules as `4 + 3`.
 
-**Area A — Smelter & Refinement (left side, ~20m × 13m):**
-- Y=0: Smelter row (19 machines, 67m wide but only 3m deep)
-- Y=8: XS buffers
-- Y=10: TUs
-- Y=14: Electronics2
-- Y=19: AM Core / QA S buffers
-- Y=22: TUs to WCell
-- Y=26: WCell Support
+That keeps the overall footprint shorter and easier to walk than `7 in one row`.
 
-**Area B — Glass2 Production (right side, ~81m × 13m):**
-- Y=0: Align with Area A at same Y=29
-- Y=29–37: 70 Glass2 in 9 clusters of 10
-- Y=37: S buffers + TUs + Hub
+```text
+Top view, line-module layer
 
-A 3m-wide bridge at Y=29 connects Area A to Area B for player access.
+Row A:  L1   L2   L3   L4
+Row B:  L5   L6   L7
+```
+
+Suggested spacing:
+
+- module width: 11 m
+- module depth: 13 m
+- gap between modules in X: 2 m
+- gap between rows in Z: 4 m walkway
+
+Approximate full line area:
+
+- width: about 50 m for the 4-module row
+- depth: about 30 m for both rows plus walkway
+
+This is much easier to build than the previous `81m wide` concept.
 
 ---
 
-## Key Observations for Layout
+## Floor Strategy
 
-1. **Smelter row is narrow but wide** — 67m × 3m footprint for 19 smelters. Could be split into 2 rows of 10 if needed.
-2. **Electronics2 bank is compact** — only 9 machines in a 16m × 6m area.
-3. **Glass2 bank dominates** — 70 machines spanning ~81m wide is the biggest challenge. This is inherent to the 10:1 ratio of Glass2 to upstream elements.
-4. **The 1 AlFe smelter is the throughput bottleneck** — the entire chain of 70 Glass2 runs on output from a single Smelter Al Fe A1. This is either intentional game balancing or the AlFe recipe is extremely fast.
-5. **WCell Support is the consolidation point** — 9 WCell Support XS containers each aggregate TU AM Core + TU QA Unit feeds before distributing to 10 Glass2 machines each. This 1-to-10 fan-out is the structural key to the layout.
+Use four functional levels:
+
+1. upstream production floor
+2. support-buffer and feeder-TU floor
+3. Glass2 production floor
+4. output collection floor
+
+The player only needs a few clear walkways:
+
+- one front walkway on the upstream side
+- one central walkway between the `4` and `3` line rows
+- one output-side walkway near the final warp cell buffers and TUs
+
+---
+
+## Floor 1 — Shared Upstream Block
+
+This floor contains the shared machines and shared upstream buffers:
+
+- 1 AlFe smelter
+- 9 Cu-Ag smelters
+- 9 CaCo smelters
+- 100 Electronics2 in ten 10-machine banks
+- 5 Adv AM Core S
+- 5 Adv QA Unit S
+- 5 Adv AM Core Support S
+- 4 Adv QA Unit Support S2..S5
+- 5 direct XS input storages for the `Adv QA Unit S1` bank
+
+Recommended top view:
+
+```text
+Floor 1 top view
+
+[Smelter row: AlFe | CuAg x9 | CaCo x9]
+
+walkway
+
+[QA/AM producer area: 10 x Electronics2 banks]
+
+walkway
+
+[Adv AM Core S x5 + Support S x5]   [Adv QA Unit S x5 + Support inputs]
+```
+
+Practical notes:
+
+- keep the smelters in one long row or split them into two shorter rows if the construct shape prefers that
+- do not model Electronics2 as one `3 x 3` bank; the live branch uses ten separate 10-machine banks
+- keep each `Adv AM Core S*` or `Adv QA Unit S*` medium container paired with its own nearby support-input area
+- the live layout places the Electronics2 banks about `3 m` west of the output/support stack and the feeder TUs about `2.5 m` east of it
+- the support XS sits about `1.5 m` above its matching `Adv * S*` output container with a small `~0.5 m` Z offset
+
+### Live-Traced Missing Feeder Network
+
+The first draft was missing the entire support-storage layer that actually feeds the `Adv AM Core` and `Adv QA Unit` output buffers.
+
+`Adv AM Core S1..S5` live branch:
+
+- `Adv AM Core S1` is produced by 10 `IndustryElectronics2` and fed through `Adv AM Core Support S1` from `Al Fe XS9` and `Bas Comp XS7`.
+- `Adv AM Core S2` is produced by 10 `IndustryElectronics2` and fed through `Adv AM Core Support S2` from `Al Fe XS1`, `Bas Comp XS8`, `CaReinfCop XS B XS3`, and `Cu-Ag XS6`.
+- `Adv AM Core S3` is produced by 10 `IndustryElectronics2` and fed through `Adv AM Core Support S3` from `Al Fe XS9`, `Bas Comp XS4 FULL`, `CaReinfCop XS10`, and `Cu-Ag XS8`.
+- `Adv AM Core S4` is produced by 10 `IndustryElectronics2` and fed through `Adv AM Core Support S4` from `Al Fe XS7`, `Bas Comp XS10`, `CaReinfCop XS B XS4`, and `Cu-Ag XS7`.
+- `Adv AM Core S5` is produced by 10 `IndustryElectronics2` and fed through `Adv AM Core Support S5` from `Al Fe XS10`, `Bas Comp XS7`, `CaReinfCop XS B XS5`, and `Cu-Ag XS8`.
+
+`Adv QA Unit S1..S5` live branch:
+
+- `Adv QA Unit S1` is produced by 10 `IndustryElectronics2`, but its direct inputs are not gathered in one `Adv QA Unit Support` container.
+- The `Adv QA Unit S1` bank pulls directly from `QCores XS1`, `Bas LED XS1`, `Polycalcite XS7`, `Polycarb S6B XS1`, and `Polysulfide XS9`.
+- `QCores XS1` itself is refilled through `TU Bas QC 1`, `TU Unc QC 1`, and `TU Adv QC 1` from `Bas QCores XS1`, `Unc QCores XS1`, and `Adv QCores S1..S3`.
+- `Bas LED XS1` is refilled from `Bas LED S1` and `Bas LED S2`.
+- `Polycalcite XS7` is refilled from `Polycalcite XS6`.
+- `Polycarb S6B XS1` is refilled from `Polycarb S6`.
+- `Polysulfide XS9` is refilled from `Polysulfide S9`.
+- `Adv QA Unit S2` is produced by 10 `IndustryElectronics2` and fed through `Adv QA Unit Support S2` from `Polycarb S2A`, `Polycalcite XS5`, `Bas LED S7`, and `Polysulfide XS4`.
+- `Adv QA Unit S3` is produced by 10 `IndustryElectronics2` and fed through `Adv QA Unit Support S3` from `Polycarb S3B`, `Polycalcite XS3`, `Bas LED S8`, and `Polysulfide XS5`.
+- `Adv QA Unit S4` is produced by 10 `IndustryElectronics2` and fed through `Adv QA Unit Support S4` from `Polycarb S4A`, `Polycalcite XS6`, `Bas LED S6`, and `Polysulfide XS5`.
+- `Adv QA Unit S5` is produced by 10 `IndustryElectronics2` and fed through `Adv QA Unit Support S5` from `Polycarb S4B`, `Polycalcite XS4`, `Bas LED S7`, and `Polysulfide XS6`.
+
+Meaning for Floor 1:
+
+- the medium output buffers `Adv AM Core S1..S5` and `Adv QA Unit S1..S5` are only the visible top layer
+- each of those output buffers needs its own local support-input storage area
+- the draft also needs the feeder-source storages listed above, otherwise the AM/QA producer banks are not reconstructable from the note
+- the named support buffers are still not the whole recipe input picture; some ingredients arrive through separate direct XS buffers on the producer banks
+
+### Additional Direct Inputs Found During Setup
+
+The live setup pass showed that the `Adv AM Core` and `Adv QA Unit` banks do not rely only on the named support buffers.
+
+Confirmed direct-input storages:
+
+- `Adv AM Core S1` producer bank shared inputs: `Adv AM Core Support S1`, `AM Capsules 2`, `CaReinfCop XS9`, `Cu-Ag XS9`
+- `Adv AM Core S2` producer bank shared inputs: `Adv AM Core Support S2`, `AM Capsules 1`
+- `Adv QA Unit S2` producer bank shared inputs: `Adv QA Unit Support S2`, `QCores XS2`
+- `Adv QA Unit S1` producer bank shared inputs: `QCores XS1`, `Bas LED XS1`, `Polycalcite XS7`, `Polycarb S6B XS1`, `Polysulfide XS9`
+
+Meaning for reconstruction:
+
+- the named support containers cover only part of each `Electronics2` recipe
+- antimatter capsules and quantum cores also need their own direct feeder buffers
+- a rebuild note that models only `Adv AM Core Support S*` and `Adv QA Unit Support S*` is still incomplete
+
+### Exact Live Recipe Mapping
+
+The bridge-side setup pass confirmed these exact product selectors:
+
+- `IndustryGlass2` warp-cell recipe: `WarpCellStandard`, recipe id `139723769`
+- transfer-unit product for warp-cell AM feed: `Advanced Antimatter Core`, item type / recipe id `375744325`, key `antimattercore_3`
+- transfer-unit product for warp-cell QA feed: `Advanced Quantum Alignment Unit`, item type / recipe id `2601646636`, key `quantumalignmentunit_3`
+- `IndustryElectronics2` producer recipe for `Adv AM Core`: recipe id `787693311`, key `antimattercore_3`
+- `IndustryElectronics2` producer recipe for `Adv QA Unit`: recipe id `1150226654`, key `quantumalignmentunit_3`
+
+The live recipe contents matter for the next setup tier:
+
+- `Warp Cell` consumes `1 x Advanced Quantum Alignment Unit` and `1 x Advanced Antimatter Core`
+- `Advanced Antimatter Core` consumes `Al-Fe Alloy product x5`, `Basic Component x10`, `Basic Antimatter Capsule x3`, `Calcium Reinforced Copper product x5`, `Uncommon Antimatter Capsule x1`, `Cu-Ag Alloy product x5`, `Advanced Antimatter Capsule x1`
+- `Advanced Quantum Alignment Unit` consumes `Polycarbonate plastic product x5`, `Basic LED x10`, `Basic Quantum Core x3`, `Polycalcite plastic product x5`, `Uncommon Quantum Core x1`, `Polysulfide plastic product x5`, `Advanced Quantum Core x1`
+
+### Live Setup State
+
+A direct mod/MCP setup pass was executed top-down without using the live industry UI.
+
+Configured successfully:
+
+- `70` unnamed `IndustryGlass2` machines across the 7 active warp-cell lines were set to `WarpCellStandard` and started in `run`
+- `14` warp-cell feeder transfer units `TU AM Core 1..7` and `TU QA Unit 1..7` were set with explicit item-type selectors and started in `maintain 10`
+- `100` `IndustryElectronics2` machines were configured and started:
+  - `50` for `Advanced Antimatter Core`
+  - `50` for `Advanced Quantum Alignment Unit`
+
+Resulting live state after that pass:
+
+- warp-cell furnaces are now `JAMMED_MISSING_INGREDIENT`
+- line-feeder transfer units are now `JAMMED_MISSING_INGREDIENT` with `maintainQuantity 10`
+- AM/QA `Electronics2` producers are now `JAMMED_MISSING_INGREDIENT`
+
+That jammed state is expected and means the next missing setup layer is upstream of the AM/QA producer banks, not in the warp-cell furnaces themselves.
+
+### Next Feeder TU Layer Confirmed And Configured
+
+The next upstream feeder-TU layer for the AM/QA producer-bank inputs was traced and configured through the backend bridge only.
+
+All newly configured transfer units were started in `maintain 100`.
+
+`Adv AM Core Support S1..S5`:
+
+- resolved transfer-unit product ids:
+  - `AlFeProduct` -> `18262914`
+  - `component_1` -> `794666749`
+  - `CalciumReinforcedCopperProduct` -> `1034957327`
+  - `CuAgProduct` -> `1673011820`
+- traced support-buffer source mapping:
+  - `Adv AM Core Support S1` <- `Al Fe XS9`, `Bas Comp XS7`
+  - `Adv AM Core Support S2` <- `Al Fe XS1`, `Bas Comp XS8`, `CaReinfCop XS B XS3`, `Cu-Ag XS6`
+  - `Adv AM Core Support S3` <- `Al Fe XS9`, `Bas Comp XS4 FULL`, `CaReinfCop XS10`, `Cu-Ag XS8`
+  - `Adv AM Core Support S4` <- `Al Fe XS7`, `Bas Comp XS10`, `CaReinfCop XS B XS4`, `Cu-Ag XS7`
+  - `Adv AM Core Support S5` <- `Al Fe XS10`, `Bas Comp XS7`, `CaReinfCop XS B XS5`, `Cu-Ag XS8`
+- configured feeder TUs:
+  - `Adv AM Core Support S1`: ids `4161`, `6659`
+  - `Adv AM Core Support S2`: ids `4040`, `4039`, `4041`, `4042`
+  - `Adv AM Core Support S3`: ids `4156`, `4155`, `4157`, `4158`
+  - `Adv AM Core Support S4`: ids `6622`, `6623`, `6625`, `6624`
+  - `Adv AM Core Support S5`: ids `6653`, `6654`, `6656`, `6655`
+
+`AM Capsules 1..2`:
+
+- `AM Capsules 1` and `AM Capsules 2` are produced by two separate `5 x IndustryGlass2` banks.
+- those two producer banks share `AM Capsules Support 1` as their upstream support-input container.
+- traced and configured `AM Capsules Support 1` feeder TUs:
+  - `TU Adv Glass 1` id `4033` from `Adv Glass S3` -> `AdvancedGlassProduct` `1942154251`
+  - `TU Ag-Li Reinf Glass 1` id `4034` from `Ag Li Glass S1` -> `AgLiReinforcedGlassProduct` `2301749833`
+  - `TU Glass 1` id `4032` from `Glass S1`, `Glass S3` -> `GlassProduct` `3308209457`
+  - `TU Bas Conn 1` id `4036` from `Bas Connect XS2` -> `connector_1` `2872711779`
+  - `TU Unc Conn 1` id `4035` from `Unc Connector XS1` -> `connector_2` `2872711778`
+- side result from the same branch pass:
+  - `AM Capsules Support 2` was also traced and configured for the next capsule pair with ids `4108`, `4111`, `4113`, `4110`, `4112`
+
+`Adv QA Unit Support S2..S5`:
+
+- resolved transfer-unit product ids:
+  - `PolycarbonatePlasticProduct` -> `2014531313`
+  - `PolycalcitePlasticProduct` -> `4103265826`
+  - `led_1` -> `1234754162`
+  - `PolysulfidePlasticProduct` -> `2097691217`
+- traced support-buffer source mapping:
+  - `Adv QA Unit Support S2` <- `Polycarb S2A`, `Polycalcite XS5`, `Bas LED S7`, `Polysulfide XS4`
+  - `Adv QA Unit Support S3` <- `Polycarb S3B`, `Polycalcite XS3`, `Bas LED S8`, `Polysulfide XS5`
+  - `Adv QA Unit Support S4` <- `Polycarb S4A`, `Polycalcite XS6`, `Bas LED S6`, `Polysulfide XS5`
+  - `Adv QA Unit Support S5` <- `Polycarb S4B`, `Polycalcite XS4`, `Bas LED S7`, `Polysulfide XS6`
+- configured feeder TUs:
+  - `Adv QA Unit Support S2`: ids `4043`, `4044`, `4046`, `4048`
+  - `Adv QA Unit Support S3`: ids `4230`, `4232`, `4231`, `4233`
+  - `Adv QA Unit Support S4`: ids `6675`, `6677`, `6676`, `6678`
+  - `Adv QA Unit Support S5`: ids `6717`, `6719`, `6718`, `6720`
+
+`QCores XS1..XS5`:
+
+- every traced `QCores XS*` buffer is refilled by one `Basic`, one `Uncommon`, and one `Advanced` quantum-core TU.
+- resolved transfer-unit product ids:
+  - `quantumcore_1` -> `850241766`
+  - `quantumcore_2` -> `850241765`
+  - `quantumcore_3` -> `850241764`
+- source pattern:
+  - basic QC feeder TUs pull from `Bas QCores XS1`
+  - uncommon QC feeder TUs pull from `Unc QCores XS1`
+  - advanced QC feeder TUs pull from `Adv QCores S1`, `Adv QCores S2`, and `Adv QCores S3`
+- configured feeder TUs:
+  - `QCores XS1`: `TU Bas QC 1` `4052`, `TU Unc QC 1` `4053`, `TU Adv QC 1` `4054`
+  - `QCores XS2`: `TU Bas QC 2` `4057`, `TU Unc QC 2` `4058`, `TU Adv QC 2` `4059`
+  - `QCores XS3`: `TU Bas QC 3` `4130`, `TU Unc QC 3` `4131`, `TU Adv QC 3` `4132`
+  - `QCores XS4`: `TU Bas QC 4` `6681`, `TU Unc QC 4` `6682`, `TU Adv QC 4` `6683`
+  - `QCores XS5`: `TU Bas QC 5` `6713`, `TU Unc QC 5` `6712`, `TU Adv QC 5` `6711`
+
+Immediate runtime result after the backend batch:
+
+- `59` feeder transfer units configured successfully with `maintainQuantity 100`
+- immediately `RUNNING` on the traced layer:
+  - `AlFeProduct`
+  - `CalciumReinforcedCopperProduct`
+  - `PolycarbonatePlasticProduct`
+  - `PolycalcitePlasticProduct`
+- still `JAMMED_MISSING_INGREDIENT` one level further upstream:
+  - `component_1`
+  - `CuAgProduct`
+  - `AdvancedGlassProduct`
+  - `AgLiReinforcedGlassProduct`
+  - `GlassProduct`
+  - `connector_1`
+  - `connector_2`
+  - `led_1`
+  - `PolysulfidePlasticProduct`
+  - `quantumcore_1`
+  - `quantumcore_2`
+  - `quantumcore_3`
+
+If you want the smallest walking distance, use two smelter rows instead of one:
+
+```text
+Alternative smelter arrangement
+
+Row 1: AlFe + CuAg 1..9
+Row 2: CaCo 1..9
+```
+
+That is more practical than a 67 m single strip.
+
+---
+
+## Floor 2 — Per-Line Support Feed
+
+This floor fans the shared buffers out into the 7 active lines.
+
+Elements:
+
+- 7 TU AM Core
+- 7 TU QA Unit
+- 7 WCell Support XS
+
+Recommended arrangement:
+
+```text
+Floor 2 top view
+
+L1  [TU AM] [TU QA] [Support]
+L2  [TU AM] [TU QA] [Support]
+L3  [TU AM] [TU QA] [Support]
+L4  [TU AM] [TU QA] [Support]
+
+walkway
+
+L5  [TU AM] [TU QA] [Support]
+L6  [TU AM] [TU QA] [Support]
+L7  [TU AM] [TU QA] [Support]
+```
+
+Meaning:
+
+- each line gets exactly one AM Core TU and one QA Unit TU
+- both TUs feed one dedicated WCell Support XS
+- the 7 supports are the actual line roots
+
+This is the right place to think in `7 lines`, not `9 planned`.
+
+---
+
+## Floor 3 — Glass2 Production
+
+This floor is only the seven line modules.
+
+```text
+Floor 3 top view
+
+Row A:
+L1 = Support -> 10x Glass2
+L2 = Support -> 10x Glass2
+L3 = Support -> 10x Glass2
+L4 = Support -> 10x Glass2
+
+central walkway
+
+Row B:
+L5 = Support -> 10x Glass2
+L6 = Support -> 10x Glass2
+L7 = Support -> 10x Glass2
+```
+
+Build rule for each line:
+
+- put the support container at the head of the module
+- put the 10 Glass2 directly after it in a fixed 5 x 2 grid
+- keep the seven modules identical
+
+That gives a layout you can copy-paste mentally while building.
+
+---
+
+## Floor 4 — Output Collection
+
+Each line terminates in one Warp Cells S buffer.
+
+Elements:
+
+- Warp Cells S1..S7
+- TU Warp Cells 1..2
+- final hub output
+
+Recommended top view:
+
+```text
+Floor 4 top view
+
+[S1] [S2] [S3] [S4]
+[S5] [S6] [S7]
+
+walkway
+
+[TU Warp 1] [TU Warp 2] [Hub]
+```
+
+Practical notes:
+
+- keep each Warp Cells S close to its own Glass2 module
+- collect the seven S buffers toward the center before the final two TUs
+- place the hub centrally, not at one far edge
+
+---
+
+## Suggested Vertical Stack
+
+One simple height scheme:
+
+| Level | Use |
+| --- | --- |
+| Y = 0 to 10 | Shared smelters and shared upstream buffers |
+| Y = 12 to 16 | Per-line feeder TUs and WCell Support XS |
+| Y = 18 to 26 | Seven Glass2 line modules |
+| Y = 28 to 32 | Warp Cells S buffers and final distribution |
+
+Exact Y values can be adjusted during placement.
+The important part is the order and the repeated line structure.
+
+---
+
+## Practical Build Order
+
+1. Build the shared upstream block first.
+2. Place the 7 line roots: `TU AM + TU QA + WCell Support`.
+3. Clone one Glass2 module shape 7 times.
+4. Add one Warp Cells S per line.
+5. Add the 2 final warp-cell TUs and the hub.
+
+If one module shape feels good in-game, the rest of the layout is straightforward.
+
+---
+
+## Why This Layout Is Practical
+
+Compared to the previous draft, this version is practical because:
+
+- it uses `7` consistently everywhere
+- it treats one active line as the repeatable unit
+- it avoids a misleading `9 planned / 7 active` mix
+- it avoids one massive continuous Glass2 wall
+- it gives top-view diagrams instead of only prose
+- it separates shared infrastructure from repeated per-line production
+
+---
+
+## Final Shape
+
+Think of the build as this:
+
+```text
+Side concept
+
+Floor 4:  output buffers -> final TUs -> hub
+Floor 3:  seven Glass2 line modules
+Floor 2:  per-line TUs + per-line WCell Support
+Floor 1:  shared upstream production and shared upstream buffers
+```
+
+And from above:
+
+```text
+Top concept
+
+shared upstream block
+        ||
+   seven active lines
+      4 + 3 layout
+        ||
+    central output area
+```
+
+That is the version to build.
+
+---
+
+### Next Mixed Producer And Feeder Layer Confirmed And Configured
+
+The next pass above the previously jammed AM/QA support layer is not TU-only.
+It is a mixed layer of feeder TUs plus upstream producer banks.
+
+Configured through backend batch calls only:
+
+- `44` `TransferUnit`
+- `10` `IndustryGlass`
+- `5` `IndustryGlass2`
+- `5` `IndustryElectronics`
+- `10` `Industry3DPrinter`
+- `12` `Industry3DPrinter2`
+- `8` `IndustryChemical`
+- `8` `IndustrySmelter2`
+
+Total configured in this pass: `102` devices, all with `maintain 100`.
+
+Resolved machine recipe ids used in this pass:
+
+- `CuAgProduct` machine recipe id `1771858540`, output item id `1673011820`
+- `GlassProduct` machine recipe id `2118283057`, output item id `3308209457`
+- `AdvancedGlassProduct` machine recipe id `1116568176`, output item id `1942154251`
+- `led_1` machine recipe id `1137501015`, output item id `1234754162`
+- `led_2` machine recipe id `1137501008`, output item id `1234754161`
+- `component_1` machine recipe id `1319718943`, output item id `794666749`
+- `connector_1` machine recipe id `1738589935`, output item id `2872711779`
+- `connector_2` machine recipe id `1738589934`, output item id `2872711778`
+- `quantumcore_1` machine recipe id `1457246784`, output item id `850241766`
+- `quantumcore_2` machine recipe id `1457246785`, output item id `850241765`
+- `quantumcore_3` machine recipe id `1457246786`, output item id `850241764`
+- `PolycarbonatePlasticProduct` machine recipe id `1645885251`, output item id `2014531313`
+- `PolycalcitePlasticProduct` machine recipe id `1756458312`, output item id `4103265826`
+
+Resolved TU-fed raw/product ids used in this pass:
+
+- `AlFeProduct` -> `18262914`
+- `CuAgProduct` -> `1673011820`
+- `led_1` -> `1234754162`
+- `led_2` -> `1234754161`
+- `PolysulfidePlasticProduct` -> `2097691217`
+- `PolycarbonatePlasticProduct` -> `2014531313`
+- `PolycalcitePlasticProduct` -> `4103265826`
+- `OxygenPure` -> `947806142`
+- `SiliconPure` -> `2589986891`
+- `CalciumPure` -> `2112763718`
+- `SodiumPure` -> `3603734543`
+
+Confirmed configured branch groups:
+
+- `Bas Comp Al Fe 1..4` refill chain:
+  - TUs `2376`, `3922`, `3925`, `3926`
+- `Cu-Ag Alloy S1` distribution:
+  - `8 x IndustrySmelter2` `2702`, `2703`, `2704`, `2705`, `2706`, `2709`, `2707`, `2708`
+  - TUs `2735`, `2746`, `2745`, `2736`, `2744`, `2737`, `2743`, `2738`, `2742`, `6271`
+- `Glass Support S1` raw feed and plain glass:
+  - TUs `1481`, `1482`
+  - `IndustryGlass` `133` on `GlassProduct`
+- `Adv Glass Support S1` raw feed and `Adv Glass S3` producer bank:
+  - TUs `929`, `930`, `931`, `932`
+  - `IndustryGlass2` `571`, `563`, `564`, `558`, `567`
+- `Bas LED S5` producer/output branch:
+  - `IndustryGlass` `1631`, `1632`, `1637`, `1638`
+  - TUs `3446`, `3788`, `6588`, `8381`, `8421`, `7286`, `9054`
+- `Unc LED S2` producer/output branch:
+  - `IndustryGlass` `1611`, `1622`, `1623`, `1624`, `1639`
+  - TUs `3517`, `8927`, `3790`, `9055`
+- `Polycarb S9` and `Polycalcite S2` producer branches:
+  - `IndustryChemical` `916`, `917`
+  - `IndustryChemical` `139`, `141`, `8112`, `8121`, `8123`, `8129`
+  - TUs `8078`, `9053`, `6774`, `2055`, `2056`, `8560`, `9052`
+- `Polysulfide S1` and `Polysulfide S4` refill/distribution:
+  - TUs `6150`, `1478`, `1475`, `9051`, `6162`, `2808`
+- `Bas Connect XS2` and `Unc Connector XS1` producer banks:
+  - `IndustryElectronics` `1924`, `2158`, `2179`
+- `Bas Comp XS7` producer bank:
+  - `IndustryElectronics` `1926`, `1927`
+- `Bas QCores XS1`, `Unc QCores XS1`, `Adv QCores Support 1`:
+  - `Industry3DPrinter` `3053`, `4504`, `5534`, `5538`, `5535`, `5536`, `5539`, `3054`, `4508`, `5070`
+  - `Industry3DPrinter2` `6693`, `6694`, `3069`, `3066`, `3059`, `5417`, `5416`, `9048`, `9049`, `9046`, `9047`, `9050`
+  - TUs `9051`, `9052`, `9053`, `9054`, `9055`
+
+Representative runtime after configuration:
+
+- already `RUNNING` on this layer:
+  - `IndustryChemical` `916`
+  - `IndustryChemical` `139`
+  - `IndustryElectronics` `1926`
+  - `IndustryElectronics` `1924`
+  - `IndustryElectronics` `2158`
+  - `IndustryGlass` `133`
+- still `JAMMED_MISSING_INGREDIENT` one level further upstream:
+  - `IndustrySmelter2` `2702`
+  - `IndustryGlass` `1631`
+  - `IndustryGlass` `1611`
+  - `Industry3DPrinter` `3053`
+  - `Industry3DPrinter` `3054`
+  - `Industry3DPrinter2` `3069`
+  - TUs `9054`, `9055`, `9051`
+- still settling as `PENDING` when sampled immediately after batch:
+  - TUs `2376`, `1481`, `930`, `9053`, `2055`
+
+This confirms the next remaining missing layer is above:
+
+- `Cu-Ag`
+- `Basic` / `Uncommon` LEDs
+- `Basic` / `Uncommon` / `Advanced` quantum-core printer inputs
+- some raw/feed branches behind `Al Fe`, `Polysulfide`, and the remaining glass support sources
+
+---
+
+### Continued Support And Producer Layer After Catalyst Injection
+
+First, `1000 L` of `Catalyst4` was spawned into player inventory through the backend path.
+
+- `Catalyst4` item type id `3729464849`
+
+Additional backend-only configuration completed in this continuation:
+
+- `53` `TransferUnit`
+- `26` `IndustryGlass`
+- `1` `IndustryGlass2`
+- `17` `IndustryChemical2`
+
+Total configured in this continuation: `97` backend config entries, all with `maintain 100` except one already-existing `CarbonPure` support TU on `Polysulf Support S2` that was left at `maintain 5000`.
+
+Newly resolved explicit ids in this continuation:
+
+- `CopperPure` -> `1466453887`
+- `SilverPure` -> `1807690770`
+- `Catalyst3` -> `3729464848`
+- `CarbonPure` -> `159858782`
+- `HydrogenPure` -> `1010524904`
+- `SulfurPure` -> `3822811562`
+- `PolysulfidePlasticProduct` machine recipe id `9524849`
+
+Confirmed branch mappings added in this pass:
+
+- `Cu-Ag Support XS1` raw support:
+  - `2721` `TU Cat3 Cu Ag` -> `Catalyst3` `3729464848`
+  - `2723` `TU Copper` -> `CopperPure` `1466453887`
+  - `2724` `TU Silver` -> `SilverPure` `1807690770`
+- `Glass Support XS1` / `Glass Support XS2` feeder glass:
+  - `1662`, `1663`, `1664` -> `GlassProduct` `3308209457`
+  - `1667` -> `AdvancedGlassProduct` `1942154251`
+- `Glass Support S2` raw feed:
+  - `1483` -> `SiliconPure` `2589986891`
+  - `1484` -> `OxygenPure` `947806142`
+- `Adv Glass Support S2` raw feed:
+  - `1678` -> `SodiumPure` `3603734543`
+  - `1679` -> `CalciumPure` `2112763718`
+  - `1680` -> `SiliconPure` `2589986891`
+  - `1681` -> `OxygenPure` `947806142`
+- `Polysulf Support S1` exact TU mappings:
+  - `978` links `Sulfur S1 -> Polysulf Support S1` and is configured for `SulfurPure` `3822811562`
+  - `979` links `Carbon S3 -> Polysulf Support S1` and is configured for `CarbonPure` `159858782`
+  - `980` links `Hydrogen S1 -> Polysulf Support S1` and is configured for `HydrogenPure` `1010524904`
+  - `990` links `Polysulfide Main 1 -> Polysulf Support S1`
+- `Polysulf Support S2` exact TU mappings:
+  - `6182` links `Sulfur S1 -> Polysulf Support S2` and is configured for `SulfurPure` `3822811562`
+  - `6183` links `Hydrogen XS3 -> Polysulf Support S2` and is configured for `HydrogenPure` `1010524904`
+  - `6186` links `Carbon S4 -> Polysulf Support S2` and was already present as `CarbonPure` `159858782` with `maintain 5000`
+  - `6185` links `Polysulfide Main 2 -> Polysulf Support S2`
+- `Polysulfide Main 1` / `Polysulfide Main 2` producer banks:
+  - `968..976` and `6134..6141` are `IndustryChemical2` and were configured for `PolysulfidePlasticProduct` recipe `9524849`
+  - `6187` links `Polysulfide Main 2 -> Polysulfide Main 1`
+- Plain-glass and advanced-glass producer banks activated in this pass:
+  - plain glass: `132`, `133`, `134`, `1041`, `1042`, `1043`, `1044`, `1046`, `1047`, `1048`, `1049` on `GlassProduct`
+  - advanced glass S2 bank: `1683`, `1688`, `1692`, `1684`, `1691`, `1685`, `1690`, `1686`, `1689`, `1687` on `AdvancedGlassProduct`
+
+Representative verification after these batches:
+
+- now `RUNNING`:
+  - `134` `Glass 2`
+  - raw-support TUs `1483`, `1484`, `1678`, `1679`, `1680`, `1681`
+  - polysulf support-raw TUs `978`, `979`, `980`, `6182`, `6183`
+- support storages now populated:
+  - `Glass Support S2` contains `SiliconPure` and `OxygenPure`
+  - `Adv Glass Support S2` contains `SodiumPure`, `CalciumPure`, `OxygenPure`, and `SiliconPure`
+  - `Polysulf Support S1` contains `SulfurPure`, `CarbonPure`, and `HydrogenPure`
+  - `Polysulf Support S2` contains `CarbonPure`, `HydrogenPure`, and `SulfurPure`
+- still unresolved in this pass:
+  - most of the newly activated plain-glass and advanced-glass producers remain `JAMMED_MISSING_INGREDIENT`
+  - both polysulfide producer banks `968..976` and `6134..6141` remain `JAMMED_MISSING_INGREDIENT`
+  - `990`, `6185`, and `6187` remain `JAMMED_MISSING_INGREDIENT`
+  - sampled storages `Polysulfide Main 1` and `Polysulfide Main 2` are still empty
+
+Important contradiction to carry forward:
+
+- The construct-index related subgraph confirms:
+  - `990` is linked `Polysulfide Main 1 -> Polysulf Support S1`
+  - `6185` is linked `Polysulfide Main 2 -> Polysulf Support S2`
+- Both TU names imply `Cat3`, but the live link topology points to finished-polysulfide source storages instead.
+- That contradiction is now live-confirmed and should be treated as the next investigation point before pushing another blind polysulf layer.
+
+Local recipe verification resolved that contradiction:
+
+- `PolysulfidePlasticProduct` recipe `9524849` consumes:
+  - `SulfurPure x100`
+  - `CarbonPure x50`
+  - `HydrogenPure x50`
+  - `Catalyst3 x1`
+- and returns:
+  - `PolysulfidePlasticProduct x75`
+  - `Catalyst3 x1`
+
+That means the factory is using the main polysulfide output storages as the catalyst recirculation reservoir.
+
+Backend fix applied after confirming that:
+
+- corrected catalyst-loop TUs to explicit `Catalyst3` `3729464848`:
+  - `990`
+  - `6185`
+  - `6187`
+- seeded catalyst to bootstrap the loop:
+  - `Polysulfide Main 1` `4726` <- `100 x Catalyst3`
+  - `Polysulfide Main 2` `6170` <- `100 x Catalyst3`
+  - `Polysulf Support S1` `782` <- `20 x Catalyst3`
+  - `Polysulf Support S2` `6171` <- `20 x Catalyst3`
+
+Observed result after catalyst bootstrap:
+
+- catalyst-loop TUs `990`, `6185`, and `6187` moved to `RUNNING`
+- most polysulfide producer machines moved to `RUNNING`
+- representative `RUNNING` machines:
+  - A bank: `970`, `971`, `972`, `973`, `974`, `975`, `976`
+  - B bank: `6134`, `6141`, `6139`, `6138`, `6140`
+- laggards at sample time:
+  - A bank: `968`, `969`
+  - B bank: `6135`, `6137`, `6136`
+
+Important follow-on state:
+
+- the recipe time is `3750 s`, so after a short verification window the main polysulfide buffers still mostly contained catalyst, not finished product
+- `Polysulfide S2` and `Polysulfide S5` were still empty at sample time
+- the remaining qcore / AQC polysulf-dependent branches are therefore blocked by production lead time rather than another unresolved feeder mapping
+- by the same short-window sample:
+  - `Glass S1`, `Glass S2`, and `Adv Glass S4` were filling with product
+  - `Unc LED` start was visible: `1611` running and `1631` pending
+  - `9054`, `9055`, and `9051` were still waiting on upstream product completion
