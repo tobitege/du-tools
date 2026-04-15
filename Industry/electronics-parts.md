@@ -1,0 +1,1202 @@
+﻿# Electronics Parts Setup Notes
+
+Date: 2026-04-14
+Construct: POIN Factory 25-08-18
+PlayerId: 10000
+
+Rules used in this pass:
+
+- Medium `S*` output buffers in this wall are `12000 L`.
+- XS consumer/support buffers in this wall are `1500 L`.
+- Producer maintain target uses `floor(0.9 * containerVolume / itemUnitVolume)`, rounded to a recipe-friendly integer.
+- Direct XS refill TUs are capped at `1000` even when the XS p90 volume would allow more.
+- Direct XS refill TUs in this branch use `maintain`, not `move`.
+
+Resolved product metadata:
+
+- Basic Component: recipe `1319718943`, item type `794666749`, unit volume `0.5`, producer target `21600`, XS TU target `1000`
+- Basic Connector: recipe `1738589935`, item type `2872711779`, unit volume `0.8`, producer target `13500`, XS TU target `1000`
+- Uncommon Component: recipe `1319718942`, item type `794666748`, unit volume `0.5`, producer target `21600`, XS TU target `1000`
+- Uncommon Connector: recipe `1738589934`, item type `2872711778`, unit volume `0.8`, producer target `13500`, XS TU target `1000`
+- Advanced Component: recipe `1319718941`, item type `794666751`, unit volume `0.5`, producer target `21600`, XS TU target `1000`
+- Advanced Connector: recipe `1738589841`, item type `2872711781`, unit volume `0.8`, producer target `13500`, XS TU target `1000`
+
+Direct XS producer targets used in this pass:
+
+- Basic Component direct XS producers: `2700` per machine bank output box
+- Basic Connector direct XS producers: `1680` per machine bank output box
+
+Confirmed producer banks:
+
+- `Bas Comp S1 FULL` -> machines `1920, 1925, 1930, 2162`, direct inputs `Bas Comp Al Fe 1`, `Bas Comp Al Fe 3`, `Bas Comp Al Fe 4`
+- `Bas Comp S2` -> machines `1935, 1940, 4432, 4433, 4434, 4435`, direct inputs include `Bas Comp Al Fe 4`
+- `Bas Comp S3` -> machines `4436, 4437, 4438`
+- `Bas Comp XS1` -> machines `2135, 2144`
+- `Bas Comp XS2 FULL` -> machines `2136, 2143`
+- `Bas Comp XS3 FULL` -> machines `2137, 2142`
+- `Bas Comp XS4 FULL` -> machines `2138, 2141`
+- `Bas Comp XS5 FULL` -> machines `2139, 2140`
+- `Bas Comp XS6 FULL` -> machines `1918, 1919`
+- `Bas Comp XS7` -> machines `1926, 1927`
+- `Bas Comp XS8` -> machines `1928, 1929`
+- `Bas Comp XS9 FULL` -> machines `1936, 1937`
+- `Bas Comp XS10` -> machines `1938, 1939`
+- `Bas Connect S1` -> machines `1953, 1962, 1963`, direct inputs `Al Fe XS3`, `Bas Comp Al Fe 4`
+- `Bas Connect S2` -> machines `1943, 1952`
+- `Bas Connect XS1` -> machine `1921`
+- `Bas Connect XS2` -> machine `1924`
+- `Bas Connect XS3` -> machine `1931`
+- `Bas Connect XS4` -> machine `1934`
+- `Bas Connect XS5` -> machine `1941`
+- `Bas Connect XS6 FULL` -> machine `1922`
+- `Bas Connect XS7 FULL` -> machine `1923`
+- `Bas Connect XS8` -> machine `1932`
+- `Bas Connect XS9` -> machine `1933`
+- `Bas Connect XS10` -> machine `1942`
+- `Unc Comp S1` -> machines `1956, 1959, 1966`, direct inputs `Al Fe XS5`, `CaReinfCop XS2`
+- `Unc Comp S2` -> machines `1946, 1949`, direct inputs `Al Fe XS5`, `CaReinfCop XS2`
+- `Adv Comp S1 Source` -> machines `2081, 2082, 2087, 2088, 2091, 2092, 2096, 2097, 2098, 2099`, direct inputs `Adv Comp Support XS1`, `Cu-Ag XS1`
+- `Adv Connector S1` -> machines `2080, 2083, 2084, 2085, 2086, 2089, 2090, 2093, 2094, 2095`, direct input anchor `Adv Connector Support XS1`
+
+Confirmed direct S -> XS refill TUs for this pass:
+
+- Basic Component:
+  - `4587` from `Bas Comp S1 FULL` -> `Bas Comp XS12`
+  - `4588` from `Bas Comp S1 FULL` -> `Bas Comp XS11`
+  - `4585` from `Bas Comp S2` -> `Bas Comp XS14`
+  - `4586` from `Bas Comp S2` -> `Bas Comp XS13`
+- Basic Connector:
+  - `2377` from `Bas Connect S1` -> `Unc Pwr Sys Support XS1`
+  - `2983` from `Bas Connect S1` -> `Unc Pwr Sys Support XS2`
+  - `3307` from `Bas Connect S1` -> `Rare Pwr Sys Support 3`
+  - `5699` from `Bas Connect S1` -> `Rare Magnet Support XS1`
+  - `3932` from `Bas Connect S2` -> `Magnet Support XS1 FULL`
+  - `5224` from `Bas Connect S2` -> `Unc Magnet Support XS2`
+  - `5233` from `Bas Connect S2` -> `Unc Magnet Support XS3`
+  - `7707` from `Bas Connect S2` -> `Rare Magnet Support XS3`
+- Advanced Component:
+  - `3317` from `Adv Comp S1 Source` -> `Adv Comp XS1 FULL`
+  - `7313` from `Adv Comp S1 Source` -> `Adv Comp XS2 FULL`
+
+Confirmed topology contradictions:
+
+- `Bas Connect S1/S2` are valid named `Basic Connector` producer buffers, but the linked TU outputs do not go to `Bas Connect XS*`; they feed several downstream support XS boxes instead.
+- `Uncommon Connector` is confirmed as a product line, but the currently traced outputs are direct XS producer boxes `Unc Connector XS1/XS2`; no medium `Unc Connect S*` producer buffer has been confirmed yet.
+- Some `Bas Comp XS*` and `Bas Connect XS*` containers are their own direct producer branches and not fed from an `S*` medium buffer, so they are outside this S-buffer pass.
+- `Bas Comp XS11..XS14` are not extra electronics producer banks. They are downstream TU-fed relay boxes from `Bas Comp S1 FULL` and `Bas Comp S2`.
+- `Bas Connector XS1` is not a basic-electronics producer bank. It is a shared downstream relay box fed by TUs from other part/support branches, including `Bas Connect XS8`.
+
+2026-04-14 BAS producer audit:
+
+- Confirmed and verified all traced Basic Component producer devices are running at expected targets:
+  - medium buffers `1920, 1925, 1930, 2162, 1935, 1940, 4432, 4433, 4434, 4435, 4436, 4437, 4438` -> `maintain 21600`
+  - direct XS outputs `2135, 2144, 2136, 2143, 2137, 2142, 2138, 2141, 2139, 2140, 1918, 1919, 1926, 1927, 1928, 1929, 1936, 1937, 1938, 1939` -> `maintain 2700`
+- Confirmed and verified all traced Basic Connector producer devices are running at expected targets:
+  - medium buffers `1953, 1962, 1963, 1943, 1952` -> `maintain 13500`
+  - direct XS outputs `1921, 1924, 1931, 1934, 1941, 1922, 1923, 1932, 1933, 1942` -> `maintain 1680`
+- Sample live storage verification after BAS producer writes:
+  - `Bas Comp S1 FULL` and `Bas Comp S2` contained `component_1` (`794666749`)
+  - `Bas Comp XS1` contained `component_1` (`794666749`)
+  - `Bas Connect XS1` contained `connector_1` (`2872711779`)
+  - `Bas Comp XS11` contained `component_1` after TU correction
+  - `Bas Comp XS12` remained empty on the snapshot taken during this pass
+- Relay status check after TU correction on `Bas Comp XS11..XS14`:
+  - `4588` was `RUNNING`
+  - `4587, 4585, 4586` showed `JAMMED_MISSING_INGREDIENT` with `maintainQuantity = 1000`
+
+2026-04-14 correction:
+
+- Initial TU writes were incorrectly set to `move 1000`.
+- Corrected TUs were soft-stopped and rewritten to `maintain 1000`.
+- Verified corrected stored target on:
+  - `4587, 4588, 4585, 4586` for `Basic Component`
+  - `2377, 2983, 3307, 5699, 3932, 5224, 5233, 7707` for `Basic Connector`
+  - `3317, 7313` for `Advanced Component`
+- Verification shape after correction: `maintainQuantity = 1000`, `batchesRequested = 0`
+
+2026-04-14 uncommon electronics topology audit:
+
+- `Unc Comp S1` and `Unc Comp S2` are confirmed producer outputs for `component_2` and were already running at `maintain 21600` on this pass.
+- Confirmed direct `Unc Comp` producer outputs and machine anchors:
+  - `Unc Comp B XS1` -> `1967`
+  - `Unc Comp B XS2` -> `1958`
+  - `Unc Comp B XS3` -> `1957`
+  - `Unc Comp B XS4` -> `1948`
+  - `Unc Comp B XS5` -> `1947`
+  - `Unc Comp XS1` -> `1964`
+  - `Unc Comp XS2` -> `1961`
+  - `Unc Comp XS3` (id `1990`) -> `1954`
+  - `Unc Comp XS4` -> `1951`
+  - `Unc Comp XS5` -> `1944`
+  - `Unc Comp XS6 FULL` -> `1965`
+  - `Unc Comp XS7` -> `1960`
+  - `Unc Comp XS8` -> `1955`
+  - `Unc Comp XS9` -> `1950`
+  - `Unc Comp XS10` -> `1945`
+- Confirmed relay contradiction inside the same family:
+  - the second `Unc Comp XS3` (id `8053`) is not a producer output
+  - it is a TU-fed relay fed by `TU Unc Comp XS3` (`8051`) from `Unc Comp B XS4`
+- Confirmed direct `Unc Connector` producer outputs and machine anchors:
+  - `Unc Connector XS1` -> `2158, 2179`
+  - `Unc Connector XS2` -> `2175, 2180`
+  - `Unc Connector XS3` -> `2171, 2172`
+  - `Unc Connector XS4` -> `2157, 2174`
+  - `Unc Connector XS5` -> `2173, 2181`
+- Confirmed support boxes in the downstream chain:
+  - `Adv Electronics Support XS1` is a mixed support box, not a producer output; feeders are `2804` from `Bas Comp XS9 FULL`, `2805` from `Unc Comp XS10`, `2806` from `Polycarb S4A`, `2807` from `Polycalcite XS1`, and `2808` from `Polysulfide XS1`
+  - `Adv Comp Support XS1` is a mixed support box; feeders are `2985` from `Al Fe XS10`, `2986` from `Cu-Ag XS1`, and `2987` from `CaReinfCop XS B XS1`
+  - `Adv Connector Support XS1` is a mixed support box; feeders are `2811` from `Al Fe XS10`, `2812` from `CaReinfCop XS7`, and `2813` from `Cu-Ag XS4`
+  - `Rare Elect Support XS1` exists as two separate support boxes (`3008`, `4557`) for the two rare electronics banks
+- Live storage snapshot before the next write pass:
+  - `Adv Electronics Support XS1` held only `PolycarbonatePlasticProduct x100`
+  - `Adv Comp Support XS1` was empty
+  - `Adv Connector Support XS1` was empty
+  - both `Rare Elect Support XS1` boxes held only `FluoropolymerProduct x100`
+  - `Unc Comp XS10`, `Adv Comp S1 Source`, and `Adv Connector S1` were empty
+  - `Unc Comp S1` held `component_2 x225`; `Unc Comp S2` held `component_2 x150`
+  - `Unc Connector XS1` held `connector_2 x120`; `Unc Connector XS2..XS5` were empty
+
+2026-04-14 uncommon producer + support pass:
+
+- Direct `Unc Comp` producers configured with explicit `recipeId 1319718942` (`component_2`) to `maintain 2700`:
+  - `1967, 1958, 1957, 1948, 1947, 1964, 1961, 1954`
+  - `1951, 1944, 1965, 1960, 1955, 1950, 1945`
+- Live verification after the write:
+  - all 15 direct `Unc Comp` producer machines above reported `RUNNING`
+  - the direct `Unc Comp` XS/B-XS output boxes were still empty on the immediate snapshots after start, so this branch moved from setup failure to cycle-time wait
+- Direct `Unc Connector` producers configured with explicit `recipeId 1738589934` (`connector_2`) to `maintain 1680`:
+  - `2158, 2179, 2175, 2180, 2171, 2172, 2157, 2174`
+  - `2173, 2181`
+- Live verification after the write:
+  - all 10 direct `Unc Connector` producer machines above reported `RUNNING`
+  - `Unc Connector XS1` still held the preexisting `connector_2 x120`
+  - `Unc Connector XS2..XS5` were still empty on the immediate snapshots after start, so those lines are also in cycle-time wait, not missing recipe/setup
+- Mixed XS support feeder rule used on this pass:
+  - for the confirmed mixed support boxes below, each confirmed feeder TU was set to conservative `maintain 100`
+  - this matched the existing partial-fill convention already visible in the wall and stayed far below XS p90 volume even with multiple item types sharing one box
+- `Adv Electronics Support XS1` feeders configured:
+  - `2804` <- `Bas Comp XS9 FULL` -> `component_1` (`794666749`) `maintain 100`
+  - `2805` <- `Unc Comp XS10` -> `component_2` (`794666748`) `maintain 100`
+  - `2806` <- `Polycarb S4A` -> `PolycarbonatePlasticProduct` (`2014531313`) `maintain 100`
+  - `2807` <- `Polycalcite XS1` -> `PolycalcitePlasticProduct` (`4103265826`) `maintain 100`
+  - `2808` <- `Polysulfide XS1` -> `PolysulfidePlasticProduct` (`2097691217`) `maintain 100`
+- Live verification on `Adv Electronics Support XS1`:
+  - support box now held `PolycarbonatePlasticProduct x100` and `PolycalcitePlasticProduct x100`
+  - `2805` was `JAMMED_MISSING_INGREDIENT` because `Unc Comp XS10` was still empty on recheck
+  - `2808` was `JAMMED_MISSING_INGREDIENT` because `Polysulfide XS1` was empty
+  - `2105..2114` remained `STOPPED`
+  - current blocker classification for `Adv Electronics S1`: upstream support still incomplete; partly cycle time (`Unc Comp XS10`) and partly true source starvation (`Polysulfide XS1`)
+- `Adv Comp Support XS1` feeders configured:
+  - `2985` <- `Al Fe XS10` -> `AlFeProduct` (`18262914`) `maintain 100`
+  - `2986` <- `Cu-Ag XS1` -> `CuAgProduct` (`1673011820`) `maintain 100`
+  - `2987` <- `CaReinfCop XS B XS1` -> `CalciumReinforcedCopperProduct` (`1034957327`) `maintain 100`
+- Live verification on `Adv Comp Support XS1`:
+  - support box filled to `CuAgProduct x180`, `CalciumReinforcedCopperProduct x170`, `AlFeProduct x170`
+  - `2081, 2082, 2087, 2088, 2091, 2092, 2096, 2097, 2098, 2099` all reported `RUNNING` at `maintain 21600`
+  - `Adv Comp S1 Source` remained empty on the immediate snapshot, so the remaining blocker is cycle time after a now-correct support fix
+- `Adv Connector Support XS1` feeders configured:
+  - `2811` <- `Al Fe XS10` -> `AlFeProduct` (`18262914`) `maintain 100`
+  - `2812` <- `CaReinfCop XS7` -> `CalciumReinforcedCopperProduct` (`1034957327`) `maintain 100`
+  - `2813` <- `Cu-Ag XS4` -> `CuAgProduct` (`1673011820`) `maintain 100`
+- Live verification on `Adv Connector Support XS1`:
+  - support box filled to `CuAgProduct x168`, `AlFeProduct x176`, `CalciumReinforcedCopperProduct x176`
+  - `2080, 2083, 2084, 2085, 2086, 2089, 2090, 2093` transitioned to `RUNNING` without further recipe edits
+  - `2094` and `2095` were still `STOPPED` after support refill and were then explicitly configured with `recipeId 1738589841` (`connector_3`) to `maintain 13500`
+  - after that correction, all 10 `Adv Connector S1` machines reported `RUNNING` at `maintain 13500`
+  - `Adv Connector S1` remained empty on the immediate snapshot, so the remaining blocker is cycle time after a now-correct support fix
+
+2026-04-14 power system filter pass:
+
+- Confirmed `Adv Pwr Sys Support XS1` is a true mixed support box for the `Adv Power System` producer bank, not a producer output.
+- Confirmed `Adv Pwr Sys Support XS1` feeder topology:
+  - `2853` <- `Bas Connect XS10` -> `connector_1` (`2872711779`)
+  - `2854` <- `Al Fe XS10` -> `AlFeProduct` (`18262914`)
+  - `2855` <- `CaReinfCop XS8` -> `CalciumReinforcedCopperProduct` (`1034957327`)
+  - `2856` <- `Unc Connector XS1` -> `connector_2` (`2872711778`)
+  - `2857` <- `Cu-Ag XS3` -> `CuAgProduct` (`1673011820`)
+- Confirmed `Adv Power System` producer bank:
+  - output `Adv Power System M1` (`2132`, `96000 L`)
+  - machines `2075, 2076, 2077, 2078, 2079, 2100, 2101, 2102, 2103, 2104`
+  - product recipe `1458022882` (`powersystem_3`)
+- Live source snapshot before the write:
+  - `Bas Connect XS10` (`1500 L`) held `connector_1 x1395`
+  - `Al Fe XS10` (`1500 L`) held `AlFeProduct x600`
+  - `CaReinfCop XS8` (`1500 L`) held `CalciumReinforcedCopperProduct x600`
+  - `Unc Connector XS1` (`1500 L`) held `connector_2 x430`
+  - `Cu-Ag XS3` (`1500 L`) held `CuAgProduct x100`
+  - `Adv Pwr Sys Support XS1` (`1500 L`) was empty
+  - all 10 `Adv Power System` machines were `STOPPED`
+- Conservative support write used on this pass:
+  - `2853, 2854, 2855, 2856, 2857` configured to `maintain 100`
+- Conservative producer write used on this pass:
+  - `2075, 2076, 2077, 2078, 2079, 2100, 2101, 2102, 2103, 2104` configured with explicit `recipeId 1458022882` to `maintain 100`
+- Live verification after the support write:
+  - all five support TUs reported active with `maintainQuantity = 100`
+  - source boxes moved stock, including connector draws from `Bas Connect XS10` and `Unc Connector XS1`
+  - `Adv Pwr Sys Support XS1` later showed `AlFeProduct x100`, `CuAgProduct x100`, and `CalciumReinforcedCopperProduct x100`
+- Live verification after the producer write:
+  - all 10 `Adv Power System` machines accepted the recipe and stored `maintainQuantity = 100`
+  - all 10 immediately reported `JAMMED_MISSING_INGREDIENT`
+  - `Adv Power System M1` remained empty on the verification snapshot
+- Current blocker classification for `Adv Power System`:
+  - not missing recipe/setup anymore
+  - support path is partially correct and source stock exists
+  - remaining blocker is support sizing / ingredient starvation inside the mixed support box, with connector feed not staying available long enough for the bank
+
+2026-04-14 electronics + power family continuation:
+
+- Backend context note:
+  - later reads showed the player had drifted onto `TestCore_Thades1`
+  - this pass was pinned explicitly to factory `constructId 1002090` for `POIN Factory 25-08-18`
+- Resolved product metadata used on this pass:
+  - `electronics_1`: recipe `1026118816`, item type `1297540454`, unit volume `4.0`
+  - `electronics_2`: recipe `1026118817`, item type `1297540453`, unit volume `4.0`
+  - `electronics_4`: recipe `1026118819`, item type `1297540451`, unit volume `4.0`
+  - `powersystem_4`: recipe `1458022909`, item type `527681750`, unit volume `9.2`
+  - `RedGoldProduct`: item type `2550840787`, unit volume `1.0`
+- Capacities confirmed live on this pass:
+  - `Bas Electronics Hub 1` (`2284`) is a producer output `container_hub` at `24000 L`
+  - `Unc Electronics S2` (`2323`) is a producer output `container` at `12000 L`
+  - `Rare Pwr Sys M1` (`3216`) is a producer output `container` at `96000 L`
+
+2026-04-14 advanced electronics continuation:
+
+- Construct context pinned explicitly to `1002090` for this pass.
+- `Adv Electronics S1` is the only confirmed `Adv Electronics S*` producer bank in this construct slice:
+  - support box `2809` `Adv Electronics Support XS1`
+  - producer output `2294` `Adv Electronics S1` (`12000 L`)
+  - producer machines `2105, 2106, 2107, 2108, 2109, 2110, 2111, 2112, 2113, 2114`
+  - product recipe `1026118818` (`electronics_3`)
+- Confirmed mixed support feeder topology into `2809`:
+  - `2804` <- `1976` `Bas Comp XS9 FULL` -> `component_1` (`794666749`)
+  - `2805` <- `1997` `Unc Comp XS10` -> `component_2` (`794666748`)
+  - `2806` <- `2063` `Polycarb S4A` -> `PolycarbonatePlasticProduct` (`2014531313`)
+  - `2807` <- `2067` `Polycalcite XS1` -> `PolycalcitePlasticProduct` (`4103265826`)
+  - `2808` <- `1350` `Polysulfide XS1` -> `PolysulfidePlasticProduct` (`2097691217`)
+- Live state before the feeder correction:
+  - all 10 producer machines already stored `maintain 2000`
+  - feeder TUs `2804..2808` were all only `maintain 150`
+  - `2809` held `PolycarbonatePlasticProduct x300`, `PolycalcitePlasticProduct x300`, `component_1 x400`, `component_2 x400`, and no `PolysulfidePlasticProduct`
+  - all 10 producer machines were still `JAMMED_MISSING_INGREDIENT`
+- Write pass applied:
+  - soft-stopped `2804, 2805, 2806, 2807, 2808`
+  - rewrote all five feeder TUs to `maintain 300`
+- Live verification after the rewrite and wait:
+  - `2804, 2805, 2806, 2807` reported `PENDING maintain 300`
+  - `2808` reported `JAMMED_MISSING_INGREDIENT maintain 300`
+  - all 10 `Adv Electronics S1` machines remained `JAMMED_MISSING_INGREDIENT maintain 2000`
+  - `2809` still held `PolycarbonatePlasticProduct x300`, `PolycalcitePlasticProduct x300`, `component_1 x400`, `component_2 x400`, and still no `PolysulfidePlasticProduct`
+  - `2294` `Adv Electronics S1` remained empty on both verification snapshots
+- Confirmed upstream chokepoint for the remaining blocker:
+  - `1350` `Polysulfide XS1` is a shared relay box, not an exclusive `Adv Electronics` support source
+  - upstream feed is only `1475` `TU Polysulf 1B` from `804` `Polysulfide S1`
+  - sibling consumers off `1350` are `2808` -> `Adv Electronics Support XS1`, `6162` -> `Adv Injector Support XS4`, and `9051` -> `Adv QCores Support 1`
+  - one level higher, `804` is fed only by `6147` `TU Polysulf 1` from `4726` `Polysulfide Main 1`
+- Upstream live verification after the narrower recheck:
+  - `6147` reported `RUNNING maintain 2000`
+  - `1475` reported `RUNNING maintain 1000`
+  - `4726` `Polysulfide Main 1` held `PolysulfidePlasticProduct x1006` plus catalyst on the last snapshot of this pass
+  - `804` `Polysulfide S1` still read empty
+  - `1350` `Polysulfide XS1` still read empty
+- Blocker classification for `Adv Electronics S1` after this pass:
+  - not missing recipe/setup
+  - not feeder underconfiguration on the four non-polysulfide legs
+  - current blocker is shared relay starvation / transit on the `Polysulfide S1 -> Polysulfide XS1 -> Adv Electronics Support XS1` path
+
+2026-04-14 rare electronics setup pass:
+
+- Construct context pinned explicitly to `1002090` for this pass.
+- Resolved product metadata used on this pass:
+  - `electronics_4`: recipe `1026118819`, item type `1297540451`, unit volume `4.0`
+- Rare-electronics bank topology confirmed:
+  - Bank A support `3008` `Rare Elect Support XS1` -> machines `2997, 2998, 3000, 2999, 3001, 3002, 3004, 3003, 3033, 3541` -> output `3011` `Rare Electronics S1`
+  - Bank B support `4557` `Rare Elect Support XS1` -> machines `3881, 3880, 3876, 3875, 3877, 3879, 3878, 3882, 3848, 4255` -> output `4556` `Rare Electronics S2`
+- Confirmed mixed support feeder topology:
+  - Bank A:
+    - `3009` <- `1975` `Bas Comp XS8` -> `component_1` (`794666749`)
+    - `3010` <- `1994` `Unc Comp XS7` -> `component_2` (`794666748`)
+    - `3005` <- `2070` `Polycalcite XS4` -> `PolycalcitePlasticProduct` (`4103265826`)
+    - `3006` <- `1351` `Polysulfide XS2` -> `PolysulfidePlasticProduct` (`2097691217`)
+    - `3007` <- `1912` `Fluoropolymer S1` -> `FluoropolymerProduct` (`918590356`)
+  - Bank B:
+    - `4559` <- `1977` `Bas Comp XS10` -> `component_1` (`794666749`)
+    - `4558` <- `2001` `Unc Comp B XS2` -> `component_2` (`794666748`)
+    - `4561` <- `2070` `Polycalcite XS4` -> `PolycalcitePlasticProduct` (`4103265826`)
+    - `4560` <- `3603` `Polysulfide XS8` -> `PolysulfidePlasticProduct` (`2097691217`)
+    - `4562` <- `3598` `Fluoropolymer XS1` -> `FluoropolymerProduct` (`918590356`)
+- Live source snapshot before the write:
+  - `1975` held `component_1 x2770`
+  - `1994` held `component_2 x1065`
+  - `1977` held `component_1 x1690`
+  - `2001` held `component_2 x1065`
+  - `2070` held `PolycalcitePlasticProduct x1200`
+  - `1351` held `PolysulfidePlasticProduct x800`
+  - `3603` held `PolysulfidePlasticProduct x1000`
+  - `1912` held only `FluoropolymerProduct x63` plus catalyst
+  - `3598` held `FluoropolymerProduct x400`
+- Non-obvious sizing rule used on this pass:
+  - both rare-electronics support boxes are confirmed 5-item mixed XS buffers at `1500 L`
+  - feeder targets were balanced to `maintain 270` each so the total target stays at the XS p90 fill level (`1350 L`)
+  - producer machines were set conservatively to `maintain 2000` because all ingredients arrive through a single shared mixed support box
+- Write pass applied:
+  - soft-stopped `3005, 3006, 3007, 3009, 3010, 4558, 4559, 4560, 4561, 4562`
+  - configured all 10 feeder TUs to `maintain 270`
+  - configured all 20 producer machines above with explicit `recipeId 1026118819` to `maintain 2000`
+- Live verification after write and waits:
+  - feeder states:
+    - `3005, 3006, 3009, 3010, 4558, 4559` reported `RUNNING maintain 270`
+    - `4560, 4561, 4562` reported `PENDING maintain 270`
+    - `3007` reported `JAMMED_MISSING_INGREDIENT maintain 270`
+  - support boxes:
+    - `3008` held `FluoropolymerProduct x200`, `PolycalcitePlasticProduct x300`, `PolysulfidePlasticProduct x300`
+    - `4557` held `FluoropolymerProduct x400`, `PolycalcitePlasticProduct x300`, `PolysulfidePlasticProduct x300`
+    - neither support box showed component stock on the verification snapshots yet
+  - source movement proved the component feeders were active at least initially:
+    - `1975` dropped to `component_1 x2570`
+    - `1994` dropped to `component_2 x880`
+    - `1977` dropped to `component_1 x1490`
+    - `2001` dropped to `component_2 x880`
+  - fluoropolymer source split remained asymmetric:
+    - `1912` stayed at only `FluoropolymerProduct x63` and `3007` remained jammed
+    - `3598` stayed at `FluoropolymerProduct x400` and `4562` remained active
+  - all 20 rare-electronics machines accepted recipe `1026118819` and stored `maintain 2000`, but all remained `JAMMED_MISSING_INGREDIENT`
+  - outputs `3011` and `4556` remained empty on the verification snapshots
+- Blocker classification after this pass:
+  - not missing recipe/setup anymore
+  - Bank A has confirmed fluoropolymer source starvation on `1912 -> 3007 -> 3008`
+  - both banks still show feeder transit / incomplete fill on the component legs because the support boxes have not yet shown `component_1` or `component_2` despite initial source movement
+
+2026-04-14 rare power system M1-M3 continuation:
+
+- Construct context pinned explicitly to `1002090` for this pass.
+- Reused proven `M1` product metadata and producer sizing:
+  - `powersystem_4`: recipe `1458022909`, item type `527681750`, unit volume `9.2`
+  - large-bank producer target on `96000 L` outputs: `maintain 9391`
+- `Rare Pwr Sys M1` remained the proven reference bank on this pass:
+  - support `3215` still held `RedGoldProduct x360`, `CuAgProduct x360`, `CalciumReinforcedCopperProduct x360`, `connector_2 x390`
+  - sample producer machines `3207` and `3212` still reported `RUNNING maintain 9391`
+  - output `3216` already held `powersystem_4`, including a stack at `x51`
+- Topology proof for the new setup work:
+  - `Rare Pwr Sys Support 2` (`3278`) is a true 5-feeder mixed support box for `Rare Pwr Sys M2` (`3272`)
+  - feeder TUs and proven sources:
+    - `3276` <- `6946` `Red Gold S3` -> `RedGoldProduct` (`2550840787`)
+    - `3279` <- `2749` `Cu-Ag XS3` -> `CuAgProduct` (`1673011820`)
+    - `3280` <- `1215` `CaReinfCop XS B XS6` -> `CalciumReinforcedCopperProduct` (`1034957327`)
+    - `3297` <- `1983` `Bas Connect XS6 FULL` -> `connector_1` (`2872711779`)
+    - `3298` <- `2005` `Unc Connector XS3` -> `connector_2` (`2872711778`)
+  - producer machines for `M2`: `3241, 3242, 3243, 3244, 3245, 3273, 3274, 3275, 3288, 3296`
+  - `Rare Pwr Sys Support 3` (`3303`) is a true 5-feeder mixed support box for `Rare Pwr Sys M3` (`3304`)
+  - feeder TUs and proven sources:
+    - `3300` <- `3145` `Red Gold S2` -> `RedGoldProduct` (`2550840787`)
+    - `3301` <- `2751` `Cu-Ag XS5` -> `CuAgProduct` (`1673011820`)
+    - `3302` <- `1217` `CaReinfCop XS B XS8` -> `CalciumReinforcedCopperProduct` (`1034957327`)
+    - `3307` <- `2011` `Bas Connect S1` -> `connector_1` (`2872711779`)
+    - `3305` <- `2003` `Unc Connector XS1` -> `connector_2` (`2872711778`)
+  - producer machines for `M3`: `3299, 3306, 3321, 3322, 3323, 3324, 3341, 4475, 4476, 4477`
+- Live pre-write state:
+  - all `M2` and `M3` feeder TUs were `STOPPED`, except `3307` which still held a stale `maintain 1000`
+  - all `M2` and `M3` producer machines were `STOPPED`
+  - `3278` was empty
+  - `3303` held only `connector_1 x1000`, which contradicted the 5-item support shape
+  - source stock existed on all proven feeder boxes
+- Non-obvious sizing rule used on this pass:
+  - `M2` and `M3` are not the split `M1` shape; both support boxes carry all five recipe ingredients
+  - with XS support volume `1500 L` and p90 fill target `1350 L`, practical 5-item support targets were set to:
+    - `RedGoldProduct x290`
+    - `CuAgProduct x290`
+    - `CalciumReinforcedCopperProduct x290`
+    - `connector_1 x150`
+    - `connector_2 x440`
+  - total planned support-box load: `290 + 290 + 290 + (150 * 0.8) + (440 * 0.8) = 1342 L`
+- Correction workflow used:
+  - soft-stopped `3276, 3279, 3280, 3297, 3298, 3300, 3301, 3302, 3305, 3307`
+  - moved the stale `connector_1 x1000` out of `3303` back to source `2011`
+  - rewrote the 10 feeder TUs with the 5-item targets above
+  - configured all 20 `M2` and `M3` producer machines with `recipeId 1458022909` to `maintain 9391`
+- Live verification after writes and waits:
+  - support feeder states:
+    - `3276, 3279, 3280` were `PENDING 290`
+    - `3297` was `RUNNING 150`
+    - `3298` was `RUNNING 440`
+    - `3300, 3301, 3302` were `PENDING 290`
+    - `3307` was `RUNNING 150`
+    - `3305` was `RUNNING 440`
+  - `3278` filled to `RedGoldProduct x300`, `CuAgProduct x300`, `CalciumReinforcedCopperProduct x300`
+  - `3303` filled to `RedGoldProduct x300`, `CuAgProduct x300`, `CalciumReinforcedCopperProduct x300`
+  - on the verification snapshots, neither `3278` nor `3303` had shown `connector_1` or `connector_2` yet
+  - source movement still proved connector pressure on at least part of the branch:
+    - `1983` dropped to `connector_1 x1513`
+    - `2003` dropped to `connector_2 x1110`
+  - all sampled `M2` and `M3` producer machines stored `maintain 9391` but still reported `JAMMED_MISSING_INGREDIENT`
+  - outputs `3272` and `3304` remained empty on the verification snapshots
+- Blocker classification after this pass:
+  - `M2` and `M3` are no longer missing recipe/setup
+  - current blocker is connector-leg transit / mixed-support starvation into `3278` and `3303`
+  - `M1` is already beyond that stage and producing
+
+2026-04-14 rare power system M4 setup:
+
+- Construct context pinned explicitly to `1002090` for this pass.
+- `Rare Pwr Sys Support 4` (`6359`) is a true 5-feeder mixed support box for `Rare Pwr Sys M4` (`6361`)
+- Confirmed feeder TUs and sources:
+  - `6353` <- `3145` `Red Gold S2` -> `RedGoldProduct` (`2550840787`)
+  - `6354` <- `2751` `Cu-Ag XS5` -> `CuAgProduct` (`1673011820`)
+  - `6356` <- `1218` `CaReinfCop XS B XS9` -> `CalciumReinforcedCopperProduct` (`1034957327`)
+  - `6357` <- `1987` `Bas Connect XS10` -> `connector_1` (`2872711779`)
+  - `6355` <- `2004` `Unc Connector XS2` -> `connector_2` (`2872711778`)
+- Confirmed producer machines for `M4`:
+  - `6019, 6020, 6021, 6022, 6023, 6036, 6037, 6038, 6039`
+- Live pre-write state:
+  - all five feeder TUs were `STOPPED`
+  - all nine producer machines were `STOPPED`
+  - `6359` was empty
+  - `6361` was empty
+  - source stock existed on all proven feeder boxes
+- Sizing rule reused from the proven `M2/M3` 5-item mixed-support shape:
+  - `RedGoldProduct x290`
+  - `CuAgProduct x290`
+  - `CalciumReinforcedCopperProduct x290`
+  - `connector_1 x150`
+  - `connector_2 x440`
+  - planned support-box load: `1342 L`
+- Write pass applied:
+  - configured `6353, 6354, 6356, 6357, 6355` with the support targets above
+  - configured all nine producer machines with `recipeId 1458022909` to `maintain 9391`
+- Live verification after the write and wait:
+  - all five feeder TUs reported active:
+    - `6353` `RUNNING 290`
+    - `6354` `RUNNING 290`
+    - `6356` `RUNNING 290`
+    - `6357` `RUNNING 150`
+    - `6355` `RUNNING 440`
+  - all nine producer machines stored `maintain 9391` but still reported `JAMMED_MISSING_INGREDIENT`
+  - `6359` filled to `RedGoldProduct x200`, `CalciumReinforcedCopperProduct x200`, `CuAgProduct x200`
+  - `6359` still had no visible `connector_1` or `connector_2` on the first verification snapshot
+  - source movement proved the connector legs were pulling:
+    - `1987` dropped to `connector_1 x1520`
+    - `2004` dropped to `connector_2 x1110`
+  - `3145` dropped to `RedGoldProduct x3181`
+  - `1218` dropped to `CalciumReinforcedCopperProduct x500`
+  - output `6361` remained empty on the verification snapshot
+- Blocker classification after this pass:
+  - `M4` is no longer a setup problem
+  - current blocker is connector-leg transit / mixed-support starvation into `6359`
+
+2026-04-14 rare QA unit support normalization:
+
+- Construct context pinned explicitly to `1002090` for this pass.
+- Confirmed family shape across all four rare-QA banks:
+  - outputs `3579` `Rare QA Unit S1`, `3650` `Rare QA Unit S2`, `3786` `Rare QA Unit S3`, `3824` `Rare QA Unit S4`
+  - support boxes `3580`, `3649`, `3785`, `3823`
+  - each bank has a direct second input from `QC Units S1..S4` (`3606`, `3660`, `3792`, `3811`)
+  - each support box is a 6-item mixed XS support, not a full-recipe box by itself
+- Confirmed support-box feeder topology:
+  - support ingredients are `led_1`, `led_2`, `FluoropolymerProduct`, `PolycarbonatePlasticProduct`, `PolycalcitePlasticProduct`, `PolysulfidePlasticProduct`
+  - direct feeder examples proven across the sibling set:
+    - LEDs from `Bas LED S*` and `Unc LED S*`
+    - fluoropolymer from `Fluoropolymer XS1/XS2`
+    - polycarb from `Polycarb S*`
+    - polycalcite from `Polycalcite XS*`
+    - polysulfide from `Polysulfide XS*`
+- User rule applied on this pass:
+  - for support boxes with 4+ item types per XS container, every support-item TU uses `maintain 150`
+- Live pre-write state before normalization:
+  - support feeders were inconsistent across the four boxes:
+    - some legs were still `STOPPED`
+    - some LED / fluoropolymer legs were at `400`
+    - one polycarb leg was still at `100`
+  - support boxes showed uneven partial fills such as:
+    - `3580` held `PolycarbonatePlasticProduct x100`, `FluoropolymerProduct x400`, `led_2 x400`, `led_1 x400`
+    - `3649` held `FluoropolymerProduct x400`, `led_1 x400`, `led_2 x400`
+    - `3785` held `led_2 x400`, `FluoropolymerProduct x400`
+    - `3823` held `PolycarbonatePlasticProduct x100`, `FluoropolymerProduct x400`, `led_1 x200`, `led_2 x400`
+- Source snapshot before the write confirmed stock existed on all support-only inputs:
+  - `Bas LED` sources were stocked
+  - `Unc LED` sources were stocked
+  - `Fluoropolymer XS1/XS2` had stock or were holding at their local cap
+  - polycarb, polycalcite, and polysulfide sources all had stock
+- Correction workflow used:
+  - soft-stopped all 24 support feeder TUs:
+    - `3607, 3608, 3614, 3651, 3652, 3653`
+    - `3646, 3647, 3648, 3654, 3655, 3656`
+    - `3779, 3780, 3781, 3782, 3783, 3784`
+    - `3825, 3826, 3827, 3828, 3829, 3830`
+  - rewrote all 24 to `maintain 150`
+- Live verification after the rewrite and wait:
+  - all 24 support feeder TUs stored `maintain 150`
+  - most legs reported `PENDING` or `RUNNING`
+  - the only immediate exceptions were full-target plastic legs showing `JAMMED_OUTPUT_FULL`, which matched the already-filled support box state
+  - support boxes after normalization:
+    - `3580`: `PolycarbonatePlasticProduct x200`, `FluoropolymerProduct x400`, `led_2 x400`, `led_1 x400`, `PolysulfidePlasticProduct x100`
+    - `3649`: `FluoropolymerProduct x400`, `led_1 x400`, `led_2 x400`, `PolysulfidePlasticProduct x100`, `PolycarbonatePlasticProduct x100`, `PolycalcitePlasticProduct x100`
+    - `3785`: `led_2 x400`, `FluoropolymerProduct x400`, `PolysulfidePlasticProduct x200`, `PolycalcitePlasticProduct x200`, `PolycarbonatePlasticProduct x200`
+    - `3823`: `PolycarbonatePlasticProduct x200`, `FluoropolymerProduct x400`, `led_1 x200`, `led_2 x400`, `PolycalcitePlasticProduct x200`, `PolysulfidePlasticProduct x100`
+- Consumer-side verification:
+  - inspected rare-QA machines `3538` and `3642` still showed `recipeId 0`, `nextRecipeId 0`, and `state STOPPED`
+  - this confirms the current blocker is not the support refill side anymore
+- Blocker classification after this pass:
+  - support sizing on `Rare QA Unit Support XS*` is now normalized
+  - remaining blocker is missing machine recipe/setup on the `Rare QA Unit S1..S4` producer banks
+
+2026-04-14 rare quantum alignment unit machine setup:
+
+- Exact product resolved through recipe lookup on a rare-QA machine:
+  - item key `quantumalignmentunit_4`
+  - recipe `1150226655`
+- Producer banks configured on this pass:
+  - `Rare QA Unit S1`: `3538, 3539, 3540, 3576, 3577, 3578, 3590, 3611, 3612, 3613`
+  - `Rare QA Unit S2`: `3642, 3643, 3644, 3645, 3667, 3668, 3669, 3674, 3678, 3679`
+  - `Rare QA Unit S3`: `3689, 3690, 3691, 3692, 3708, 3709, 3710, 3711, 3794, 3795`
+  - `Rare QA Unit S4`: `3796, 3797, 3819, 3820, 3821, 3822, 3834, 3835, 3836, 3843`
+- Non-obvious sizing rule used on this pass:
+  - a conservative machine target of `maintain 270` was used on the medium output banks
+  - this matches the family’s large-part behavior and stays aligned with the support-side `150` cap for 6-item XS buffers
+- Write pass applied:
+  - all 40 rare-QA machines above configured with explicit `recipeId 1150226655` to `maintain 270`
+- Live verification after the machine write and wait:
+  - sampled machines across all four banks (`3538`, `3613`, `3642`, `3679`, `3689`, `3795`, `3796`, `3843`) all stored `maintain 270`
+  - all sampled machines remained `JAMMED_MISSING_INGREDIENT`
+  - support boxes still held the normalized 6-item partial fill:
+    - `3580`, `3649`, `3785`, `3823` all contained the expected support ingredients after the earlier normalization
+  - direct-input `QC Units S1..S4` boxes (`3606`, `3660`, `3792`, `3811`) still read empty
+  - outputs `3579`, `3650`, `3786`, `3824` remained empty
+  - `Rare QA Units Hub` (`5676`) remained empty
+- Blocker classification after this pass:
+  - not missing recipe/setup anymore
+  - support sizing on `Rare QA Unit Support XS*` is no longer the blocker
+  - current blocker is direct-input source starvation / transit on the `QC Units S1..S4` path
+  - support boxes `8754`, `4087`, `3215` are all `1500 L`
+- Sizing rule used on this pass:
+  - producer target = `floor(0.9 * maxVolumeL / unitVolume)`
+  - resulting targets:
+    - `Bas Electronics` -> `5400`
+    - `Unc Electronics` -> `2700`
+    - `Rare Power System` -> `9391`
+  - mixed XS support boxes kept conservative refill targets
+  - `Unc Electronics 2 Supply XS1` used `maintain 400` on both confirmed TU-fed items because the sibling uncommon-electronics shape already showed `component_1` refill at `400`
+  - `Rare Pwr Sys Support 1` used `maintain 100` per confirmed feeder item, matching the existing advanced-power support convention
+
+2026-04-14 bas electronics pass:
+
+- Confirmed topology:
+  - `Bas Electronics Supply XS1` (`8754`) is a true support box, not a producer output
+  - `8753` feeds `component_1` from `Bas Comp XS3 FULL` (`1970`) into `8754`
+  - direct polycarbonate inputs come from `Polycarb S1A` (`2057`) and `Polycarb S2A` (`2059`)
+  - producer bank output is `Bas Electronics Hub 1` (`2284`)
+  - producer machines are `2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2038`
+- Live pre-write state:
+  - `8753` was already active from the earlier pass at `maintain 100`
+  - `8754` held `component_1 x200`
+  - `1970` held `component_1 x1600` plus `x45`
+  - all 10 producer machines were `STOPPED`
+- Producer write:
+  - `2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2038` -> `recipeId 1026118816` (`electronics_1`) -> `maintain 5400`
+- Live verification after the producer write:
+  - `2021..2027` reported `RUNNING`
+  - `2028, 2029, 2038` reported `JAMMED_MISSING_INGREDIENT`
+  - `8754` drained from `component_1 x200` down to `x4`
+  - `1970` dropped from `x1600` down to `x1400`
+  - `Bas Electronics Hub 1` remained empty on the immediate snapshot
+- Corrective feeder write:
+  - `8753` was increased from `maintain 100` to `maintain 400`
+- Live verification after the feeder correction:
+  - `8753` stored `maintainQuantity = 400`
+  - immediate recheck still showed `8754` at `component_1 x4`
+  - the same 7/3 machine split remained on that snapshot
+- Current blocker classification for `Bas Electronics`:
+  - not missing recipe/setup
+  - confirmed support sizing / refill transit issue on `component_1`
+  - output is still in early-cycle wait even on the running 7-device subset
+
+2026-04-14 uncommon electronics b pass:
+
+- Confirmed topology:
+  - `Unc Electronics 2 Supply XS1` (`4087`) is a true support box, not a producer output
+  - `4086` feeds `PolycalcitePlasticProduct` from `Polycalcite XS3` (`2069`) into `4087`
+  - `8752` feeds `component_1` from `Bas Comp XS1` (`1972`) into `4087`
+  - direct polycarbonate input comes from `Polycarb S3A FULL` (`2061`)
+  - producer bank output is `Unc Electronics S2` (`2323`)
+  - producer machines are `2165, 2166, 2170, 2177, 2167, 2168, 2169, 2178, 2164, 2163`
+- Live pre-write state:
+  - `4086` and `8752` were both `STOPPED`
+  - `4087` was empty
+  - `2069` held `PolycalcitePlasticProduct x200`
+  - `1972` held `component_1 x1575` plus `x45`
+  - all 10 producer machines were `STOPPED`
+- Support write:
+  - `4086` -> `PolycalcitePlasticProduct` (`4103265826`) `maintain 400`
+  - `8752` -> `component_1` (`794666749`) `maintain 400`
+- Producer write:
+  - `2165, 2166, 2170, 2177, 2167, 2168, 2169, 2178, 2164, 2163` -> `recipeId 1026118817` (`electronics_2`) -> `maintain 2700`
+- Live verification:
+  - all 10 producer machines reported `JAMMED_MISSING_INGREDIENT`
+  - `4086` showed `PENDING maintain 400`
+  - `8752` showed `RUNNING maintain 400`
+  - `4087` held `PolycalcitePlasticProduct x400`
+  - `2069` dropped from `x200` to `x100`
+  - `1972` dropped from `x1575` to `x1375`
+  - `Unc Electronics S2` remained empty on the immediate snapshot
+- Current blocker classification for `Unc Electronics S2`:
+  - not missing recipe/setup
+  - support path is partly filled but still incomplete on the immediate check
+  - remaining blocker is refill transit / support starvation, not a recipe fault
+
+2026-04-14 rare power system pass:
+
+- Confirmed topology:
+  - `Rare Pwr Sys Support 1` (`3215`) is a true mixed support box, not a producer output
+  - feeder TUs:
+    - `3213` <- `Red Gold S3` (`6946`) -> `RedGoldProduct` (`2550840787`)
+    - `3214` <- `Cu-Ag XS2` (`2748`) -> `CuAgProduct` (`1673011820`)
+    - `3277` <- `CaReinfCop XS B XS2` (`1211`) -> `CalciumReinforcedCopperProduct` (`1034957327`)
+    - `3309` <- `Unc Connector XS2` (`2004`) -> `connector_2` (`2872711778`)
+  - producer bank output is `Rare Pwr Sys M1` (`3216`)
+  - producer machines are `3207, 3208, 3209, 3210, 3211, 3212, 3237, 3238, 3239, 3240`
+- Live pre-write state:
+  - all four feeder TUs were `STOPPED`
+  - `3215` was empty
+  - `6946` held `RedGoldProduct` across multiple slots with top stack `x1638`
+  - `2748` held `CuAgProduct x100`
+  - `1211` held `CalciumReinforcedCopperProduct x600`
+  - `2004` held `connector_2 x430`
+  - all 10 producer machines were `STOPPED`
+- Support write:
+  - `3213, 3214, 3277, 3309` -> `maintain 100`
+- Producer write:
+  - `3207, 3208, 3209, 3210, 3211, 3212, 3237, 3238, 3239, 3240` -> `recipeId 1458022909` (`powersystem_4`) -> `maintain 9391`
+- Live verification:
+  - all 10 producer machines reported `JAMMED_MISSING_INGREDIENT`
+  - `3215` held `RedGoldProduct x100`, `CuAgProduct x100`, and `CalciumReinforcedCopperProduct x100`
+  - `3213, 3214, 3277` showed `PENDING maintain 100`
+  - `3309` showed `RUNNING maintain 100`
+  - `6946` dropped by `100`
+  - `2004` dropped from `x430` to `x230`
+  - `2748` still held `CuAgProduct x100`
+  - `1211` still held `CalciumReinforcedCopperProduct x600`
+  - `Rare Pwr Sys M1` remained empty on the immediate snapshot
+- Current blocker classification for `Rare Power System`:
+  - not missing recipe/setup
+  - support refills are active but not fully landed in the mixed support box yet
+  - remaining blocker is refill transit / mixed-support starvation on the immediate check
+
+2026-04-14 rare power system correction:
+
+- The initial `maintain 100` support write on `3213, 3214, 3277, 3309` was too low for a 10-device rare power system bank.
+- Recipe check for `powersystem_4` (`1458022909`) confirmed:
+  - `connector_1 x1`
+  - `CalciumReinforcedCopperProduct x2`
+  - `connector_2 x3`
+  - `CuAgProduct x2`
+  - `RedGoldProduct x2`
+- Topology correction:
+  - `connector_1` is not supplied through `Rare Pwr Sys Support 1`
+  - first six machines take direct `connector_1` input from `Bas Connect XS6 FULL` (`1983`)
+  - last four machines take direct `connector_1` input from `Bas Connect XS9` (`1986`)
+  - both direct connector sources were stocked on correction:
+    - `1983` held `connector_1 x1119`
+    - `1986` held `connector_1 x1706`
+- XS support sizing correction for `Rare Pwr Sys Support 1` (`1500 L`):
+  - p90 target volume `1350 L`
+  - support-box ingredients only:
+    - `RedGoldProduct x2` at `1.0 L`
+    - `CuAgProduct x2` at `1.0 L`
+    - `CalciumReinforcedCopperProduct x2` at `1.0 L`
+    - `connector_2 x3` at `0.8 L`
+  - practical maintain targets chosen from the real ratio:
+    - `3213` `RedGoldProduct` -> `maintain 320`
+    - `3214` `CuAgProduct` -> `maintain 320`
+    - `3277` `CalciumReinforcedCopperProduct` -> `maintain 320`
+    - `3309` `connector_2` -> `maintain 480`
+  - total planned support-box load: `320 + 320 + 320 + (480 * 0.8) = 1344 L`
+- Correction workflow used:
+  - soft-stopped `3213, 3214, 3277, 3309`
+  - rewrote all four TUs with the corrected maintain targets above
+- Live verification after correction:
+  - all four TUs returned `RUNNING` with stored targets `320, 320, 320, 480`
+  - all 10 rare power system machines remained `RUNNING` at `maintain 9391`
+  - `Rare Pwr Sys Support 1` rose from:
+    - `RedGoldProduct x180`, `CuAgProduct x180`, `CalciumReinforcedCopperProduct x180`, `connector_2 x170`
+    - to `RedGoldProduct x280`, `CuAgProduct x280`, `CalciumReinforcedCopperProduct x280`, `connector_2 x170` on the next recheck
+  - `Red Gold S3` continued dropping, confirming feed direction
+- Current blocker classification after correction:
+  - support sizing for the 4-item support box is corrected
+  - branch is now in refill transit / production cycle wait
+
+2026-04-14 electronics naming pass:
+
+- Naming rule adopted for producer machines on confirmed electronics-part branches:
+  - `<Family> <Bank> P<n>`
+  - Examples by line:
+    - Basic Component: `Bas Comp S1 P1`, `Bas Comp XS1 P1`
+    - Basic Connector: `Bas Connect S1 P1`, `Bas Connect XS1 P1`
+    - Uncommon Component: `Unc Comp S1 P1`, `Unc Comp B XS1 P1`, `Unc Comp XS1 P1`
+    - Uncommon Connector: `Unc Connect XS1 P1`
+    - Basic Electronics: `Bas Elect Hub1 P1`
+    - Uncommon Electronics: `Unc Elect S2 P1`
+    - Advanced Electronics: `Adv Elect S1 P1`
+    - Advanced Component: `Adv Comp S1 P1`
+    - Advanced Connector: `Adv Conn S1 P1`
+    - Advanced Power System: `Adv Pwr S1 P1`
+    - Rare Power System: `Rare Pwr M1 P1`
+- Naming rule adopted for TUs on confirmed electronics-part branches:
+  - direct relay / refill TU: `TU <target box>`
+  - mixed support feeder TU: `TU <target support> <ingredient/source short tag>`
+  - examples:
+    - `TU Bas Comp XS11`
+    - `TU Adv Comp Sup CuAg`
+    - `TU Adv Pwr Sup UncConn`
+- Live rename write applied only where the bridge still showed the vanilla default `TransferUnit` name:
+  - `4587` -> `TU Bas Comp XS12`
+  - `4588` -> `TU Bas Comp XS11`
+  - `4585` -> `TU Bas Comp XS14`
+  - `4586` -> `TU Bas Comp XS13`
+  - `2983` -> `TU Unc Pwr XS2 BasConn`
+  - `2985` -> `TU Adv Comp Sup AlFe`
+  - `2986` -> `TU Adv Comp Sup CuAg`
+  - `2811` -> `TU Adv Conn Sup AlFe`
+  - `2812` -> `TU Adv Conn Sup CaReinfCop`
+  - `2813` -> `TU Adv Conn Sup CuAg`
+  - `2853` -> `TU Adv Pwr Sup BasConn`
+  - `2855` -> `TU Adv Pwr Sup CaReinfCop`
+  - `2856` -> `TU Adv Pwr Sup UncConn`
+  - `2857` -> `TU Adv Pwr Sup CuAg`
+- Live readback verified the backend accepted all renamed ids above while preserving their stored recipe and maintain targets.
+- Existing custom TU names that are still semantically weak were left untouched on this pass because they were not vanilla defaults:
+  - `2377` `TU Bas Connector`
+  - `3307` `TU Bas Connector`
+  - `2804` `Tu Bas Component`
+  - `2805` `Tu Unc Component`
+  - `2854` `TU Al-Fe`
+  - `2987` `TU CalcReinfCopper`
+  - `3214` `TU Cu-Ag`
+  - `3277` `TU CalcReinfCopper`
+  - `3309` `TU Unc Connector`
+- Normalization strategy for that later pass:
+  - rewrite existing generic custom names to the same target-first pattern used above
+  - do not rename by source item alone when one source feeds multiple downstream supports
+  - keep branch role explicit in the name: relay target, support target, or producer bank
+
+2026-04-14 electronics producer-device naming completion:
+
+- Live rename write completed for the confirmed producer devices that were still on the vanilla default industry name.
+- Renamed producer-device coverage by confirmed bank:
+  - `Bas Comp S1` -> `1920, 1925, 1930, 2162`
+  - `Bas Comp S2` -> `1935, 1940, 4432, 4433, 4434, 4435`
+  - `Bas Comp S3` -> `4436, 4437, 4438`
+  - `Bas Comp XS1..XS10` -> `2135, 2144, 2136, 2143, 2137, 2142, 2138, 2141, 2139, 2140, 1918, 1919, 1926, 1927, 1928, 1929, 1936, 1937, 1938, 1939`
+  - `Bas Connect S1` -> `1953, 1962, 1963`
+  - `Bas Connect S2` -> `1943, 1952`
+  - `Bas Connect XS1..XS10` -> `1921, 1924, 1931, 1934, 1941, 1922, 1923, 1932, 1933, 1942`
+  - `Unc Comp S1` -> `1956, 1959, 1966`
+  - `Unc Comp S2` -> `1946, 1949`
+  - `Unc Comp B XS1..XS5` -> `1967, 1958, 1957, 1948, 1947`
+  - `Unc Comp XS1..XS10` -> `1964, 1961, 1954, 1951, 1944, 1965, 1960, 1955, 1950, 1945`
+  - `Unc Connector XS1..XS5` -> `2158, 2179, 2175, 2180, 2171, 2172, 2157, 2174, 2173, 2181`
+  - `Bas Electronics Hub1` -> `2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2038`
+  - `Unc Electronics S2` -> `2165, 2166, 2170, 2177, 2167, 2168, 2169, 2178, 2164, 2163`
+  - `Adv Electronics S1` -> `2105, 2106, 2107, 2108, 2109, 2110, 2111, 2112, 2113, 2114`
+  - `Adv Comp S1` -> `2081, 2082, 2087, 2088, 2091, 2092, 2096, 2097, 2098, 2099`
+  - `Adv Connector S1` -> `2080, 2083, 2084, 2085, 2086, 2089, 2090, 2093, 2094, 2095`
+  - `Adv Power M1` -> `2075, 2076, 2077, 2078, 2079, 2100, 2101, 2102, 2103, 2104`
+  - `Rare Power M1` -> `3207, 3208, 3209, 3210, 3211, 3212, 3237, 3238, 3239, 3240`
+- Live readback samples confirmed accepted names while preserving runtime state and existing setup:
+  - `1920` -> `Bas Comp S1 P1`, still `JAMMED_MISSING_INGREDIENT`, `maintain 21600`
+  - `1953` -> `Bas Connect S1 P1`, still `RUNNING`, `maintain 13500`
+  - `1967` -> `Unc Comp B XS1 P1`, still `RUNNING`, `maintain 2700`
+  - `2158` -> `Unc Connector XS1 P1`, still `RUNNING`, `maintain 1680`
+  - `2021` -> `Bas Electronics Hub1 P1`, still `JAMMED_MISSING_INGREDIENT`, `maintain 5400`
+  - `2165` -> `Unc Electronics S2 P1`, still `RUNNING`, `maintain 2700`
+  - `2105` -> `Adv Electronics S1 P1`, still `STOPPED`
+  - `2081` -> `Adv Comp S1 P1`, still `RUNNING`, `maintain 21600`
+  - `2094` -> `Adv Connector S1 P9`, still `RUNNING`, `maintain 13500`
+  - `2075` -> `Adv Power M1 P1`, still `RUNNING`, `maintain 100`
+  - `3207` -> `Rare Power M1 P1`, still `RUNNING`, `maintain 9391`
+- No recipe, mode, or maintain write was changed during this naming completion pass.
+
+2026-04-14 bas electronics upstream choke correction:
+
+- Root-cause correction:
+  - the earlier `Bas Comp Al Fe` feeder TU values at `maintain 100` were wrong for this branch shape
+  - confirmed topology:
+    - `Bas Comp Al Fe 1` (`2375`) is a primary AlFe support box fed from `Al Fe XS1` by `2376`
+    - `Bas Comp Al Fe 2` (`3923`) is a relay support box fed from `Bas Comp Al Fe 1` by `3922`
+    - `Bas Comp Al Fe 3` (`3924`) is a second primary AlFe support box fed from `Al Fe XS1` by `3925`
+    - `Bas Comp Al Fe 4` (`3927`) is a relay support box fed from `Bas Comp Al Fe 3` by `3926`
+- Confirmed fanout before the correction:
+  - `Bas Comp Al Fe 1` fed `Bas Comp XS1/XS2/XS3/XS4` plus TU `3922`
+  - `Bas Comp Al Fe 2` fed `Bas Comp XS5/XS6/XS7/XS8`
+  - `Bas Comp Al Fe 3` fed `Bas Comp S1 P1/P2`, `Bas Connect XS1/XS2`, `Bas Comp XS9/XS10`, plus TU `3926`
+  - `Bas Comp Al Fe 4` fed `Bas Connect XS6`, `Bas Comp S1 P3`, `Bas Connect XS3/XS4/XS5`, `Bas Comp S2 P1/P2`, and `Bas Connect S1 P3`
+- Write pass applied after soft-stopping the affected TUs:
+  - `1451` `TU Al Fe S1 XS3` -> `Al Fe XS1` from `maintain 600` to `maintain 1200`
+  - `2376` `TU Bas Comp Al Fe 1` -> `Bas Comp Al Fe 1` from `maintain 100` to `maintain 1200`
+  - `3925` `TU Bas Comp Al Fe 3` -> `Bas Comp Al Fe 3` from `maintain 100` to `maintain 1200`
+  - `3922` `TU Bas Comp Al Fe 2` -> `Bas Comp Al Fe 2` from `maintain 100` to `maintain 1000`
+  - `3926` `TU Bas Comp Al Fe 4` -> `Bas Comp Al Fe 4` from `maintain 100` to `maintain 1000`
+- Live verification immediately after the write:
+  - all five TUs accepted the new stored targets above
+  - all five still reported `JAMMED_MISSING_INGREDIENT` on the immediate recheck
+  - current box snapshots:
+    - `Al Fe XS1` empty
+    - `Bas Comp Al Fe 1` `AlFeProduct x20`
+    - `Bas Comp Al Fe 2` `AlFeProduct x190`
+    - `Bas Comp Al Fe 3` `AlFeProduct x20`
+    - `Bas Comp Al Fe 4` `AlFeProduct x130`
+    - `Bas Comp XS3 FULL` `component_1 x95`
+    - `Bas Electronics Supply XS1` `component_1 x24`
+- Upstream proof after the correction:
+  - `Al Fe S1` (`758`) is the direct parent source for `Al Fe XS1` through `1451`
+  - `Al Fe S1` was still nearly empty on the live snapshot at `AlFeProduct x7`
+  - all six `Al Fe S1` smelters (`126, 129, 848, 5531, 5532, 5533`) were `RUNNING` at `maintain 10000`
+  - smelter support buffers were stocked:
+    - `Al Fe Support S1` with `IronPure x825`, `AluminiumPure x650`
+    - `Al Fe Support XS2` with `IronPure x835`, `AluminiumPure x370`
+- Current blocker classification after this correction:
+  - local `Bas Comp Al Fe` sizing fault is corrected
+  - remaining blocker is upstream source starvation / transit at `Al Fe S1` and `Al Fe XS1`, not the old `maintain 100` misconfiguration anymore
+
+2026-04-14 basic power + uncommon electronics S1 pass:
+
+- Pass context:
+  - construct pinned explicitly to `1002090`
+  - player `10000`
+- Resolved product metadata used on this pass:
+  - `powersystem_1` -> recipe `1458022880`
+  - `electronics_2` -> recipe `1026118817`, item type `1297540453`
+- Confirmed `Bas Pwr System M1` topology before write:
+  - producer output `Bas Pwr System M1` (`2131`) is a `96000 L` output container
+  - producer machines are `2016, 2017, 2018, 2019, 2020, 2039, 2040, 2041, 2042, 2043`
+  - direct inputs are `Al Fe XS6` (`1155`) plus direct `connector_1` boxes `1980, 1979, 1978, 1985, 1986`
+  - live source stock before write:
+    - `1155` held `AlFeProduct x1000`
+    - `1980` held `connector_1 x1710`
+    - `1979` held `connector_1 x1710`
+    - `1978` held `connector_1 x1710`
+    - `1985` held `connector_1 x1710`
+    - `1986` held `connector_1 x1690`
+  - all 10 producer machines were `STOPPED`
+- Basic power write:
+  - `2016, 2017, 2018, 2019, 2020, 2039, 2040, 2041, 2042, 2043`
+  - explicit `recipeId 1458022880` (`powersystem_1`)
+  - conservative producer target `maintain 100`
+- Basic power live verification after two timed rechecks:
+  - sampled machines `2016, 2018, 2043` reported `RUNNING maintain 100`
+  - direct input boxes were being consumed:
+    - `1155` dropped to `AlFeProduct x680`
+    - `1980` dropped to `connector_1 x1598`
+    - `1979` dropped to `connector_1 x1654`
+    - `1978` dropped to `connector_1 x1654`
+    - `1985` dropped to `connector_1 x1682`
+    - `1986` dropped to `connector_1 x1662`
+  - `2131` remained empty on the short rechecks
+  - blocker classification for `Bas Pwr System M1` after setup: not a recipe/setup fault; current state is `production cycle time`
+- Confirmed `Unc Electronics S1` topology before write:
+  - support box `Unc Electronics 1 Supply XS1` (`4387`) is a true support box, not a producer output
+  - `8751` feeds `component_1` from `Bas Comp XS1` (`1972`) into `4387`
+  - `4386` feeds `PolycalcitePlasticProduct` from `Polycalcite XS2` (`2068`) into `4387`
+  - direct polycarbonate inputs come from `Polycarb S1B` (`2058`) and `Polycarb S2B` (`2060`)
+  - producer output is `Unc Electronics S1` (`2317`) at `12000 L`
+  - producer machines are `2030, 2031, 2032, 2033, 2034, 2183, 2184, 2185, 2186, 2187`
+  - live pre-write state:
+    - `8751` and `4386` were `STOPPED`
+    - `4387` was empty
+    - `1972` held `component_1 x2290` plus `x45`
+    - `2068` held `PolycalcitePlasticProduct x500`
+    - `2058` held `PolycarbonatePlasticProduct x500`
+    - `2060` held `PolycarbonatePlasticProduct x500`
+    - all 10 producer machines were `STOPPED`
+- Uncommon electronics S1 support write:
+  - sibling pattern copied from `Unc Electronics 2 Supply XS1`
+  - `8751` -> `component_1` (`794666749`) `maintain 400`
+  - `4386` -> `PolycalcitePlasticProduct` (`4103265826`) `maintain 400`
+- Support verification after timed rechecks:
+  - `8751` reported `RUNNING maintain 400`
+  - `4386` moved from `RUNNING` to `PENDING maintain 400`
+  - `4387` filled to `PolycalcitePlasticProduct x460` and `component_1 x164`
+  - `1972` dropped to `component_1 x2070` plus `x45`
+  - `2068` remained stocked at `PolycalcitePlasticProduct x500`
+  - temporary first readback showed only polycalcite in `4387`; later readback confirmed both items, so this was transit timing rather than wrong linkage
+- Uncommon electronics S1 producer write:
+  - `2030, 2031, 2032, 2033, 2034, 2183, 2184, 2185, 2186, 2187`
+  - explicit `recipeId 1026118817` (`electronics_2`)
+  - producer target `maintain 2700`
+- Producer verification after timed rechecks:
+  - sampled machines `2030, 2034, 2183, 2187` reported `RUNNING maintain 2700`
+  - `2317` remained empty on the short rechecks
+  - blocker classification for `Unc Electronics S1` after setup: not a recipe/setup fault; current state is `refill transit / production cycle time`
+
+2026-04-14 10m vicinity TU correction around `Bas Pwr System M1` / `Unc Electronics S1`:
+
+- Read-first 10 m TU audit:
+  - current-line blank TUs were `8116`, `8118`, `8552`, `8549`, `8550`, `8559`, `8561`
+  - nearby blank `8382` was traced to `RQ Barriers Supply B XS1`, not to the uncommon-electronics lines
+- Proven uncommon-electronics support topology:
+  - `8548` already fed `Polycarb S4A` (`2063`) -> `Unc Electronics 3 Supply XS1` (`8551`) at `maintain 100`
+  - `8549` proved as `Polycalcite XS4` (`2070`) -> `Unc Electronics 3 Supply XS1` (`8551`)
+  - `8550` proved as `Bas Comp XS12` (`4591`) -> `Unc Electronics 3 Supply XS1` (`8551`)
+  - `8560` was already configured at `maintain 100` into unnamed support box `8558`
+  - `8559` proved as `Bas Comp XS14` (`4589`) -> unnamed support box `8558`
+  - `8561` proved as `Polycarb S8` (`745`) -> unnamed support box `8558`
+- Proven uncommon-electronics relay topology:
+  - `8116` is a medium relay from `Unc Electronics S1` (`2317`) and `Unc Electronics 3 S1` (`8547`) into `Unc Electronics S1 B` (`8115`)
+  - `8118` is a medium relay from `Unc Electronics S2` (`2323`) into `Unc Electronics S2 B` (`8117`)
+  - `8552` is a medium relay from `Unc Electronics 3 S1` (`8547`) and `Unc Electronics 3 XS1` (`8553`) into `Unc Electronics S1` (`2317`)
+- Live pre-write proof:
+  - sources were stocked for the two missing `8551` support feeders:
+    - `2070` held `PolycalcitePlasticProduct x1200`
+    - `4591` held `component_1 x1000`
+  - sources were stocked for the two missing `8558` support feeders:
+    - `745` held `PolycarbonatePlasticProduct x9825 + x225`
+    - `4589` held `component_1 x1000`
+  - relay sources were partially stocked:
+    - `2317` held `electronics_2 x72` total
+    - `2323` held `electronics_2 x780` total
+    - `8553` held `electronics_2 x8`
+    - `8547` was empty
+  - target boxes were empty before relay write:
+    - `8115` empty
+    - `8117` empty
+- Support writes applied:
+  - `8549` -> `PolycalcitePlasticProduct` (`4103265826`) `maintain 100`
+  - `8550` -> `component_1` (`794666749`) `maintain 100`
+  - `8559` -> `component_1` (`794666749`) `maintain 100`
+  - `8561` -> `PolycarbonatePlasticProduct` (`2014531313`) `maintain 100`
+- Support verification:
+  - `8549` and `8550` accepted and moved to active states; `8551` filled to:
+    - `PolycarbonatePlasticProduct x100`
+    - `PolycalcitePlasticProduct x100`
+    - later `component_1 x200`
+  - `8559` and `8561` accepted; `8558` filled to:
+    - `PolycalcitePlasticProduct x100`
+    - `PolycarbonatePlasticProduct x100`
+  - `8558` had not yet shown `component_1` on the short recheck, so that branch remains in transit wait rather than setup fault
+- Relay writes applied:
+  - `8116`, `8118`, `8552` -> `electronics_2` (`1297540453`) `maintain 2700`
+- Relay verification:
+  - `8116` -> `RUNNING maintain 2700`
+  - `8118` -> `RUNNING maintain 2700`
+  - `8552` -> `JAMMED_MISSING_INGREDIENT maintain 2700`
+  - source movement proved the relay write is live:
+    - `2317` dropped from `electronics_2 x72` total to `x31` total
+    - `2323` dropped from `electronics_2 x780` total to `x740` total
+  - `8115` and `8117` were still empty on the short rechecks, so those two relays are in `transit delay`
+  - `8552` is not a setup fault anymore; its blocker is `source starvation` because `8547` remained empty and `8553` held only `electronics_2 x9`
+- Unrelated nearby blank TU not touched:
+  - `8382` belongs to `RQ Barriers Supply B XS1`, not to the uncommon-electronics lines
+  - this foreign support box still has several other blank sibling feeders (`8383, 8384, 8385`), so its full recipe mix was not yet proven
+
+2026-04-14 10m vicinity TU audit around `Bas Pwr System M1` / `Unc Electronics S1` / `Unc Electronics 1 Supply XS1`:
+
+- Audit rule used:
+  - treat `STOPPED` with no returned `maintainQuantity` as `not configured`
+  - treat `PENDING/RUNNING` with a stored `maintainQuantity` as configured, even if the TU name is still default
+- Configured TUs in this pocket:
+  - `8753` `TU BasElectr BasComp XS1` -> `RUNNING maintain 400`
+  - `8751` `TU UncElectr 1 BasComp` -> `PENDING maintain 400`
+  - `4386` `TU UncElectr 1 Polycalcite` -> `PENDING maintain 400`
+  - `4086` `TU UncElectr 2 Polycalcite` -> `PENDING maintain 400`
+  - `8752` `TU UncElectr 2 BasComp` -> `PENDING maintain 400`
+  - `8548` default-name TU -> `PENDING maintain 100`
+  - `8381` default-name TU -> `PENDING maintain 400`
+  - `8560` default-name TU -> `PENDING maintain 100`
+- Not configured TUs in this pocket:
+  - `8116` `TU UncElectr 2` -> `STOPPED`, no stored `maintainQuantity`
+  - `8549` default-name TU -> `STOPPED`, no stored `maintainQuantity`
+  - `8550` default-name TU -> `STOPPED`, no stored `maintainQuantity`
+  - `8118` default-name TU -> `STOPPED`, no stored `maintainQuantity`
+ - `8552` `TU Unc Electronics 3 XS1` -> `STOPPED`, no stored `maintainQuantity`
+  - `8382` default-name TU -> `STOPPED`, no stored `maintainQuantity`
+  - `8561` default-name TU -> `STOPPED`, no stored `maintainQuantity`
+  - `8559` default-name TU -> `STOPPED`, no stored `maintainQuantity`
+
+2026-04-14 quantum core / QC units first setup pass:
+
+- Construct context pinned explicitly to `1002090` for this pass.
+- Consumer-side starting point:
+  - `Rare QA Unit S1..S4` still jammed after the earlier rare-QA machine setup
+  - the direct second inputs `QC Units S1..S4` (`3606`, `3660`, `3792`, `3811`) were all empty
+- Proven QC topology from the direct-input side:
+  - `QC Units S1..S4` are producer-output boxes, not support or relay boxes
+  - `S1` output `3606` feeds `Rare QA Unit S1`
+  - `S2` output `3660` feeds `Rare QA Unit S2`
+  - `S3` output `3792` feeds `Rare QA Unit S3`
+  - `S4` output `3811` feeds `Rare QA Unit S4`
+- Proven support / branch shapes around the QC printers:
+  - `3664` `QC Support XS2 FULL` is a 5-item mixed support box
+    - feeder TUs: `3661` polycarb, `3662` polycalcite, `3663` polysulfide, `3665` basic LED, `3666` uncommon LED
+  - `3838` `QC Support XS4` is a 5-item mixed support box
+    - feeder TUs: `3837` polysulfide, `3839` polycalcite, `3840` polycarb, `3841` basic LED, `3842` uncommon LED
+  - `3889` `QC Support XS5` is a 5-item mixed support box
+    - feeder TUs: `3883` polycarb, `3884` polycalcite, `3885` polysulfide, `3886` uncommon LED, `3887` basic LED
+  - `3890` `QC Fluoropoly Support XS1` is a single-item fluoropoly support box
+    - feeder TU: `3888`
+  - `4832` `QC Fluoropoly Support XS2` is a single-item fluoropoly support box
+    - feeder TU: `4831`
+  - `S1` also has direct-input storages, not only support boxes:
+    - `3512` `3D Bas LED XS1`
+    - `3518` `3D Unc LED XS1`
+    - `3509` `3D Polycarb XS4 FULL`
+    - `3432` `3D Polycalc XS2`
+    - `3601` `3D Polysulfide XS1 FULL`
+- Resolved machine recipe ids used on this pass:
+  - `quantumcore_1` -> recipe `1457246784`
+  - `quantumcore_2` -> recipe `1457246785`
+  - `quantumcore_3` -> recipe `1457246786`
+  - `quantumcore_4` -> recipe `1457246787`
+- Non-obvious sizing rule used on this pass:
+  - machine target set to `maintain 20`
+  - this matches the live `Bas QC 20` / `Unc QC 20` / `Adv QC 20` / `Rare QC 20` naming already present on the branch
+  - mixed 5-item XS support boxes were normalized to `maintain 150` on every support item per the current session rule
+- Support correction workflow used:
+  - soft-stopped the mixed support feeder sets first:
+    - `3661, 3662, 3663, 3665, 3666`
+    - `3837, 3839, 3840, 3841, 3842`
+    - `3883, 3884, 3885, 3886, 3887`
+  - rewrote all 15 of those TUs to `maintain 150`
+- Support verification after the rewrite:
+  - `3664` filled to all 5 expected items:
+    - `led_1 x355`
+    - `led_2 x381`
+    - `PolycarbonatePlasticProduct x246`
+    - `PolycalcitePlasticProduct x180`
+    - `PolysulfidePlasticProduct x184`
+  - `3889` filled to all 5 expected items:
+    - `PolycalcitePlasticProduct x192`
+    - `PolycarbonatePlasticProduct x198`
+    - `PolysulfidePlasticProduct x170`
+    - `led_2 x389`
+    - `led_1 x195`
+  - `3838` improved but was still incomplete:
+    - `led_2 x400`
+    - `PolycalcitePlasticProduct x200`
+    - `PolysulfidePlasticProduct x200`
+    - `PolycarbonatePlasticProduct x200`
+    - missing `led_1` on the verification snapshots
+  - fluoropoly supports were not rewritten on this pass because they were already active and stocked:
+    - `3890` held `FluoropolymerProduct x490`
+    - `4832` held `FluoropolymerProduct x298`
+- Machine configuration written on this pass:
+  - `S1`:
+    - `3060` -> `quantumcore_1` `maintain 20`
+    - `3065` -> `quantumcore_2` `maintain 20`
+    - `3061, 3064` -> `quantumcore_3` `maintain 20`
+    - `3075, 3076, 4830` -> `quantumcore_4` `maintain 20`
+  - `S2`:
+    - `3062, 3063, 3072, 3628` -> `quantumcore_3` `maintain 20`
+    - `3077, 3078, 4833` -> `quantumcore_4` `maintain 20`
+  - `S3`:
+    - `3048` -> `quantumcore_1` `maintain 20`
+    - `3049` -> `quantumcore_2` `maintain 20`
+    - `3068, 3071` -> `quantumcore_3` `maintain 20`
+    - `3073, 3074` -> `quantumcore_4` `maintain 20`
+  - `S4`:
+    - `3799` -> `quantumcore_1` `maintain 20`
+    - `3800` -> `quantumcore_2` `maintain 20`
+    - `3070, 3806` -> `quantumcore_3` `maintain 20`
+    - `3807, 3808` -> `quantumcore_4` `maintain 20`
+- Live verification after the machine pass and waits:
+  - clearly running producer subset:
+    - `S1`: `3060`, `3065`, `3061`, `3064`
+    - `S2`: `3062`, `3077`, `4833` and their sampled siblings
+    - `S3`: `3048`, `3049`, `3073` and their sampled siblings
+    - `S4`: `3807`
+  - still jammed producer subset:
+    - `S1` rare side: `3075`, `4830`
+    - `S4`: `3799`, `3800`, `3070`, `3806`, `3808`
+  - direct source snapshot on the running `S1` direct-input side showed stock was present:
+    - `3512` `led_1 x924`
+    - `3518` `led_2 x796`
+    - `3509` `PolycarbonatePlasticProduct x183`
+    - `3432` `PolycalcitePlasticProduct x1096`
+    - `3601` `PolysulfidePlasticProduct x988`
+  - all four `QC Units` output boxes were still empty on the verification reads:
+    - `3606`, `3660`, `3792`, `3811`
+  - rare-QA consumers remained jammed on the same verification pass:
+    - `3538`, `3642`, `3689`, `3796` -> `JAMMED_MISSING_INGREDIENT maintain 270`
+- Blocker classification after this pass:
+  - `S2` and `S3` are no longer setup problems
+  - `S2` and `S3` are in `production cycle time` after now-correct setup
+  - `S1` is split:
+    - basic / uncommon / advanced side is now in `production cycle time`
+    - rare side is still blocked by shared support starvation through `3838`
+  - `S4` is still blocked by `shared support starvation / incomplete refill` on `3838`
+  - strongest live proof for the remaining support-side blocker:
+    - `3838` never showed `led_1` on the verification snapshots
+    - the `S4` printers that depend on that shared support remained jammed
+
+2026-04-14 quantum core maintain correction:
+
+- The initial `maintain 20` machine target was wrong for this family.
+- User correction applied:
+  - quantum-core printers feeding `QC Units S1..S4` should run at `maintain 800`, not `20`
+- Rewrite applied on this pass:
+  - all previously configured `QC Units S1..S4` quantum-core printers were rewritten from `20` to `800` while keeping the same proven recipe mapping
+  - affected printers:
+    - `3048, 3049, 3799, 3800`
+    - `3060, 3065, 3061, 3064, 3062, 3063, 3072, 3628`
+    - `3068, 3071, 3070, 3806`
+    - `3075, 3076, 4830, 3077, 3078, 4833, 3073, 3074`
+    - `3807, 3808`
+- Live verification after the rewrite and wait:
+  - all sampled quantum-core printers in this pass were `RUNNING maintain 800`
+  - this includes previously jammed branches on both the rare and non-rare sides:
+    - `3075`, `4830`
+    - `3799`, `3800`
+    - `3070`, `3806`
+    - `3807`, `3808`
+  - support feeders stayed active:
+    - mixed 5-item support feeders remained `PENDING maintain 150`
+    - fluoropoly feeders remained `PENDING` at their prior configured targets (`3888` `400`, `4831` `200`)
+  - support box snapshots after the correction:
+    - `3664` held all 5 items and continued feeding
+    - `3838` now also showed all 5 items, including `led_1 x160`
+    - `3889` held all 5 items and remained stable
+  - direct-source snapshots still showed stock on the `S1` direct-input side:
+    - `3512` `led_1 x884`
+    - `3518` `led_2 x996`
+    - `3509` `PolycarbonatePlasticProduct x137`
+    - `3432` `PolycalcitePlasticProduct x1096`
+    - `3601` `PolysulfidePlasticProduct x988`
+  - `QC Units` outputs after the correction:
+    - `3606` started filling: `quantumcore_2 x2`, `quantumcore_1 x7`
+    - `3792` started filling: `quantumcore_2 x2`, `quantumcore_1 x7`
+    - `3660` still empty on this short recheck
+    - `3811` still empty on this short recheck
+  - sampled rare-QA consumers were still `JAMMED_MISSING_INGREDIENT maintain 270` on the same short recheck
+- Blocker classification after this correction:
+  - the QC printer layer is no longer a setup or machine-sizing problem
+  - current blocker is `production cycle time / transit delay` from the QC printer layer into the `QC Units S*` output boxes and then into the rare-QA direct-input path
+
+2026-04-14 nearby TU mixed-XS correction around `3446`:
+
+- User follow-up check started from `3446` `3D TU Bas LED`.
+- Strict 5 m vicinity around `3446` proved this local TU set:
+  - `3429` `3D TU Polycarb 2` -> `3431` `3D Polycarb XS2 FULL`
+  - `3430` `3D TU Polycalc 2` -> `3432` `3D Polycalc XS2`
+  - `3446` `3D TU Bas LED` -> `3447` `3D Bas LED XS1`
+  - `3449` `3D TU Polycarb 3` -> `3448` `3D Polycarb XS3 FULL`
+  - `8819` `TU 3D AdvRare Supply` -> `8821` `3D Polycarb Fluo Supply XS1`
+  - `8826` default TU -> `8821` `3D Polycarb Fluo Supply XS1`
+  - `8827` default TU -> `8821` `3D Polycarb Fluo Supply XS1`
+- Important topology distinction:
+  - `3447`, `3432`, `3431`, and `3448` are single-item XS leaf boxes, not mixed support boxes
+  - the actual mixed XS support boxes in the adjacent sibling cluster off the same LED source are:
+    - `8390` `RQ Barriers Supply B XS1`
+    - `6080` `RQ Barriers Supply C XS1`
+  - both are 6-item XS support boxes feeding 10-device rare-quantum-barrier banks
+- Oversized feeder TUs proven on this pass:
+  - `8380` `led_2` from `1500` `Unc LED S1` -> `8390` at `maintain 400`
+  - `8381` `led_1` from `1505` `Bas LED S5` -> `8390` at `maintain 400`
+  - `8421` `led_1` from `1505` `Bas LED S5` -> `6080` at `maintain 400`
+  - `8422` `led_2` from `1497` `Unc LED S3` -> `6080` at `maintain 400`
+- Correction workflow used:
+  - soft-stopped `8380, 8381, 8421, 8422`
+  - rewrote all four to `maintain 150`
+- Live verification after the rewrite and wait:
+  - `8380`, `8381`, `8421`, `8422` all read back `PENDING maintain 150`
+  - target boxes remained stable:
+    - `8390` still held `led_2 x400`, `led_1 x400`
+    - `6080` still held `led_1 x400`, `led_2 x400`
+- Not changed on this pass:
+  - the nearby strict-5m single-item XS leaf feeders such as `3446`, `3429`, `3430`, `3449`
+  - the blank `8821` feeder trio `8819`, `8826`, `8827`

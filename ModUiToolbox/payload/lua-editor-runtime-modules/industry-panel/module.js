@@ -7,6 +7,7 @@
   var TIME_LABEL_NODE_ID = "industryPanel_productionSubPanel_remainingTime";
   var LEGACY_TIME_LABEL_HELPER_NODE_ID = "ModUiToolbox-industry-panel-remaining-time-helper";
   var SHARED_TIME_PRECISION_KEY = "__uiToolboxIndustryPanelTimePrecisionUnits";
+  var ZERO_SHORTAGE_CLASS = "modui-zero-shortage";
   var desiredTimePrecisionUnits = 1;
   var desiredTimePrecisionLoopId = 0;
 
@@ -60,6 +61,59 @@
       return String(node.innerText || node.textContent || "").trim();
     } catch (_ignore) {
       return "";
+    }
+  }
+
+  function parsePanelInteger(text) {
+    var normalized = String(text || "").replace(/\s+/g, "").replace(/[^0-9\-]/g, "");
+    var value = Number(normalized);
+    return isFinite(value) ? value : null;
+  }
+
+  function clearContainersShortageMarkers(rootNode) {
+    if (!rootNode || !rootNode.querySelectorAll) {
+      return;
+    }
+    var markedNodes = rootNode.querySelectorAll("." + ZERO_SHORTAGE_CLASS);
+    for (var i = 0; i < markedNodes.length; i += 1) {
+      markedNodes[i].classList.remove(ZERO_SHORTAGE_CLASS);
+    }
+  }
+
+  function syncContainersShortageMarkers() {
+    var rootNode = document.getElementById("industryPanel_containersSubPanel_wrapper");
+    if (!rootNode || !rootNode.querySelectorAll) {
+      return;
+    }
+
+    clearContainersShortageMarkers(rootNode);
+
+    var headerCount = rootNode.querySelectorAll(".containers_header .container_name").length;
+    var requiredNodes = rootNode.querySelectorAll(".ingredient_quantity");
+    var totalNodes = rootNode.querySelectorAll(".containers_sum_line");
+    var cellNodes = rootNode.querySelectorAll(".container_cell");
+    var rowCount = Math.min(requiredNodes.length, totalNodes.length);
+    if (headerCount <= 0 || rowCount <= 0) {
+      return;
+    }
+
+    for (var rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
+      var requiredAmount = parsePanelInteger(getNodeText(requiredNodes[rowIndex]));
+      var totalNode = totalNodes[rowIndex];
+      var totalAmount = parsePanelInteger(getNodeText(totalNode));
+      if (requiredAmount === null || totalAmount === null || totalAmount >= requiredAmount) {
+        continue;
+      }
+
+      totalNode.classList.add(ZERO_SHORTAGE_CLASS);
+
+      for (var cellIndex = 0; cellIndex < headerCount; cellIndex += 1) {
+        var flatIndex = (rowIndex * headerCount) + cellIndex;
+        if (flatIndex >= cellNodes.length) {
+          break;
+        }
+        cellNodes[flatIndex].classList.add(ZERO_SHORTAGE_CLASS);
+      }
     }
   }
 
@@ -752,6 +806,7 @@
     }
     ensureDesiredTimePrecisionLoop();
     ensureIndustryKebab(panel);
+    syncContainersShortageMarkers();
   }
 
   return {
