@@ -14,6 +14,7 @@ import { registerIndustryBackendTools } from "./tools/industryBackendTools.js";
 import { registerLogTools } from "./tools/logTools.js";
 import { registerNativeInputTools } from "./tools/nativeInputTools.js";
 import { registerStorageTools } from "./tools/storageTools.js";
+import { registerItemBankTools } from "./tools/itemBankTools.js";
 
 type LaunchOptions = {
   ahkPath: string | null;
@@ -63,6 +64,7 @@ async function main(): Promise<void> {
   registerConstructTools(server, commandQueue, eventStore);
   registerConstructIndexTools(server, commandQueue, eventStore);
   registerStorageTools(server, commandQueue, eventStore);
+  registerItemBankTools(server, commandQueue, eventStore);
   registerIndustryBackendTools(server, commandQueue, eventStore);
   registerLogTools(server, eventStore);
   registerNativeInputTools(server, commandQueue, eventStore, {

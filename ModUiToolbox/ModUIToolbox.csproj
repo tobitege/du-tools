@@ -50,6 +50,5 @@
     <EmbeddedResource Include="payload\ModUiToolbox-payload.js" LogicalName="ModUiToolbox-payload.js" />
     <EmbeddedResource Include="payload\lua-editor-probe.js" LogicalName="lua-editor-probe.js" />
     <EmbeddedResource Include="payload\lua-editor-probe.build.json" LogicalName="lua-editor-probe.build.json" />
-    <EmbeddedResource Include="industry-data\RecipesGroups.json" LogicalName="RecipesGroups.json" />
   </ItemGroup>
 </Project>

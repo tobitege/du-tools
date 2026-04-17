@@ -119,7 +119,6 @@ sealed class StorageBatchSpawnEntry
 
 public sealed partial class MyDuMod
 {
-    private const string EmbeddedRecipesCatalogResourceName = "RecipesGroups.json";
     private const ulong DevCraftingSpeedTalentId = 4122735657;
     private readonly object embeddedIndustryRecipeCatalogGate = new();
     private EmbeddedIndustryRecipeCatalog? embeddedIndustryRecipeCatalog;
@@ -236,6 +235,10 @@ public sealed partial class MyDuMod
                     return await BuildIndustryStartPayload(commandId, playerId, payload);
                 case "industry_configure_batch":
                     return await BuildIndustryConfigureBatchPayload(commandId, playerId, payload);
+                case "query_item_bank":
+                    return await Task.FromResult(BuildQueryItemBankPayload(commandId, playerId, payload));
+                case "list_item_bank_groups":
+                    return await Task.FromResult(BuildListItemBankGroupsPayload(commandId, playerId, payload));
                 default:
                     return CreateToolboxOpsFailure(commandId, probeMethod, "unsupported_probe_method");
             }
@@ -2282,6 +2285,29 @@ public sealed partial class MyDuMod
             .ToList();
         if (matches.Count == 0)
         {
+            // Fallback: try the item bank SQLite database by display name or json key
+            var itemBankResult = TryResolveItemNameThroughItemBank(itemName);
+            if (itemBankResult.HasValue)
+            {
+                var (nqId, jsonKey) = itemBankResult.Value;
+                var definitionById = bank.GetDefinition((ulong)nqId);
+                if (definitionById is not null && definitionById.BaseObject is BaseItem)
+                {
+                    return ((ulong)nqId, definitionById.Name);
+                }
+                // The nqId exists in the item bank but not in IGameplayBank yet;
+                // try the json key as a name against IGameplayBank as last resort
+                var matchesByKey = bank.GetInventoryDefinitions()
+                    .Where(def => string.Equals(def.Name, jsonKey, StringComparison.OrdinalIgnoreCase))
+                    .Select(def => new { def.Id, def.Name })
+                    .Distinct()
+                    .ToList();
+                if (matchesByKey.Count == 1)
+                {
+                    return (matchesByKey[0].Id, matchesByKey[0].Name);
+                }
+            }
+
             throw new ToolboxOpsException("item_name_not_found");
         }
 
@@ -2392,134 +2418,7 @@ public sealed partial class MyDuMod
 
     private EmbeddedIndustryRecipeCatalog LoadEmbeddedIndustryRecipeCatalog()
     {
-        var json = LoadEmbeddedScriptSafe(EmbeddedRecipesCatalogResourceName, "industry recipe catalog");
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            throw new InvalidOperationException("embedded_recipe_catalog_missing");
-        }
-
-        var root = JObject.Parse(json);
-        var byRecipeKey = new Dictionary<string, EmbeddedIndustryRecipeReference>(StringComparer.OrdinalIgnoreCase);
-        var byRecipeId = new Dictionary<ulong, EmbeddedIndustryRecipeReference>();
-        var byProductItemTypeId = new Dictionary<ulong, EmbeddedIndustryRecipeReference>();
-        var byProductName = new Dictionary<string, List<EmbeddedIndustryRecipeReference>>(StringComparer.OrdinalIgnoreCase);
-        var byIngredientName = new Dictionary<string, List<EmbeddedIndustryRecipeReference>>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var property in root.Properties())
-        {
-            if (property.Value is not JObject entry)
-            {
-                continue;
-            }
-
-            var embeddedReference = BuildEmbeddedIndustryRecipeReference(property.Name, entry);
-            if (string.IsNullOrWhiteSpace(embeddedReference.RecipeKey))
-            {
-                continue;
-            }
-
-            byRecipeKey[embeddedReference.RecipeKey] = embeddedReference;
-            if (embeddedReference.RecipeId > 0 && !byRecipeId.ContainsKey(embeddedReference.RecipeId))
-            {
-                byRecipeId[embeddedReference.RecipeId] = embeddedReference;
-            }
-
-            if (embeddedReference.ProductItemTypeId > 0 && !byProductItemTypeId.ContainsKey(embeddedReference.ProductItemTypeId))
-            {
-                byProductItemTypeId[embeddedReference.ProductItemTypeId] = embeddedReference;
-            }
-
-            foreach (var productName in embeddedReference.ProductNames)
-            {
-                if (!byProductName.TryGetValue(productName, out var matches))
-                {
-                    matches = new List<EmbeddedIndustryRecipeReference>();
-                    byProductName[productName] = matches;
-                }
-
-                matches.Add(embeddedReference);
-            }
-
-            foreach (var ingredientName in embeddedReference.IngredientNames)
-            {
-                if (!byIngredientName.TryGetValue(ingredientName, out var matches))
-                {
-                    matches = new List<EmbeddedIndustryRecipeReference>();
-                    byIngredientName[ingredientName] = matches;
-                }
-
-                matches.Add(embeddedReference);
-            }
-        }
-
-        logger.LogInformation(
-            "UIToolbox loaded embedded industry recipe catalog entries={EntryCount}, recipeIds={RecipeIdCount}, productItemTypeIds={ProductItemTypeIdCount}",
-            byRecipeKey.Count,
-            byRecipeId.Count,
-            byProductItemTypeId.Count);
-
-        return new EmbeddedIndustryRecipeCatalog
-        {
-            ByRecipeKey = byRecipeKey,
-            ByRecipeId = byRecipeId,
-            ByProductItemTypeId = byProductItemTypeId,
-            ByProductName = byProductName.ToDictionary(
-                pair => pair.Key,
-                pair => (IReadOnlyList<EmbeddedIndustryRecipeReference>)pair.Value
-                    .Distinct()
-                    .OrderBy(reference => reference.RecipeId)
-                    .ToList(),
-                StringComparer.OrdinalIgnoreCase),
-            ByIngredientName = byIngredientName.ToDictionary(
-                pair => pair.Key,
-                pair => (IReadOnlyList<EmbeddedIndustryRecipeReference>)pair.Value
-                    .Distinct()
-                    .OrderBy(reference => reference.RecipeId)
-                    .ToList(),
-                StringComparer.OrdinalIgnoreCase)
-        };
-    }
-
-    private static EmbeddedIndustryRecipeReference BuildEmbeddedIndustryRecipeReference(string recipeKey, JObject entry)
-    {
-        var firstProduct = (entry["Products"] as JArray)?
-            .OfType<JObject>()
-            .FirstOrDefault();
-        var productNames = (entry["Products"] as JArray)?
-            .OfType<JObject>()
-            .Select(product => product["Name"]?.Value<string>()?.Trim())
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Select(name => name!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList()
-            ?? new List<string>();
-        var ingredientNames = (entry["Ingredients"] as JArray)?
-            .OfType<JObject>()
-            .Select(ingredient => ingredient["Name"]?.Value<string>()?.Trim())
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Select(name => name!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList()
-            ?? new List<string>();
-        if (productNames.Count == 0 && !string.IsNullOrWhiteSpace(entry["Name"]?.Value<string>()?.Trim()))
-        {
-            productNames.Add(entry["Name"]!.Value<string>()!.Trim());
-        }
-
-        return new EmbeddedIndustryRecipeReference
-        {
-            RecipeKey = recipeKey,
-            RecipeId = ReadUInt64Token(entry["Id"]) ?? 0,
-            ProductItemTypeId = ReadUInt64Token(entry["NqId"]) ?? 0,
-            ProductTypeKey = firstProduct?["Type"]?.Value<string>()?.Trim() ?? recipeKey,
-            ProductItemName = firstProduct?["Name"]?.Value<string>()?.Trim()
-                ?? entry["Name"]?.Value<string>()?.Trim()
-                ?? "",
-            IndustryName = entry["Industry"]?.Value<string>()?.Trim() ?? "",
-            ParentGroupName = entry["ParentGroupName"]?.Value<string>()?.Trim() ?? "",
-            ProductNames = productNames,
-            IngredientNames = ingredientNames
-        };
+        return LoadIndustryRecipeCatalogFromItemBank();
     }
 
     private StorageSlot RequireOccupiedSlot(StorageInfo storage, int slotIndex, string methodName)
