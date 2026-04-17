@@ -12,9 +12,15 @@ use crossterm::execute;
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
-use ratatui::backend::CrosstermBackend;
-use ratatui::prelude::*;
-use ratatui::widgets::*;
+use ratatui_core::layout::{Constraint, Direction, Layout, Rect};
+use ratatui_core::style::{Color, Style, Stylize};
+use ratatui_core::terminal::{Frame, Terminal};
+use ratatui_core::text::{Line, Text};
+use ratatui_crossterm::CrosstermBackend;
+use ratatui_widgets::block::Block;
+use ratatui_widgets::borders::Borders;
+use ratatui_widgets::list::{List, ListItem, ListState};
+use ratatui_widgets::paragraph::{Paragraph, Wrap};
 use walkdir::WalkDir;
 
 const TAIL_LINE_LIMIT: usize = 300;
