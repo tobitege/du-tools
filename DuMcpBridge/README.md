@@ -174,6 +174,12 @@ Practical workflow:
    - Use `du_element_add`, `du_element_delete`, `du_element_destroy`, `du_element_replace`, `du_element_link_create`, and `du_element_link_delete` for direct backend element-management mutations.
    - Use `du_storage_spawn`, `du_storage_take`, `du_storage_move_slot`, and `du_storage_drop_slot` for deterministic storage mutations.
 
+Item-bank query note:
+
+- `du_query_item_bank` combines every provided filter with `AND`
+- for discovery, start with only `itemNameContains`
+- only add exact filters such as `itemName`, `groupName`, `level`, `nqId`, or `industry` after the item identity is already known
+
 Typical patterns:
 
 - Rebuild one support branch from a known support container:
@@ -417,6 +423,7 @@ Important details:
 
 - `du_editor_save(targetKind = lua_editor)` triggers the in-game apply path
 - that apply path can close the Lua editor window as part of normal behavior
+- for programming boards, shared reusable helpers belong in `library/onStart()`; keep `unit/onStart()` for unit-specific startup and `system/onUpdate()` for the periodic runtime loop
 - after the apply call returns, the bridge still waits about `2250 ms` and then best-effort calls `close_runtime_ui`
 - during that short cleanup window, do not send more Lua-editor probe actions and do not judge reopen behavior yet
 - if you need to work on another filter after save, reopen the editor and select the target context again

@@ -302,7 +302,7 @@ type UiProbeCallFields = {
 };
 
 const screenEditorProbeMethods = new Set<UiProbeMethod>(["describe", "apply", "cancel", "outer_html", "raw_eval"]);
-const luaEditorProbeMethods = new Set<UiProbeMethod>(["describe", "select_slot", "select_filter", "select_filter_index", "select_context", "apply", "cancel", "outer_html", "raw_eval", "close_runtime_ui"]);
+const luaEditorProbeMethods = new Set<UiProbeMethod>(["describe", "select_slot", "select_filter", "select_filter_index", "select_context", "apply", "cancel", "add_filter", "outer_html", "raw_eval", "close_runtime_ui"]);
 
 function buildUiProbeArgs(targetKind: EditorUiKind, method: UiProbeMethod, fields: UiProbeCallFields): string[] {
   switch (method) {

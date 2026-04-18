@@ -33,8 +33,8 @@ const recipeSelectorEntrySchema = z.object({
   itemName: z.string().trim().min(1).optional().describe("Exact product item definition name"),
   recipeKey: z.string().trim().min(1).optional().describe("Exact embedded recipe key, for example `AlFeProduct`")
 }).refine(
-  (entry) => [entry.recipeId, entry.itemTypeId, entry.itemName, entry.recipeKey].filter((value) => value !== undefined).length === 1,
-  "Provide exactly one recipe selector."
+  (entry) => [entry.recipeId, entry.itemTypeId, entry.itemName, entry.recipeKey].filter((value) => value !== undefined).length >= 1,
+  "Provide at least one recipe selector."
 );
 
 const industryResolveRecipeEntrySchema = industryTargetEntrySchema.extend(recipeSelectorEntrySchema.shape);
@@ -56,8 +56,8 @@ const industryConfigureBatchEntrySchema = z.object({
   mode: z.enum(["run", "make", "move", "maintain"]).describe("Requested final mode for this device."),
   amount: z.number().int().min(0).optional().describe("Requested amount for `make`, `move`, or `maintain`.")
 }).refine(
-  (entry) => [entry.recipeId, entry.itemTypeId, entry.itemName, entry.recipeKey].filter((value) => value !== undefined).length === 1,
-  "Provide exactly one recipe selector."
+  (entry) => [entry.recipeId, entry.itemTypeId, entry.itemName, entry.recipeKey].filter((value) => value !== undefined).length >= 1,
+  "Provide at least one recipe selector."
 );
 
 const industryDescribeEntrySchema = industryTargetEntrySchema;
@@ -226,12 +226,23 @@ function buildIndustryTargetSelector(args: {
 }
 
 function buildRecipeSelector(args: IndustryRecipeSelectorEntry): Record<string, unknown> {
-  return {
-    ...(typeof args.recipeId === "number" ? { recipeId: args.recipeId } : {}),
-    ...(typeof args.itemTypeId === "number" ? { itemTypeId: args.itemTypeId } : {}),
-    ...(typeof args.itemName === "string" && args.itemName.trim().length > 0 ? { itemName: args.itemName.trim() } : {}),
-    ...(typeof args.recipeKey === "string" && args.recipeKey.trim().length > 0 ? { recipeKey: args.recipeKey.trim() } : {})
-  };
+  if (typeof args.recipeId === "number") {
+    return { recipeId: args.recipeId };
+  }
+
+  if (typeof args.itemTypeId === "number") {
+    return { itemTypeId: args.itemTypeId };
+  }
+
+  if (typeof args.itemName === "string" && args.itemName.trim().length > 0) {
+    return { itemName: args.itemName.trim() };
+  }
+
+  if (typeof args.recipeKey === "string" && args.recipeKey.trim().length > 0) {
+    return { recipeKey: args.recipeKey.trim() };
+  }
+
+  return {};
 }
 
 function parseToolboxOpsPayload(payloadJson: string | null): {
@@ -528,10 +539,7 @@ export function registerIndustryBackendTools(server: McpServer, commandQueue: Br
       };
       const batchEntries = entries.map((entry) => ({
         localId: entry.id,
-        ...(typeof entry.recipeId === "number" ? { recipeId: entry.recipeId } : {}),
-        ...(typeof entry.itemTypeId === "number" ? { itemTypeId: entry.itemTypeId } : {}),
-        ...(typeof entry.itemName === "string" && entry.itemName.trim().length > 0 ? { itemName: entry.itemName.trim() } : {}),
-        ...(typeof entry.recipeKey === "string" && entry.recipeKey.trim().length > 0 ? { recipeKey: entry.recipeKey.trim() } : {}),
+        ...buildRecipeSelector(entry),
         mode: entry.mode,
         ...(typeof entry.amount === "number" ? { amount: entry.amount } : {})
       }));

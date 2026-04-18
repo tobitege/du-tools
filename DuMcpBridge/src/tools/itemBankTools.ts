@@ -148,15 +148,16 @@ export function registerItemBankTools(
       description:
         "Queries the mod-side item bank SQLite database by item name, group, level, NqId, or industry. " +
         "Returns matching items with their tier, group, and optionally products and ingredients. " +
-        "Use this to look up item tiers, find which group an item belongs to, or discover what a recipe produces/consumes.",
+        "Use this to look up item tiers, find which group an item belongs to, or discover what a recipe produces/consumes. " +
+        "Important: every provided filter is combined with AND. For discovery, start with only `itemNameContains` and add exact filters only after you know the item identity.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Requester player ID"),
-        groupName: z.string().trim().min(1).optional().describe("Exact item group name filter (e.g. 'Pure', 'Ore', 'Decorative Element')"),
-        itemName: z.string().trim().min(1).optional().describe("Exact item name filter"),
-        itemNameContains: z.string().trim().min(1).optional().describe("Partial item name match filter"),
-        level: z.number().int().min(0).optional().describe("Item tier/level filter (1-5)"),
-        nqId: z.number().int().positive().optional().describe("NqId (core element ID) filter"),
-        industry: z.string().trim().min(1).optional().describe("Industry name filter (e.g. 'Basic Assembly Line xs')"),
+        groupName: z.string().trim().min(1).optional().describe("Exact item group name filter (e.g. 'Pure', 'Ore', 'Decorative Element'). Combined with every other provided filter using AND."),
+        itemName: z.string().trim().min(1).optional().describe("Exact item name filter. Combined with every other provided filter using AND."),
+        itemNameContains: z.string().trim().min(1).optional().describe("Partial item name match filter using contains/LIKE. Best first step for discovery before adding exact filters."),
+        level: z.number().int().min(0).optional().describe("Item tier/level filter (1-5). Combined with every other provided filter using AND."),
+        nqId: z.number().int().positive().optional().describe("NqId (core element ID) filter. Combined with every other provided filter using AND."),
+        industry: z.string().trim().min(1).optional().describe("Industry name filter (e.g. 'Basic Assembly Line xs'). Combined with every other provided filter using AND."),
         includeProducts: z.boolean().optional().describe("Whether to include recipe products in results"),
         includeIngredients: z.boolean().optional().describe("Whether to include recipe ingredients in results"),
         limit: clampedIntSchema(1, 1000, 100).describe("Maximum number of rows to return"),

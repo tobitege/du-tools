@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
@@ -50,9 +51,30 @@ sealed class ItemBankGroupRow
     public string Name { get; set; } = "";
 }
 
+sealed class ItemBankElementMeshBoxRow
+{
+    public long ElementId { get; set; }
+    public string ElementName { get; set; } = "";
+    public string MeshKey { get; set; } = "";
+    public string? MappingStatus { get; set; }
+    public double MinX { get; set; }
+    public double MinY { get; set; }
+    public double MinZ { get; set; }
+    public double MaxX { get; set; }
+    public double MaxY { get; set; }
+    public double MaxZ { get; set; }
+    public double SizeX { get; set; }
+    public double SizeY { get; set; }
+    public double SizeZ { get; set; }
+    public double BottomCenterX { get; set; }
+    public double BottomCenterY { get; set; }
+    public double BottomCenterZ { get; set; }
+}
+
 public sealed partial class MyDuMod
 {
     private const string ItemBankDatabaseFileName = "RecipesGroups.sqlite";
+    private const string MeshBoxesResourceName = "all-mesh-boxes.json";
     private readonly object itemBankSchemaGate = new();
     private bool itemBankSchemaReady;
 
@@ -149,6 +171,24 @@ public sealed partial class MyDuMod
                         ingredient_quantity REAL   NOT NULL,
                         PRIMARY KEY (recipe_id, ingredient_type)
                     );
+                    CREATE TABLE IF NOT EXISTS element_mesh_boxes (
+                        element_id        INTEGER PRIMARY KEY,
+                        element_name      TEXT    NOT NULL,
+                        mesh_key          TEXT    NOT NULL,
+                        mapping_status    TEXT,
+                        min_x             REAL    NOT NULL,
+                        min_y             REAL    NOT NULL,
+                        min_z             REAL    NOT NULL,
+                        max_x             REAL    NOT NULL,
+                        max_y             REAL    NOT NULL,
+                        max_z             REAL    NOT NULL,
+                        size_x            REAL    NOT NULL,
+                        size_y            REAL    NOT NULL,
+                        size_z            REAL    NOT NULL,
+                        bottom_center_x   REAL    NOT NULL,
+                        bottom_center_y   REAL    NOT NULL,
+                        bottom_center_z   REAL    NOT NULL
+                    );
                     CREATE INDEX IF NOT EXISTS idx_ib_items_name       ON items(name);
                     CREATE INDEX IF NOT EXISTS idx_ib_items_nq_id      ON items(nq_id);
                     CREATE INDEX IF NOT EXISTS idx_ib_items_recipe_id   ON items(recipe_id);
@@ -162,8 +202,11 @@ public sealed partial class MyDuMod
                     CREATE INDEX IF NOT EXISTS idx_ib_products_name    ON recipe_products(product_name);
                     CREATE INDEX IF NOT EXISTS idx_ib_ingredients_type ON recipe_ingredients(ingredient_type);
                     CREATE INDEX IF NOT EXISTS idx_ib_ingredients_name ON recipe_ingredients(ingredient_name);
+                    CREATE INDEX IF NOT EXISTS idx_ib_mesh_boxes_name  ON element_mesh_boxes(element_name);
+                    CREATE INDEX IF NOT EXISTS idx_ib_mesh_boxes_mesh  ON element_mesh_boxes(mesh_key);
                 ";
                 command.ExecuteNonQuery();
+                EnsureElementMeshBoxes(connection);
                 itemBankSchemaReady = true;
                 logger.LogInformation("UIToolbox ensured item bank schema");
             }
@@ -171,6 +214,291 @@ public sealed partial class MyDuMod
             {
                 logger.LogWarning(ex, "UIToolbox failed to ensure item bank schema");
             }
+        }
+    }
+
+    private void EnsureElementMeshBoxes(SqliteConnection connection)
+    {
+        var rows = LoadElementMeshBoxesFromResource();
+        if (rows.Count == 0)
+        {
+            logger.LogWarning("UIToolbox found no element mesh boxes to import");
+            return;
+        }
+
+        using var transaction = connection.BeginTransaction();
+        using (var deleteCommand = connection.CreateCommand())
+        {
+            deleteCommand.Transaction = transaction;
+            deleteCommand.CommandText = "DELETE FROM element_mesh_boxes";
+            deleteCommand.ExecuteNonQuery();
+        }
+
+        using (var insertCommand = connection.CreateCommand())
+        {
+            insertCommand.Transaction = transaction;
+            insertCommand.CommandText = @"
+                INSERT INTO element_mesh_boxes (
+                    element_id, element_name, mesh_key, mapping_status,
+                    min_x, min_y, min_z,
+                    max_x, max_y, max_z,
+                    size_x, size_y, size_z,
+                    bottom_center_x, bottom_center_y, bottom_center_z
+                ) VALUES (
+                    $elementId, $elementName, $meshKey, $mappingStatus,
+                    $minX, $minY, $minZ,
+                    $maxX, $maxY, $maxZ,
+                    $sizeX, $sizeY, $sizeZ,
+                    $bottomCenterX, $bottomCenterY, $bottomCenterZ
+                )";
+
+            var elementIdParam = insertCommand.CreateParameter();
+            elementIdParam.ParameterName = "$elementId";
+            insertCommand.Parameters.Add(elementIdParam);
+            var elementNameParam = insertCommand.CreateParameter();
+            elementNameParam.ParameterName = "$elementName";
+            insertCommand.Parameters.Add(elementNameParam);
+            var meshKeyParam = insertCommand.CreateParameter();
+            meshKeyParam.ParameterName = "$meshKey";
+            insertCommand.Parameters.Add(meshKeyParam);
+            var mappingStatusParam = insertCommand.CreateParameter();
+            mappingStatusParam.ParameterName = "$mappingStatus";
+            insertCommand.Parameters.Add(mappingStatusParam);
+            var minXParam = insertCommand.CreateParameter();
+            minXParam.ParameterName = "$minX";
+            insertCommand.Parameters.Add(minXParam);
+            var minYParam = insertCommand.CreateParameter();
+            minYParam.ParameterName = "$minY";
+            insertCommand.Parameters.Add(minYParam);
+            var minZParam = insertCommand.CreateParameter();
+            minZParam.ParameterName = "$minZ";
+            insertCommand.Parameters.Add(minZParam);
+            var maxXParam = insertCommand.CreateParameter();
+            maxXParam.ParameterName = "$maxX";
+            insertCommand.Parameters.Add(maxXParam);
+            var maxYParam = insertCommand.CreateParameter();
+            maxYParam.ParameterName = "$maxY";
+            insertCommand.Parameters.Add(maxYParam);
+            var maxZParam = insertCommand.CreateParameter();
+            maxZParam.ParameterName = "$maxZ";
+            insertCommand.Parameters.Add(maxZParam);
+            var sizeXParam = insertCommand.CreateParameter();
+            sizeXParam.ParameterName = "$sizeX";
+            insertCommand.Parameters.Add(sizeXParam);
+            var sizeYParam = insertCommand.CreateParameter();
+            sizeYParam.ParameterName = "$sizeY";
+            insertCommand.Parameters.Add(sizeYParam);
+            var sizeZParam = insertCommand.CreateParameter();
+            sizeZParam.ParameterName = "$sizeZ";
+            insertCommand.Parameters.Add(sizeZParam);
+            var bottomCenterXParam = insertCommand.CreateParameter();
+            bottomCenterXParam.ParameterName = "$bottomCenterX";
+            insertCommand.Parameters.Add(bottomCenterXParam);
+            var bottomCenterYParam = insertCommand.CreateParameter();
+            bottomCenterYParam.ParameterName = "$bottomCenterY";
+            insertCommand.Parameters.Add(bottomCenterYParam);
+            var bottomCenterZParam = insertCommand.CreateParameter();
+            bottomCenterZParam.ParameterName = "$bottomCenterZ";
+            insertCommand.Parameters.Add(bottomCenterZParam);
+
+            foreach (var row in rows)
+            {
+                elementIdParam.Value = row.ElementId;
+                elementNameParam.Value = row.ElementName;
+                meshKeyParam.Value = row.MeshKey;
+                mappingStatusParam.Value = string.IsNullOrWhiteSpace(row.MappingStatus) ? DBNull.Value : row.MappingStatus!;
+                minXParam.Value = row.MinX;
+                minYParam.Value = row.MinY;
+                minZParam.Value = row.MinZ;
+                maxXParam.Value = row.MaxX;
+                maxYParam.Value = row.MaxY;
+                maxZParam.Value = row.MaxZ;
+                sizeXParam.Value = row.SizeX;
+                sizeYParam.Value = row.SizeY;
+                sizeZParam.Value = row.SizeZ;
+                bottomCenterXParam.Value = row.BottomCenterX;
+                bottomCenterYParam.Value = row.BottomCenterY;
+                bottomCenterZParam.Value = row.BottomCenterZ;
+                insertCommand.ExecuteNonQuery();
+            }
+        }
+
+        transaction.Commit();
+        logger.LogInformation("UIToolbox imported element mesh boxes count={Count}", rows.Count);
+    }
+
+    private List<ItemBankElementMeshBoxRow> LoadElementMeshBoxesFromResource()
+    {
+        var asm = Assembly.GetExecutingAssembly();
+        using var stream = asm.GetManifestResourceStream(MeshBoxesResourceName);
+        if (stream is null)
+        {
+            throw new InvalidOperationException("element_mesh_boxes_resource_missing");
+        }
+
+        using var reader = new StreamReader(stream);
+        var root = JObject.Parse(reader.ReadToEnd());
+        var rows = new Dictionary<long, ItemBankElementMeshBoxRow>();
+
+        foreach (var property in root.Properties())
+        {
+            if (property.Value is not JObject entry)
+            {
+                continue;
+            }
+
+            if (entry["box"] is not JObject box)
+            {
+                continue;
+            }
+
+            if (!TryReadTriple(box["min"], out var minX, out var minY, out var minZ)
+                || !TryReadTriple(box["max"], out var maxX, out var maxY, out var maxZ))
+            {
+                continue;
+            }
+
+            var mappingStatus = entry["elementMappingStatus"]?.Value<string>()?.Trim();
+            var candidates = new List<(long ElementId, string ElementName)>();
+
+            var directElementId = entry["elementId"]?.Value<long?>();
+            var directElementName = entry["elementName"]?.Value<string>()?.Trim();
+            if (directElementId.HasValue && directElementId.Value > 0 && !string.IsNullOrWhiteSpace(directElementName))
+            {
+                candidates.Add((directElementId.Value, directElementName!));
+            }
+
+            AddMeshBoxCandidates(candidates, entry["elementCandidates"] as JArray);
+            AddMeshBoxCandidates(candidates, entry["equivalentElementCandidates"] as JArray);
+
+            foreach (var candidate in candidates
+                .Where(candidate => candidate.ElementId > 0 && !string.IsNullOrWhiteSpace(candidate.ElementName))
+                .GroupBy(candidate => candidate.ElementId)
+                .Select(group => group.First()))
+            {
+                rows[candidate.ElementId] = new ItemBankElementMeshBoxRow
+                {
+                    ElementId = candidate.ElementId,
+                    ElementName = candidate.ElementName,
+                    MeshKey = property.Name,
+                    MappingStatus = mappingStatus,
+                    MinX = minX,
+                    MinY = minY,
+                    MinZ = minZ,
+                    MaxX = maxX,
+                    MaxY = maxY,
+                    MaxZ = maxZ,
+                    SizeX = maxX - minX,
+                    SizeY = maxY - minY,
+                    SizeZ = maxZ - minZ,
+                    BottomCenterX = (minX + maxX) / 2.0,
+                    BottomCenterY = (minY + maxY) / 2.0,
+                    BottomCenterZ = minZ
+                };
+            }
+        }
+
+        return rows.Values.OrderBy(row => row.ElementId).ToList();
+    }
+
+    private static void AddMeshBoxCandidates(List<(long ElementId, string ElementName)> candidates, JArray? array)
+    {
+        if (array is null)
+        {
+            return;
+        }
+
+        foreach (var token in array)
+        {
+            if (token is not JObject candidate)
+            {
+                continue;
+            }
+
+            var id = candidate["id"]?.Value<long?>();
+            var name = candidate["name"]?.Value<string>()?.Trim();
+            if (id.HasValue && id.Value > 0 && !string.IsNullOrWhiteSpace(name))
+            {
+                candidates.Add((id.Value, name!));
+            }
+        }
+    }
+
+    private static bool TryReadTriple(JToken? token, out double x, out double y, out double z)
+    {
+        x = 0;
+        y = 0;
+        z = 0;
+        if (token is not JArray array || array.Count < 3)
+        {
+            return false;
+        }
+
+        var first = array[0]?.Value<double?>();
+        var second = array[1]?.Value<double?>();
+        var third = array[2]?.Value<double?>();
+        if (!first.HasValue || !second.HasValue || !third.HasValue)
+        {
+            return false;
+        }
+
+        x = first.Value;
+        y = second.Value;
+        z = third.Value;
+        return true;
+    }
+
+    internal ItemBankElementMeshBoxRow? TryGetElementMeshBoxFromItemBank(ulong elementId)
+    {
+        if (elementId == 0 || !TryOpenItemBankConnection(out var connection))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+                SELECT element_id, element_name, mesh_key, mapping_status,
+                       min_x, min_y, min_z,
+                       max_x, max_y, max_z,
+                       size_x, size_y, size_z,
+                       bottom_center_x, bottom_center_y, bottom_center_z
+                FROM element_mesh_boxes
+                WHERE element_id = @elementId
+                LIMIT 1";
+            cmd.Parameters.AddWithValue("@elementId", (long)elementId);
+
+            using var reader = cmd.ExecuteReader();
+            if (!reader.Read())
+            {
+                return null;
+            }
+
+            return new ItemBankElementMeshBoxRow
+            {
+                ElementId = reader.GetInt64(0),
+                ElementName = reader.GetString(1),
+                MeshKey = reader.GetString(2),
+                MappingStatus = reader.IsDBNull(3) ? null : reader.GetString(3),
+                MinX = reader.GetDouble(4),
+                MinY = reader.GetDouble(5),
+                MinZ = reader.GetDouble(6),
+                MaxX = reader.GetDouble(7),
+                MaxY = reader.GetDouble(8),
+                MaxZ = reader.GetDouble(9),
+                SizeX = reader.GetDouble(10),
+                SizeY = reader.GetDouble(11),
+                SizeZ = reader.GetDouble(12),
+                BottomCenterX = reader.GetDouble(13),
+                BottomCenterY = reader.GetDouble(14),
+                BottomCenterZ = reader.GetDouble(15)
+            };
+        }
+        finally
+        {
+            connection.Close();
+            connection.Dispose();
         }
     }
 

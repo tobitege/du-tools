@@ -265,6 +265,9 @@ Currently supported probe methods:
 - `outer_html`
 - `raw_eval` (trusted-debug only: arbitrary JS body with parameter `state`)
 
+Current runtime caveat:
+
+
 The dedicated MCP chat tools still use the runtime probe internally, but they now run against the distinct `hud_chat` bridge target instead of piggybacking on `lua_editor`. Chat methods are not exposed through the generic `du_ui_invoke` method enum.
 
 The probe emits `lua_mcp_result` packets for editor actions plus `chat_snapshot`, `chat_send_result`, and `chat_channel_result` packets for chat-specific actions.
