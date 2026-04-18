@@ -203,6 +203,20 @@ public sealed partial class MyDuMod
                     return await BuildDropSlotPayload(commandId, playerId, payload);
                 case "rename_element_batch":
                     return await BuildRenameElementBatchPayload(commandId, playerId, payload);
+                case "player_position":
+                    return await BuildPlayerPositionPayload(commandId, playerId);
+                case "element_add":
+                    return await BuildElementAddPayload(commandId, playerId, payload);
+                case "element_delete":
+                    return await BuildElementDeleteOrDestroyPayload(commandId, playerId, payload, destroy: false);
+                case "element_destroy":
+                    return await BuildElementDeleteOrDestroyPayload(commandId, playerId, payload, destroy: true);
+                case "element_replace":
+                    return await BuildElementReplacePayload(commandId, playerId, payload);
+                case "element_link_create":
+                    return await BuildElementLinkPayload(commandId, playerId, payload, create: true);
+                case "element_link_delete":
+                    return await BuildElementLinkPayload(commandId, playerId, payload, create: false);
                 case "refresh_construct_index":
                     return await BuildRefreshConstructIndexPayload(commandId, playerId, payload);
                 case "construct_runtime_availability":
@@ -858,6 +872,215 @@ public sealed partial class MyDuMod
         };
     }
 
+    private async Task<JObject> BuildElementAddPayload(string commandId, ulong requesterPlayerId, JObject payload)
+    {
+        var request = ReadProbeArgObject(payload["probeArgs"] as JArray, 0) ?? new JObject();
+        var fromSlot = ReadInt32Token(request["fromSlot"]);
+        if (!fromSlot.HasValue || fromSlot.Value < 0)
+        {
+            return CreateToolboxOpsFailure(commandId, "element_add", "invalid_from_slot");
+        }
+
+        var requestedConstructId = ReadUInt64Token(request["constructId"]);
+        var constructId = requestedConstructId.HasValue && requestedConstructId.Value > 0
+            ? (ConstructId)requestedConstructId.Value
+            : (await ResolveConstructIdForInspection(requesterPlayerId, null, 0)).ConstructId;
+        var location = BuildRelativeLocation(request, constructId);
+        if (location is null)
+        {
+            return CreateToolboxOpsFailure(commandId, "element_add", "invalid_location");
+        }
+
+        var sourceSlot = await ResolveElementDeploySourceSlot(requesterPlayerId, fromSlot.Value);
+        var itemName = ResolveItemTypeName(0, sourceSlot.content.type);
+        var deploy = new ElementDeploy
+        {
+            element = new ElementInfo
+            {
+                constructId = (ulong)constructId,
+                elementType = sourceSlot.content.type,
+                position = location.position,
+                rotation = location.rotation,
+                properties = new Dictionary<string, PropertyValue>()
+            },
+            fromInventory = new ItemId
+            {
+                typeId = sourceSlot.content.type,
+                instanceId = sourceSlot.content.id,
+                ownerId = sourceSlot.content.owner
+            }
+        };
+
+        var added = await orleans.GetElementManagementGrain().ElementAdd((PlayerId)requesterPlayerId, deploy);
+        var resolvedTarget = await ResolveConstructElementTarget(
+            requesterPlayerId,
+            new JObject
+            {
+                ["constructId"] = added.constructId,
+                ["elementId"] = added.elementId
+            });
+
+        return new JObject
+        {
+            ["commandId"] = commandId,
+            ["success"] = true,
+            ["error"] = JValue.CreateNull(),
+            ["method"] = "element_add",
+            ["target"] = BuildResolvedConstructElementObject(resolvedTarget),
+            ["sourceSlot"] = BuildStorageSlotObject(sourceSlot),
+            ["result"] = new JObject
+            {
+                ["operation"] = "add_element",
+                ["status"] = "applied",
+                ["itemTypeId"] = sourceSlot.content.type,
+                ["itemName"] = itemName,
+                ["fromSlot"] = fromSlot.Value
+            }
+        };
+    }
+
+    private async Task<JObject> BuildElementDeleteOrDestroyPayload(string commandId, ulong requesterPlayerId, JObject payload, bool destroy)
+    {
+        var request = ReadProbeArgObject(payload["probeArgs"] as JArray, 0) ?? new JObject();
+        var target = await ResolveConstructElementTarget(requesterPlayerId, request);
+        var targetRef = ElementInConstruct.Mk((ConstructId)target.Element.constructId, (ElementId)target.Element.elementId);
+        var elementManagement = orleans.GetElementManagementGrain();
+        var returned = destroy
+            ? await elementManagement.ElementDestroy((PlayerId)requesterPlayerId, targetRef)
+            : await elementManagement.ElementDelete((PlayerId)requesterPlayerId, targetRef);
+
+        return new JObject
+        {
+            ["commandId"] = commandId,
+            ["success"] = true,
+            ["error"] = JValue.CreateNull(),
+            ["method"] = destroy ? "element_destroy" : "element_delete",
+            ["target"] = new JObject
+            {
+                ["label"] = target.Label,
+                ["construct"] = BuildConstructDescriptor(target.ConstructContext),
+                ["element"] = BuildElementSummary(target.ConstructContext, returned)
+            },
+            ["result"] = new JObject
+            {
+                ["operation"] = destroy ? "destroy_element" : "delete_element",
+                ["status"] = "applied",
+                ["returnedToInventory"] = !destroy
+            }
+        };
+    }
+
+    private async Task<JObject> BuildElementReplacePayload(string commandId, ulong requesterPlayerId, JObject payload)
+    {
+        var request = ReadProbeArgObject(payload["probeArgs"] as JArray, 0) ?? new JObject();
+        var target = await ResolveConstructElementTarget(requesterPlayerId, request);
+
+        await orleans.GetElementManagementGrain().ReplaceElement(
+            (PlayerId)requesterPlayerId,
+            ElementInConstruct.Mk((ConstructId)target.Element.constructId, (ElementId)target.Element.elementId));
+
+        var updatedTarget = await ResolveConstructElementTarget(
+            requesterPlayerId,
+            new JObject
+            {
+                ["constructId"] = target.Element.constructId,
+                ["elementId"] = target.Element.elementId
+            });
+
+        return new JObject
+        {
+            ["commandId"] = commandId,
+            ["success"] = true,
+            ["error"] = JValue.CreateNull(),
+            ["method"] = "element_replace",
+            ["target"] = BuildResolvedConstructElementObject(updatedTarget),
+            ["result"] = new JObject
+            {
+                ["operation"] = "replace_element",
+                ["status"] = "applied"
+            }
+        };
+    }
+
+    private async Task<JObject> BuildElementLinkPayload(string commandId, ulong requesterPlayerId, JObject payload, bool create)
+    {
+        var request = ReadProbeArgObject(payload["probeArgs"] as JArray, 0) ?? new JObject();
+        var fromPlug = ReadInt32Token(request["fromPlug"]);
+        var toPlug = ReadInt32Token(request["toPlug"]);
+        var plugType = ReadPlugTypeToken(request["plugType"]);
+        if (!fromPlug.HasValue)
+        {
+            return CreateToolboxOpsFailure(commandId, create ? "element_link_create" : "element_link_delete", "invalid_from_plug");
+        }
+
+        if (!toPlug.HasValue)
+        {
+            return CreateToolboxOpsFailure(commandId, create ? "element_link_create" : "element_link_delete", "invalid_to_plug");
+        }
+
+        if (!plugType.HasValue || plugType.Value == PlugType.PLUG_INVALID || plugType.Value == PlugType.PLUG_END)
+        {
+            return CreateToolboxOpsFailure(commandId, create ? "element_link_create" : "element_link_delete", "invalid_plug_type");
+        }
+
+        var constructIdValue = ReadUInt64Token(request["constructId"]);
+        var fromTarget = await ResolveConstructElementTarget(requesterPlayerId, MergeSelectorWithConstructId(request["from"] as JObject, constructIdValue));
+        var toTarget = await ResolveConstructElementTarget(requesterPlayerId, MergeSelectorWithConstructId(request["to"] as JObject, constructIdValue));
+        if (fromTarget.Element.constructId != toTarget.Element.constructId)
+        {
+            return CreateToolboxOpsFailure(commandId, create ? "element_link_create" : "element_link_delete", "link_endpoints_must_share_construct");
+        }
+
+        var link = new LinkInfo
+        {
+            constructId = fromTarget.Element.constructId,
+            fromElementId = fromTarget.Element.elementId,
+            fromPlug = fromPlug.Value,
+            toElementId = toTarget.Element.elementId,
+            toPlug = toPlug.Value,
+            plugType = plugType.Value
+        };
+
+        var elementManagement = orleans.GetElementManagementGrain();
+        if (create)
+        {
+            await elementManagement.ElementLinkCreate((PlayerId)requesterPlayerId, link);
+        }
+        else
+        {
+            await elementManagement.ElementLinkDelete((PlayerId)requesterPlayerId, link);
+        }
+
+        var refreshedFrom = await ResolveConstructElementTarget(
+            requesterPlayerId,
+            new JObject
+            {
+                ["constructId"] = fromTarget.Element.constructId,
+                ["elementId"] = fromTarget.Element.elementId
+            });
+        var refreshedTo = await ResolveConstructElementTarget(
+            requesterPlayerId,
+            new JObject
+            {
+                ["constructId"] = toTarget.Element.constructId,
+                ["elementId"] = toTarget.Element.elementId
+            });
+
+        return new JObject
+        {
+            ["commandId"] = commandId,
+            ["success"] = true,
+            ["error"] = JValue.CreateNull(),
+            ["method"] = create ? "element_link_create" : "element_link_delete",
+            ["link"] = BuildResolvedElementLinkObject(refreshedFrom.ConstructContext, link, refreshedFrom.Element, refreshedTo.Element),
+            ["result"] = new JObject
+            {
+                ["operation"] = create ? "create_element_link" : "delete_element_link",
+                ["status"] = "applied"
+            }
+        };
+    }
+
     private async Task<JObject> BuildConstructRuntimeAvailabilityPayload(string commandId, ulong requesterPlayerId, JObject payload)
     {
         var selector = ReadProbeArgObject(payload["probeArgs"] as JArray, 0) ?? new JObject();
@@ -909,6 +1132,39 @@ public sealed partial class MyDuMod
                             ? "target_construct_unresolved"
                             : "player_not_at_target_construct"
             }
+        };
+    }
+
+    private async Task<JObject> BuildPlayerPositionPayload(string commandId, ulong requesterPlayerId)
+    {
+        var playerPosition = await orleans.GetPlayerGrain((PlayerId)requesterPlayerId).GetPositionUpdate();
+        var localPosition = playerPosition?.localPosition;
+        var currentConstructId = localPosition?.constructId ?? 0UL;
+        var currentConstructData = currentConstructId > 0
+            ? await TryReadTargetingConstructData((ConstructId)currentConstructId)
+            : null;
+
+        return new JObject
+        {
+            ["commandId"] = commandId,
+            ["success"] = playerPosition is not null,
+            ["error"] = playerPosition is null ? "player_position_unavailable" : JValue.CreateNull(),
+            ["method"] = "player_position",
+            ["playerId"] = requesterPlayerId,
+            ["construct"] = new JObject
+            {
+                ["constructId"] = currentConstructId == 0 ? JValue.CreateNull() : new JValue(currentConstructId),
+                ["constructName"] = string.IsNullOrWhiteSpace(currentConstructData?.constructName) ? JValue.CreateNull() : currentConstructData!.constructName
+            },
+            ["localPosition"] = localPosition is null
+                ? JValue.CreateNull()
+                : new JObject
+                {
+                    ["constructId"] = localPosition.constructId,
+                    ["position"] = BuildVec3Object(localPosition.position),
+                    ["rotation"] = BuildQuatObject(localPosition.rotation)
+                },
+            ["universePosition"] = playerPosition is null ? JValue.CreateNull() : BuildVec3Object(playerPosition.universePosition)
         };
     }
 
@@ -2233,6 +2489,27 @@ public sealed partial class MyDuMod
         };
     }
 
+    private JObject BuildResolvedElementLinkObject(ConstructInspectionContext context, LinkInfo link, ElementInfo? fromElement = null, ElementInfo? toElement = null)
+    {
+        var resolvedFrom = fromElement
+            ?? (context.ElementsById.TryGetValue(link.fromElementId, out var fromMatch)
+                ? fromMatch
+                : new ElementInfo { elementId = link.fromElementId, constructId = link.constructId });
+        var resolvedTo = toElement
+            ?? (context.ElementsById.TryGetValue(link.toElementId, out var toMatch)
+                ? toMatch
+                : new ElementInfo { elementId = link.toElementId, constructId = link.constructId });
+        return new JObject
+        {
+            ["constructId"] = link.constructId,
+            ["plugType"] = link.plugType.ToString(),
+            ["fromPlug"] = link.fromPlug,
+            ["toPlug"] = link.toPlug,
+            ["from"] = BuildElementSummary(context, resolvedFrom),
+            ["to"] = BuildElementSummary(context, resolvedTo)
+        };
+    }
+
     private JObject BuildResolvedIndustryRecipeObject(ResolvedToolboxIndustryRecipe recipe)
     {
         var obj = new JObject
@@ -2266,6 +2543,17 @@ public sealed partial class MyDuMod
         }
 
         return obj;
+    }
+
+    private static JObject BuildQuatObject(Quat value)
+    {
+        return new JObject
+        {
+            ["x"] = value.x,
+            ["y"] = value.y,
+            ["z"] = value.z,
+            ["w"] = value.w
+        };
     }
 
     private JObject BuildIndustryRuntimeRecipeObject(Recipe? recipe)
@@ -2725,6 +3013,160 @@ public sealed partial class MyDuMod
         }
 
         return probeArgs[index] as JObject;
+    }
+
+    private static double? ReadDoubleToken(JToken? token)
+    {
+        if (token is null || token.Type == JTokenType.Null || token.Type == JTokenType.Undefined)
+        {
+            return null;
+        }
+
+        if (token.Type == JTokenType.Float || token.Type == JTokenType.Integer)
+        {
+            return token.Value<double>();
+        }
+
+        var raw = token.Value<string>()?.Trim();
+        return double.TryParse(raw, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
+    }
+
+    private static float? ReadFloatToken(JToken? token)
+    {
+        var value = ReadDoubleToken(token);
+        return value.HasValue ? (float)value.Value : null;
+    }
+
+    private static PlugType? ReadPlugTypeToken(JToken? token)
+    {
+        if (token is null || token.Type == JTokenType.Null || token.Type == JTokenType.Undefined)
+        {
+            return null;
+        }
+
+        if (token.Type == JTokenType.Integer)
+        {
+            return (PlugType)token.Value<int>();
+        }
+
+        var raw = token.Value<string>()?.Trim();
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        return Enum.TryParse<PlugType>(raw, true, out var value) ? value : null;
+    }
+
+    private static Vec3? ReadVec3Token(JToken? token)
+    {
+        if (token is not JObject obj)
+        {
+            return null;
+        }
+
+        var x = ReadDoubleToken(obj["x"]);
+        var y = ReadDoubleToken(obj["y"]);
+        var z = ReadDoubleToken(obj["z"]);
+        if (!x.HasValue || !y.HasValue || !z.HasValue)
+        {
+            return null;
+        }
+
+        return new Vec3
+        {
+            x = x.Value,
+            y = y.Value,
+            z = z.Value
+        };
+    }
+
+    private static Quat? ReadQuatToken(JToken? token)
+    {
+        if (token is null || token.Type == JTokenType.Null || token.Type == JTokenType.Undefined)
+        {
+            return null;
+        }
+
+        if (token is not JObject obj)
+        {
+            return null;
+        }
+
+        var x = ReadFloatToken(obj["x"]);
+        var y = ReadFloatToken(obj["y"]);
+        var z = ReadFloatToken(obj["z"]);
+        var w = ReadFloatToken(obj["w"]);
+        if (!x.HasValue || !y.HasValue || !z.HasValue || !w.HasValue)
+        {
+            return null;
+        }
+
+        return new Quat
+        {
+            x = x.Value,
+            y = y.Value,
+            z = z.Value,
+            w = w.Value
+        };
+    }
+
+    private static JObject MergeSelectorWithConstructId(JObject? selector, ulong? constructId)
+    {
+        var merged = selector is null ? new JObject() : new JObject(selector);
+        if (constructId.HasValue && constructId.Value > 0 && merged["constructId"] is null)
+        {
+            merged["constructId"] = constructId.Value;
+        }
+
+        return merged;
+    }
+
+    private RelativeLocation? BuildRelativeLocation(JObject request, ConstructId constructId)
+    {
+        var position = ReadVec3Token(request["position"]);
+        if (!position.HasValue)
+        {
+            return null;
+        }
+
+        var rotation = ReadQuatToken(request["rotation"]) ?? Quat.Identity;
+        return RelativeLocation.From(position.Value, constructId, rotation);
+    }
+
+    private async Task<StorageSlot> ResolveElementDeploySourceSlot(ulong requesterPlayerId, int slotIndex)
+    {
+        var storageService = services.GetRequiredService<IItemStorageService>();
+        var playerId = (PlayerId)requesterPlayerId;
+        var playerInventory = orleans.GetPlayerInventoryGrain(playerId);
+        var primaryStatus = await playerInventory.GetPrimaryContainerState();
+
+        StorageRef sourceStorage;
+        if (primaryStatus is not null
+            && primaryStatus.elementId > 0
+            && primaryStatus.isDefault
+            && primaryStatus.hasRight
+            && !primaryStatus.isBroken
+            && !primaryStatus.isTooFar)
+        {
+            var activeContainerId = primaryStatus.rootId > 0 ? primaryStatus.rootId : primaryStatus.elementId;
+            sourceStorage = StorageRef.Container((ElementId)activeContainerId);
+        }
+        else
+        {
+            sourceStorage = StorageRef.PlayerInventoryWithoutPrimary(playerId);
+        }
+
+        var inventory = await storageService.Get(sourceStorage, playerId);
+        var slot = inventory.content.FirstOrDefault(candidate => candidate.position == slotIndex && candidate.quantity.value > 0);
+        if (slot is null)
+        {
+            throw new ToolboxOpsException("inventory_slot_not_found");
+        }
+
+        return slot;
     }
 
     private static ulong? ReadUInt64Token(JToken? token)

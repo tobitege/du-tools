@@ -122,6 +122,12 @@ Current `toolbox_ops` MCP tools:
 - `du_construct_index_industry_support_storage`
 - `du_construct_runtime_availability`
 - `du_construct_rename_elements` (batch-only; accepts an `entries` list of `{id?, name?, newName}`)
+- `du_element_add`
+- `du_element_delete`
+- `du_element_destroy`
+- `du_element_replace`
+- `du_element_link_create`
+- `du_element_link_delete`
 - `du_storage_resolve`
 - `du_storage_describe`
 - `du_storage_spawn`
@@ -165,6 +171,7 @@ Practical workflow:
 5. Mutate in batches, then confirm in batches.
    - Use `du_industry_configure_batch` for recipe plus mode plus amount.
    - Use `du_industry_stop_batch`, `du_industry_set_recipes`, and `du_industry_start_batch` only when the workflow needs those split steps explicitly.
+   - Use `du_element_add`, `du_element_delete`, `du_element_destroy`, `du_element_replace`, `du_element_link_create`, and `du_element_link_delete` for direct backend element-management mutations.
    - Use `du_storage_spawn`, `du_storage_take`, `du_storage_move_slot`, and `du_storage_drop_slot` for deterministic storage mutations.
 
 Typical patterns:

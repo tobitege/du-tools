@@ -82,6 +82,47 @@ const renameElementBatchEntrySchema = z.object({
   message: "Each entry must have either id or name"
 });
 
+const constructElementTargetFields = {
+  id: z.number().int().nonnegative().optional().describe("Construct-local element ID"),
+  name: z.string().trim().min(1).optional().describe("Exact element custom name or exact type name")
+};
+
+const constructElementTargetSchema = z.object(constructElementTargetFields).refine(entry => entry.id !== undefined || (entry.name !== undefined && entry.name.trim().length > 0), {
+  message: "Provide either `id` or `name`."
+});
+
+const vec3Schema = z.object({
+  x: z.number().describe("X position in construct-local meters"),
+  y: z.number().describe("Y position in construct-local meters"),
+  z: z.number().describe("Z position in construct-local meters")
+});
+
+const quatSchema = z.object({
+  x: z.number().describe("Quaternion X"),
+  y: z.number().describe("Quaternion Y"),
+  z: z.number().describe("Quaternion Z"),
+  w: z.number().describe("Quaternion W")
+});
+
+const plugTypeSchema = z.enum([
+  "PLUG_ITEM",
+  "PLUG_ATMOFUEL",
+  "PLUG_SPACEFUEL",
+  "PLUG_FLUID",
+  "PLUG_ELECTRICITY",
+  "PLUG_SIGNAL",
+  "PLUG_HEAT",
+  "PLUG_CONTROL",
+  "PLUG_MARKET",
+  "PLUG_ROCKETFUEL",
+  "PLUG_GRAVITON",
+  "PLUG_USER1",
+  "PLUG_USER2",
+  "PLUG_USER3",
+  "PLUG_USER4",
+  "PLUG_USER5"
+]);
+
 const constructRenameElementsBatchOutputSchema = {
   found: z.boolean(),
   commandId: z.string(),
@@ -104,6 +145,34 @@ const constructRuntimeAvailabilityOutputSchema = {
   currentConstruct: z.union([jsonRecordSchema, z.null()]),
   targetConstruct: z.union([jsonRecordSchema, z.null()]),
   availability: z.union([jsonRecordSchema, z.null()]),
+  parseError: z.string().nullable()
+};
+
+const playerPositionOutputSchema = {
+  found: z.boolean(),
+  commandId: z.string(),
+  createdAtUtc: z.string().nullable(),
+  success: z.boolean(),
+  error: z.string().nullable(),
+  method: z.string().nullable(),
+  playerId: z.number().int().nonnegative().nullable(),
+  construct: z.union([jsonRecordSchema, z.null()]),
+  localPosition: z.union([jsonRecordSchema, z.null()]),
+  universePosition: z.union([jsonRecordSchema, z.null()]),
+  parseError: z.string().nullable()
+};
+
+const elementMutationOutputSchema = {
+  found: z.boolean(),
+  commandId: z.string(),
+  createdAtUtc: z.string().nullable(),
+  success: z.boolean(),
+  error: z.string().nullable(),
+  method: z.string().nullable(),
+  target: z.union([jsonRecordSchema, z.null()]),
+  sourceSlot: z.union([jsonRecordSchema, z.null()]),
+  link: z.union([jsonRecordSchema, z.null()]),
+  result: z.union([jsonRecordSchema, z.null()]),
   parseError: z.string().nullable()
 };
 
@@ -202,6 +271,20 @@ function compactElementRef(source: Record<string, unknown> | null): Record<strin
   ]);
 }
 
+function compactResolvedElementTarget(source: Record<string, unknown> | null): Record<string, unknown> | null {
+  const nested = firstRecord(source, ["element"]);
+  const compact = compactElementRef(nested ?? source);
+  const label = firstString(source, ["label"]);
+  return compactObject([
+    ["label", label],
+    ["id", compact?.["id"]],
+    ["name", compact?.["name"]],
+    ["typeName", compact?.["typeName"]],
+    ["category", compact?.["category"]],
+    ["state", compact?.["state"]]
+  ]);
+}
+
 function compactLinkEndpoint(source: Record<string, unknown> | null, kind: "from" | "to"): Record<string, unknown> | null {
   const nested = kind === "from"
     ? firstRecord(source, ["from", "source", "fromElement", "sourceElement"])
@@ -280,6 +363,28 @@ function compactRenameResult(source: Record<string, unknown> | null): Record<str
     ["oldName", firstString(source, ["oldName"])],
     ["status", firstString(source, ["status", "state"])],
     ["message", firstString(source, ["message", "reason", "error"])]
+  ]);
+}
+
+function compactSlotRef(source: Record<string, unknown> | null): Record<string, unknown> | null {
+  return compactObject([
+    ["slot", firstInteger(source, ["slot", "slotIndex", "fromSlot"])],
+    ["itemTypeId", firstInteger(source, ["itemTypeId"])],
+    ["itemName", firstString(source, ["itemName", "name", "displayName"])],
+    ["quantity", asNumber(source?.quantity)],
+    ["rawQuantity", asNumber(source?.rawQuantity)]
+  ]);
+}
+
+function compactElementMutationResult(source: Record<string, unknown> | null): Record<string, unknown> | null {
+  return compactObject([
+    ["operation", firstString(source, ["operation", "action"])],
+    ["status", firstString(source, ["status", "state"])],
+    ["message", firstString(source, ["message", "reason", "error"])],
+    ["itemTypeId", firstInteger(source, ["itemTypeId"])],
+    ["itemName", firstString(source, ["itemName"])],
+    ["fromSlot", firstInteger(source, ["fromSlot"])],
+    ["returnedToInventory", asBoolean(source?.returnedToInventory)]
   ]);
 }
 
@@ -470,6 +575,49 @@ async function enqueueToolboxOpsCommand(
 
 export function registerConstructTools(server: McpServer, commandQueue: BridgeCommandQueue, eventStore: BridgeEventStore): void {
   server.registerTool(
+    "du_player_position",
+    {
+      title: "Player Position",
+      description: "Reads the player's current local position within the current construct plus the universe position.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Requester player ID"),
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the toolbox_ops_result event")
+      },
+      outputSchema: playerPositionOutputSchema
+    },
+    async ({ playerId, timeoutMs }) => {
+      const eventResult = await enqueueToolboxOpsCommand(commandQueue, eventStore, playerId, "player_position", [], timeoutMs);
+      const parsed = parseToolboxOpsPayload(eventResult.payloadJson);
+      const payload = parsed.parsed;
+      const structuredContent = {
+        found: eventResult.found,
+        commandId: eventResult.commandId,
+        createdAtUtc: eventResult.createdAtUtc,
+        success: parsed.success,
+        error: parsed.error,
+        method: parsed.method,
+        playerId: asInteger(payload?.playerId),
+        construct: asRecord(payload?.construct),
+        localPosition: asRecord(payload?.localPosition),
+        universePosition: asRecord(payload?.universePosition),
+        parseError: parsed.parseError
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: eventResult.found
+              ? renderTextPayload(structuredContent)
+              : `No toolbox_ops_result event received within ${timeoutMs}ms.`
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
+  server.registerTool(
     "du_construct_runtime_availability",
     {
       title: "Construct Runtime Availability",
@@ -549,7 +697,7 @@ export function registerConstructTools(server: McpServer, commandQueue: BridgeCo
       const renderedEntries = batchPayload.results.map((entry: Record<string, unknown>) => ({
         index: entry.index as number,
         success: entry.success as boolean,
-        target: compactElementRef(entry.target as Record<string, unknown> | null),
+        target: compactResolvedElementTarget(entry.target as Record<string, unknown> | null),
         result: compactRenameResult(entry.result as Record<string, unknown> | null),
         error: asString(entry.error),
         details: entry.details as Record<string, unknown> | null ?? null
@@ -574,6 +722,336 @@ export function registerConstructTools(server: McpServer, commandQueue: BridgeCo
           results: renderedEntries,
           parseError: parsed.parseError
         }
+      };
+    }
+  );
+
+  server.registerTool(
+    "du_element_add",
+    {
+      title: "Add Construct Element",
+      description: "Deploys one inventory element item onto a construct at a specific local position and rotation.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Requester player ID"),
+        constructId: z.number().int().nonnegative().optional().describe("Optional construct ID. When omitted, the player's current construct is used."),
+        fromSlot: z.number().int().nonnegative().describe("Occupied player inventory slot containing the element item to deploy"),
+        position: vec3Schema.describe("Construct-local element position"),
+        rotation: quatSchema.optional().describe("Construct-local element rotation. Defaults to identity quaternion when omitted."),
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the toolbox_ops_result event")
+      },
+      outputSchema: elementMutationOutputSchema
+    },
+    async ({ playerId, constructId, fromSlot, position, rotation, timeoutMs }) => {
+      const request: Record<string, unknown> = {
+        ...(typeof constructId === "number" ? { constructId } : {}),
+        fromSlot,
+        position,
+        ...(rotation ? { rotation } : {})
+      };
+      const eventResult = await enqueueToolboxOpsCommand(commandQueue, eventStore, playerId, "element_add", [request], timeoutMs);
+      const parsed = parseToolboxOpsPayload(eventResult.payloadJson);
+      const payload = parsed.parsed;
+      const structuredContent = {
+        found: eventResult.found,
+        commandId: eventResult.commandId,
+        createdAtUtc: eventResult.createdAtUtc,
+        success: parsed.success,
+        error: parsed.error,
+        method: parsed.method,
+        target: compactResolvedElementTarget(asRecord(payload?.target)),
+        sourceSlot: compactSlotRef(asRecord(payload?.sourceSlot)),
+        link: null,
+        result: compactElementMutationResult(asRecord(payload?.result)),
+        parseError: parsed.parseError
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: eventResult.found
+              ? renderTextPayload(structuredContent)
+              : `No toolbox_ops_result event received within ${timeoutMs}ms.`
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
+  server.registerTool(
+    "du_element_delete",
+    {
+      title: "Delete Construct Element",
+      description: "Picks up one construct element back into player inventory through the backend element-management path.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Requester player ID"),
+        constructId: z.number().int().nonnegative().optional().describe("Optional construct ID. When omitted, the player's current construct is used."),
+        id: constructElementTargetFields.id,
+        name: constructElementTargetFields.name,
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the toolbox_ops_result event")
+      },
+      outputSchema: elementMutationOutputSchema
+    },
+    async ({ playerId, constructId, id, name, timeoutMs }) => {
+      const request: Record<string, unknown> = {
+        ...(typeof constructId === "number" ? { constructId } : {}),
+        ...(typeof id === "number" ? { localId: id } : {}),
+        ...(typeof name === "string" && name.trim().length > 0 ? { name: name.trim() } : {})
+      };
+      const eventResult = await enqueueToolboxOpsCommand(commandQueue, eventStore, playerId, "element_delete", [request], timeoutMs);
+      const parsed = parseToolboxOpsPayload(eventResult.payloadJson);
+      const payload = parsed.parsed;
+      const structuredContent = {
+        found: eventResult.found,
+        commandId: eventResult.commandId,
+        createdAtUtc: eventResult.createdAtUtc,
+        success: parsed.success,
+        error: parsed.error,
+        method: parsed.method,
+        target: compactResolvedElementTarget(asRecord(payload?.target)),
+        sourceSlot: null,
+        link: null,
+        result: compactElementMutationResult(asRecord(payload?.result)),
+        parseError: parsed.parseError
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: eventResult.found
+              ? renderTextPayload(structuredContent)
+              : `No toolbox_ops_result event received within ${timeoutMs}ms.`
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
+  server.registerTool(
+    "du_element_destroy",
+    {
+      title: "Destroy Construct Element",
+      description: "Permanently removes one construct element without returning it to inventory.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Requester player ID"),
+        constructId: z.number().int().nonnegative().optional().describe("Optional construct ID. When omitted, the player's current construct is used."),
+        id: constructElementTargetFields.id,
+        name: constructElementTargetFields.name,
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the toolbox_ops_result event")
+      },
+      outputSchema: elementMutationOutputSchema
+    },
+    async ({ playerId, constructId, id, name, timeoutMs }) => {
+      const request: Record<string, unknown> = {
+        ...(typeof constructId === "number" ? { constructId } : {}),
+        ...(typeof id === "number" ? { localId: id } : {}),
+        ...(typeof name === "string" && name.trim().length > 0 ? { name: name.trim() } : {})
+      };
+      const eventResult = await enqueueToolboxOpsCommand(commandQueue, eventStore, playerId, "element_destroy", [request], timeoutMs);
+      const parsed = parseToolboxOpsPayload(eventResult.payloadJson);
+      const payload = parsed.parsed;
+      const structuredContent = {
+        found: eventResult.found,
+        commandId: eventResult.commandId,
+        createdAtUtc: eventResult.createdAtUtc,
+        success: parsed.success,
+        error: parsed.error,
+        method: parsed.method,
+        target: compactResolvedElementTarget(asRecord(payload?.target)),
+        sourceSlot: null,
+        link: null,
+        result: compactElementMutationResult(asRecord(payload?.result)),
+        parseError: parsed.parseError
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: eventResult.found
+              ? renderTextPayload(structuredContent)
+              : `No toolbox_ops_result event received within ${timeoutMs}ms.`
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
+  server.registerTool(
+    "du_element_replace",
+    {
+      title: "Replace Construct Element",
+      description: "Replaces a damaged construct element using one matching inventory item through the backend element-management path.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Requester player ID"),
+        constructId: z.number().int().nonnegative().optional().describe("Optional construct ID. When omitted, the player's current construct is used."),
+        id: constructElementTargetFields.id,
+        name: constructElementTargetFields.name,
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the toolbox_ops_result event")
+      },
+      outputSchema: elementMutationOutputSchema
+    },
+    async ({ playerId, constructId, id, name, timeoutMs }) => {
+      const request: Record<string, unknown> = {
+        ...(typeof constructId === "number" ? { constructId } : {}),
+        ...(typeof id === "number" ? { localId: id } : {}),
+        ...(typeof name === "string" && name.trim().length > 0 ? { name: name.trim() } : {})
+      };
+      const eventResult = await enqueueToolboxOpsCommand(commandQueue, eventStore, playerId, "element_replace", [request], timeoutMs);
+      const parsed = parseToolboxOpsPayload(eventResult.payloadJson);
+      const payload = parsed.parsed;
+      const structuredContent = {
+        found: eventResult.found,
+        commandId: eventResult.commandId,
+        createdAtUtc: eventResult.createdAtUtc,
+        success: parsed.success,
+        error: parsed.error,
+        method: parsed.method,
+        target: compactResolvedElementTarget(asRecord(payload?.target)),
+        sourceSlot: null,
+        link: null,
+        result: compactElementMutationResult(asRecord(payload?.result)),
+        parseError: parsed.parseError
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: eventResult.found
+              ? renderTextPayload(structuredContent)
+              : `No toolbox_ops_result event received within ${timeoutMs}ms.`
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
+  server.registerTool(
+    "du_element_link_create",
+    {
+      title: "Create Element Link",
+      description: "Creates one backend element link between two exact construct elements.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Requester player ID"),
+        constructId: z.number().int().nonnegative().optional().describe("Optional construct ID. When omitted, the player's current construct is used."),
+        from: constructElementTargetSchema.describe("Exact source element selector"),
+        fromPlug: z.number().int().describe("Source plug index"),
+        to: constructElementTargetSchema.describe("Exact destination element selector"),
+        toPlug: z.number().int().describe("Destination plug index"),
+        plugType: plugTypeSchema.describe("Exact backend plug type enum value"),
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the toolbox_ops_result event")
+      },
+      outputSchema: elementMutationOutputSchema
+    },
+    async ({ playerId, constructId, from, fromPlug, to, toPlug, plugType, timeoutMs }) => {
+      const eventResult = await enqueueToolboxOpsCommand(commandQueue, eventStore, playerId, "element_link_create", [{
+        ...(typeof constructId === "number" ? { constructId } : {}),
+        from: {
+          ...(typeof from.id === "number" ? { localId: from.id } : {}),
+          ...(typeof from.name === "string" && from.name.trim().length > 0 ? { name: from.name.trim() } : {})
+        },
+        fromPlug,
+        to: {
+          ...(typeof to.id === "number" ? { localId: to.id } : {}),
+          ...(typeof to.name === "string" && to.name.trim().length > 0 ? { name: to.name.trim() } : {})
+        },
+        toPlug,
+        plugType
+      }], timeoutMs);
+      const parsed = parseToolboxOpsPayload(eventResult.payloadJson);
+      const payload = parsed.parsed;
+      const structuredContent = {
+        found: eventResult.found,
+        commandId: eventResult.commandId,
+        createdAtUtc: eventResult.createdAtUtc,
+        success: parsed.success,
+        error: parsed.error,
+        method: parsed.method,
+        target: null,
+        sourceSlot: null,
+        link: asRecord(payload?.link) ? compactLink(asRecord(payload?.link) as Record<string, unknown>) : null,
+        result: compactElementMutationResult(asRecord(payload?.result)),
+        parseError: parsed.parseError
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: eventResult.found
+              ? renderTextPayload(structuredContent)
+              : `No toolbox_ops_result event received within ${timeoutMs}ms.`
+          }
+        ],
+        structuredContent
+      };
+    }
+  );
+
+  server.registerTool(
+    "du_element_link_delete",
+    {
+      title: "Delete Element Link",
+      description: "Deletes one backend element link between two exact construct elements.",
+      inputSchema: {
+        playerId: z.number().int().nonnegative().describe("Requester player ID"),
+        constructId: z.number().int().nonnegative().optional().describe("Optional construct ID. When omitted, the player's current construct is used."),
+        from: constructElementTargetSchema.describe("Exact source element selector"),
+        fromPlug: z.number().int().describe("Source plug index"),
+        to: constructElementTargetSchema.describe("Exact destination element selector"),
+        toPlug: z.number().int().describe("Destination plug index"),
+        plugType: plugTypeSchema.describe("Exact backend plug type enum value"),
+        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the toolbox_ops_result event")
+      },
+      outputSchema: elementMutationOutputSchema
+    },
+    async ({ playerId, constructId, from, fromPlug, to, toPlug, plugType, timeoutMs }) => {
+      const eventResult = await enqueueToolboxOpsCommand(commandQueue, eventStore, playerId, "element_link_delete", [{
+        ...(typeof constructId === "number" ? { constructId } : {}),
+        from: {
+          ...(typeof from.id === "number" ? { localId: from.id } : {}),
+          ...(typeof from.name === "string" && from.name.trim().length > 0 ? { name: from.name.trim() } : {})
+        },
+        fromPlug,
+        to: {
+          ...(typeof to.id === "number" ? { localId: to.id } : {}),
+          ...(typeof to.name === "string" && to.name.trim().length > 0 ? { name: to.name.trim() } : {})
+        },
+        toPlug,
+        plugType
+      }], timeoutMs);
+      const parsed = parseToolboxOpsPayload(eventResult.payloadJson);
+      const payload = parsed.parsed;
+      const structuredContent = {
+        found: eventResult.found,
+        commandId: eventResult.commandId,
+        createdAtUtc: eventResult.createdAtUtc,
+        success: parsed.success,
+        error: parsed.error,
+        method: parsed.method,
+        target: null,
+        sourceSlot: null,
+        link: asRecord(payload?.link) ? compactLink(asRecord(payload?.link) as Record<string, unknown>) : null,
+        result: compactElementMutationResult(asRecord(payload?.result)),
+        parseError: parsed.parseError
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: eventResult.found
+              ? renderTextPayload(structuredContent)
+              : `No toolbox_ops_result event received within ${timeoutMs}ms.`
+          }
+        ],
+        structuredContent
       };
     }
   );
