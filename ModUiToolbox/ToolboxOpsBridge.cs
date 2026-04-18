@@ -201,8 +201,8 @@ public sealed partial class MyDuMod
                     return await BuildMoveSlotPayload(commandId, playerId, payload);
                 case "drop_slot":
                     return await BuildDropSlotPayload(commandId, playerId, payload);
-                case "rename_element":
-                    return await BuildRenameElementPayload(commandId, playerId, payload);
+                case "rename_element_batch":
+                    return await BuildRenameElementBatchPayload(commandId, playerId, payload);
                 case "refresh_construct_index":
                     return await BuildRefreshConstructIndexPayload(commandId, playerId, payload);
                 case "construct_runtime_availability":
@@ -714,53 +714,147 @@ public sealed partial class MyDuMod
         };
     }
 
-    private async Task<JObject> BuildRenameElementPayload(string commandId, ulong requesterPlayerId, JObject payload)
+    private async Task<JObject> BuildRenameElementBatchPayload(string commandId, ulong requesterPlayerId, JObject payload)
     {
         var probeArgs = payload["probeArgs"] as JArray;
-        var selector = ReadProbeArgObject(probeArgs, 0);
-        var newName = (ReadProbeArgString(probeArgs, 1) ?? "").Trim();
-        if (string.IsNullOrWhiteSpace(newName))
+        var batchOptions = ReadProbeArgObject(probeArgs, 0) ?? new JObject();
+        var batchEntries = probeArgs is not null && probeArgs.Count > 1 ? probeArgs[1] as JArray : null;
+        if (batchEntries is null || batchEntries.Count == 0)
         {
-            return CreateToolboxOpsFailure(commandId, "rename_element", "invalid_element_name");
+            return CreateToolboxOpsFailure(commandId, "rename_element_batch", "rename_batch_entries_required");
         }
 
-        var target = await ResolveConstructElementTarget(requesterPlayerId, selector);
-        var beforeName = TryReadElementCustomName(target.Element);
-        var update = new ElementPropertyUpdate
+        var constructIdValue = ReadUInt64Token(batchOptions["constructId"]);
+        var results = new JArray();
+
+        for (var index = 0; index < batchEntries.Count; index++)
         {
-            name = "name",
-            value = new PropertyValue(newName),
-            elementId = target.Element.elementId,
-            constructId = target.Element.constructId,
-            timePoint = TimePoint.Now(),
-            relative = false
-        };
-
-        await orleans.GetElementManagementGrain().ElementPropertyUpdate((PlayerId)requesterPlayerId, update);
-
-        var updatedTarget = await ResolveConstructElementTarget(
-            requesterPlayerId,
-            new JObject
+            if (batchEntries[index] is not JObject entry)
             {
-                ["constructId"] = target.Element.constructId,
-                ["elementId"] = target.Element.elementId
-            });
+                results.Add(new JObject
+                {
+                    ["index"] = index,
+                    ["success"] = false,
+                    ["error"] = "rename_batch_entry_invalid"
+                });
+                continue;
+            }
 
+            var newName = (entry["newName"]?.Value<string>() ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(newName))
+            {
+                results.Add(new JObject
+                {
+                    ["index"] = index,
+                    ["success"] = false,
+                    ["error"] = "invalid_element_name"
+                });
+                continue;
+            }
+
+            var entrySelector = new JObject();
+            if (constructIdValue.HasValue && constructIdValue.Value > 0)
+            {
+                entrySelector["constructId"] = constructIdValue.Value;
+            }
+
+            var localId = ReadUInt64Token(entry["localId"]);
+            var name = entry["name"]?.Value<string>()?.Trim();
+            if (localId.HasValue && localId.Value > 0)
+            {
+                entrySelector["localId"] = localId.Value;
+            }
+            else if (!string.IsNullOrWhiteSpace(name))
+            {
+                entrySelector["name"] = name;
+            }
+            else
+            {
+                results.Add(new JObject
+                {
+                    ["index"] = index,
+                    ["success"] = false,
+                    ["error"] = "rename_selector_requires_exactly_one_of_localId_name"
+                });
+                continue;
+            }
+
+            try
+            {
+                var target = await ResolveConstructElementTarget(requesterPlayerId, entrySelector);
+                var beforeName = TryReadElementCustomName(target.Element);
+                var update = new ElementPropertyUpdate
+                {
+                    name = "name",
+                    value = new PropertyValue(newName),
+                    elementId = target.Element.elementId,
+                    constructId = target.Element.constructId,
+                    timePoint = TimePoint.Now(),
+                    relative = false
+                };
+
+                await orleans.GetElementManagementGrain().ElementPropertyUpdate((PlayerId)requesterPlayerId, update);
+
+                var updatedTarget = await ResolveConstructElementTarget(
+                    requesterPlayerId,
+                    new JObject
+                    {
+                        ["constructId"] = target.Element.constructId,
+                        ["elementId"] = target.Element.elementId
+                    });
+
+                results.Add(new JObject
+                {
+                    ["index"] = index,
+                    ["success"] = true,
+                    ["target"] = BuildResolvedConstructElementObject(updatedTarget),
+                    ["result"] = new JObject
+                    {
+                        ["operation"] = "rename_element",
+                        ["applied"] = true,
+                        ["propertyName"] = "name",
+                        ["beforeName"] = string.IsNullOrWhiteSpace(beforeName) ? JValue.CreateNull() : beforeName,
+                        ["afterName"] = newName
+                    }
+                });
+            }
+            catch (ToolboxOpsException ex)
+            {
+                results.Add(new JObject
+                {
+                    ["index"] = index,
+                    ["success"] = false,
+                    ["error"] = ex.Message,
+                    ["details"] = ex.Details is null ? JValue.CreateNull() : ex.Details
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "UIToolbox rename batch failed at index {Index}", index);
+                results.Add(new JObject
+                {
+                    ["index"] = index,
+                    ["success"] = false,
+                    ["error"] = ex.Message
+                });
+            }
+        }
+
+        var successfulCount = results.Count(result => result?["success"]?.Value<bool>() == true);
+        var failedCount = results.Count - successfulCount;
         return new JObject
         {
             ["commandId"] = commandId,
-            ["success"] = true,
-            ["error"] = JValue.CreateNull(),
-            ["method"] = "rename_element",
-            ["target"] = BuildResolvedConstructElementObject(updatedTarget),
-            ["result"] = new JObject
+            ["success"] = failedCount == 0,
+            ["error"] = failedCount == 0 ? JValue.CreateNull() : "rename_batch_contains_failures",
+            ["method"] = "rename_element_batch",
+            ["summary"] = new JObject
             {
-                ["operation"] = "rename_element",
-                ["applied"] = true,
-                ["propertyName"] = "name",
-                ["beforeName"] = string.IsNullOrWhiteSpace(beforeName) ? JValue.CreateNull() : beforeName,
-                ["afterName"] = newName
-            }
+                ["requestedCount"] = results.Count,
+                ["successfulCount"] = successfulCount,
+                ["failedCount"] = failedCount
+            },
+            ["results"] = results
         };
     }
 
@@ -1114,7 +1208,7 @@ public sealed partial class MyDuMod
             return CreateToolboxOpsFailure(commandId, "industry_configure_batch", "invalid_stop_mode");
         }
 
-        var parallelism = ClampInt32(ReadInt32Token(batchOptions["parallelism"]), 1, 8, 1);
+        var parallelism = ClampInt32(ReadInt32Token(batchOptions["parallelism"]), 1, 10, 1);
         var pollIntervalMs = ClampInt32(ReadInt32Token(batchOptions["pollIntervalMs"]), 50, 1000, 150);
         var stateTimeoutMs = ClampInt32(ReadInt32Token(batchOptions["stateTimeoutMs"]), 500, 30000, 5000);
 

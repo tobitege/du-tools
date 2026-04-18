@@ -74,15 +74,23 @@ const constructAnalyzePatternsOutputSchema = {
   parseError: z.string().nullable()
 };
 
-const constructRenameElementOutputSchema = {
+const renameElementBatchEntrySchema = z.object({
+  id: z.number().int().nonnegative().optional().describe("Construct-local element ID"),
+  name: z.string().trim().min(1).optional().describe("Exact element custom name or exact type name"),
+  newName: z.string().trim().min(1).describe("New exact custom name to assign")
+}).refine(entry => entry.id !== undefined || (entry.name !== undefined && entry.name.trim().length > 0), {
+  message: "Each entry must have either id or name"
+});
+
+const constructRenameElementsBatchOutputSchema = {
   found: z.boolean(),
   commandId: z.string(),
   createdAtUtc: z.string().nullable(),
   success: z.boolean(),
   error: z.string().nullable(),
   method: z.string().nullable(),
-  target: z.union([jsonRecordSchema, z.null()]),
-  result: z.union([jsonRecordSchema, z.null()]),
+  summary: z.union([jsonRecordSchema, z.null()]),
+  results: z.array(jsonRecordSchema),
   parseError: z.string().nullable()
 };
 
@@ -277,6 +285,20 @@ function compactRenameResult(source: Record<string, unknown> | null): Record<str
 
 function renderTextPayload(payload: Record<string, unknown>): string {
   return JSON.stringify(payload, null, 2);
+}
+
+function parseBatchPayload(parsed: { parsed: Record<string, unknown> | null; success: boolean; error: string | null; method: string | null; target: Record<string, unknown> | null; result: Record<string, unknown> | null; parseError: string | null }): {
+  summary: Record<string, unknown> | null;
+  results: Record<string, unknown>[];
+} {
+  return {
+    summary: asRecord(parsed.parsed?.summary),
+    results: asRecordArray(parsed.parsed?.results)
+  };
+}
+
+function renderBatchText(batchPayload: { summary: Record<string, unknown> | null; results: Record<string, unknown>[] }): string {
+  return JSON.stringify(batchPayload, null, 2);
 }
 
 function parseConstructInspectorPayload(payloadJson: string | null): {
@@ -494,38 +516,50 @@ export function registerConstructTools(server: McpServer, commandQueue: BridgeCo
   );
 
   server.registerTool(
-    "du_construct_rename_element",
+    "du_construct_rename_elements",
     {
-      title: "Rename Construct Element",
-      description: "Renames one construct element through the backend toolbox path using exactly one deterministic selector.",
+      title: "Rename Construct Elements (Batch)",
+      description: "Renames multiple construct elements through the backend toolbox path in a single batch call. Each entry selects an element by id or name and assigns a new custom name.",
       inputSchema: {
         playerId: z.number().int().nonnegative().describe("Requester player ID"),
         constructId: z.number().int().nonnegative().optional().describe("Optional construct ID. When omitted, the player's current construct is used."),
-        id: z.number().int().nonnegative().optional().describe("Construct-local element ID"),
-        name: z.string().trim().min(1).optional().describe("Exact element custom name or exact type name"),
-        newName: z.string().trim().min(1).describe("New exact custom name to assign"),
-        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the toolbox_ops_result event")
+        entries: z.array(renameElementBatchEntrySchema).min(1).describe("Batch entries. Each entry must have either id or name plus a newName."),
+        timeoutMs: clampedIntSchema(250, 60000, 15000).describe("How long to wait for the toolbox_ops_result event")
       },
-      outputSchema: constructRenameElementOutputSchema
+      outputSchema: constructRenameElementsBatchOutputSchema
     },
-    async ({ playerId, constructId, id, name, newName, timeoutMs }) => {
-      const selector: Record<string, unknown> = {
-        ...(typeof constructId === "number" ? { constructId } : {}),
-        ...(typeof id === "number" ? { localId: id } : {}),
-        ...(typeof name === "string" && name.trim().length > 0 ? { name: name.trim() } : {})
+    async ({ playerId, constructId, entries, timeoutMs }) => {
+      const batchOptions: Record<string, unknown> = {
+        ...(typeof constructId === "number" ? { constructId } : {})
       };
-      const eventResult = await enqueueToolboxOpsCommand(commandQueue, eventStore, playerId, "rename_element", [selector, newName.trim()], timeoutMs);
+      const batchEntries = entries.map(entry => {
+        const entryObj: Record<string, unknown> = {
+          newName: entry.newName.trim()
+        };
+        if (typeof entry.id === "number") {
+          entryObj.localId = entry.id;
+        } else if (typeof entry.name === "string" && entry.name.trim().length > 0) {
+          entryObj.name = entry.name.trim();
+        }
+        return entryObj;
+      });
+      const eventResult = await enqueueToolboxOpsCommand(commandQueue, eventStore, playerId, "rename_element_batch", [batchOptions, batchEntries], timeoutMs);
       const parsed = parseToolboxOpsPayload(eventResult.payloadJson);
-      const payload = {
-        target: compactElementRef(parsed.target),
-        result: compactRenameResult(parsed.result)
-      };
+      const batchPayload = parseBatchPayload(parsed);
+      const renderedEntries = batchPayload.results.map((entry: Record<string, unknown>) => ({
+        index: entry.index as number,
+        success: entry.success as boolean,
+        target: compactElementRef(entry.target as Record<string, unknown> | null),
+        result: compactRenameResult(entry.result as Record<string, unknown> | null),
+        error: asString(entry.error),
+        details: entry.details as Record<string, unknown> | null ?? null
+      }));
       return {
         content: [
           {
             type: "text",
             text: eventResult.found
-              ? renderTextPayload(payload)
+              ? renderBatchText(batchPayload)
               : `No toolbox_ops_result event received within ${timeoutMs}ms.`
           }
         ],
@@ -536,8 +570,8 @@ export function registerConstructTools(server: McpServer, commandQueue: BridgeCo
           success: parsed.success,
           error: parsed.error,
           method: parsed.method,
-          target: payload.target,
-          result: payload.result,
+          summary: batchPayload.summary,
+          results: renderedEntries,
           parseError: parsed.parseError
         }
       };

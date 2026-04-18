@@ -2,6 +2,12 @@
 
 `DuMcpBridge` is a local MCP server that turns the existing Dual Universe modding pipeline into a bidirectional bridge.
 
+Important batch limit:
+
+- for batched industry operations, `parallelism` must be `10` or lower
+- any value above `10` is a command rejection
+- do not retry with the same invalid value, because that only creates avoidable repeat tool calls
+
 This tool acts as the messenger between an external AI/editor and your live Dual Universe UI.
 It does not directly modify the game client on its own.
 Instead, it drops request files into your `MyDUserver` working folders, waits for the in-game side to pick them up, and then reads the result files that come back.
@@ -115,12 +121,16 @@ Current `toolbox_ops` MCP tools:
 - `du_construct_index_industry_supports`
 - `du_construct_index_industry_support_storage`
 - `du_construct_runtime_availability`
+- `du_construct_rename_elements` (batch-only; accepts an `entries` list of `{id?, name?, newName}`)
 - `du_storage_resolve`
 - `du_storage_describe`
 - `du_storage_spawn`
+- `du_storage_spawn_batch`
 - `du_storage_take`
 - `du_storage_move_slot`
 - `du_storage_drop_slot`
+- `du_query_item_bank`
+- `du_list_item_bank_groups`
 - `du_industry_describe_batch`
 - `du_industry_resolve_recipes`
 - `du_industry_stop_batch`
@@ -314,6 +324,7 @@ Important behavior:
 - `constructId` is optional and defaults to the player's current construct, but explicit cross-construct selectors are supported
 - `du_storage_describe` is batchable by default through an optional `entries` list; single-target calls keep the old `storage` plus `snapshot` shape, while batched calls return `summary` plus compact per-entry `results`
 - ambiguous storage or item-name matches return structured candidate lists instead of picking a target
+- `du_construct_rename_elements` is batch-only; each entry selects by construct-local `id` or exact `name` and assigns `newName`
 - industry target selectors are deterministic only and accept exactly one of construct-local `id` or exact `name`
 - the user-facing industry MCP surface is batch-first; even single-target work is sent as one-entry `entries` lists
 - `du_industry_set_recipes` enforces that the target machines are stopped before changing recipes

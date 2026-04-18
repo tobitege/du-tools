@@ -42,8 +42,14 @@ TU Warp Cells 1 (4062) and TU Warp Cells 2 (6441)
   └─ Warp Cells S5 (id 4195, ContainerMedium)
   └─ Warp Cells S6 (id 4224, ContainerMedium)
   └─ Warp Cells S7 (id 4443, ContainerMedium)
-       Each S buffer is fed by ~9-10 Glass2 smelters, for example S1 is fed by:
-         IndustryGlass2 id 2960, 2961, 2962, 2963, 2964, 2965, 2966, 2967, 2968, 2977
+        Each S buffer is fed by exactly 10 Glass2 smelters:
+          S1 (→4061): IndustryGlass2 id 2960, 2961, 2962, 2963, 2964, 2965, 2966, 2967, 2968, 2977
+          S2 (→4060): IndustryGlass2 id 4010, 4011, 4012, 4013, 4014, 4015, 4016, 4017, 4018, 4019
+          S3 (→4135): IndustryGlass2 id 4114, 4115, 4116, 4117, 4118, 4119, 4120, 4146, 4147, 4148
+          S4 (→4172): IndustryGlass2 id 4163, 4164, 4165, 4166, 4167, 4168, 4179, 4180, 4181, 4197
+          S5 (→4195): IndustryGlass2 id 4182, 4183, 4184, 4185, 4186, 4187, 4188, 4196, 4198, 4199
+          S6 (→4224): IndustryGlass2 id 4212, 4213, 4214, 4215, 4216, 4217, 4218, 4219, 4236, 4237
+          S7 (→4443): IndustryGlass2 id 4238, 4239, 4240, 4241, 4242, 4243, 4480, 4481, 4494, 4921
        Glass2 output → S buffer input (direct link, no TU in between)
             ↓
        WCell Support 1..9 (id 4142, 4143, 4144, 4171, 4193, 4194, 4266, 4274, etc.)
@@ -201,7 +207,13 @@ Based on the index snapshot, all named transfer units with "Stopped" in their na
 ### Glass2 smelter bank (warp cell production)
 | Element | ID | Type |
 |--------|-----|------|
-| IndustryGlass2 (bank, S1) | 2960-2968, 2977 | IndustryGlass2 (10 machines) |
+| IndustryGlass2 S1 (→4061) | 2960-2968, 2977 | IndustryGlass2 (10 machines) |
+| IndustryGlass2 S2 (→4060) | 4010-4019 | IndustryGlass2 (10 machines) |
+| IndustryGlass2 S3 (→4135) | 4114-4120, 4146-4148 | IndustryGlass2 (10 machines) |
+| IndustryGlass2 S4 (→4172) | 4163-4168, 4179-4181, 4197 | IndustryGlass2 (10 machines) |
+| IndustryGlass2 S5 (→4195) | 4182-4188, 4196, 4198-4199 | IndustryGlass2 (10 machines) |
+| IndustryGlass2 S6 (→4224) | 4212-4219, 4236-4237 | IndustryGlass2 (10 machines) |
+| IndustryGlass2 S7 (→4443) | 4238-4243, 4480-4481, 4494, 4921 | IndustryGlass2 (10 machines) |
 
 ### WCell Support (shared feeder buffers)
 | Element | ID | Type |

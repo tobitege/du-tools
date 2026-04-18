@@ -510,7 +510,7 @@ export function registerIndustryBackendTools(server: McpServer, commandQueue: Br
         playerId: z.number().int().nonnegative().describe("Requester player ID"),
         constructId: z.number().int().nonnegative().optional().describe("Optional construct ID; defaults to the player's current construct"),
         stopMode: z.enum(["soft", "hard"]).default("soft").describe("Stop mode to use when a device must be stopped before recipe assignment."),
-        parallelism: z.number().int().min(1).max(8).default(1).describe("How many devices the mod may configure concurrently."),
+        parallelism: z.number().int().min(1).max(10).default(1).describe("How many devices the mod may configure concurrently. Values above 10 are rejected."),
         pollIntervalMs: z.number().int().min(50).max(1000).default(150).describe("Status polling interval between backend steps."),
         stateTimeoutMs: z.number().int().min(500).max(30000).default(5000).describe("Maximum wait for each backend state transition."),
         entries: z.array(industryConfigureBatchEntrySchema).min(1).describe("Per-device configuration entries. All devices must be the same element type."),
