@@ -164,15 +164,17 @@ Practical workflow:
 
 4. Use live backend reads only for current runtime and current stock.
    - Use `du_construct_runtime_availability` first when the player may not be at the target construct.
-   - Use `du_industry_describe_batch` for the current state, recipe, and maintain quantities of one or more industry elements.
-   - Use `du_storage_describe` for current storage contents.
-   - `du_storage_describe` is batchable by default through `entries`, so one call can read many storages.
 
-5. Mutate in batches, then confirm in batches.
-   - Use `du_industry_configure_batch` for recipe plus mode plus amount.
-   - Use `du_industry_stop_batch`, `du_industry_set_recipes`, and `du_industry_start_batch` only when the workflow needs those split steps explicitly.
-   - Use `du_element_add`, `du_element_delete`, `du_element_destroy`, `du_element_replace`, `du_element_link_create`, and `du_element_link_delete` for direct backend element-management mutations.
-   - Use `du_storage_spawn`, `du_storage_take`, `du_storage_move_slot`, and `du_storage_drop_slot` for deterministic storage mutations.
+- Use `du_industry_describe_batch` for the current state, selected recipe, maintain quantities, and compact batch time of one or more industry elements. Requires `playerId`. `timeoutMs` is optional and defaults to `5000`.
+- Use `du_storage_describe` for current storage contents.
+- `du_storage_describe` is batchable by default through `entries`, so one call can read many storages.
+
+1. Mutate in batches, then confirm in batches.
+
+- Use `du_industry_configure_batch` for recipe plus mode plus amount. `timeoutMs` is optional and defaults to `10000`.
+- Use `du_industry_stop_batch`, `du_industry_set_recipes`, and `du_industry_start_batch` only when the workflow needs those split steps explicitly.
+- Use `du_element_add`, `du_element_delete`, `du_element_destroy`, `du_element_replace`, `du_element_link_create`, and `du_element_link_delete` for direct backend element-management mutations.
+- Use `du_storage_spawn`, `du_storage_take`, `du_storage_move_slot`, and `du_storage_drop_slot` for deterministic storage mutations.
 
 Item-bank query note:
 
@@ -290,8 +292,7 @@ Then read the returned feeder TUs in one batch:
   "entries": [
     { "id": 880 },
     { "id": 881 }
-  ],
-  "timeoutMs": 15000
+  ]
 }
 ```
 
@@ -342,7 +343,8 @@ Important behavior:
 - the user-facing industry MCP surface is batch-first; even single-target work is sent as one-entry `entries` lists
 - `du_industry_set_recipes` enforces that the target machines are stopped before changing recipes
 - for transfer units, the recipe identifier is the product item type id
-- compact industry runtime payloads now carry `maintainQuantity`, `currentQuantity`, `productItemTypeId`, and `productItemName` for the active product instead of forcing callers to infer display quantities from raw backend fields
+- compact industry runtime payloads carry `maintainQuantity` plus compact `state.batchTime` for the active recipe runtime, while resolved recipe payloads stay aligned on `itemTypeId` / `itemName`
+- `du_industry_describe_batch` does not emit a per-entry `found` flag; when one or more requested targets are unresolved it emits a top-level `notFound` list instead
 - these tools are server-side `ModUiToolbox` bridge calls; they do not depend on the live `industry_panel` UI being open
 
 ## Live Screen Resolution Note

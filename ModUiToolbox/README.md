@@ -302,6 +302,7 @@ Current `toolbox_ops` methods:
 - `resolve_industry_recipe`
   - resolves one recipe deterministically for one target industry element from either an explicit recipe id or an exact product item selector
   - for transfer units, the resolved recipe id is the product item type id
+  - the resolved recipe payload uses top-level `itemTypeId` and `itemName` for the selected product
 - `industry_stop`
   - stops one industry unit directly through the server-side grain path
   - supports `soft` and `hard`

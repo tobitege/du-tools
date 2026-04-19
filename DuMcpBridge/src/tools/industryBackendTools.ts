@@ -150,13 +150,17 @@ function compactRecipe(recipe: Record<string, unknown> | null): Record<string, u
 }
 
 function compactState(state: Record<string, unknown> | null): Record<string, unknown> | null {
+  const recipe = firstRecord(state, ["recipe"]);
+  const batchTime = typeof recipe?.time === "number" && Number.isFinite(recipe.time) ? recipe.time : null;
+
   return compactObject([
     ["state", firstString(state, ["state", "status"])],
     ["mode", firstString(state, ["mode"])],
     ["batchesRequested", firstInteger(state, ["batchesRequested"])],
     ["maintainQuantity", firstInteger(state, ["maintainQuantity", "maintainAmount", "amount"])],
     ["remainingTimeS", firstInteger(state, ["remainingTimeS", "remainingTimeSeconds"])],
-    ["remainingTimeMs", firstInteger(state, ["remainingTimeMs", "remainingMs"])]
+    ["remainingTimeMs", firstInteger(state, ["remainingTimeMs", "remainingMs"])],
+    ["batchTime", batchTime]
   ]);
 }
 
@@ -193,7 +197,6 @@ function compactBatchResult(result: Record<string, unknown>): Record<string, unk
   return {
     ...(compactObject([
       ["index", firstInteger(result, ["index"])],
-      ["found", result.found === true],
       ["success", result.success === true],
       ["error", firstString(result, ["error"])],
       ["method", firstString(result, ["method"])],
@@ -470,7 +473,7 @@ export function registerIndustryBackendTools(server: McpServer, commandQueue: Br
         playerId: z.number().int().nonnegative().describe("Requester player ID"),
         constructId: z.number().int().nonnegative().optional().describe("Optional construct ID; defaults to the player's current construct"),
         entries: z.array(industryDescribeEntrySchema).min(1).describe("Batch entries. Use a single entry when you only need one target."),
-        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for the toolbox_ops_result event")
+        timeoutMs: clampedIntSchema(250, 15000, 5000).optional().default(5000).describe("Optional timeout in milliseconds for the toolbox_ops_result event. Defaults to `5000`."),
       },
       outputSchema: industryBatchMutationOutputSchema
     },
@@ -486,8 +489,16 @@ export function registerIndustryBackendTools(server: McpServer, commandQueue: Br
       const parsed = parseIndustryBatchPayload(eventResult.payloadJson);
       const summary = compactSummary(parsed.summary);
       const results = parsed.results.map((result) => compactBatchResult(result));
+      const notFound = results
+        .filter((result) => result.error === "industry_target_not_found")
+        .map((result) => compactObject([
+          ["index", firstInteger(result, ["index"])],
+          ["entry", asRecord(result.entry)]
+        ]))
+        .filter((result): result is Record<string, unknown> => result !== null);
       const payload = {
         summary,
+        ...(notFound.length > 0 ? { notFound } : {}),
         results
       };
       return {
@@ -505,6 +516,7 @@ export function registerIndustryBackendTools(server: McpServer, commandQueue: Br
           error: parsed.error,
           method: parsed.method,
           summary,
+          ...(notFound.length > 0 ? { notFound } : {}),
           results,
           parseError: parsed.parseError
         }
@@ -525,7 +537,7 @@ export function registerIndustryBackendTools(server: McpServer, commandQueue: Br
         pollIntervalMs: z.number().int().min(50).max(1000).default(150).describe("Status polling interval between backend steps."),
         stateTimeoutMs: z.number().int().min(500).max(30000).default(5000).describe("Maximum wait for each backend state transition."),
         entries: z.array(industryConfigureBatchEntrySchema).min(1).describe("Per-device configuration entries. All devices must be the same element type."),
-        timeoutMs: clampedIntSchema(250, 60000, 15000).describe("How long to wait for the toolbox_ops_result event")
+        timeoutMs: clampedIntSchema(250, 60000, 10000).optional().default(10000).describe("Optional timeout in milliseconds for the toolbox_ops_result event. Defaults to `10000`."),
       },
       outputSchema: industryBatchMutationOutputSchema
     },
@@ -582,7 +594,7 @@ export function registerIndustryBackendTools(server: McpServer, commandQueue: Br
         playerId: z.number().int().nonnegative().describe("Requester player ID"),
         constructId: z.number().int().nonnegative().optional().describe("Optional construct ID; defaults to the player's current construct"),
         entries: z.array(industryResolveRecipeEntrySchema).min(1).describe("Batch entries. Use a single entry when you only need one target."),
-        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for each toolbox_ops_result event")
+        timeoutMs: clampedIntSchema(250, 15000, 5000).optional().default(5000).describe("Optional timeout in milliseconds for each toolbox_ops_result event. Defaults to `5000`."),
       },
       outputSchema: industryBatchMutationOutputSchema
     },
@@ -610,7 +622,7 @@ export function registerIndustryBackendTools(server: McpServer, commandQueue: Br
         constructId: z.number().int().nonnegative().optional().describe("Optional construct ID; defaults to the player's current construct"),
         stopMode: z.enum(["soft", "hard"]).default("soft").describe("Stop mode. `soft` finishes the current batch; `hard` stops immediately."),
         entries: z.array(industryStopEntrySchema).min(1).describe("Batch entries. Use a single entry when you only need one target."),
-        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for each toolbox_ops_result event")
+        timeoutMs: clampedIntSchema(250, 15000, 5000).optional().default(5000).describe("Optional timeout in milliseconds for each toolbox_ops_result event. Defaults to `5000`."),
       },
       outputSchema: industryBatchMutationOutputSchema
     },
@@ -636,7 +648,7 @@ export function registerIndustryBackendTools(server: McpServer, commandQueue: Br
         playerId: z.number().int().nonnegative().describe("Requester player ID"),
         constructId: z.number().int().nonnegative().optional().describe("Optional construct ID; defaults to the player's current construct"),
         entries: z.array(industrySetRecipeEntrySchema).min(1).describe("Batch entries. Use a single entry when you only need one target."),
-        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for each toolbox_ops_result event")
+        timeoutMs: clampedIntSchema(250, 15000, 5000).optional().default(5000).describe("Optional timeout in milliseconds for each toolbox_ops_result event. Defaults to `5000`."),
       },
       outputSchema: industryBatchMutationOutputSchema
     },
@@ -663,7 +675,7 @@ export function registerIndustryBackendTools(server: McpServer, commandQueue: Br
         playerId: z.number().int().nonnegative().describe("Requester player ID"),
         constructId: z.number().int().nonnegative().optional().describe("Optional construct ID; defaults to the player's current construct"),
         entries: z.array(industryStartEntrySchema).min(1).describe("Batch entries. Use a single entry when you only need one target."),
-        timeoutMs: clampedIntSchema(250, 15000, 5000).describe("How long to wait for each toolbox_ops_result event")
+        timeoutMs: clampedIntSchema(250, 15000, 5000).optional().default(5000).describe("Optional timeout in milliseconds for each toolbox_ops_result event. Defaults to `5000`."),
       },
       outputSchema: industryBatchMutationOutputSchema
     },

@@ -5,7 +5,7 @@
 
 ## Purpose
 
-Create a new floorplan for the warp cell branch only on an empty construct.
+Create a new floorplan for the warp cell branch only, but on an empty construct.
 
 Scope:
 
@@ -17,6 +17,22 @@ Scope:
 This document is a build-oriented floorplan, not a reconstruction of the old construct's exact coordinates.
 
 ---
+
+## Abbreviations
+
+DO NOT REMOVE!!!
+
+Note: the descriptions here may leave out or add potential dashes in material/parts names compared to item bank names.
+
+- CaCo: Calcium-Reinforced Copper
+- AM Core: Antimatter Core
+- QA Unit: Quantum Alignment Unit
+- Glass2: internal item bank key for tier 2 of glass furnace industry device
+- TU: Transfer Unit: high-deployment element in factory to move items around (in varying batches and durations)
+- WCell: Warp Cell
+- Tiers 1 to 4: Basic (Bas), Uncommon (Unc), Advanced (Adv), Rare (more seldom)
+- KL: Kilo Litres, volume; determines max amount of parts/material related to container capacity
+- S1..S5: enumerated containers of size "S" = small (12 KL); could also be "XS" (extra small); 1.5 KL, "M" (medium; 96 KL) or "L" (large; 1972 KL)
 
 ## Active Counts
 
@@ -85,21 +101,21 @@ That is the easiest layout to build and the easiest layout to understand.
 
 Each active line is one repeatable module:
 
-```text
-Top view of one line module
+Top view of one line module:
 
+```text
 [WCell Support XS]
         |
-   feeds 10x Glass2
+   feeds 10x Unc. Glass Furnaces
         |
 [Warp Cells S]
 ```
 
-Suggested Glass2 arrangement inside one line:
+Suggested Glass Furnaces arrangement inside one line:
 
-- 10 Glass2 as a 5 x 2 grid
+- 10 Unc. Glass Furnaces as a 5 x 2 grid
 - machine width uses X
-- machine depth uses Z
+- machine depth uses Y (Z is height!)
 
 Approximate line-module footprint:
 
@@ -111,7 +127,7 @@ Using simple spacing:
 ```text
 One line module, top view
 
-Z
+Y
 0m   G1  G2  G3  G4  G5
 6.5  G6  G7  G8  G9  G10
 
@@ -146,7 +162,7 @@ Suggested spacing:
 - module width: 11 m
 - module depth: 13 m
 - gap between modules in X: 2 m
-- gap between rows in Z: 4 m walkway
+- gap between rows in Y: 4 m walkway
 
 Approximate full line area:
 
@@ -178,7 +194,7 @@ The player only needs a few clear walkways:
 
 This floor contains the shared machines and shared upstream buffers:
 
-- 1 AlFe smelter
+- 9 AlFe smelter
 - 9 Cu-Ag smelters
 - 9 CaCo smelters
 - 100 Electronics2 in ten 10-machine banks
@@ -193,7 +209,7 @@ Recommended top view:
 ```text
 Floor 1 top view
 
-[Smelter row: AlFe | CuAg x9 | CaCo x9]
+[Smelter row: AlFe x9 | CuAg x9 | CaCo x9]
 
 walkway
 

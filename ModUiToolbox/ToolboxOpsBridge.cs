@@ -2516,8 +2516,8 @@ public sealed partial class MyDuMod
         {
             ["recipeId"] = recipe.RecipeId,
             ["recipeKind"] = recipe.RecipeKind,
-            ["productItemTypeId"] = recipe.ProductItemTypeId,
-            ["productItemName"] = recipe.ProductItemName,
+            ["itemTypeId"] = recipe.ProductItemTypeId,
+            ["itemName"] = recipe.ProductItemName,
             ["recipeKey"] = string.IsNullOrWhiteSpace(recipe.RecipeKey) ? JValue.CreateNull() : recipe.RecipeKey,
             ["productTypeKey"] = string.IsNullOrWhiteSpace(recipe.ProductTypeKey) ? JValue.CreateNull() : recipe.ProductTypeKey,
             ["industry"] = string.IsNullOrWhiteSpace(recipe.IndustryName) ? JValue.CreateNull() : recipe.IndustryName,
