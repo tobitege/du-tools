@@ -16,7 +16,7 @@ DEFAULT_TIMEOUT_MS = 15_000
 DEFAULT_POLL_MS = 1_000
 DEFAULT_STUCK_SECONDS = 10.0
 DEFAULT_END_OF_CYCLE_MS = 1_000
-DEFAULT_BATCH_SIZE = 50
+DEFAULT_BATCH_SIZE = 25
 
 
 @dataclass(frozen=True)
@@ -76,7 +76,7 @@ class BridgeClient:
         if not self.events_dir.is_dir():
             raise RuntimeError(f"Events dir not found: {self.events_dir}")
 
-    def enqueue_toolbox_ops(self, player_id: int, method: str, probe_args: list[Any]) -> tuple[str, datetime]:
+    def enqueue_probe(self, player_id: int, target_kind: str, method: str, probe_args: list[Any]) -> tuple[str, datetime]:
         command_id = str(uuid4())
         created_at = datetime.now(timezone.utc)
         created_at_utc = created_at.isoformat().replace("+00:00", "Z")
@@ -87,7 +87,7 @@ class BridgeClient:
             "createdAtUtc": created_at_utc,
             "playerId": player_id,
             "target": {
-                "kind": "toolbox_ops",
+                "kind": target_kind,
                 "boardId": None,
             },
             "action": "probe_call",
@@ -99,10 +99,10 @@ class BridgeClient:
         command_path.write_text(json.dumps(command, ensure_ascii=True, indent=2), encoding="utf-8")
         return command_id, created_at
 
-    def wait_for_toolbox_result(self, command_id: str, created_at: datetime, timeout_ms: int) -> dict[str, Any]:
+    def wait_for_result(self, command_id: str, created_at: datetime, event_type: str, timeout_ms: int) -> dict[str, Any]:
         deadline = time.monotonic() + (max(timeout_ms, 250) / 1000.0)
         while time.monotonic() <= deadline:
-            event = self._find_toolbox_event(command_id, created_at)
+            event = self._find_event(command_id, created_at, event_type)
             if event is not None:
                 payload = event.get("payload")
                 if isinstance(payload, dict):
@@ -113,15 +113,19 @@ class BridgeClient:
                         except json.JSONDecodeError as exc:
                             raise RuntimeError(f"Invalid payloadJson for {command_id}: {exc}") from exc
                     return payload
-                raise RuntimeError(f"toolbox_ops_result for {command_id} had no usable payload")
+                raise RuntimeError(f"{event_type} for {command_id} had no usable payload")
             time.sleep(0.2)
-        raise TimeoutError(f"No toolbox_ops_result for {command_id} within {timeout_ms}ms")
+        raise TimeoutError(f"No {event_type} for {command_id} within {timeout_ms}ms")
 
     def toolbox_ops(self, player_id: int, method: str, probe_args: list[Any], timeout_ms: int) -> dict[str, Any]:
-        command_id, created_at = self.enqueue_toolbox_ops(player_id, method, probe_args)
-        return self.wait_for_toolbox_result(command_id, created_at, timeout_ms)
+        command_id, created_at = self.enqueue_probe(player_id, "toolbox_ops", method, probe_args)
+        return self.wait_for_result(command_id, created_at, "toolbox_ops_result", timeout_ms)
 
-    def _find_toolbox_event(self, command_id: str, created_at: datetime) -> dict[str, Any] | None:
+    def construct_inspector(self, player_id: int, method: str, probe_args: list[Any], timeout_ms: int) -> dict[str, Any]:
+        command_id, created_at = self.enqueue_probe(player_id, "construct_inspector", method, probe_args)
+        return self.wait_for_result(command_id, created_at, "construct_inspector_result", timeout_ms)
+
+    def _find_event(self, command_id: str, created_at: datetime, event_type: str) -> dict[str, Any] | None:
         date_key = created_at.strftime("%Y%m%d")
         candidates = sorted(
             self.events_dir.glob(f"bridge-events-{date_key}*.ndjson"),
@@ -130,7 +134,7 @@ class BridgeClient:
         )
         for event_path in candidates:
             try:
-                with event_path.open("r", encoding="utf-8") as handle:
+                with event_path.open("r", encoding="utf-8-sig") as handle:
                     for raw_line in handle:
                         line = raw_line.strip()
                         if not line:
@@ -139,7 +143,7 @@ class BridgeClient:
                             event = json.loads(line)
                         except json.JSONDecodeError:
                             continue
-                        if event.get("type") != "toolbox_ops_result":
+                        if event.get("type") != event_type:
                             continue
                         payload = event.get("payload")
                         if not isinstance(payload, dict):
@@ -207,11 +211,6 @@ def require_success(payload: dict[str, Any], method: str) -> dict[str, Any]:
     raise RuntimeError(error)
 
 
-def refresh_construct_index(client: BridgeClient, player_id: int, construct_id: int, timeout_ms: int) -> None:
-    payload = client.toolbox_ops(player_id, "refresh_construct_index", [{"constructId": construct_id}], timeout_ms)
-    require_success(payload, "refresh_construct_index")
-
-
 def query_industry_elements(
     client: BridgeClient,
     player_id: int,
@@ -220,25 +219,21 @@ def query_industry_elements(
     limit: int,
     exclude_transfer: bool,
 ) -> list[IndustryElement]:
-    payload = client.toolbox_ops(
+    payload = client.construct_inspector(
         player_id,
-        "query_construct_index",
-        [{
-            "constructId": construct_id,
-            "category": "industry",
-            "limit": limit,
-        }],
+        "describe",
+        [construct_id],
         timeout_ms,
     )
-    require_success(payload, "query_construct_index")
-    results = as_list(payload.get("results"))
+    require_success(payload, "construct_inspector.describe")
+    results = as_list(payload.get("industryElements"))
     elements: list[IndustryElement] = []
     for row in results:
         item = as_dict(row)
         local_id = as_int(item.get("id"))
         if local_id is None:
             continue
-        family = as_text(item.get("industryFamily"))
+        family = as_text(item.get("category"))
         if exclude_transfer and family == "transfer":
             continue
         label = (
@@ -256,6 +251,9 @@ def query_industry_elements(
                 industry_family=family,
             )
         )
+    elements.sort(key=lambda element: element.local_id)
+    if limit > 0:
+        return elements[:limit]
     return elements
 
 
@@ -294,14 +292,11 @@ def describe_industry_batch(
         result = as_dict(raw_result)
         if result.get("success") is not True:
             continue
-        target = as_dict(result.get("target"))
-        target_element = as_dict(target.get("element"))
         state = as_dict(result.get("state"))
         local_id = (
-            as_int(target_element.get("localId"))
-            or as_int(target_element.get("id"))
-            or as_int(target.get("localId"))
-            or as_int(target.get("id"))
+            as_int(result.get("localId"))
+            or as_int(as_dict(result.get("entry")).get("id"))
+            or as_int(as_dict(result.get("entry")).get("localId"))
         )
         if local_id is None:
             continue
@@ -324,6 +319,53 @@ def describe_industry_batch(
             )
         )
     return samples
+
+
+def describe_industry_batch_resilient(
+    client: BridgeClient,
+    player_id: int,
+    construct_id: int,
+    entries: list[IndustryElement],
+    timeout_ms: int,
+) -> list[RuntimeSample]:
+    if not entries:
+        return []
+
+    try:
+        return describe_industry_batch(client, player_id, construct_id, entries, timeout_ms)
+    except TimeoutError as exc:
+        if len(entries) <= 1:
+            print(
+                f"Warning: skipping id={entries[0].local_id} after timeout: {exc}",
+                file=sys.stderr,
+                flush=True,
+            )
+            return []
+
+        split_index = max(1, len(entries) // 2)
+        left_entries = entries[:split_index]
+        right_entries = entries[split_index:]
+        print(
+            f"Warning: batch timeout for ids {left_entries[0].local_id}-{right_entries[-1].local_id}; "
+            f"retrying as {len(left_entries)} + {len(right_entries)}.",
+            file=sys.stderr,
+            flush=True,
+        )
+        left_samples = describe_industry_batch_resilient(
+            client,
+            player_id,
+            construct_id,
+            left_entries,
+            timeout_ms,
+        )
+        right_samples = describe_industry_batch_resilient(
+            client,
+            player_id,
+            construct_id,
+            right_entries,
+            timeout_ms,
+        )
+        return left_samples + right_samples
 
 
 def should_ignore_target_full(sample: RuntimeSample) -> bool:
@@ -385,7 +427,6 @@ def monitor(args: argparse.Namespace) -> int:
             flush=True,
         )
 
-    refresh_construct_index(client, args.player_id, args.construct_id, args.timeout_ms)
     elements = query_industry_elements(
         client,
         args.player_id,
@@ -412,7 +453,7 @@ def monitor(args: argparse.Namespace) -> int:
 
         for offset in range(0, len(elements), args.batch_size):
             batch = elements[offset:offset + args.batch_size]
-            samples = describe_industry_batch(
+            samples = describe_industry_batch_resilient(
                 client,
                 args.player_id,
                 args.construct_id,
@@ -467,8 +508,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--poll-ms", type=int, default=DEFAULT_POLL_MS, help="Polling interval.")
     parser.add_argument("--stuck-seconds", type=float, default=DEFAULT_STUCK_SECONDS, help="Seconds with unchanged end-of-cycle state before reporting.")
     parser.add_argument("--end-of-cycle-ms", type=int, default=DEFAULT_END_OF_CYCLE_MS, help="Treat RUNNING samples at or below this remainingTime as end-of-cycle.")
-    parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help="Industry batch size per runtime read.")
-    parser.add_argument("--limit", type=int, default=500, help="Maximum industry elements fetched from the construct index.")
+    parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help="Initial industry batch size per runtime read.")
+    parser.add_argument("--limit", type=int, default=0, help="Optional cap on monitored industry elements; 0 means all discovered elements.")
     parser.add_argument("--exclude-transfer", action="store_true", help="Skip transfer units.")
     return parser
 

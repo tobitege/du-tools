@@ -156,8 +156,12 @@ function compactState(state: Record<string, unknown> | null): Record<string, unk
   return compactObject([
     ["state", firstString(state, ["state", "status"])],
     ["mode", firstString(state, ["mode"])],
+    ["recipeId", firstInteger(state, ["recipeId"])],
     ["batchesRequested", firstInteger(state, ["batchesRequested"])],
     ["maintainQuantity", firstInteger(state, ["maintainQuantity", "maintainAmount", "amount"])],
+    ["currentQuantity", firstInteger(state, ["currentQuantity"])],
+    ["productItemTypeId", firstInteger(state, ["productItemTypeId"])],
+    ["productItemName", firstString(state, ["productItemName"])],
     ["remainingTimeS", firstInteger(state, ["remainingTimeS", "remainingTimeSeconds"])],
     ["remainingTimeMs", firstInteger(state, ["remainingTimeMs", "remainingMs"])],
     ["batchTime", batchTime]
@@ -194,19 +198,26 @@ function compactSummary(summary: Record<string, unknown> | null): Record<string,
 }
 
 function compactBatchResult(result: Record<string, unknown>): Record<string, unknown> {
+  const state = firstRecord(result, ["state"]);
+  const recipe = firstRecord(result, ["recipe"]) ?? firstRecord(state, ["recipe"]);
+  const target = firstRecord(result, ["target"]);
+  const targetElement = firstRecord(target, ["element"]);
+  const entry = asRecord(result.entry);
+
   return {
     ...(compactObject([
       ["index", firstInteger(result, ["index"])],
+      ["localId", firstInteger(targetElement, ["localId"]) ?? firstInteger(target, ["localId", "id"]) ?? firstInteger(entry, ["id", "localId"])],
       ["success", result.success === true],
       ["error", firstString(result, ["error"])],
       ["method", firstString(result, ["method"])],
       ["parseError", firstString(result, ["parseError"])]
     ]) ?? {}),
     ...(compactObject([
-      ["entry", asRecord(result.entry)],
-      ["target", compactTarget(firstRecord(result, ["target"]))],
-      ["recipe", compactRecipe(firstRecord(result, ["recipe"]))],
-      ["state", compactState(firstRecord(result, ["state"]))],
+      ["entry", entry],
+      ["target", compactTarget(target)],
+      ["recipe", compactRecipe(recipe)],
+      ["state", compactState(state)],
       ["start", compactStart(firstRecord(result, ["start"]))],
       ["result", compactResult(firstRecord(result, ["result"]))]
     ]) ?? {})

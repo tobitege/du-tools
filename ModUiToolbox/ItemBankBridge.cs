@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using NQutils.Sql;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
@@ -14,15 +15,15 @@ sealed class ItemBankItemRow
     public long NqId { get; set; }
     public string Name { get; set; } = "";
     public long RecipeId { get; set; }
-    public string GroupId { get; set; } = "";
-    public string GroupName { get; set; } = "";
+    public string? GroupId { get; set; }
+    public string? GroupName { get; set; }
     public int Level { get; set; }
     public string? Size { get; set; }
     public string? Industry { get; set; }
     public double UnitMass { get; set; }
     public double UnitVolume { get; set; }
     public bool Nanocraftable { get; set; }
-    public string JsonKey { get; set; } = "";
+    public string? JsonKey { get; set; }
     public string? SchemaType { get; set; }
     public double SchemaPrice { get; set; }
     public List<ItemBankProductRow> Products { get; set; } = new();
@@ -49,6 +50,13 @@ sealed class ItemBankGroupRow
 {
     public string GroupId { get; set; } = "";
     public string Name { get; set; } = "";
+}
+
+sealed class ItemBankSchematicRow
+{
+    public long NqId { get; set; }
+    public string SchematicName { get; set; } = "";
+    public int Level { get; set; }
 }
 
 sealed class ItemBankElementMeshBoxRow
@@ -142,6 +150,12 @@ public sealed partial class MyDuMod
                         group_id  TEXT PRIMARY KEY,
                         name      TEXT NOT NULL
                     );
+                    DROP TABLE IF EXISTS item_schematics;
+                    CREATE TABLE IF NOT EXISTS item_schematics (
+                        nq_id            INTEGER PRIMARY KEY,
+                        schematic_name   TEXT NOT NULL,
+                        level            INTEGER NOT NULL
+                    );
                     CREATE TABLE IF NOT EXISTS items (
                         nq_id            INTEGER PRIMARY KEY,
                         name             TEXT NOT NULL,
@@ -198,6 +212,8 @@ public sealed partial class MyDuMod
                     CREATE INDEX IF NOT EXISTS idx_ib_items_name_level  ON items(name, level);
                     CREATE INDEX IF NOT EXISTS idx_ib_items_group_level ON items(group_id, level);
                     CREATE INDEX IF NOT EXISTS idx_ib_groups_name      ON item_groups(name);
+                    CREATE INDEX IF NOT EXISTS idx_ib_schematics_name  ON item_schematics(schematic_name);
+                    CREATE INDEX IF NOT EXISTS idx_ib_schematics_level ON item_schematics(level);
                     CREATE INDEX IF NOT EXISTS idx_ib_products_type    ON recipe_products(product_type);
                     CREATE INDEX IF NOT EXISTS idx_ib_products_name    ON recipe_products(product_name);
                     CREATE INDEX IF NOT EXISTS idx_ib_ingredients_type ON recipe_ingredients(ingredient_type);
@@ -207,6 +223,7 @@ public sealed partial class MyDuMod
                 ";
                 command.ExecuteNonQuery();
                 EnsureElementMeshBoxes(connection);
+                EnsureItemBankSchematics(connection);
                 itemBankSchemaReady = true;
                 logger.LogInformation("UIToolbox ensured item bank schema");
             }
@@ -325,6 +342,176 @@ public sealed partial class MyDuMod
 
         transaction.Commit();
         logger.LogInformation("UIToolbox imported element mesh boxes count={Count}", rows.Count);
+    }
+
+    private void EnsureItemBankSchematics(SqliteConnection connection)
+    {
+        var rows = LoadItemBankSchematicsFromSql();
+        if (rows.Count == 0)
+        {
+            logger.LogInformation("UIToolbox found no schematic values to import into item bank");
+            return;
+        }
+
+        using var transaction = connection.BeginTransaction();
+
+        using (var deleteCommand = connection.CreateCommand())
+        {
+            deleteCommand.Transaction = transaction;
+            deleteCommand.CommandText = "DELETE FROM item_schematics";
+            deleteCommand.ExecuteNonQuery();
+        }
+
+        using (var insertCommand = connection.CreateCommand())
+        {
+            insertCommand.Transaction = transaction;
+            insertCommand.CommandText = @"
+                INSERT INTO item_schematics (nq_id, schematic_name, level)
+                VALUES ($nqId, $schematicName, $level)";
+
+            var nqIdParam = insertCommand.CreateParameter();
+            nqIdParam.ParameterName = "$nqId";
+            insertCommand.Parameters.Add(nqIdParam);
+
+            var schematicNameParam = insertCommand.CreateParameter();
+            schematicNameParam.ParameterName = "$schematicName";
+            insertCommand.Parameters.Add(schematicNameParam);
+
+            var levelParam = insertCommand.CreateParameter();
+            levelParam.ParameterName = "$level";
+            insertCommand.Parameters.Add(levelParam);
+
+            foreach (var row in rows)
+            {
+                nqIdParam.Value = row.NqId;
+                schematicNameParam.Value = row.SchematicName;
+                levelParam.Value = row.Level;
+                insertCommand.ExecuteNonQuery();
+            }
+        }
+
+        transaction.Commit();
+        logger.LogInformation("UIToolbox imported item bank schematics count={Count}", rows.Count);
+    }
+
+    private List<ItemBankSchematicRow> LoadItemBankSchematicsFromSql()
+    {
+        var sql = services.GetService(typeof(ISql)) as ISql;
+        if (sql is null)
+        {
+            logger.LogWarning("UIToolbox could not load schematic values from SQL: SQL service unavailable");
+            return new List<ItemBankSchematicRow>();
+        }
+
+        try
+        {
+            const string query = @"
+SELECT
+    id AS nq_id,
+    name AS internal_name,
+    yaml
+FROM public.item_definition
+WHERE parent_id = (
+    SELECT id
+    FROM public.item_definition
+    WHERE name = 'Schematic'
+    LIMIT 1
+)
+ORDER BY id";
+
+            var rows = sql.QueryWithResults(
+                async result =>
+                {
+                    var resolved = new Dictionary<long, ItemBankSchematicRow>();
+                    while (await result.Read())
+                    {
+                        var reader = result.GetReader();
+                        var nqId = reader.GetInt64(reader.GetOrdinal("nq_id"));
+                        if (nqId <= 0)
+                        {
+                            continue;
+                        }
+
+                        var internalName = ReadDbString(reader, "internal_name")?.Trim();
+                        var yaml = ReadDbString(reader, "yaml") ?? string.Empty;
+                        var schematicName = TryExtractYamlScalar(yaml, "displayName");
+                        if (string.IsNullOrWhiteSpace(schematicName))
+                        {
+                            schematicName = internalName;
+                        }
+
+                        if (string.IsNullOrWhiteSpace(schematicName))
+                        {
+                            continue;
+                        }
+
+                        var levelText = TryExtractYamlScalar(yaml, "productionLevelFilter");
+                        var level = 0;
+                        if (!string.IsNullOrWhiteSpace(levelText)
+                            && int.TryParse(levelText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedLevel))
+                        {
+                            level = parsedLevel;
+                        }
+
+                        resolved[nqId] = new ItemBankSchematicRow
+                        {
+                            NqId = nqId,
+                            SchematicName = schematicName.Trim(),
+                            Level = level
+                        };
+                    }
+
+                    return resolved.Values
+                        .OrderBy(row => row.Level)
+                        .ThenBy(row => row.SchematicName, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                },
+                query,
+                Array.Empty<object>())
+                .GetAwaiter()
+                .GetResult();
+
+            logger.LogInformation($"UIToolbox loaded schematic values from SQL count={rows.Count}");
+            return rows;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning("UIToolbox failed to load schematic values from SQL: " + ex);
+            return new List<ItemBankSchematicRow>();
+        }
+    }
+
+    private static string? TryExtractYamlScalar(string yaml, string key)
+    {
+        if (string.IsNullOrWhiteSpace(yaml) || string.IsNullOrWhiteSpace(key))
+        {
+            return null;
+        }
+
+        foreach (var rawLine in yaml.Split('\n'))
+        {
+            var line = rawLine.Trim();
+            if (!line.StartsWith(key + ":", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var value = line[(key.Length + 1)..].Trim();
+            if (value.Length == 0)
+            {
+                return null;
+            }
+
+            if ((value.StartsWith("\"", StringComparison.Ordinal) && value.EndsWith("\"", StringComparison.Ordinal))
+                || (value.StartsWith("'", StringComparison.Ordinal) && value.EndsWith("'", StringComparison.Ordinal)))
+            {
+                value = value[1..^1];
+            }
+
+            return value;
+        }
+
+        return null;
     }
 
     private List<ItemBankElementMeshBoxRow> LoadElementMeshBoxesFromResource()
@@ -531,32 +718,32 @@ public sealed partial class MyDuMod
 
             if (!string.IsNullOrEmpty(groupName))
             {
-                conditions.Add("ig.name = $groupName");
+                conditions.Add("bank.group_name = $groupName");
                 cmd.Parameters.AddWithValue("$groupName", groupName);
             }
             if (!string.IsNullOrEmpty(itemName))
             {
-                conditions.Add("i.name = $itemName");
+                conditions.Add("bank.name = $itemName");
                 cmd.Parameters.AddWithValue("$itemName", itemName);
             }
             if (!string.IsNullOrEmpty(itemNameContains))
             {
-                conditions.Add("i.name LIKE $itemNameContains");
+                conditions.Add("bank.name LIKE $itemNameContains");
                 cmd.Parameters.AddWithValue("$itemNameContains", "%" + itemNameContains + "%");
             }
             if (level.HasValue)
             {
-                conditions.Add("i.level = $level");
+                conditions.Add("bank.level = $level");
                 cmd.Parameters.AddWithValue("$level", level.Value);
             }
             if (nqId.HasValue)
             {
-                conditions.Add("i.nq_id = $nqId");
+                conditions.Add("bank.nq_id = $nqId");
                 cmd.Parameters.AddWithValue("$nqId", nqId.Value);
             }
             if (!string.IsNullOrEmpty(industry))
             {
-                conditions.Add("i.industry = $industry");
+                conditions.Add("bank.industry = $industry");
                 cmd.Parameters.AddWithValue("$industry", industry);
             }
 
@@ -565,13 +752,23 @@ public sealed partial class MyDuMod
                 : "";
 
             cmd.CommandText = $@"
-                SELECT i.nq_id, i.name, i.recipe_id, i.group_id, ig.name,
-                       i.level, i.size, i.industry, i.unit_mass, i.unit_volume,
-                       i.nanocraftable, i.json_key, i.schema_type, i.schema_price
-                FROM items i
-                JOIN item_groups ig ON i.group_id = ig.group_id
+                SELECT bank.nq_id, bank.name, bank.recipe_id, bank.group_id, bank.group_name,
+                       bank.level, bank.size, bank.industry, bank.unit_mass, bank.unit_volume,
+                       bank.nanocraftable, bank.json_key, bank.schema_type, bank.schema_price
+                FROM (
+                    SELECT i.nq_id, i.name, i.recipe_id, i.group_id, ig.name AS group_name,
+                           i.level, i.size, i.industry, i.unit_mass, i.unit_volume,
+                           i.nanocraftable, i.json_key, i.schema_type, i.schema_price
+                    FROM items i
+                    JOIN item_groups ig ON i.group_id = ig.group_id
+                    UNION ALL
+                    SELECT s.nq_id, s.schematic_name, 0 AS recipe_id, NULL AS group_id, NULL AS group_name,
+                           s.level, NULL AS size, NULL AS industry, 0.0 AS unit_mass, 0.0 AS unit_volume,
+                           0 AS nanocraftable, NULL AS json_key, NULL AS schema_type, 0.0 AS schema_price
+                    FROM item_schematics s
+                ) bank
                 {whereClause}
-                ORDER BY i.level, i.name
+                ORDER BY bank.level, bank.name
                 LIMIT $limit";
             cmd.Parameters.AddWithValue("$limit", limit);
 
@@ -585,15 +782,15 @@ public sealed partial class MyDuMod
                         NqId = reader.GetInt64(0),
                         Name = reader.GetString(1),
                         RecipeId = reader.GetInt64(2),
-                        GroupId = reader.GetString(3),
-                        GroupName = reader.GetString(4),
+                        GroupId = reader.IsDBNull(3) ? null : reader.GetString(3),
+                        GroupName = reader.IsDBNull(4) ? null : reader.GetString(4),
                         Level = reader.GetInt32(5),
                         Size = reader.IsDBNull(6) ? null : reader.GetString(6),
                         Industry = reader.IsDBNull(7) ? null : reader.GetString(7),
                         UnitMass = reader.IsDBNull(8) ? 0.0 : reader.GetDouble(8),
                         UnitVolume = reader.IsDBNull(9) ? 0.0 : reader.GetDouble(9),
                         Nanocraftable = !reader.IsDBNull(10) && reader.GetInt32(10) != 0,
-                        JsonKey = reader.GetString(11),
+                        JsonKey = reader.IsDBNull(11) ? null : reader.GetString(11),
                         SchemaType = reader.IsDBNull(12) ? null : reader.GetString(12),
                         SchemaPrice = reader.IsDBNull(13) ? 0.0 : reader.GetDouble(13)
                     };
@@ -710,17 +907,17 @@ public sealed partial class MyDuMod
                     ["nqId"] = item.NqId,
                     ["name"] = item.Name,
                     ["recipeId"] = item.RecipeId,
-                    ["groupId"] = item.GroupId,
-                    ["groupName"] = item.GroupName,
                     ["level"] = item.Level,
                     ["unitMass"] = item.UnitMass,
                     ["unitVolume"] = item.UnitVolume,
                     ["nanocraftable"] = item.Nanocraftable,
-                    ["jsonKey"] = item.JsonKey,
                     ["schemaPrice"] = item.SchemaPrice
                 };
+                obj["groupId"] = item.GroupId != null ? (JValue)item.GroupId : JValue.CreateNull();
+                obj["groupName"] = item.GroupName != null ? (JValue)item.GroupName : JValue.CreateNull();
                 obj["size"] = item.Size != null ? (JValue)item.Size : JValue.CreateNull();
                 obj["industry"] = item.Industry != null ? (JValue)item.Industry : JValue.CreateNull();
+                obj["jsonKey"] = item.JsonKey != null ? (JValue)item.JsonKey : JValue.CreateNull();
                 obj["schemaType"] = item.SchemaType != null ? (JValue)item.SchemaType : JValue.CreateNull();
 
                 if (includeProducts && item.Products.Count > 0)
@@ -878,7 +1075,7 @@ public sealed partial class MyDuMod
     /// Returns null if not found or if the database is unavailable.
     /// The returned nqId can be cast to ulong for IGameplayBank lookups.
     /// </summary>
-    internal (long NqId, string JsonKey)? TryResolveItemNameThroughItemBank(string displayName)
+    internal (long NqId, string? JsonKey)? TryResolveItemNameThroughItemBank(string displayName)
     {
         if (string.IsNullOrWhiteSpace(displayName))
         {
@@ -893,21 +1090,34 @@ public sealed partial class MyDuMod
         try
         {
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = "SELECT nq_id, json_key FROM items WHERE name = @name LIMIT 1";
+            cmd.CommandText = @"
+                SELECT nq_id, json_key
+                FROM (
+                    SELECT nq_id, name, json_key FROM items
+                    UNION ALL
+                    SELECT nq_id, schematic_name AS name, NULL AS json_key FROM item_schematics
+                )
+                WHERE name = @name
+                LIMIT 1";
             cmd.Parameters.AddWithValue("@name", displayName.Trim());
 
-            using var reader = cmd.ExecuteReader();
-            if (reader.Read())
+            using (var reader = cmd.ExecuteReader())
             {
-                var nqId = reader.GetInt64(0);
-                var jsonKey = reader.GetString(1);
-                return (nqId, jsonKey);
+                if (reader.Read())
+                {
+                    var nqId = reader.GetInt64(0);
+                    var jsonKey = reader.IsDBNull(1) ? null : reader.GetString(1);
+                    return (nqId, jsonKey);
+                }
             }
 
-            // No exact match on name; try json_key as fallback
-            // (json_key is the game-internal name like "AluminiumPure")
+            // No exact match on display name; try json_key as fallback for real item-bank entries.
             cmd.Parameters.Clear();
-            cmd.CommandText = "SELECT nq_id, json_key FROM items WHERE json_key = @jsonKey LIMIT 1";
+            cmd.CommandText = @"
+                SELECT nq_id, json_key
+                FROM items
+                WHERE json_key = @jsonKey
+                LIMIT 1";
             cmd.Parameters.AddWithValue("@jsonKey", displayName.Trim());
             using var reader2 = cmd.ExecuteReader();
             if (reader2.Read())

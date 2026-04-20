@@ -110,6 +110,11 @@ public sealed partial class MyDuMod
         var (constructId, usedCurrentConstruct) = await ResolveConstructIdForInspection(playerId, probeArgs, 0);
         var context = await LoadConstructInspectionContext(playerId, constructId, usedCurrentConstruct);
         var distinctLinks = EnumerateDistinctConstructLinks(context.Elements).ToList();
+        var industryElements = context.Elements
+            .Where(element => SupportsIndustryExportTarget(context, element))
+            .OrderBy(element => element.localId)
+            .Select(element => BuildIndustryExportElement(context, element))
+            .ToList();
 
         var categoryCounts = context.Elements
             .GroupBy(element => ResolveElementCategory(context, element), StringComparer.OrdinalIgnoreCase)
@@ -136,6 +141,7 @@ public sealed partial class MyDuMod
             ["construct"] = BuildConstructDescriptor(context),
             ["elementCount"] = context.Elements.Count,
             ["linkCount"] = distinctLinks.Count,
+            ["industryElements"] = new JArray(industryElements),
             ["categoryCounts"] = new JArray(
                 categoryCounts.Select(group => new JObject
                 {
@@ -496,6 +502,19 @@ public sealed partial class MyDuMod
         };
     }
 
+    private JObject BuildIndustryExportElement(ConstructInspectionContext context, ElementInfo element)
+    {
+        var typeName = ResolveElementTypeName(context, element);
+        var customName = TryReadElementCustomName(element);
+        return new JObject
+        {
+            ["id"] = element.localId,
+            ["name"] = string.IsNullOrWhiteSpace(customName) ? typeName : customName,
+            ["typeName"] = typeName,
+            ["category"] = ResolveIndustryExportKind(context, element)
+        };
+    }
+
     private async Task<JObject> TryBuildIndustryRuntimePayload(ElementInfo element)
     {
         try
@@ -755,6 +774,34 @@ public sealed partial class MyDuMod
         if (definition.Is<NQutils.Def.PlasmaExtractorUnit>())
         {
             return "plasma_extractor";
+        }
+
+        return "other";
+    }
+
+    private bool SupportsIndustryExportTarget(ConstructInspectionContext context, ElementInfo element)
+    {
+        var definition = context.GameplayBank.GetDefinition(element.elementType);
+        return definition?.BaseObject is not null
+            && (definition.Is<NQutils.Def.IndustryUnit>() || definition.Is<NQutils.Def.TransferUnit>());
+    }
+
+    private string ResolveIndustryExportKind(ConstructInspectionContext context, ElementInfo element)
+    {
+        var definition = context.GameplayBank.GetDefinition(element.elementType);
+        if (definition?.BaseObject is null)
+        {
+            return "other";
+        }
+
+        if (definition.Is<NQutils.Def.TransferUnit>())
+        {
+            return "transfer";
+        }
+
+        if (definition.Is<NQutils.Def.IndustryUnit>())
+        {
+            return "industry";
         }
 
         return "other";

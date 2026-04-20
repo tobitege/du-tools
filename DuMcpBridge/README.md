@@ -117,7 +117,7 @@ Current `toolbox_ops` MCP tools:
 - `du_construct_index_describe_industry_branch`
 - `du_construct_index_trace`
 - `du_construct_index_describe_bank_from_anchor`
-- `du_construct_index_describe_consumer_bank_branches`
+- `du_construct_index_consumer_bank_branches`
 - `du_construct_index_industry_supports`
 - `du_construct_index_industry_support_storage`
 - `du_construct_runtime_availability`
@@ -158,14 +158,14 @@ Practical workflow:
    - Use `du_construct_index_describe_industry_branch` when the branch kind itself matters and the caller needs to distinguish direct producer, support/refill, and distribution-TU layouts.
    - Use `du_construct_index_trace` for bounded upstream/downstream walking with `maxHops` and stop conditions.
    - Use `du_construct_index_describe_bank_from_anchor` to expand one anchor into a repeated bank.
-   - Use `du_construct_index_describe_consumer_bank_branches` when one consumer bank has several grouped upstream inputs.
+   - Use `du_construct_index_consumer_bank_branches` when one consumer bank has several grouped upstream inputs.
    - Use `du_construct_index_industry_supports` for support-buffer topology: support storage, refill target, downstream consumers, feeder TUs, and feeder source storages.
    - Use `du_construct_index_industry_support_storage` when you need the same branch plus live storage snapshots for the support buffers and feeder sources.
 
 4. Use live backend reads only for current runtime and current stock.
    - Use `du_construct_runtime_availability` first when the player may not be at the target construct.
 
-- Use `du_industry_describe_batch` for the current state, selected recipe, maintain quantities, and compact batch time of one or more industry elements. Requires `playerId`. `timeoutMs` is optional and defaults to `5000`.
+- Use `du_industry_describe_batch` for the current state, top-level `localId`, configured `recipeId`, transfer-unit product item type ids, maintain quantities, and compact batch time of one or more industry elements. When the backend runtime includes a recipe object, the bridge also returns it as `recipe`. Requires `playerId`. `timeoutMs` is optional and defaults to `5000`.
 - Use `du_storage_describe` for current storage contents.
 - `du_storage_describe` is batchable by default through `entries`, so one call can read many storages.
 
@@ -320,7 +320,7 @@ Construct index purpose:
 - `du_construct_index_describe_industry_branch` packages recognized branch kinds around one anchor
 - `du_construct_index_trace` walks the graph in one direction with bounded hops and stop conditions
 - `du_construct_index_describe_bank_from_anchor` expands one anchor into a repeated same-role bank
-- `du_construct_index_describe_consumer_bank_branches` summarizes a consumer bank plus grouped upstream input anchors
+- `du_construct_index_consumer_bank_branches` summarizes a consumer bank plus grouped upstream input anchors
 - `du_construct_index_industry_supports` returns the packaged support-feeder branch data that a full industry-support workflow needs: support storage, refill target, downstream industry consumers, upstream feeder TUs, feeder source storages, and compact feeder runtime
 - `du_construct_index_industry_supports` also accepts an optional downstream `industryFamily` filter when the caller wants one family such as `smelter`
 - `du_construct_index_industry_support_storage` is the reusable storage-focused workflow tool on top of that support query and adds live snapshots for the support buffers plus optional feeder source storages

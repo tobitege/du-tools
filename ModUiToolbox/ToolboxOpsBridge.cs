@@ -1202,75 +1202,92 @@ public sealed partial class MyDuMod
         }
 
         var constructIdValue = ReadUInt64Token(batchOptions["constructId"]);
-        var results = new JArray();
+        var requestedParallelism = ReadInt32Token(batchOptions["parallelism"]);
+        var parallelism = ClampInt32(requestedParallelism, 1, 25, 10);
+        var resultsByIndex = new JObject[batchEntries.Count];
 
-        for (var index = 0; index < batchEntries.Count; index++)
+        using (var gate = new SemaphoreSlim(parallelism, parallelism))
         {
-            if (batchEntries[index] is not JObject entry)
+            var tasks = Enumerable.Range(0, batchEntries.Count).Select(async index =>
             {
-                results.Add(new JObject
+                if (batchEntries[index] is not JObject entry)
                 {
-                    ["index"] = index,
-                    ["success"] = false,
-                    ["error"] = "industry_batch_entry_invalid"
-                });
-                continue;
-            }
-
-            try
-            {
-                var targetSelector = new JObject();
-                if (constructIdValue.HasValue && constructIdValue.Value > 0)
-                {
-                    targetSelector["constructId"] = constructIdValue.Value;
+                    resultsByIndex[index] = new JObject
+                    {
+                        ["index"] = index,
+                        ["success"] = false,
+                        ["error"] = "industry_batch_entry_invalid"
+                    };
+                    return;
                 }
 
-                var localId = ReadUInt64Token(entry["localId"]);
-                var name = entry["name"]?.Value<string>()?.Trim();
-                if (localId.HasValue && localId.Value > 0)
+                await gate.WaitAsync();
+                try
                 {
-                    targetSelector["localId"] = localId.Value;
-                }
-                else if (!string.IsNullOrWhiteSpace(name))
-                {
-                    targetSelector["name"] = name;
-                }
-                else
-                {
-                    throw new ToolboxOpsException("industry_selector_requires_exactly_one_of_localId_name");
-                }
+                    var targetSelector = new JObject();
+                    if (constructIdValue.HasValue && constructIdValue.Value > 0)
+                    {
+                        targetSelector["constructId"] = constructIdValue.Value;
+                    }
 
-                var target = await ResolveIndustryTarget(requesterPlayerId, targetSelector);
-                results.Add(new JObject
+                    var localId = ReadUInt64Token(entry["localId"]);
+                    var name = entry["name"]?.Value<string>()?.Trim();
+                    if (localId.HasValue && localId.Value > 0)
+                    {
+                        targetSelector["localId"] = localId.Value;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(name))
+                    {
+                        targetSelector["name"] = name;
+                    }
+                    else
+                    {
+                        throw new ToolboxOpsException("industry_selector_requires_exactly_one_of_localId_name");
+                    }
+
+                    var target = await ResolveIndustryTarget(requesterPlayerId, targetSelector);
+                    resultsByIndex[index] = new JObject
+                    {
+                        ["index"] = index,
+                        ["success"] = true,
+                        ["target"] = BuildResolvedIndustryObject(target),
+                        ["state"] = await TryBuildIndustryRuntimePayload(target.Element)
+                    };
+                }
+                catch (ToolboxOpsException ex)
                 {
-                    ["index"] = index,
-                    ["success"] = true,
-                    ["target"] = BuildResolvedIndustryObject(target),
-                    ["state"] = await TryBuildIndustryRuntimePayload(target.Element)
-                });
-            }
-            catch (ToolboxOpsException ex)
-            {
-                results.Add(new JObject
+                    resultsByIndex[index] = new JObject
+                    {
+                        ["index"] = index,
+                        ["success"] = false,
+                        ["error"] = ex.Message,
+                        ["details"] = ex.Details is null ? JValue.CreateNull() : ex.Details
+                    };
+                }
+                catch (Exception ex)
                 {
-                    ["index"] = index,
-                    ["success"] = false,
-                    ["error"] = ex.Message,
-                    ["details"] = ex.Details is null ? JValue.CreateNull() : ex.Details
-                });
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "UIToolbox industry batch describe failed at index {Index}", index);
-                results.Add(new JObject
+                    logger.LogWarning(ex, "UIToolbox industry batch describe failed at index {Index}", index);
+                    resultsByIndex[index] = new JObject
+                    {
+                        ["index"] = index,
+                        ["success"] = false,
+                        ["error"] = ex.Message
+                    };
+                }
+                finally
                 {
-                    ["index"] = index,
-                    ["success"] = false,
-                    ["error"] = ex.Message
-                });
-            }
+                    gate.Release();
+                }
+            }).ToList();
+
+            await Task.WhenAll(tasks);
         }
 
+        var results = new JArray(resultsByIndex.Select(result => result ?? new JObject
+        {
+            ["success"] = false,
+            ["error"] = "industry_batch_entry_unset"
+        }));
         var successfulCount = results.Count(result => result?["success"]?.Value<bool>() == true);
         var failedCount = results.Count - successfulCount;
         return new JObject
@@ -2678,15 +2695,18 @@ public sealed partial class MyDuMod
                     return ((ulong)nqId, definitionById.Name);
                 }
                 // The nqId exists in the item bank but not in IGameplayBank yet;
-                // try the json key as a name against IGameplayBank as last resort
-                var matchesByKey = bank.GetInventoryDefinitions()
-                    .Where(def => string.Equals(def.Name, jsonKey, StringComparison.OrdinalIgnoreCase))
-                    .Select(def => new { def.Id, def.Name })
-                    .Distinct()
-                    .ToList();
-                if (matchesByKey.Count == 1)
+                // try the item-bank json key as a name against IGameplayBank as last resort.
+                if (!string.IsNullOrWhiteSpace(jsonKey))
                 {
-                    return (matchesByKey[0].Id, matchesByKey[0].Name);
+                    var matchesByKey = bank.GetInventoryDefinitions()
+                        .Where(def => string.Equals(def.Name, jsonKey, StringComparison.OrdinalIgnoreCase))
+                        .Select(def => new { def.Id, def.Name })
+                        .Distinct()
+                        .ToList();
+                    if (matchesByKey.Count == 1)
+                    {
+                        return (matchesByKey[0].Id, matchesByKey[0].Name);
+                    }
                 }
             }
 

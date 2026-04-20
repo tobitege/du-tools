@@ -19,6 +19,7 @@ const constructDescribeOutputSchema = {
   usedCurrentConstruct: z.boolean().nullable(),
   elementCount: z.number().int().nonnegative().nullable(),
   linkCount: z.number().int().nonnegative().nullable(),
+  industryElements: z.array(jsonRecordSchema),
   categoryCounts: z.array(jsonRecordSchema),
   typeCounts: z.array(jsonRecordSchema),
   parseError: z.string().nullable()
@@ -1091,6 +1092,7 @@ export function registerConstructTools(server: McpServer, commandQueue: BridgeCo
         usedCurrentConstruct: parsed.usedCurrentConstruct,
         elementCount: asInteger(record?.elementCount),
         linkCount: asInteger(record?.linkCount),
+        industryElements: asRecordArray(record?.industryElements).map((entry) => compactElementRef(entry)).filter((entry): entry is Record<string, unknown> => entry !== null),
         categoryCounts: asRecordArray(record?.categoryCounts),
         typeCounts: asRecordArray(record?.typeCounts),
         parseError: parsed.parseError

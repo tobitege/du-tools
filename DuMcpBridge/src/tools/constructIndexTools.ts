@@ -525,7 +525,7 @@ export function registerConstructIndexTools(server: McpServer, commandQueue: Bri
   );
 
   server.registerTool(
-    "du_construct_index_describe_consumer_bank_branches",
+    "du_construct_index_consumer_bank_branches",
     {
       title: "Describe Consumer Bank Branches",
       description: "Summarizes a consumer bank plus its grouped upstream input branches by item and storage anchor.",

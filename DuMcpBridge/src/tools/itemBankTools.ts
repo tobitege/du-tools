@@ -147,7 +147,7 @@ export function registerItemBankTools(
       title: "Query Item Bank",
       description:
         "Queries the mod-side item bank SQLite database by item name, group, level, NqId, or industry. " +
-        "Returns matching items with their tier, group, and optionally products and ingredients. " +
+        "Returns matching items and schematic-copy rows with their tier and any available item-bank metadata, plus optional products and ingredients when recipe rows exist. " +
         "Use this to look up item tiers, find which group an item belongs to, or discover what a recipe produces/consumes. " +
         "Important: every provided filter is combined with AND. For discovery, start with only `itemNameContains` and add exact filters only after you know the item identity.",
       inputSchema: {

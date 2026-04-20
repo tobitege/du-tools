@@ -238,3 +238,5 @@ ui-extractions/
 /devlogs
 test-artifacts
 tmp/
+industry-batch-export-*.lua
+notes/
