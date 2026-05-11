@@ -114,11 +114,11 @@ PlayerId: 10000
 | 2377 | TU Bas Connector | connector_1 | Bas Connect S1 → Unc Pwr Sys Support XS1 |
 | 2983 | TU Unc Pwr XS2 BasConn | connector_1 | Bas Connect S1 → Unc Pwr Sys Support XS2 |
 | 3307 | TU Bas Connector | connector_1 | Bas Connect S1 → Rare Pwr Sys Support 3 |
-| 5699 | — | connector_1 | Bas Connect S1 → Rare Magnet Support XS1 |
-| 3932 | — | connector_1 | Bas Connect S2 → Magnet Support XS1 FULL |
-| 5224 | — | connector_1 | Bas Connect S2 → Unc Magnet Support XS2 |
-| 5233 | — | connector_1 | Bas Connect S2 → Unc Magnet Support XS3 |
-| 7707 | — | connector_1 | Bas Connect S2 → Rare Magnet Support XS3 |
+| 5699 | TU bas Connector Rare Magnet XS1 | connector_1 | Bas Connect S1 → Rare Magnet Support XS1 |
+| 3932 | TU bas Connector Magnet XS1 | connector_1 | Bas Connect S2 → Magnet Support XS1 FULL |
+| 5224 | TU bas Connector unc Magnet XS2 | connector_1 | Bas Connect S2 → Unc Magnet Support XS2 |
+| 5233 | TU bas Connector unc Magnet XS3 | connector_1 | Bas Connect S2 → Unc Magnet Support XS3 |
+| 7707 | TU bas Connector Rare Magnet XS3 | connector_1 | Bas Connect S2 → Rare Magnet Support XS3 |
 
 ### Producers
 
@@ -261,8 +261,8 @@ PlayerId: 10000
 | 2985 | TU Adv Comp Sup AlFe | AlFeProduct | Al Fe XS10 → Adv Comp Support XS1 |
 | 2986 | TU Adv Comp Sup CuAg | CuAgProduct | Cu-Ag XS1 → Adv Comp Support XS1 |
 | 2987 | TU CalcReinfCopper | CalciumReinforcedCopperProduct | CaReinfCop XS B XS1 → Adv Comp Support XS1 |
-| 3317 | — | component_3 | Adv Comp S1 Source → Adv Comp XS1 FULL |
-| 7313 | — | component_3 | Adv Comp S1 Source → Adv Comp XS2 FULL |
+| 3317 | TU adv Component Adv Comp XS1 | component_3 | Adv Comp S1 Source → Adv Comp XS1 FULL |
+| 7313 | TU adv Component Adv Comp XS2 | component_3 | Adv Comp S1 Source → Adv Comp XS2 FULL |
 
 ### Producers
 
@@ -377,12 +377,12 @@ PlayerId: 10000
 | 4386 | TU UncElectr 1 Polycalcite | PolycalcitePlasticProduct | Polycalcite XS2 (2068) → Unc Electronics 1 Supply XS1 (4387) |
 | 8752 | TU UncElectr 2 BasComp | component_1 | Bas Comp XS1 (1972) → Unc Electronics 2 Supply XS1 (4087) |
 | 4086 | TU UncElectr 2 Polycalcite | PolycalcitePlasticProduct | Polycalcite XS3 (2069) → Unc Electronics 2 Supply XS1 (4087) |
-| 8548 | — | PolycarbonatePlasticProduct | Polycarb S4A (2063) → Unc Electronics 3 Supply XS1 (8551) |
-| 8549 | — | PolycalcitePlasticProduct | Polycalcite XS4 (2070) → Unc Electronics 3 Supply XS1 (8551) |
-| 8550 | — | component_1 | Bas Comp XS12 (4591) → Unc Electronics 3 Supply XS1 (8551) |
-| 8560 | — | — | — → unnamed support box (8558) |
-| 8559 | — | component_1 | Bas Comp XS14 (4589) → unnamed support box (8558) |
-| 8561 | — | PolycarbonatePlasticProduct | Polycarb S8 (745) → unnamed support box (8558) |
+| 8548 | TU Polycarb unc Electronics 3 | PolycarbonatePlasticProduct | Polycarb S4A (2063) → Unc Electronics 3 Supply XS1 (8551) |
+| 8549 | TU Polycalcite unc Electronics 3 | PolycalcitePlasticProduct | Polycalcite XS4 (2070) → Unc Electronics 3 Supply XS1 (8551) |
+| 8550 | TU bas Component unc Electronics 3 | component_1 | Bas Comp XS12 (4591) → Unc Electronics 3 Supply XS1 (8551) |
+| 8560 | TU Polycalcite unc Electronics D | PolycalcitePlasticProduct | Polycalcite XS4 (2070) → unc Electronics D Support XS1 (8558) |
+| 8559 | TU bas Component unc Electronics D | component_1 | Bas Comp XS14 (4589) → unc Electronics D Support XS1 (8558) |
+| 8561 | TU Polycarb unc Electronics D | PolycarbonatePlasticProduct | Polycarb S8 (745) → unc Electronics D Support XS1 (8558) |
 | 8116 | TU UncElectr 2 | electronics_2 | Unc Electronics S1 (2317) + Unc Electronics 3 S1 (8547) → Unc Electronics S1 B (8115) |
 | 8118 | TU UncElectr 2 | electronics_2 | Unc Electronics S2 (2323) → Unc Electronics S2 B (8117) |
 | 8552 | TU Unc Electronics 3 XS1 | electronics_2 | Unc Electronics 3 S1 (8547) + Unc Electronics 3 XS1 (8553) → Unc Electronics S1 (2317) |
@@ -439,9 +439,9 @@ PlayerId: 10000
 |----------|------|---------|-----------------|
 | 2804 | Tu Bas Component | component_1 | Bas Comp XS9 FULL (1976) → Adv Electronics Support XS1 (2809) |
 | 2805 | Tu Unc Component | component_2 | Unc Comp XS10 (1997) → Adv Electronics Support XS1 (2809) |
-| 2806 | — | PolycarbonatePlasticProduct | Polycarb S4A (2063) → Adv Electronics Support XS1 (2809) |
-| 2807 | — | PolycalcitePlasticProduct | Polycalcite XS1 (2067) → Adv Electronics Support XS1 (2809) |
-| 2808 | — | PolysulfidePlasticProduct | Polysulfide XS1 (1350) → Adv Electronics Support XS1 (2809) |
+| 2806 | TU Polycarb adv Electronics | PolycarbonatePlasticProduct | Polycarb S4A (2063) → Adv Electronics Support XS1 (2809) |
+| 2807 | TU Polycalcite adv Electronics | PolycalcitePlasticProduct | Polycalcite XS1 (2067) → Adv Electronics Support XS1 (2809) |
+| 2808 | TU Polysulfide adv Electronics | PolysulfidePlasticProduct | Polysulfide XS1 (1350) → Adv Electronics Support XS1 (2809) |
 
 ### Producers
 
@@ -480,21 +480,21 @@ PlayerId: 10000
 
 | Local Id | Name | Product | Source → Target |
 |----------|------|---------|-----------------|
-| 3009 | — | component_1 | Bas Comp XS8 (1975) → Rare Elect Support XS1 (3008) |
-| 3010 | — | component_2 | Unc Comp XS7 (1994) → Rare Elect Support XS1 (3008) |
-| 3005 | — | PolycalcitePlasticProduct | Polycalcite XS4 (2070) → Rare Elect Support XS1 (3008) |
-| 3006 | — | PolysulfidePlasticProduct | Polysulfide XS2 (1351) → Rare Elect Support XS1 (3008) |
-| 3007 | — | FluoropolymerProduct | Fluoropolymer S1 (1912) → Rare Elect Support XS1 (3008) |
+| 3009 | TU bas Component Rare Elect 3008 | component_1 | Bas Comp XS8 (1975) → Rare Elect Support XS1 (3008) |
+| 3010 | TU unc Component Rare Elect 3008 | component_2 | Unc Comp XS7 (1994) → Rare Elect Support XS1 (3008) |
+| 3005 | TU Polycalcite Rare Elect 3008 | PolycalcitePlasticProduct | Polycalcite XS4 (2070) → Rare Elect Support XS1 (3008) |
+| 3006 | TU Polysulfide Rare Elect 3008 | PolysulfidePlasticProduct | Polysulfide XS2 (1351) → Rare Elect Support XS1 (3008) |
+| 3007 | TU Fluoropoly Rare Elect 3008 | FluoropolymerProduct | Fluoropolymer S1 (1912) → Rare Elect Support XS1 (3008) |
 
 #### Bank B
 
 | Local Id | Name | Product | Source → Target |
 |----------|------|---------|-----------------|
-| 4559 | — | component_1 | Bas Comp XS10 (1977) → Rare Elect Support XS1 (4557) |
-| 4558 | — | component_2 | Unc Comp B XS2 (2001) → Rare Elect Support XS1 (4557) |
-| 4561 | — | PolycalcitePlasticProduct | Polycalcite XS4 (2070) → Rare Elect Support XS1 (4557) |
-| 4560 | — | PolysulfidePlasticProduct | Polysulfide XS8 (3603) → Rare Elect Support XS1 (4557) |
-| 4562 | — | FluoropolymerProduct | Fluoropolymer XS1 (3598) → Rare Elect Support XS1 (4557) |
+| 4559 | TU bas Component Rare Elect 4557 | component_1 | Bas Comp XS10 (1977) → Rare Elect Support XS1 (4557) |
+| 4558 | TU unc Component Rare Elect 4557 | component_2 | Unc Comp B XS2 (2001) → Rare Elect Support XS1 (4557) |
+| 4561 | TU Polycalcite Rare Elect 4557 | PolycalcitePlasticProduct | Polycalcite XS4 (2070) → Rare Elect Support XS1 (4557) |
+| 4560 | TU Polysulfide Rare Elect 4557 | PolysulfidePlasticProduct | Polysulfide XS8 (3603) → Rare Elect Support XS1 (4557) |
+| 4562 | TU Fluoropoly Rare Elect 4557 | FluoropolymerProduct | Fluoropolymer XS1 (3598) → Rare Elect Support XS1 (4557) |
 
 ### Producers
 
@@ -638,31 +638,31 @@ PlayerId: 10000
 
 | Local Id | Name | Product | Source → Target |
 |----------|------|---------|-----------------|
-| 3276 | — | RedGoldProduct | Red Gold S3 (6946) → Rare Pwr Sys Support 2 (3278) |
-| 3279 | — | CuAgProduct | Cu-Ag XS3 (2749) → Rare Pwr Sys Support 2 (3278) |
-| 3280 | — | CalciumReinforcedCopperProduct | CaReinfCop XS B XS6 (1215) → Rare Pwr Sys Support 2 (3278) |
-| 3297 | — | connector_1 | Bas Connect XS6 FULL (1983) → Rare Pwr Sys Support 2 (3278) |
-| 3298 | — | connector_2 | Unc Connector XS3 (2005) → Rare Pwr Sys Support 2 (3278) |
+| 3276 | TU Red Gold Rare Pwr Sys 2 | RedGoldProduct | Red Gold S3 (6946) → Rare Pwr Sys Support 2 (3278) |
+| 3279 | TU CuAg Rare Pwr Sys 2 | CuAgProduct | Cu-Ag XS3 (2749) → Rare Pwr Sys Support 2 (3278) |
+| 3280 | TU CaReinfCop Rare Pwr Sys 2 | CalciumReinforcedCopperProduct | CaReinfCop XS B XS6 (1215) → Rare Pwr Sys Support 2 (3278) |
+| 3297 | TU bas Connector Rare Pwr Sys 2 | connector_1 | Bas Connect XS6 FULL (1983) → Rare Pwr Sys Support 2 (3278) |
+| 3298 | TU unc Connector Rare Pwr Sys 2 | connector_2 | Unc Connector XS3 (2005) → Rare Pwr Sys Support 2 (3278) |
 
 #### M3 Support
 
 | Local Id | Name | Product | Source → Target |
 |----------|------|---------|-----------------|
-| 3300 | — | RedGoldProduct | Red Gold S2 (3145) → Rare Pwr Sys Support 3 (3303) |
-| 3301 | — | CuAgProduct | Cu-Ag XS5 (2751) → Rare Pwr Sys Support 3 (3303) |
-| 3302 | — | CalciumReinforcedCopperProduct | CaReinfCop XS B XS8 (1217) → Rare Pwr Sys Support 3 (3303) |
+| 3300 | TU Red Gold Rare Pwr Sys 3 | RedGoldProduct | Red Gold S2 (3145) → Rare Pwr Sys Support 3 (3303) |
+| 3301 | TU CuAg Rare Pwr Sys 3 | CuAgProduct | Cu-Ag XS5 (2751) → Rare Pwr Sys Support 3 (3303) |
+| 3302 | TU CaReinfCop Rare Pwr Sys 3 | CalciumReinforcedCopperProduct | CaReinfCop XS B XS8 (1217) → Rare Pwr Sys Support 3 (3303) |
 | 3307 | TU Bas Connector | connector_1 | Bas Connect S1 (2011) → Rare Pwr Sys Support 3 (3303) |
-| 3305 | — | connector_2 | Unc Connector XS1 (2003) → Rare Pwr Sys Support 3 (3303) |
+| 3305 | TU unc Connector Rare Pwr Sys 3 | connector_2 | Unc Connector XS1 (2003) → Rare Pwr Sys Support 3 (3303) |
 
 #### M4 Support
 
 | Local Id | Name | Product | Source → Target |
 |----------|------|---------|-----------------|
-| 6353 | — | RedGoldProduct | Red Gold S2 (3145) → Rare Pwr Sys Support 4 (6359) |
-| 6354 | — | CuAgProduct | Cu-Ag XS5 (2751) → Rare Pwr Sys Support 4 (6359) |
-| 6356 | — | CalciumReinforcedCopperProduct | CaReinfCop XS B XS9 (1218) → Rare Pwr Sys Support 4 (6359) |
-| 6357 | — | connector_1 | Bas Connect XS10 (1987) → Rare Pwr Sys Support 4 (6359) |
-| 6355 | — | connector_2 | Unc Connector XS2 (2004) → Rare Pwr Sys Support 4 (6359) |
+| 6353 | TU Red Gold Rare Pwr Sys 4 | RedGoldProduct | Red Gold S2 (3145) → Rare Pwr Sys Support 4 (6359) |
+| 6354 | TU CuAg Rare Pwr Sys 4 | CuAgProduct | Cu-Ag XS5 (2751) → Rare Pwr Sys Support 4 (6359) |
+| 6356 | TU CaReinfCop Rare Pwr Sys 4 | CalciumReinforcedCopperProduct | CaReinfCop XS B XS9 (1218) → Rare Pwr Sys Support 4 (6359) |
+| 6357 | TU bas Connector Rare Pwr Sys 4 | connector_1 | Bas Connect XS10 (1987) → Rare Pwr Sys Support 4 (6359) |
+| 6355 | TU unc Connector Rare Pwr Sys 4 | connector_2 | Unc Connector XS2 (2004) → Rare Pwr Sys Support 4 (6359) |
 
 ### Producers
 
@@ -994,3 +994,226 @@ PlayerId: 10000
 | 3806 | quantumcore_3 | S4 |
 | 3807 | quantumcore_4 | S4 |
 | 3808 | quantumcore_4 | S4 |
+
+## Quantum Barrier Setup Pass (2026-04-21)
+
+- Construct: `1002090` `POIN Factory 26-04-21`
+- Player: `10000`
+
+### Live Topology Proof
+
+- `Adv Q Barriers S1` (`8273`) is a producer-output medium box for ten electronics producers `8244-8253`.
+- `8273` also feeds downstream assembly consumers `5557` `Adv Shield Gen L Assy 1` and `8698` `Adv Shield Gen XS Assy 1`.
+- `8273` direct-input quantum-core box is `9060` `QCores XS6`.
+- `8273` mixed support box is `8280` `RQ Barriers Supply D XS1`.
+- `Rare Q Barriers S3` (`6063`) is a producer-output medium box for ten electronics producers `8400-8409`.
+- `6063` direct-input quantum-core box is `3792` `QC Units S3`.
+- `6063` mixed support box is `6080` `RQ Barriers Supply C XS1`.
+- `6063` is also a relay source into `8427` `TU R Quant Barrier 1`, `8425` `TU R Quant Barrier 2`, `8426` `TU R Quant Barrier 3`, and `8428` `TU R Quant Barrier 4`.
+- Topology contradiction resolved:
+  - tracked line `8280` as a 6-item Quantum Barrier support box was wrong for the advanced branch
+  - live support topology on `8280` proved only four feeder TUs: `8274` `AlLiProduct`, `8275` `DuraluminProduct`, `8276` `SiluminProduct`, `8277` `led_1`
+  - no `led_2` or `ScAlProduct` feeder exists on `8280`
+
+### Resolved Recipes And Sizing
+
+- `Advanced Quantum Barrier`
+  - recipe `381576797`
+  - item type `984088007`
+  - unit volume `25 L`
+  - output box `8273` capacity `12000 L`
+  - producer target chosen: `maintain 43` per machine (`430` units total, `10750 L`, about `89.6%`)
+- `Rare Quantum Barrier`
+  - recipe `381576796`
+  - item type `984088006`
+  - unit volume `27.5 L`
+  - output box `6063` capacity `12000 L`
+  - producer target chosen: `maintain 39` per machine (`390` units total, `10725 L`, about `89.4%`)
+- `8280` support sizing
+  - XS box capacity `1500 L`
+  - 4-item mixed support
+  - feeder target chosen: `maintain 250` per item (`1000 L` total target)
+- `6080` support sizing
+  - XS box capacity `1500 L`
+  - 6-item mixed support
+  - existing LED feeders `8421` and `8422` were already live at `maintain 150`
+  - metal feeders matched to the same live-proven target: `maintain 150` per item (`900 L` total target across six items)
+
+### Configured
+
+- Advanced branch support correction:
+  - soft-stopped `8277`
+  - rewrote `8274` -> `AlLiProduct maintain 250`
+  - rewrote `8275` -> `DuraluminProduct maintain 250`
+  - rewrote `8276` -> `SiluminProduct maintain 250`
+  - rewrote `8277` -> `led_1 maintain 250`
+- Advanced producer bank setup:
+  - configured `8244-8253` to recipe `381576797` `Advanced Quantum Barrier`
+  - final mode `maintain 43`
+- Rare branch support setup:
+  - configured `8417` -> `AlLiProduct maintain 150`
+  - configured `8418` -> `DuraluminProduct maintain 150`
+  - configured `8419` -> `SiluminProduct maintain 150`
+  - configured `8420` -> `ScAlProduct maintain 150`
+  - left existing `8421` `led_1 maintain 150` and `8422` `led_2 maintain 150` unchanged
+- Rare producer bank setup:
+  - configured `8400-8409` to recipe `381576796` `Rare Quantum Barrier`
+  - final mode `maintain 39`
+- Rare relay setup:
+  - proved `8425-8428` target `8424` `Rare Q Barriers Hub`
+  - `8424` hub children are `6062` `Rare Q Barriers Main S1` and `6061` `Rare Q Barriers Main S2`
+  - configured `8425-8428` to `quantumbarrier_4` item type `984088006`
+  - final mode `maintain 100`
+  - conservative relay target chosen because downstream shield assemblies are still unconfigured and the hub has no live drain yet
+
+### Remaining Blockers
+
+- `Adv Q Barriers S1`
+  - blocker type: `production cycle time / transit delay`
+  - setup is complete and the live producer bank is consuming inputs
+- `Rare Q Barriers S3`
+  - blocker type: `production cycle time / transit delay`
+  - setup is complete and the live producer bank is consuming inputs
+  - relay TUs `8425-8428` are now configured and waiting on source product from `8270`, `8378`, and `6063`
+  - next proven blocker after the relay layer is downstream assembly setup:
+    - `8325` `Rare Cap Shield Gen L Assy 1` -> `STOPPED recipeId 0`
+    - `8391` `Rare Act Shield Gen L Assy 1` -> `STOPPED recipeId 0`
+    - `6088` `Rare Vari Shield L Assy 2` -> `STOPPED recipeId 0`
+    - `6089` `Rare Vari Shield Gen L Assy 1` -> `STOPPED recipeId 0`
+  - downstream shield-assembly bank is a separate setup pass
+
+### Rare Quantum Barrier Sibling Support Correction (2026-04-21)
+
+- Follow-up correction:
+  - previous pass completed `RQ Barriers Supply C XS1` but did not finish the full rare-quantum-barrier sibling support set
+  - rare-quantum-barrier electronics branches use three separate mixed support boxes:
+    - `8259` `RQ Barriers Supply A XS1` -> `8270` `Rare Q Barriers S1`
+    - `8390` `RQ Barriers Supply B XS1` -> `8378` `Rare Q Barriers S2`
+    - `6080` `RQ Barriers Supply C XS1` -> `6063` `Rare Q Barriers S3`
+
+- Additional topology proof:
+  - `8259` consumers are electronics `6993-6996, 8238-8243`
+  - direct-input quantum-core box for `8270` is `3812` `QC Units S5`
+  - `8390` consumers are electronics `8368-8377`
+  - direct-input quantum-core box for `8378` is `3811` `QC Units S4`
+
+- Additional feeder TUs proven live on `8259`:
+  - `8261` `led_2` from `1497` `Unc LED S3`
+  - `8262` `led_1` from `794` `Bas LED S6`
+  - `8266` `ScAlProduct` from `3332` `Sc-Al XS2`
+  - `8267` `AlLiProduct` from `2793` `Al-Li XS A1`
+  - `8268` `DuraluminProduct` from `1191` `Duralumin XS2`
+  - `8269` `SiluminProduct` from `1166` `Silumin XS7`
+
+- Additional feeder TUs proven live on `8390`:
+  - `8380` `led_2` from `1500` `Unc LED S1`
+  - `8381` `led_1` from `1505` `Bas LED S5`
+  - `8382` `SiluminProduct` from `1160` `Silumin XS1`
+  - `8383` `DuraluminProduct` from `1190` `Duralumin XS1`
+  - `8384` `AlLiProduct` from `5078` `Al Li Alloy S2`
+  - `8385` `ScAlProduct` from `3332` `Sc-Al XS2`
+
+- Additional configured:
+  - soft-stopped oversized `8259` LED feeders `8261` and `8262`
+  - rewrote `8261-8262` to `maintain 150`
+  - configured stopped `8266-8269` to `maintain 150`
+  - configured stopped `8382-8385` to `maintain 150`
+  - normalized `8270` producer bank `6993-6996, 8238-8243` from old `maintain 200` to `maintain 39`
+  - configured previously blank `8378` producer bank `8368-8377` to recipe `381576796` `maintain 39`
+
+- Updated blocker classification:
+  - `Rare Q Barriers S1`: `production cycle time / transit delay`
+  - `Rare Q Barriers S2`: `production cycle time / transit delay`
+  - `Rare Q Barriers S3`: `production cycle time / transit delay`
+  - next downstream blocker remains shield-assembly setup at `8325`, `8391`, `6088`, `6089`
+
+### Electronics Naming Pass (2026-04-21)
+
+- Construct id used on all rename calls: `1002090`
+- Confirmed default or off-scheme electronics industry/TUs renamed from live recipe or live TU item state only:
+  - `8244-8253` -> `Adv Q Barrier S1 1-10`
+  - `8274-8277` -> `TU Adv Q Supply D AlLi`, `Dural`, `Silum`, `LED1`
+  - `6993-6996`, `8238-8243` -> `Rare Q Barrier S1 1-10`
+  - `8261-8262`, `8266-8269` -> `TU RQ Supply A ...`
+  - `8368-8377` -> `Rare Q Barrier S2 1-10`
+  - `8380-8385` -> `TU RQ Supply B ...`
+  - `8400-8409` -> `Rare Q Barrier S3 1-10`
+  - `8417-8422` -> `TU RQ Supply C ...`
+  - `8425-8428` -> `TU RQ Barriers Hub 1-4`
+- Naming rule applied:
+  - tier abbreviations kept as `adv`
+  - rare branch names kept as `Rare Q ...`
+
+### Electronics Container Naming Pass (2026-04-21)
+
+- Additional linked support or buffer containers renamed:
+  - `9060` `QCores XS6` -> `Adv Q Barrier QC XS1`
+  - `3812` `QC Units S5` -> `RQ Barriers QC S1`
+  - `3811` `QC Units S4` -> `RQ Barriers QC S2`
+  - `3792` `QC Units S3` -> `RQ Barriers QC S3`
+- Not renamed:
+  - nearby default containers such as `8739`, `8738`, `6074`, `6064`
+  - they are not linked on live inspect, so they were not treated as proven support, buffer, or supply containers
+
+### Magnet Setup Pass (2026-04-21)
+
+- Construct id used on all reads and writes: `1002090`
+
+- Proven magnet output buffers and direct-input support boxes:
+  - `3929` `Bas Magnet Main S1 FULL` <- producers `2615, 2635, 4784, 7192, 8613`; direct-input support `3935` `Magnet Support XS1 FULL`; relay TU `8890` -> `8889` `Bas Magnet Main S2`
+  - `3931` `Unc Magnet S1` <- producers `2434, 2633, 2621, 2610, 2611, 4788, 4789, 4790, 5207, 5208`; direct-input supports `3935` and `2946`
+  - `2900` `Unc Magnet S2` <- producers `5212-5221`; direct-input support `5225`
+  - `5230` `Unc Magnet S3` <- producers `5269-5278`; direct-input support `5234`
+  - `2901` `Unc Magnet S4` <- producers `5248-5257`; direct-input support `2945`
+  - `2892` `Unc Magnet S5` <- producers `5279-5288`; direct-input support `2934`
+  - `3930` `Adv Magnet S1` <- producers `5115-5124`; direct-input supports `3935` and `5126`
+  - `5156` `Adv Magnet S2` <- producers `3570, 4880, 5139-5144, 5157, 5158`; direct-input support `5155`
+  - `2876` `Rare Magnet S1` <- producers `3625, 3542, 3626, 4879, 3729, 3728, 3725, 3543, 5701, 5702`; direct-input support `2911`
+  - `7696` `Rare Magnet S2` <- producers `7208, 7203, 7204, 7207, 7676, 7673, 7677, 7674, 7678, 7675`; direct-input support `7702`
+  - `7704` `Rare Magnet S3` <- producers `7679, 7682, 7683, 7684, 7685, 7686, 7687, 7688, 7692, 7693`; direct-input support `7710`
+
+- Topology proof kept for later passes:
+  - `3935` is a shared basic-input box for basic, uncommon S1, and advanced S1 magnets
+  - `3931` uncommon S1 is a mixed producer bank with both `IndustryMetalwork` and `IndustryMetalwork2`, so writes had to split by element type
+
+- Configured support TUs:
+  - `3932-3934` -> `connector_1 2872711779`, `SteelProduct 511774178`, `StainlessSteelProduct 2984358477` at `maintain 400`
+  - `5209-5211` -> `StainlessSteelProduct 2984358477`, `SteelProduct 511774178`, `connector_1 2872711779` at `maintain 400`
+  - `5222-5224` -> `StainlessSteelProduct 2984358477`, `SteelProduct 511774178`, `connector_1 2872711779` at `maintain 400`
+  - `5231-5233` -> `StainlessSteelProduct 2984358477`, `SteelProduct 511774178`, `connector_1 2872711779` at `maintain 400`
+  - `5243-5245` -> `StainlessSteelProduct 2984358477`, `SteelProduct 511774178`, `connector_1 2872711779` at `maintain 400`
+  - `5289-5290, 5327` -> `StainlessSteelProduct 2984358477`, `SteelProduct 511774178`, `connector_1 2872711779` at `maintain 400`
+  - `5125, 5127-5130` -> `InconelProduct 167908167`, `SteelProduct 511774178`, `StainlessSteelProduct 2984358477`, `connector_2 2872711778`, `connector_1 2872711779` at `maintain 250`
+  - `5149-5151, 5153-5154` -> `SteelProduct 511774178`, `StainlessSteelProduct 2984358477`, `InconelProduct 167908167`, `connector_2 2872711778`, `connector_1 2872711779` at `maintain 250`
+  - `5696-5700` -> `StainlessSteelProduct 2984358477`, `InconelProduct 167908167`, `MaragingSteelProduct 3518490274`, `connector_1 2872711779`, `connector_2 2872711778` at `maintain 250`
+  - `7697-7701` -> `InconelProduct 167908167`, `StainlessSteelProduct 2984358477`, `connector_1 2872711779`, `connector_2 2872711778`, `MaragingSteelProduct 3518490274` at `maintain 250`
+  - `7705-7709` -> `InconelProduct 167908167`, `StainlessSteelProduct 2984358477`, `connector_1 2872711779`, `connector_2 2872711778`, `MaragingSteelProduct 3518490274` at `maintain 250`
+
+- Configured producers:
+  - basic magnets `2615, 2635, 4784, 7192, 8613` -> recipe `1949200608` `magnet_1` item `1246524878`, `maintain 1000`
+  - uncommon magnets `2434, 2633, 2621, 2610, 2611, 4788, 4789, 4790, 5207, 5208, 5212-5221, 5269-5278, 5248-5257, 5279-5288` -> recipe `1949200609` `magnet_2` item `1246524879`, `maintain 1000`
+  - advanced magnets `5115-5124, 3570, 4880, 5139-5144, 5157, 5158` -> recipe `1949200610` `magnet_3` item `1246524876`, `maintain 1000`
+  - rare magnets `3625, 3542, 3626, 4879, 3729, 3728, 3725, 3543, 5701, 5702, 7208, 7203, 7204, 7207, 7676, 7673, 7677, 7674, 7678, 7675, 7679, 7682, 7683, 7684, 7685, 7686, 7687, 7688, 7692, 7693` -> recipe `1949200611` `magnet_4` item `1246524877`, `maintain 1000`
+
+- Configured relay:
+  - `8890` -> `magnet_1` item `1246524878`, `maintain 600` into `8889` `Bas Magnet Main S2`
+
+- Follow-up correction on rare supports:
+  - `2911` and `7710` still held old `connector_1 x1000`, which blocked `connector_2` refill as `JAMMED_OUTPUT_FULL`
+  - moved `750` `connector_1` from `2911` back to `2011` `Bas Connect S1`
+  - moved `750` `connector_1` from `7710` back to `2010` `Bas Connect S2`
+  - after the move, `5700` and `7708` resumed `RUNNING`, `connector_2` landed in both boxes, and sample rare producers `3625` and `7679` resumed `RUNNING`
+
+- Current blocker classification after live recheck:
+  - `3929` `Bas Magnet Main S1 FULL`: `production cycle time`
+  - `8889` `Bas Magnet Main S2`: `source starvation / transit delay`
+  - `3931` `Unc Magnet S1`: `production cycle time`
+  - `2900` `Unc Magnet S2`: `production cycle time`
+  - `5230` `Unc Magnet S3`: `production cycle time`
+  - `2901` `Unc Magnet S4`: `production cycle time`
+  - `2892` `Unc Magnet S5`: `production cycle time`
+  - `3930` `Adv Magnet S1`: `production cycle time`
+  - `5156` `Adv Magnet S2`: `production cycle time`
+  - `2876` `Rare Magnet S1`: `production cycle time`
+  - `7696` `Rare Magnet S2`: `production cycle time`
+  - `7704` `Rare Magnet S3`: `production cycle time`
